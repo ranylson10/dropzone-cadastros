@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ClipboardList, Loader2, Pencil, Send, Trophy, Users, X } from 'lucide-react'
+import { ClipboardList, Loader2, Pencil, Send, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile as uploadStoragePublicFile } from '@/lib/upload-public'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
@@ -16,8 +16,8 @@ import { signOutEverywhere } from '@/lib/auth-client-state'
 import { syncMobileSessionFromStorage } from '@/lib/mobile-session-bridge'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
-import { SystemLogo } from '@/components/brand/SystemLogo'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
+import { SystemModal } from '@/components/layout/SystemModal'
 
 const AuthenticatedHomeFeed = dynamic(() => import('@/features/home/AuthenticatedHomeFeed').then((module) => module.AuthenticatedHomeFeed))
 const ProdutoraPanel = dynamic(() => import('./panels/produtora/ProdutoraPanel').then((module) => module.ProdutoraPanel), {
@@ -1611,24 +1611,14 @@ export function DropZoneHome() {
         {!account || linkingProfile ? (
           <>
           {authIdentity ? <AuthenticatedHomeFeed account={account} accounts={accounts} onOpenPanel={openProfilePanel} /> : null}
-          <div className="contextual-registration-backdrop" role="presentation" onMouseDown={closeContextualRegistration}>
-          <section className="login-stage contextual-registration-dialog" role="dialog" aria-modal="true" aria-label={`Cadastro de ${typeLabels[profileType]}`} onMouseDown={(event) => event.stopPropagation()}>
-            <div className="phone-shell login-free-shell auth-page">
-              <section className="auth-inline-panel auth-light-panel">
-                <div className="auth-inline-head auth-light-head">
-                  <div className="auth-site-mark">
-                    <SystemLogo size={72} alt="DropZone" />
-                    <div>
-                      <span>DropZone</span>
-                      <strong>{typeLabels[profileType]}</strong>
-                    </div>
-                  </div>
-                  <button type="button" className="close-auth inline-close" onClick={closeContextualRegistration} aria-label="Fechar">
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {linkingProfile ? <p className="auth-context-note">Complete somente os dados necessários para esta ação.</p> : null}
+          <SystemModal
+            open
+            title={`Cadastrar ${typeLabels[profileType].toLowerCase()}`}
+            description="Complete somente os dados necessários para continuar esta ação."
+            onClose={closeContextualRegistration}
+            size="medium"
+          >
+              <section className="contextual-registration-form">
 
                 {!linkingProfile ? (
                   <div className="google-only-auth">
@@ -1716,9 +1706,7 @@ export function DropZoneHome() {
                 {message ? <div className="message floating">{message}</div> : null}
                 {error ? <div className="message error floating">{error}</div> : null}
               </section>
-            </div>
-          </section>
-          </div>
+          </SystemModal>
           </>
         ) : (
           <>

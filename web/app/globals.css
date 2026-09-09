@@ -3334,13 +3334,6 @@ textarea::placeholder{ color: color-mix(in srgb, var(--muted) 90%, transparent);
 }  .invite-modal-backdrop{ position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 18px; background: #111827cc; backdrop-filter: blur(4px);
 } .report-modal-backdrop{ position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: #11182799;
 } .vacancies-access-gate{ position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 18px; background: #111827aa;
-} .contextual-registration-backdrop{ position:fixed; inset:0; z-index:1300; display:grid; place-items:center; padding:24px; overflow:auto; background:rgba(5,9,14,.72); backdrop-filter:blur(8px);
-} .contextual-registration-dialog{ width:min(620px,100%); min-height:0; margin:auto; padding:0; background:transparent;
-} .contextual-registration-backdrop .login-free-shell{ width:100%; min-height:0; max-height:calc(100dvh - 48px); height:auto; overflow:auto; padding:26px; border:1px solid color-mix(in srgb,var(--brand) 38%,var(--line)); border-radius:14px; background:linear-gradient(180deg,#fffef9 0%,var(--surface) 48%,#f7f4ea 100%); box-shadow:0 28px 90px rgba(0,0,0,.48);
-} @media (max-width:640px){ .contextual-registration-backdrop{ padding:10px; align-items:end;
-  } .contextual-registration-dialog{ width:100%;
-  } .contextual-registration-backdrop .login-free-shell{ width:100%; max-width:none; max-height:calc(100dvh - 20px); padding:22px 16px; border-radius:12px 12px 0 0;
-  }
 } .cropper-overlay{ position: fixed; inset: 0; z-index: 100100; display: flex; align-items: center; justify-content: center; padding:16px; background: rgba(17, 24, 39, .38); backdrop-filter: blur(8px); overflow: auto;
 } .export-tab-panel{ display: grid; gap: 16px;
 } .export-tab-state{ display: flex; align-items: center; gap: 10px; min-height: 160px; justify-content: center; color: var(--muted);
@@ -6728,6 +6721,55 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 .system-modal-content .championship-form-stack{ width: 100%;
 }
 .system-modal-content .button-row{ border: 0; background: var(--ui-surface);
+}
+
+.contextual-registration-form{ display:grid;align-content:start;gap:14px;color:var(--ui-text);
+}
+.contextual-registration-form .google-only-auth,
+.contextual-registration-form .compact-auth-form{ display:grid;gap:16px;padding:0;background:transparent;
+}
+.contextual-registration-form .google-only-copy{ display:grid;align-content:start;gap:5px;padding:14px 0;border-bottom:1px solid var(--ui-line);
+}
+.contextual-registration-form .google-only-copy strong{ color:var(--ui-text);font-size:16px;font-weight:900;text-transform:uppercase;
+}
+.contextual-registration-form .google-only-copy p{ margin:0;color:var(--ui-text-muted);font-size:12px;font-weight:600;line-height:1.55;
+}
+.contextual-registration-form .google-confirmed-note{ display:grid;gap:4px;padding:12px 14px;border:0;border-left:3px solid var(--ui-accent);border-radius:0;background:var(--ui-surface-raised);color:var(--ui-text);box-shadow:none;
+}
+.contextual-registration-form .google-confirmed-note strong{ color:var(--ui-accent-light);font-size:10px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;
+}
+.contextual-registration-form .google-confirmed-note span{ color:var(--ui-text);font-size:13px;font-weight:800;
+}
+.contextual-registration-form .google-confirmed-note small{ color:var(--ui-text-muted);font-size:11px;
+}
+.contextual-registration-form .register-compact-grid{ display:grid;grid-template-columns:132px minmax(0,1fr);gap:18px;align-items:start;
+}
+.contextual-registration-form .register-main-fields,
+.contextual-registration-form .mini-grid{ display:grid;gap:12px;
+}
+.contextual-registration-form .field{ min-width:0;
+}
+.contextual-registration-form .field>label{ display:block;margin:0 0 6px;color:var(--ui-text-muted);font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;
+}
+.contextual-registration-form .register-compact-grid>.field .upload-field{ grid-template-columns:1fr;gap:8px;
+}
+.contextual-registration-form .register-compact-grid>.field .upload-picker{ width:112px;height:112px;border:0;border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-accent);
+}
+.contextual-registration-form .register-compact-grid>.field .upload-hint-row{ display:grid;gap:5px;color:var(--ui-text-muted);font-size:9px;line-height:1.35;
+}
+.contextual-registration-form .auth-actions-row{ display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid var(--ui-line);
+}
+.contextual-registration-form .message.floating{ position:static;margin:0;
+}
+@media(max-width:640px){
+  .contextual-registration-form .register-compact-grid{ grid-template-columns:1fr;
+  }
+  .contextual-registration-form .register-compact-grid>.field .upload-field{ grid-template-columns:88px minmax(0,1fr);align-items:center;
+  }
+  .contextual-registration-form .register-compact-grid>.field .upload-picker{ width:88px;height:88px;
+  }
+  .contextual-registration-form .auth-actions-row{ display:grid;
+  }
 }
 
 .form-section-card{ display: grid; gap: 14px; padding: 14px 0; border: 0; border-radius: 0; background: transparent;
