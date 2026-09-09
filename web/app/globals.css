@@ -5106,6 +5106,9 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 }  .public-home-header .public-home-nav{ gap: 5px;
 } .public-home-header .public-home-nav a{ color: white; padding: 24px 13px 21px; font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; border-bottom: 3px solid transparent;
 } .public-home-header .public-home-nav a:hover{ border-color: var(--dz-accent);
+} .public-home-auth-actions{ display:flex;align-items:center;gap:8px;margin-left:auto;
+} .public-home-register{border:1px solid rgba(223,207,133,.58);border-radius:2px;background:transparent;color:#dfcf85;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;
+} .public-home-register:hover{background:rgba(223,207,133,.1);border-color:#dfcf85;
 } .public-home-access{ border: 0; border-radius: 2px; background: var(--dz-accent); color: white; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 16px; cursor: pointer; transition: transform .18s ease,background .18s ease; box-shadow: none; text-transform: uppercase; letter-spacing: .06em;
 } .public-home-hero{ width: 100%; margin: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(350px, .72fr); gap: clamp(32px, 6vw, 94px); align-items: center; min-height: clamp(590px, 72vh, 760px); position: relative; isolation: isolate; max-width: none; padding: 76px max(24px, calc((100vw - 1360px) / 2)) 84px; color: white; background: #111922;
 } .public-home-hero-media{ position: absolute; inset: 0; z-index: -2; overflow: hidden;
@@ -5417,7 +5420,10 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   .public-home-brand small,
   .public-home-nav{ display: none;
   }
-  .public-home-access{ min-height: 38px; margin-left: auto; padding: 0 12px; font-size: 10px;
+  .public-home-auth-actions{ gap: 6px; margin-left: auto;
+  }
+  .public-home-register,
+  .public-home-access{ min-height: 38px; margin-left: 0; padding: 0 10px; font-size: 9px;
   }
   .public-home-hero{ width: 100%; min-height: 0; margin: 0; padding: 46px 18px 42px; display: block;
   }

@@ -20,7 +20,10 @@ type Vacancy = {
   proximo_horario?: string | null
 }
 
-type Props = { onAccess: () => void }
+type Props = {
+  onAccess: () => void
+  onRegister: () => void
+}
 
 function money(value: Vacancy['valor_inscricao']) {
   const amount = Number(value || 0)
@@ -33,7 +36,7 @@ function dateLabel(value?: string | null) {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).format(date)
 }
 
-export function PublicChampionshipHome({ onAccess }: Props) {
+export function PublicChampionshipHome({ onAccess, onRegister }: Props) {
   const [items, setItems] = useState<Vacancy[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -102,7 +105,10 @@ export function PublicChampionshipHome({ onAccess }: Props) {
       <header className="public-home-header">
         <a className="public-home-brand" href="/" aria-label="DropZone início"><SystemLogo size={42} alt="DropZone" /><span><b>DropZone</b><small>Campeonatos</small></span></a>
         <nav className="public-home-nav" aria-label="Navegação principal"><a href="#vagas">Vagas</a><a href="#tipos">Categorias</a><a href="/campeonatos">Resultados</a></nav>
-        <button type="button" className="public-home-access" onClick={onAccess}>Entrar <ArrowRight size={16} /></button>
+        <div className="public-home-auth-actions" aria-label="Acesso à conta">
+          <button type="button" className="public-home-register" onClick={onRegister}>Criar conta</button>
+          <button type="button" className="public-home-access" onClick={onAccess}>Entrar <ArrowRight size={16} /></button>
+        </div>
       </header>
 
       <div className="drop-sequence-shell" data-drop-sequence-shell>

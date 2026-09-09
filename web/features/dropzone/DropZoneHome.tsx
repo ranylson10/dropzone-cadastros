@@ -427,6 +427,7 @@ export function DropZoneHome() {
         const convite = String(params.get('convite') || '').trim()
         const escala = String(params.get('escala') || '').trim()
         const requestedReturnTo = safeInternalPath(params.get('returnTo'), '')
+        const wantsAccessSelection = params.get('acesso') === '1'
         const requestedLogin = String(params.get('login') || '').trim()
         const requestedRegister = String(params.get('cadastro') || '').trim()
         // Compatibilidade para atalhos internos antigos da Lili. Não abre
@@ -441,6 +442,8 @@ export function DropZoneHome() {
         const wantsCreate = Boolean(forcedProfileType && requestedRegister === forcedProfileType)
         const wantsNewAccount = params.get('nova_conta') === '1'
         const wantsSwitchAccount = params.get('trocar_conta') === '1'
+
+        if (!cancelled) setShowAccess(wantsAccessSelection)
 
         let hasRecentLogin = false
         try {
@@ -1649,7 +1652,12 @@ export function DropZoneHome() {
   }
 
   if (!account && !linkingProfile && !activeAuthType && !showAccess) {
-    return <PublicChampionshipHome onAccess={() => { window.location.href = '/login?returnTo=%2F' }} />
+    return (
+      <PublicChampionshipHome
+        onAccess={() => { window.location.href = '/login?returnTo=%2F' }}
+        onRegister={() => { window.location.href = '/login?mode=criar&switch=1&returnTo=%2F' }}
+      />
+    )
   }
 
   return (

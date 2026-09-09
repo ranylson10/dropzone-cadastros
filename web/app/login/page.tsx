@@ -163,7 +163,7 @@ export default function LoginPage() {
    * exatamente ao convite. Links que não exigem perfil (ex.: reivindicação)
    * apenas retomam a ação original.
    */
-  function continueWithoutProfile() {
+  function continueWithoutProfile(adminAccess = false) {
     const search = new URLSearchParams(window.location.search)
     let oauthReturnTo = ''
     let oauthProfileType: ReturnType<typeof parseProfileType> = null
@@ -176,7 +176,18 @@ export default function LoginPage() {
 
     const returnTo = safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/')
     const profileType = parseProfileType(search.get('profileType')) || oauthProfileType || params.profileType
-    window.location.replace(profileType ? buildProfileCreationHref(profileType, returnTo) : returnTo)
+    if (profileType) {
+      window.location.replace(buildProfileCreationHref(profileType, returnTo))
+      return
+    }
+    if (adminAccess) {
+      window.location.replace(returnTo === '/' ? '/admin' : returnTo)
+      return
+    }
+
+    const accessParams = new URLSearchParams({ acesso: '1' })
+    if (returnTo !== '/') accessParams.set('returnTo', returnTo)
+    window.location.replace(`/?${accessParams.toString()}`)
   }
 
   async function openAuthenticatedSession(currentSession: Session) {
@@ -187,17 +198,18 @@ export default function LoginPage() {
     setProfilesLoading(true)
     setProfileLoadError('')
 
-    // Admin também não participa do caminho crítico de carregamento dos perfis.
-    void checkAdmin(currentSession).then((adminAccess) => setIsAdmin(adminAccess))
-
     try {
-      const userAccounts = await loadAccounts(currentSession)
+      const [userAccounts, adminAccess] = await Promise.all([
+        loadAccounts(currentSession),
+        checkAdmin(currentSession),
+      ])
       setAccounts(userAccounts)
+      setIsAdmin(adminAccess)
       if (userAccounts.length) {
         continueToWorkspace(userAccounts)
         return
       }
-      continueWithoutProfile()
+      continueWithoutProfile(adminAccess)
       return
     } catch (cause: unknown) {
       setAccounts([])
@@ -308,12 +320,14 @@ export default function LoginPage() {
       const complete = search.get('complete') === '1'
       const passwordUpdated = search.get('passwordUpdated') === '1'
       const recoveryRequested = search.get('recovery') === '1'
+      const createRequested = search.get('mode') === 'criar'
       const oauthError = search.get('error_description') || search.get('error') || ''
 
       if (active) {
         setParams({ returnTo, profileType, switchAccount })
         if (passwordUpdated) setNotice('Senha atualizada. Entre com seu e-mail e a nova senha.')
         if (recoveryRequested) setEmailMode('recuperar')
+        else if (createRequested) setEmailMode('criar')
       }
 
       try {
