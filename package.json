@@ -21,6 +21,7 @@
     "test:e2e:auth:capture": "node scripts/e2e/capturar-sessao.mjs",
     "test:e2e:auth": "playwright test tests-e2e/auth",
     "test:e2e:auth:prepare": "node scripts/e2e/gerar-sessoes.mjs",
+    "test:e2e:cleanup": "node scripts/e2e/limpar-contas-teste.mjs",
     "test:e2e:functional": "playwright test tests-e2e/functional",
     "test:e2e:all": "playwright test tests-e2e/public tests-e2e/auth tests-e2e/functional tests-e2e/controlled",
     "test:e2e:controlled": "node scripts/e2e/executar-controlados.mjs",

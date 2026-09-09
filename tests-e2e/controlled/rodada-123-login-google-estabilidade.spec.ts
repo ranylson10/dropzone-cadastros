@@ -28,11 +28,11 @@ test('123 - carregamento de perfis tem timeout e retry curto', async () => {
   expect(loginPage).toContain('if (attempt === 0) await wait(350)')
 })
 
-test('123 - acesso admin não bloqueia mais a entrada nos perfis', async () => {
-  const profilesIndex = loginPage.indexOf("setStage('profiles')")
-  const adminIndex = loginPage.indexOf('void checkAdmin(currentSession).then')
-  expect(profilesIndex).toBeGreaterThan(-1)
-  expect(adminIndex).toBeGreaterThan(profilesIndex)
+test('123 - identidade é validada antes de carregar os perfis', async () => {
+  const identityIndex = loginPage.indexOf('if (!hasCompleteIdentity(currentSession))')
+  const profilesIndex = loginPage.indexOf("setStage('profiles')", identityIndex)
+  expect(identityIndex).toBeGreaterThan(-1)
+  expect(profilesIndex).toBeGreaterThan(identityIndex)
 })
 
 test('123 - perfis são carregados por uma única RPC no servidor', async () => {

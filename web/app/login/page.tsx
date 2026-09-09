@@ -11,7 +11,7 @@ import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/aut
 import { buildProfileCreationHref, parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
-import { assertUsername, cleanUsername } from '@/lib/validation'
+import { assertUsername, cleanUsername, hasCompleteAccountIdentity } from '@/lib/validation'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { UploadField, discardPendingImageUpload, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
 
@@ -120,10 +120,7 @@ export default function LoginPage() {
   }, [session])
 
   function hasCompleteIdentity(currentSession: Session) {
-    const metadata = currentSession.user.user_metadata || {}
-    const username = cleanUsername(metadata.account_username)
-    const name = String(metadata.display_name || metadata.full_name || metadata.name || '').trim()
-    return /^[a-z0-9._]{3,24}$/.test(username) && name.length >= 2
+    return hasCompleteAccountIdentity(currentSession.user.user_metadata)
   }
 
   function prepareIdentityForm(currentSession: Session) {

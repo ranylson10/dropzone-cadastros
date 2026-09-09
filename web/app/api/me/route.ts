@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser, toClientProfile } from '@backend/auth/server-auth'
+import { hasCompleteAccountIdentity } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +21,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
 export async function GET(req: NextRequest) {
   let user
   try {
-    user = await withTimeout(getBearerUser(req), 4_000)
+    user = await withTimeout(getBearerUser(req), 8_000)
   } catch (error: any) {
     if (error instanceof ResolutionTimeoutError) {
       return NextResponse.json({ error: 'A validação da sessão demorou demais. Tente novamente.' }, { status: 503 })
@@ -29,13 +30,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const accounts = await withTimeout(getAccountsForUser(user), 4_000)
+    const accounts = await withTimeout(getAccountsForUser(user), 8_000)
     const identity = {
       id: user.id,
       email: user.email,
       name: String(user.user_metadata?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Conta DropZone'),
       username: String(user.user_metadata?.account_username || ''),
       avatar_url: String(user.user_metadata?.avatar_url || user.user_metadata?.picture || ''),
+      complete: hasCompleteAccountIdentity(user.user_metadata),
     }
     if (!accounts.length) {
       return NextResponse.json(

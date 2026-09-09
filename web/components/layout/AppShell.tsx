@@ -43,7 +43,7 @@ export type AppShellProps = {
   /** Conta já resolvida (painel) — evita segundo /api/me */
   account?: DropZoneRow | null
   /** Identidade da sessão quando ainda não existe cadastro operacional. */
-  identity?: { name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null } | null
+  identity?: { name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null; complete?: boolean } | null
   accounts?: DropZoneRow[]
   activeAccountId?: string
   switchingAccountId?: string
@@ -80,7 +80,7 @@ export function AppShell({
   const pathname = usePathname()
   const [sessionAccount, setSessionAccount] = useState<DropZoneRow | null>(null)
   const [sessionAccounts, setSessionAccounts] = useState<DropZoneRow[]>([])
-  const [sessionIdentity, setSessionIdentity] = useState<{ name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null } | null>(null)
+  const [sessionIdentity, setSessionIdentity] = useState<{ name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null; complete?: boolean } | null>(null)
 
   const controlled = accountProp !== undefined
   const account = controlled ? accountProp : sessionAccount
@@ -147,6 +147,7 @@ export function AppShell({
         name: String(payload.user?.name || payload.user?.email || 'Conta DropZone'),
         username: String(payload.user?.username || ''),
         avatar_url: String(payload.user?.avatar_url || ''),
+        complete: payload.user?.complete !== false,
       })
       setSessionAccount(payload.account || null)
       setSessionAccounts(payload.accounts || [])
@@ -167,6 +168,12 @@ export function AppShell({
       listener.subscription.unsubscribe()
     }
   }, [loadSession, controlled])
+
+  useEffect(() => {
+    if (!identity?.email || identity.complete !== false) return
+    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}` || '/'
+    window.location.replace(`/login?complete=1&returnTo=${encodeURIComponent(returnTo)}`)
+  }, [identity?.complete, identity?.email])
 
   async function defaultSignOut() {
     try {

@@ -18,7 +18,7 @@ test('126 - sessão devolve perfil sanitizado e não a linha bruta do banco', as
 })
 
 test('126 - resolução de sessão e perfis tem limite no servidor', async () => {
-  expect(meRoute).toContain('withTimeout(getBearerUser(req), 4_000)')
-  expect(meRoute).toContain('withTimeout(getAccountsForUser(user), 4_000)')
+  expect(meRoute).toContain('withTimeout(getBearerUser(req), 8_000)')
+  expect(meRoute).toContain('withTimeout(getAccountsForUser(user), 8_000)')
   expect(meRoute).toContain('ResolutionTimeoutError')
 })

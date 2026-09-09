@@ -39,11 +39,11 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
 
     const intro = view.indexOf('authenticated-home-primary-actions')
     const priority = view.indexOf('authenticated-home-priority-section')
-    const areas = view.indexOf('id="minhas-areas"')
+    const areas = view.indexOf('id="meus-cadastros"')
     const opportunities = view.indexOf('<h2>Campeonatos com vagas abertas</h2>')
 
     expect(home).toContain("'Seu jogo começa aqui'")
-    expect(home).toContain("'Organize o próximo jogo'")
+    expect(home).toContain("'Seu campeonato em movimento'")
     expect(intro).toBeGreaterThan(0)
     expect(priority).toBeGreaterThan(intro)
     expect(areas).toBeGreaterThan(priority)
@@ -54,7 +54,7 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     const home = source('web/features/home/AuthenticatedHomeFeed.tsx')
     const css = source('web/features/home/authenticated-home.css')
 
-    expect(home).toContain('<h2>Minhas áreas</h2>')
+    expect(home).toContain('<h2>Meus cadastros</h2>')
     expect(home).toContain("'Minha equipe'")
     expect(home).toContain("'Perfil competitivo'")
     expect(home).toContain("'Minha produtora'")

@@ -39,6 +39,8 @@ const admin = createClient(supabaseURL, serviceRoleKey, {
 const projectRef = new URL(supabaseURL).hostname.split('.')[0]
 const authStorageKey = `sb-${projectRef}-auth-token`
 const authDir = path.resolve('tests-e2e/.auth')
+const fixtureManifest = path.join(authDir, 'fixture-accounts.json')
+const createdFixtures = []
 
 const profiles = [
   { name: 'admin', table: 'sistema_administradores', env: 'E2E_ADMIN_EMAIL' },
@@ -93,6 +95,48 @@ async function automaticIdentity(profile, excludedUserIds = new Set(), excludedE
   return null
 }
 
+async function createFixtureIdentity(profile) {
+  const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const username = `e2e_${profile.name}_${nonce}`.slice(0, 24).replace(/-/g, '_')
+  const email = `${username}@example.invalid`
+  const displayName = `E2E ${profile.name}`
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: {
+      account_username: username,
+      display_name: displayName,
+      full_name: displayName,
+      name: displayName,
+      e2e_fixture: true,
+    },
+  })
+  if (error || !data.user) throw error || new Error(`Não foi possível criar a conta E2E ${profile.name}.`)
+
+  const base = {
+    auth_user_id: data.user.id,
+    username,
+    nome: displayName,
+    email_contato: email,
+    email_verificado: true,
+    status: 'ativo',
+  }
+  let payload = base
+  if (profile.name === 'produtora') payload = { ...base, aprovacao_status: 'aprovado' }
+  if (profile.name === 'equipe') payload = { ...base, tag: `E${nonce.slice(-3)}`.toUpperCase(), dono_auth_user_id: data.user.id }
+  if (profile.name === 'jogador') payload = { ...base, id_jogo: `E2E${Date.now()}`, funcao: 'support' }
+
+  const { error: profileError } = await admin.from(profile.table).insert(payload)
+  if (profileError) {
+    await admin.auth.admin.deleteUser(data.user.id)
+    throw profileError
+  }
+
+  createdFixtures.push({ userId: data.user.id, email, profile: profile.name })
+  await fs.writeFile(fixtureManifest, `${JSON.stringify(createdFixtures, null, 2)}\n`, 'utf8')
+  return { userId: data.user.id, email }
+}
+
 async function identityForProfile(profile, excludedUserIds = new Set(), excludedEmails = new Set()) {
   const configured = String(process.env[profile.env] || '').trim().toLowerCase()
   if (configured) {
@@ -103,13 +147,7 @@ async function identityForProfile(profile, excludedUserIds = new Set(), excluded
   }
 
   const identity = await automaticIdentity(profile, excludedUserIds, excludedEmails)
-  if (!identity) {
-    const extra = profile.name === 'manager'
-      ? ' O teste exige um manager pertencente a uma conta diferente da produtora/admin.'
-      : ''
-    throw new Error(`${profile.name}: nenhum usuário compatível foi encontrado em ${profile.table}.${extra} Defina ${profile.env} em web/.env.local.`)
-  }
-  return identity
+  return identity || createFixtureIdentity(profile)
 }
 
 async function sessionForEmail(email) {
@@ -145,6 +183,48 @@ async function validateSession(profile, session) {
   }
 }
 
+async function createProducerChampionshipFixture() {
+  const producer = selected.get('produtora')
+  const isTemporaryProducer = createdFixtures.some((fixture) => fixture.userId === producer?.userId && fixture.profile === 'produtora')
+  if (!producer || !isTemporaryProducer) return
+
+  const session = sessionsByEmail.get(producer.email)
+  if (!session) throw new Error('Sessão da produtora temporária não foi encontrada.')
+
+  const name = `Campeonato E2E ${Date.now()}`
+  const response = await fetch(`${baseURL}/api/dropzone`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+      'x-profile-type': 'produtora',
+    },
+    body: JSON.stringify({
+      entity_type: 'championship',
+      name,
+      data: {
+        nome: name,
+        tipo: 'diario',
+        logo_url: `${origin}/favicon.ico`,
+        numero_vagas: 12,
+        formato: 'Jogo Único',
+        plataforma: 'mobile',
+        servidor: 'BR',
+        recurso_export: false,
+        recurso_stream: false,
+        recurso_rulebook: false,
+        recurso_stats: false,
+        recurso_broadcast: false,
+      },
+    }),
+  })
+  const body = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(`Não foi possível criar o campeonato temporário: ${body?.error || response.status}`)
+  }
+  console.log(`[OK] campeonato temporário ${body?.row?.id || name}`)
+}
+
 async function writeStorageState(profile, session) {
   const localStorage = [
     { name: authStorageKey, value: JSON.stringify(session) },
@@ -157,6 +237,7 @@ async function writeStorageState(profile, session) {
 }
 
 await fs.mkdir(authDir, { recursive: true })
+await fs.writeFile(fixtureManifest, '[]\n', 'utf8')
 
 const selected = new Map()
 const sessionsByEmail = new Map()
@@ -196,9 +277,19 @@ for (const profile of profiles) {
   }
 }
 
+if (!process.exitCode) {
+  try {
+    await createProducerChampionshipFixture()
+  } catch (error) {
+    console.error(`[ERRO] campeonato E2E: ${error instanceof Error ? error.message : String(error)}`)
+    process.exitCode = 1
+  }
+}
+
 if (process.exitCode) {
   console.error('\nAlgumas sessões não foram geradas. Configure apenas os e-mails apontados no erro e execute novamente.')
 } else {
+  await fs.writeFile(fixtureManifest, `${JSON.stringify(createdFixtures, null, 2)}\n`, 'utf8')
   console.log('\nTodas as sessões foram geradas sem abrir navegador e sem login manual.')
   console.log('Agora execute: npm run test:e2e:auth')
 }

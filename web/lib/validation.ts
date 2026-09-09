@@ -20,6 +20,12 @@ export function assertUsername(value: unknown) {
   return username
 }
 
+export function hasCompleteAccountIdentity(metadata: Record<string, unknown> | null | undefined) {
+  const username = cleanUsername(metadata?.account_username)
+  const displayName = String(metadata?.display_name || metadata?.full_name || metadata?.name || '').trim()
+  return /^[a-z0-9._]{3,24}$/.test(username) && displayName.length >= 2 && displayName.length <= 60
+}
+
 export function cleanEmail(value: unknown) {
   const email = String(value || '').trim().toLowerCase()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe um e-mail valido.')

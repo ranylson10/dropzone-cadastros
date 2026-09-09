@@ -86,6 +86,11 @@ for (const stage of stages) {
   if (code !== 0 && stage.blocking) console.log('[CONTINUANDO] A varredura segue para mostrar todos os problemas bloqueantes de uma vez.')
 }
 
+const cleanupStart = Date.now()
+console.log('\n[INÍCIO] Limpeza das contas temporárias E2E')
+const cleanup = runNpm(['run', 'test:e2e:cleanup'])
+results.push({ name: 'Limpeza das contas temporárias E2E', blocking: true, code: cleanup.status ?? 1, seconds: Math.round((Date.now() - cleanupStart) / 1000) })
+
 const blockingFailed = results.filter((item) => item.blocking && item.code !== 0)
 const advisoryFailed = results.filter((item) => !item.blocking && item.code !== 0)
 

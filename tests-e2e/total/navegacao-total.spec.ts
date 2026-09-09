@@ -47,7 +47,15 @@ function installDiagnostics(page: Page) {
 async function assertHealthy(page: Page, errors: string[], label: string) {
   await expect(page.locator('body'), `body vazio em ${label}`).toBeVisible()
   await expect(page.locator('body')).not.toContainText(/Application error|Internal Server Error|Unhandled Runtime Error/i)
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  let overflow: number | null = null
+  for (let attempt = 0; attempt < 5 && overflow === null; attempt += 1) {
+    await page.waitForLoadState('domcontentloaded').catch(() => undefined)
+    overflow = await page
+      .evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+      .catch(() => null)
+    if (overflow === null) await page.waitForTimeout(100)
+  }
+  expect(overflow, `documento não estabilizou em ${label}`).not.toBeNull()
   expect(overflow, `rolagem horizontal inesperada em ${label}`).toBeLessThanOrEqual(8)
   expect(errors, `erros de runtime/rede em ${label}:\n${errors.join('\n')}`).toEqual([])
 }

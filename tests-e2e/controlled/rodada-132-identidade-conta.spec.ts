@@ -6,6 +6,9 @@ const root = process.cwd()
 const login = fs.readFileSync(path.join(root, 'web/app/login/page.tsx'), 'utf8')
 const shell = fs.readFileSync(path.join(root, 'web/components/layout/AppShell.tsx'), 'utf8')
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260909123000_account_identities.sql'), 'utf8')
+const validation = fs.readFileSync(path.join(root, 'web/lib/validation.ts'), 'utf8')
+const home = fs.readFileSync(path.join(root, 'web/features/dropzone/DropZoneHome.tsx'), 'utf8')
+const me = fs.readFileSync(path.join(root, 'web/app/api/me/route.ts'), 'utf8')
 
 test('132 - criação da conta solicita identidade pública completa', () => {
   expect(login).toContain('Nome de exibição')
@@ -27,4 +30,13 @@ test('132 - cabeçalho prioriza foto nome e arroba da conta', () => {
   expect(shell).toContain('identity?.username')
   expect(shell).toContain('profileImage={identity?.avatar_url || mediaFor(account) || undefined}')
   expect(shell).not.toContain(': identity?.email || undefined')
+})
+
+test('132 - contas antigas precisam completar a identidade antes de usar o sistema', () => {
+  expect(validation).toContain('export function hasCompleteAccountIdentity')
+  expect(login).toContain('hasCompleteAccountIdentity(currentSession.user.user_metadata)')
+  expect(home).toContain('if (!hasCompleteAccountIdentity(session.user.user_metadata))')
+  expect(home).toContain('/login?complete=1&returnTo=')
+  expect(me).toContain('complete: hasCompleteAccountIdentity(user.user_metadata)')
+  expect(shell).toContain('identity.complete !== false')
 })
