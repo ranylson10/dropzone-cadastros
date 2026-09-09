@@ -751,6 +751,24 @@ export function DropZoneHome() {
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
   }
 
+  function closeContextualRegistration() {
+    if (!authIdentity) {
+      window.location.assign('/login?returnTo=%2F')
+      return
+    }
+    setActiveAuthType(null)
+    setLinkingProfile(false)
+    setError('')
+    setMessage('')
+    const url = new URL(window.location.href)
+    url.searchParams.delete('cadastro')
+    url.searchParams.delete('login')
+    url.searchParams.delete('returnTo')
+    url.searchParams.delete('nova_conta')
+    url.searchParams.delete('trocar_conta')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+
   async function openProfilePanel(target?: DropZoneRow) {
     if (target && target.id !== account?.id) await switchLinkedAccount(target)
     setWorkspace('panel')
@@ -1577,7 +1595,7 @@ export function DropZoneHome() {
     <AppShell
       activeLabel="Início"
       navItems={APP_NAV}
-      header={account && !linkingProfile ? 'always' : 'never'}
+      header={authIdentity ? 'always' : account && !linkingProfile ? 'always' : 'never'}
       account={account}
       identity={authIdentity}
       accounts={accounts}
@@ -1585,13 +1603,16 @@ export function DropZoneHome() {
       switchingAccountId={switchingAccountId || undefined}
       onSwitchAccount={switchLinkedAccount}
       onSignOut={signOut}
-      mainClassName={`page ${account && !linkingProfile ? 'page-authenticated' : ''}`}
+      mainClassName={`page ${authIdentity || (account && !linkingProfile) ? 'page-authenticated' : ''}`}
       mainId="painel-inicio"
-      withAuthOffset={Boolean(account && !linkingProfile)}
+      withAuthOffset={Boolean(authIdentity || (account && !linkingProfile))}
     >
         <div className="shell panel-workspace-shell">
         {!account || linkingProfile ? (
-          <section className="login-stage login-stage-bg">
+          <>
+          {authIdentity ? <AuthenticatedHomeFeed account={account} accounts={accounts} onOpenPanel={openProfilePanel} /> : null}
+          <div className="contextual-registration-backdrop" role="presentation" onMouseDown={closeContextualRegistration}>
+          <section className="login-stage contextual-registration-dialog" role="dialog" aria-modal="true" aria-label={`Cadastro de ${typeLabels[profileType]}`} onMouseDown={(event) => event.stopPropagation()}>
             <div className="phone-shell login-free-shell auth-page">
               <section className="auth-inline-panel auth-light-panel">
                 <div className="auth-inline-head auth-light-head">
@@ -1602,7 +1623,7 @@ export function DropZoneHome() {
                       <strong>{typeLabels[profileType]}</strong>
                     </div>
                   </div>
-                  <button type="button" className="close-auth inline-close" onClick={() => { setActiveAuthType(null); setLinkingProfile(false) }} aria-label="Fechar">
+                  <button type="button" className="close-auth inline-close" onClick={closeContextualRegistration} aria-label="Fechar">
                     <X size={18} />
                   </button>
                 </div>
@@ -1622,7 +1643,7 @@ export function DropZoneHome() {
                     <div className="google-confirmed-note">
                       <strong>Conta confirmada</strong>
                       <span>{email}</span>
-                      <small>Complete os dados abaixo para criar seu perfil DropZone.</small>
+                      <small>Complete os dados necessários para continuar esta ação.</small>
                     </div>
 
                     <div className="register-compact-grid">
@@ -1697,6 +1718,8 @@ export function DropZoneHome() {
               </section>
             </div>
           </section>
+          </div>
+          </>
         ) : (
           <>
             {workspaceMode === 'home' ? (
