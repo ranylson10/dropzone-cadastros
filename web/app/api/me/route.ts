@@ -33,7 +33,8 @@ export async function GET(req: NextRequest) {
     const identity = {
       id: user.id,
       email: user.email,
-      name: String(user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Conta DropZone'),
+      name: String(user.user_metadata?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Conta DropZone'),
+      username: String(user.user_metadata?.account_username || ''),
       avatar_url: String(user.user_metadata?.avatar_url || user.user_metadata?.picture || ''),
     }
     if (!accounts.length) {

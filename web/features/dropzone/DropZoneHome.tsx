@@ -134,7 +134,7 @@ type PanelSnapshot = {
 
 export function DropZoneHome() {
   const [mode, setMode] = useState<AuthMode>('entrar')
-  const [authIdentity, setAuthIdentity] = useState<{ id: string; email: string; name: string; avatar_url: string } | null>(null)
+  const [authIdentity, setAuthIdentity] = useState<{ id: string; email: string; name: string; username: string; avatar_url: string } | null>(null)
   const [profileType, setProfileType] = useState<ProfileType>('produtora')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -410,7 +410,8 @@ export function DropZoneHome() {
             setAuthIdentity({
               id: session.user.id,
               email: session.user.email || '',
-              name: String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || 'Conta DropZone'),
+              name: String(session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || 'Conta DropZone'),
+              username: String(session.user.user_metadata?.account_username || ''),
               avatar_url: String(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''),
             })
             // Login social / vinculo: se nao tem o perfil exigido (ex. equipe no convite de grupo),
@@ -473,7 +474,8 @@ export function DropZoneHome() {
           setAuthIdentity({
             id: session.user.id,
             email: session.user.email || '',
-            name: String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || 'Conta DropZone'),
+            name: String(session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || 'Conta DropZone'),
+            username: String(session.user.user_metadata?.account_username || ''),
             avatar_url: String(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''),
           })
           try {

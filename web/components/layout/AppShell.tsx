@@ -43,7 +43,7 @@ export type AppShellProps = {
   /** Conta já resolvida (painel) — evita segundo /api/me */
   account?: DropZoneRow | null
   /** Identidade da sessão quando ainda não existe cadastro operacional. */
-  identity?: { name?: string | null; email?: string | null; avatar_url?: string | null } | null
+  identity?: { name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null } | null
   accounts?: DropZoneRow[]
   activeAccountId?: string
   switchingAccountId?: string
@@ -80,7 +80,7 @@ export function AppShell({
   const pathname = usePathname()
   const [sessionAccount, setSessionAccount] = useState<DropZoneRow | null>(null)
   const [sessionAccounts, setSessionAccounts] = useState<DropZoneRow[]>([])
-  const [sessionIdentity, setSessionIdentity] = useState<{ name?: string | null; email?: string | null; avatar_url?: string | null } | null>(null)
+  const [sessionIdentity, setSessionIdentity] = useState<{ name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null } | null>(null)
 
   const controlled = accountProp !== undefined
   const account = controlled ? accountProp : sessionAccount
@@ -145,6 +145,7 @@ export function AppShell({
       setSessionIdentity({
         email: String(payload.user?.email || ''),
         name: String(payload.user?.name || payload.user?.email || 'Conta DropZone'),
+        username: String(payload.user?.username || ''),
         avatar_url: String(payload.user?.avatar_url || ''),
       })
       setSessionAccount(payload.account || null)
@@ -204,11 +205,13 @@ export function AppShell({
         <AppHeader
           navItems={navItems}
           activeLabel={resolvedActive}
-          profileName={account ? (account.name || account.username || 'Conta DropZone') : identity?.name || undefined}
+          profileName={identity?.name || account?.name || account?.username || 'Conta DropZone'}
           profileSubtitle={
-            account
-              ? `Conta DropZone · @${account.username}`
-              : identity?.email || undefined
+            identity?.username
+              ? `@${identity.username}`
+              : account?.username
+                ? `@${account.username}`
+                : 'Conta DropZone'
           }
           profileImage={identity?.avatar_url || mediaFor(account) || undefined}
           accounts={accounts}

@@ -11,9 +11,12 @@ import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/aut
 import { buildProfileCreationHref, parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
+import { assertUsername, cleanUsername } from '@/lib/validation'
+import { uploadPublicFile } from '@/lib/upload-public'
+import { UploadField, discardPendingImageUpload, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
 
 type LoginStage = 'checking' | 'authenticate' | 'profiles'
-type EmailMode = 'entrar' | 'criar' | 'confirmar-cadastro' | 'recuperar' | 'confirmar-recuperacao' | 'nova-senha'
+type EmailMode = 'entrar' | 'criar' | 'confirmar-cadastro' | 'completar-conta' | 'recuperar' | 'confirmar-recuperacao' | 'nova-senha'
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -55,6 +58,7 @@ function friendlyAuthError(message: string) {
   if (/otp.*expired|token.*expired|expired.*token/i.test(message)) return 'Este código expirou. Solicite um novo código.'
   if (/token.*invalid|invalid.*token|otp.*invalid/i.test(message)) return 'Código inválido. Confira os 6 dígitos e tente novamente.'
   if (/rate limit|too many requests|email rate limit/i.test(message)) return 'Muitas tentativas. Aguarde um pouco antes de solicitar outro código.'
+  if (/account_identities_username_unique|duplicate key|usuário.*uso|username.*already/i.test(message)) return 'Este nome de usuário já está em uso. Escolha outro.'
   return message || 'Não foi possível concluir a autenticação.'
 }
 
@@ -95,6 +99,9 @@ export default function LoginPage() {
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [emailMode, setEmailMode] = useState<EmailMode>('entrar')
   const [email, setEmail] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [accountUsername, setAccountUsername] = useState('')
+  const [accountAvatar, setAccountAvatar] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [otpCode, setOtpCode] = useState('')
@@ -109,8 +116,75 @@ export default function LoginPage() {
 
   const accountName = useMemo(() => {
     const metadata = session?.user?.user_metadata || {}
-    return String(metadata.full_name || metadata.name || session?.user?.email || 'Conta DropZone')
+    return String(metadata.display_name || metadata.full_name || metadata.name || session?.user?.email || 'Conta DropZone')
   }, [session])
+
+  function hasCompleteIdentity(currentSession: Session) {
+    const metadata = currentSession.user.user_metadata || {}
+    const username = cleanUsername(metadata.account_username)
+    const name = String(metadata.display_name || metadata.full_name || metadata.name || '').trim()
+    return /^[a-z0-9._]{3,24}$/.test(username) && name.length >= 2
+  }
+
+  function prepareIdentityForm(currentSession: Session) {
+    const metadata = currentSession.user.user_metadata || {}
+    setSession(currentSession)
+    setEmail(String(currentSession.user.email || ''))
+    setDisplayName(String(metadata.display_name || metadata.full_name || metadata.name || '').trim())
+    setAccountUsername(cleanUsername(metadata.account_username))
+    setAccountAvatar(String(metadata.avatar_url || metadata.picture || ''))
+    setEmailMode('completar-conta')
+    setStage('authenticate')
+  }
+
+  async function ensureUsernameAvailable(value: string) {
+    const username = assertUsername(value)
+    const response = await fetch(`/api/account/username?username=${encodeURIComponent(username)}`, { cache: 'no-store' })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(payload.error || 'Não foi possível verificar o usuário.')
+    if (!payload.available) throw new Error(`O usuário @${username} já está em uso.`)
+    return username
+  }
+
+  async function saveAccountIdentity(currentSession: Session) {
+    const username = assertUsername(accountUsername)
+    const cleanName = displayName.trim()
+    if (cleanName.length < 2 || cleanName.length > 60) throw new Error('O nome de exibição deve ter entre 2 e 60 caracteres.')
+
+    let avatarUrl = accountAvatar
+    let avatarWarning = ''
+    if (accountAvatar) {
+      try {
+        avatarUrl = await resolvePendingImageUpload(accountAvatar)
+      } catch (cause: unknown) {
+        avatarUrl = ''
+        avatarWarning = cause instanceof Error ? cause.message : 'Não foi possível enviar a foto agora.'
+      }
+    }
+
+    const response = await fetch('/api/me/account', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${currentSession.access_token}`,
+      },
+      body: JSON.stringify({
+        username,
+        display_name: cleanName,
+        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+      }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(payload.error || 'Não foi possível concluir sua conta.')
+
+    setAccountUsername(username)
+    setDisplayName(cleanName)
+    setAccountAvatar(avatarUrl)
+    if (avatarWarning) setNotice(`Conta criada. ${avatarWarning} Você poderá adicionar a foto no menu da conta.`)
+
+    const refreshed = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }))
+    return refreshed.data.session || currentSession
+  }
 
   function continueToWorkspace(userAccounts: DropZoneRow[]) {
     const search = new URLSearchParams(window.location.search)
@@ -177,6 +251,10 @@ export default function LoginPage() {
   }
 
   async function openAuthenticatedSession(currentSession: Session) {
+    if (!hasCompleteIdentity(currentSession)) {
+      prepareIdentityForm(currentSession)
+      return
+    }
     // A autenticação já está concluída neste ponto. Falha/timeout de /api/me não
     // pode jogar o usuário de volta para o formulário como se estivesse deslogado.
     setSession(currentSession)
@@ -389,15 +467,27 @@ export default function LoginPage() {
         const issue = passwordIssue(password)
         if (issue) throw new Error(issue)
         if (password !== confirmPassword) throw new Error('A confirmação da senha não confere.')
+        const username = await ensureUsernameAvailable(accountUsername)
+        const cleanName = displayName.trim()
+        if (cleanName.length < 2 || cleanName.length > 60) throw new Error('O nome de exibição deve ter entre 2 e 60 caracteres.')
 
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
+          options: {
+            data: {
+              account_username: username,
+              display_name: cleanName,
+              full_name: cleanName,
+              name: cleanName,
+            },
+          },
         })
         if (signUpError) throw new Error(friendlyAuthError(signUpError.message))
 
         if (data.session) {
-          await openAuthenticatedSession(data.session)
+          const completedSession = await saveAccountIdentity(data.session)
+          await openAuthenticatedSession(completedSession)
           return
         }
 
@@ -417,7 +507,16 @@ export default function LoginPage() {
           type: 'email',
         })
         if (verifyError || !data.session) throw new Error(friendlyAuthError(verifyError?.message || 'Código inválido ou expirado.'))
-        await openAuthenticatedSession(data.session)
+        const completedSession = await saveAccountIdentity(data.session)
+        await openAuthenticatedSession(completedSession)
+        return
+      }
+
+      if (emailMode === 'completar-conta') {
+        if (!session) throw new Error('Sessão não encontrada. Entre novamente.')
+        await ensureUsernameAvailable(accountUsername)
+        const completedSession = await saveAccountIdentity(session)
+        await openAuthenticatedSession(completedSession)
         return
       }
 
@@ -494,6 +593,12 @@ export default function LoginPage() {
   }
 
   function changeEmailMode(nextMode: EmailMode) {
+    if (nextMode === 'entrar') {
+      discardPendingImageUpload(accountAvatar)
+      setDisplayName('')
+      setAccountUsername('')
+      setAccountAvatar('')
+    }
     setEmailMode(nextMode)
     setPassword('')
     setConfirmPassword('')
@@ -506,6 +611,7 @@ export default function LoginPage() {
   }
 
   async function changeAccount() {
+    discardPendingImageUpload(accountAvatar)
     clearOAuthReturnState()
     await signOutEverywhere().catch(() => undefined)
     setSession(null)
@@ -516,6 +622,9 @@ export default function LoginPage() {
     setPassword('')
     setConfirmPassword('')
     setOtpCode('')
+    setDisplayName('')
+    setAccountUsername('')
+    setAccountAvatar('')
     setStage('authenticate')
   }
 
@@ -523,6 +632,8 @@ export default function LoginPage() {
     ? 'CRIE SUA CONTA'
     : emailMode === 'confirmar-cadastro'
       ? 'CONFIRME SEU CÓDIGO'
+      : emailMode === 'completar-conta'
+        ? 'COMPLETE SUA CONTA'
       : emailMode === 'recuperar' || emailMode === 'confirmar-recuperacao' || emailMode === 'nova-senha'
         ? 'RECUPERE SUA SENHA'
         : 'ENTRE COM SUA CONTA'
@@ -571,9 +682,11 @@ export default function LoginPage() {
                 <h2>{authTitle}</h2>
                 <p>
                   {emailMode === 'criar'
-                    ? 'Cadastre seu e-mail e senha. Vamos enviar um código de 6 dígitos para confirmar sua conta.'
+                    ? 'Escolha seu @usuário único, nome de exibição, foto, e-mail e senha para criar sua conta completa.'
                     : emailMode === 'confirmar-cadastro'
                       ? 'Digite abaixo o código de 6 dígitos enviado para seu e-mail.'
+                      : emailMode === 'completar-conta'
+                        ? 'Escolha como você será identificado no DropZone antes de continuar.'
                       : emailMode === 'recuperar'
                         ? 'Informe o e-mail da sua conta para receber um código de recuperação.'
                         : emailMode === 'confirmar-recuperacao'
@@ -584,8 +697,53 @@ export default function LoginPage() {
                 </p>
 
                 <form className="login-email-form" onSubmit={handleEmailAuth}>
+                  {emailMode === 'criar' || emailMode === 'completar-conta' ? (
+                    <div className="login-account-identity-fields">
+                      <div className="login-account-avatar-field">
+                        <UploadField
+                          label="Foto de perfil"
+                          value={accountAvatar}
+                          bucket="account"
+                          onChange={setAccountAvatar}
+                          onUpload={uploadPublicFile}
+                        />
+                      </div>
+                      <div className="login-account-name-fields">
+                        <label className="login-email-field">
+                          <span>Nome de exibição</span>
+                          <input
+                            type="text"
+                            autoComplete="name"
+                            maxLength={60}
+                            value={displayName}
+                            onChange={(event) => setDisplayName(event.target.value)}
+                            placeholder="Como devemos chamar você?"
+                            required
+                          />
+                        </label>
+                        <label className="login-email-field">
+                          <span>Usuário único</span>
+                          <span className="login-username-control">
+                            <b>@</b>
+                            <input
+                              type="text"
+                              autoComplete="username"
+                              minLength={3}
+                              maxLength={24}
+                              value={accountUsername}
+                              onChange={(event) => setAccountUsername(cleanUsername(event.target.value).replace(/[^a-z0-9._]/g, ''))}
+                              placeholder="six"
+                              required
+                            />
+                          </span>
+                          <small className="login-username-hint">3 a 24 caracteres. Use letras, números, ponto ou underline.</small>
+                        </label>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {emailMode !== 'nova-senha' ? (
-                    emailMode === 'confirmar-cadastro' || emailMode === 'confirmar-recuperacao' ? (
+                    emailMode === 'confirmar-cadastro' || emailMode === 'confirmar-recuperacao' || emailMode === 'completar-conta' ? (
                       <div className="login-email-sent"><Mail size={22} /><strong>{email}</strong></div>
                     ) : (
                       <label className="login-email-field">
@@ -679,6 +837,8 @@ export default function LoginPage() {
                       ? 'Criar conta com e-mail'
                       : emailMode === 'confirmar-cadastro'
                         ? 'Confirmar conta'
+                        : emailMode === 'completar-conta'
+                          ? 'Concluir minha conta'
                         : emailMode === 'recuperar'
                           ? 'Enviar código de recuperação'
                           : emailMode === 'confirmar-recuperacao'
@@ -717,6 +877,8 @@ export default function LoginPage() {
                 <div className="login-email-switch">
                   {emailMode === 'entrar' ? null : emailMode === 'confirmar-cadastro' ? (
                     <button type="button" onClick={() => changeEmailMode('criar')}>← Alterar e-mail</button>
+                  ) : emailMode === 'completar-conta' ? (
+                    <button type="button" onClick={() => void changeAccount()}>← Usar outra conta</button>
                   ) : emailMode === 'confirmar-recuperacao' ? (
                     <button type="button" onClick={() => changeEmailMode('recuperar')}>← Alterar e-mail</button>
                   ) : emailMode === 'nova-senha' ? null : (

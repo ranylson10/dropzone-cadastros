@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Check, Minus, Plus, RotateCcw, Trash2, Upload, X } from 'lucide-react'
 
 const uploadTargets = {
+  account: { width: 500, height: 500, kindLabel: 'foto' },
   produtora: { width: 500, height: 500, kindLabel: 'logo' },
   equipe: { width: 500, height: 500, kindLabel: 'logo' },
   campeonato: { width: 500, height: 500, kindLabel: 'logo' },

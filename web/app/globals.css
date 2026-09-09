@@ -5604,6 +5604,19 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 .login-email-field>span,.login-otp-field>span{color:#8d95a0;font-size:9px;font-weight:950;letter-spacing:.09em;text-transform:uppercase}
 .login-email-field input{width:100%;min-height:50px;border:1px solid rgba(255,255,255,.10);border-radius:0;background:#171c23;color:#f5f2eb;padding:0 13px;font:inherit;font-size:13px;outline:none;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease}
 .login-email-field input::placeholder{color:#6e7680}.login-email-field input:focus{border-color:#dfcf85;background:#1b2129;box-shadow:0 0 0 1px rgba(223,207,133,.12)}
+.login-account-identity-fields{display:grid;grid-template-columns:122px minmax(0,1fr);gap:14px;padding:14px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}
+.login-account-name-fields{display:grid;gap:12px;min-width:0}
+.login-account-avatar-field .field>label{display:block;margin:0 0 6px;color:#8d95a0;font-size:9px;font-weight:950;letter-spacing:.09em;text-transform:uppercase}
+.login-account-avatar-field .upload-field{grid-template-columns:1fr;gap:7px}
+.login-account-avatar-field .upload-picker{width:104px;height:104px;border:1px solid rgba(255,255,255,.10);border-radius:0;background:#171c23;color:#dfcf85}
+.login-account-avatar-field .upload-hint-row{display:grid;gap:4px;color:#737b85;font-size:7px;line-height:1.35}
+.login-account-avatar-field .inline-icon-button{width:max-content;border:0;background:transparent;color:#dfcf85;padding:3px 0;font-size:8px}
+.login-username-control{display:grid!important;grid-template-columns:34px minmax(0,1fr);align-items:center;min-height:50px;border:1px solid rgba(255,255,255,.10);background:#171c23;color:#dfcf85}
+.login-username-control:focus-within{border-color:#dfcf85;background:#1b2129;box-shadow:0 0 0 1px rgba(223,207,133,.12)}
+.login-username-control b{display:grid;place-items:center;height:100%;border-right:1px solid rgba(255,255,255,.08);font-size:14px}
+.login-email-field .login-username-control input{min-height:48px;border:0;background:transparent;padding-left:10px;box-shadow:none}
+.login-email-field .login-username-control input:focus{border:0;background:transparent;box-shadow:none}
+.login-username-hint{color:#747c86;font-size:8px;line-height:1.4}
 .login-email-primary{min-height:56px;border:0;border-radius:0;background:#dfcf85;color:#11151a;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;font-size:12px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:transform .18s ease,filter .18s ease}
 .login-email-primary:hover{filter:brightness(1.04);transform:translateY(-1px)}.login-email-primary:disabled{cursor:wait;opacity:.65;transform:none}
 .login-email-link{width:max-content;border:0;background:transparent;color:#8c949e;padding:0;font-size:10px;font-weight:850;cursor:pointer}.login-email-link:hover{color:#dfcf85}
@@ -5641,6 +5654,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   .login-portal-copy{max-width:none;margin-top:34px}.login-portal-kicker{font-size:8px;letter-spacing:.14em}.login-portal-copy h1{margin:12px 0 16px;font-size:clamp(38px,12vw,52px);line-height:.88;letter-spacing:-.045em}.login-portal-copy p{font-size:12px;line-height:1.55}.login-live-telemetry{margin-top:18px;gap:8px 12px;font-size:7px}
   .login-portal-panel{width:100%;border-top-width:3px}.login-portal-panel::after{right:12px;top:12px;font-size:6px}
   .login-auth-step,.login-portal-loading{padding:25px 18px 22px}.login-profile-step{padding:25px 18px;max-height:none;overflow:visible}.login-auth-step h2,.login-profile-head h2{font-size:clamp(28px,9vw,38px)}
+  .login-account-identity-fields{grid-template-columns:1fr}.login-account-avatar-field .upload-field{grid-template-columns:88px minmax(0,1fr);align-items:center}.login-account-avatar-field .upload-picker{width:88px;height:88px}
   .login-profile-head{display:block}.login-change-account{margin-top:8px}.login-email-actions,.login-existing-account-actions{grid-template-columns:1fr}.login-profile-grid,.login-create-grid{grid-template-columns:1fr}
 }
 
