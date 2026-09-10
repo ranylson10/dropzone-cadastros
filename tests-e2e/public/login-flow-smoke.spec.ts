@@ -1,15 +1,18 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Login publico — smoke e troca de conta', () => {
-  test('raiz sem sessão abre o login e permite iniciar a criação da conta', async ({ page }) => {
+  test('raiz sem sessão abre a home pública e oferece login somente como ação', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    await expect(page).toHaveURL(/\/login\?returnTo=%2F/)
-    await expect(page.getByRole('heading', { name: 'ENTRE COM SUA CONTA' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Criar conta$/ })).toBeVisible()
+    await expect(page).toHaveURL(/\/$/)
+    await expect(page.getByRole('link', { name: /Encontrar vaga/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Campeonatos com vagas abertas' })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Entrar no sistema/i })).toBeVisible()
 
-    await page.getByRole('button', { name: /^Criar conta$/ }).click()
-    await expect(page.getByRole('heading', { name: 'CRIE SUA CONTA' })).toBeVisible()
+    await page.getByRole('button', { name: /Criar campeonato/i }).click()
+    await expect(page.getByRole('dialog', { name: 'Cadastre sua produtora' })).toBeVisible()
+    await page.getByRole('button', { name: /Cadastrar produtora/i }).click()
+    await expect(page.getByRole('dialog', { name: 'Cadastrar produtora' })).toContainText('Entre com sua conta')
   })
 
   test('pagina de login abre, switch limpa fluxo e callback sem sessao mostra acao de entrada', async ({ page }) => {

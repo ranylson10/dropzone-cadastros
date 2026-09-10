@@ -102,10 +102,6 @@ export function AuthenticatedHomeFeed({
   const isProducer = account?.profile_type === 'produtora'
 
   useEffect(() => {
-    if (!account) {
-      setPriorityLoading(false)
-      return
-    }
     let active = true
     fetch('/api/vagas', { cache: 'no-store' })
       .then((response) => response.json())
@@ -117,7 +113,7 @@ export function AuthenticatedHomeFeed({
       .catch(() => { if (active) setVacancies([]) })
       .finally(() => { if (active) setLoadingVacancies(false) })
     return () => { active = false }
-  }, [account])
+  }, [])
 
   useEffect(() => {
     let active = true

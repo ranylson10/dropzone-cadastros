@@ -6,7 +6,7 @@ import { ClipboardList, Loader2, Pencil, Send, Trophy, Users } from 'lucide-reac
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile as uploadStoragePublicFile } from '@/lib/upload-public'
 import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
-import { cleanUsername, getPasswordIssue, hasCompleteAccountIdentity } from '@/lib/validation'
+import { cleanUsername, getPasswordIssue } from '@/lib/validation'
 import { Field, LocationSearch, UploadField, resolvePendingImageUpload } from './components/form-fields'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
 import { AppShell, APP_NAV } from '@/components/layout'
@@ -407,11 +407,6 @@ export function DropZoneHome() {
           }
 
           if (session) {
-            if (!hasCompleteAccountIdentity(session.user.user_metadata)) {
-              const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}` || '/'
-              window.location.replace(`/login?complete=1&returnTo=${encodeURIComponent(returnTo)}`)
-              return
-            }
             setAuthIdentity({
               id: session.user.id,
               email: session.user.email || '',
@@ -471,16 +466,10 @@ export function DropZoneHome() {
           setAccounts([])
           setRows([])
           setMode('entrar')
-          window.location.replace('/login?returnTo=%2F')
           return
         }
 
         if (session) {
-          if (!hasCompleteAccountIdentity(session.user.user_metadata)) {
-            const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}` || '/'
-            window.location.replace(`/login?complete=1&returnTo=${encodeURIComponent(returnTo)}`)
-            return
-          }
           setAuthIdentity({
             id: session.user.id,
             email: session.user.email || '',
@@ -510,7 +499,6 @@ export function DropZoneHome() {
           setAccount(null)
           setAccounts([])
           setRows([])
-          window.location.replace('/login?returnTo=%2F')
         }
       } catch (cause: any) {
         setError(cause?.message || 'Falha ao iniciar o acesso.')
@@ -518,7 +506,6 @@ export function DropZoneHome() {
         setAccounts([])
         setRows([])
         setMode('entrar')
-        window.location.replace('/login?returnTo=%2F')
       } finally {
         if (!cancelled) {
           setQueryReady(true)
@@ -1583,7 +1570,6 @@ export function DropZoneHome() {
   }
 
   if (!account && !linkingProfile && !activeAuthType) {
-    if (!authIdentity) return <DropzoneLoader label="Abrindo acesso" />
     return (
       <AppShell
         activeLabel="Início"
@@ -1592,7 +1578,8 @@ export function DropZoneHome() {
         account={null}
         accounts={[]}
         identity={authIdentity}
-        onSignOut={signOut}
+        onSignOut={authIdentity ? signOut : undefined}
+        loginHref="/login?returnTo=%2F"
         mainClassName="page page-authenticated"
         mainId="painel-inicio"
       >

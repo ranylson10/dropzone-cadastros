@@ -16,8 +16,9 @@ test('home pública carrega e hidrata sem falha de chunk', async ({ page, baseUR
   })
 
   expect(response?.status()).toBeLessThan(500)
-  await expect(page).toHaveURL(/\/login\?returnTo=%2F/)
-  await expect(page.getByRole('heading', { name: 'ENTRE COM SUA CONTA' })).toBeVisible()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('heading', { name: 'Campeonatos com vagas abertas' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Entrar no sistema/i })).toBeVisible()
   expect(failedChunks).toEqual([])
   expect(pageErrors).toEqual([])
 })

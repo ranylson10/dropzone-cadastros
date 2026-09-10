@@ -7,11 +7,13 @@ const root = process.cwd()
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 
 test.describe('Rodada 113 — entrada, cadastro e destino autenticado', () => {
-  test('raiz sem sessão abre o login em vez da antiga landing page', async () => {
+  test('raiz sem sessão permanece pública e renderiza a home do sistema', async () => {
     const controller = read('web/features/dropzone/DropZoneHome.tsx')
 
-    expect(controller).toContain("window.location.replace('/login?returnTo=%2F')")
+    expect(controller).not.toContain("window.location.replace('/login?returnTo=%2F')")
     expect(controller).not.toContain('PublicChampionshipHome')
+    expect(controller).toContain('<AuthenticatedHomeFeed account={null} accounts={[]}')
+    expect(controller).toContain('loginHref="/login?returnTo=%2F"')
   })
 
   test('login abre diretamente no cadastro quando solicitado', async () => {

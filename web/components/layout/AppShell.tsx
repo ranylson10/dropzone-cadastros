@@ -169,12 +169,6 @@ export function AppShell({
     }
   }, [loadSession, controlled])
 
-  useEffect(() => {
-    if (!identity?.email || identity.complete !== false) return
-    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}` || '/'
-    window.location.replace(`/login?complete=1&returnTo=${encodeURIComponent(returnTo)}`)
-  }, [identity?.complete, identity?.email])
-
   async function defaultSignOut() {
     try {
       await signOutEverywhere()

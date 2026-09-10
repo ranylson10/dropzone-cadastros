@@ -32,11 +32,11 @@ test('132 - cabeçalho prioriza foto nome e arroba da conta', () => {
   expect(shell).not.toContain(': identity?.email || undefined')
 })
 
-test('132 - contas antigas precisam completar a identidade antes de usar o sistema', () => {
+test('132 - identidade é validada sem bloquear a navegação pública', () => {
   expect(validation).toContain('export function hasCompleteAccountIdentity')
   expect(login).toContain('hasCompleteAccountIdentity(currentSession.user.user_metadata)')
-  expect(home).toContain('if (!hasCompleteAccountIdentity(session.user.user_metadata))')
-  expect(home).toContain('/login?complete=1&returnTo=')
+  expect(home).not.toContain('if (!hasCompleteAccountIdentity(session.user.user_metadata))')
+  expect(home).not.toContain("window.location.replace('/login?returnTo=%2F')")
   expect(me).toContain('complete: hasCompleteAccountIdentity(user.user_metadata)')
-  expect(shell).toContain('identity.complete !== false')
+  expect(shell).not.toContain('identity.complete !== false')
 })
