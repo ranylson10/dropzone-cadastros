@@ -21,10 +21,10 @@ test.describe('Rodada 101B — Home e Login vivos',()=>{
     expect(css).toContain('font-size:clamp(38px,12vw,52px)')
   })
 
-  test('web mantém vídeo limpo, sem rede/raio/scan, com rastreadores e pulsos leves',async()=>{
+  test('web mantém efeitos disponíveis sem recolocar a landing removida na home',async()=>{
     const effect=read('web/components/effects/LealtMotionScene.tsx')
     const css=read('web/app/globals.css')
-    const home=read('web/features/home/PublicChampionshipHome.tsx')
+    const home=read('web/features/home/AuthenticatedHomeFeed.tsx')
     expect(effect).not.toContain('lealt-motion-network')
     expect(effect).not.toContain('lealt-motion-grid')
     expect(effect).not.toContain('lealt-motion-orbit-one')
@@ -34,8 +34,8 @@ test.describe('Rodada 101B — Home e Login vivos',()=>{
     expect(effect).not.toContain('lealt-motion-beam')
     expect(effect).not.toContain('lealt-motion-scan')
     expect(css).toContain('@keyframes dropTracerOne')
-    expect(home).toContain('drop-sequence-live-status')
-    expect(home).toContain('LIVE FEED')
+    expect(home).toContain('Encontre seu próximo campeonato')
+    expect(home).not.toContain('drop-sequence-live-status')
   })
 
   test('app acompanha linguagem viva sem scan e login entra em linhas cinéticas',async()=>{

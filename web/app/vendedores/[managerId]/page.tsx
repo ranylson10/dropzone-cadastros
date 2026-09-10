@@ -1,30 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Filter, MapPin, Search, ShieldCheck, Ticket, Users, X, ZoomIn } from 'lucide-react'
+import { Filter, Search, ShieldCheck, Ticket } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { AppShell } from '@/components/layout'
 import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
-import { PixIcon, WhatsAppIcon } from '@/features/billing/BrandIcons'
+import { WhatsAppIcon } from '@/features/billing/BrandIcons'
+import { VacancyCard, VacancyPreview } from '@/features/vacancies/VacancyCard'
 import { supabase } from '@/lib/supabase-browser'
 import '../../vagas/vagas.css'
-
-function dateLabel(value?: string | null) {
-  if (!value) return 'Data a confirmar'
-  return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  })
-}
-
-function money(value: unknown) {
-  const number = Number(value)
-  return number > 0
-    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
-    : 'Consultar'
-}
 
 export default function VendedorCampeonatosPage() {
   const params = useParams<{ managerId: string }>()
@@ -137,74 +122,14 @@ export default function VendedorCampeonatosPage() {
         {error ? <div className="admin-feedback error">{error}</div> : null}
         <section className="vacancies-grid">
           {visible.map((item) => (
-            <article className="vacancy-card" key={item.id}>
-              <button
-                className="vacancy-banner"
-                type="button"
-                onClick={() => setPreview(item)}
-                aria-label={`Ampliar banner de ${item.nome}`}
-              >
-                <img src={item.banner_url} alt={`Banner ${item.nome}`} />
-                <span className="vacancy-zoom-label">
-                  <ZoomIn size={14} /> Ver banner
-                </span>
-              </button>
-              <div className="vacancy-card-body">
-                <header>
-                  {item.logo_url ? <img src={item.logo_url} alt="" /> : null}
-                  <div>
-                    <p>{item.tipo}</p>
-                    <h2>{item.nome}</h2>
-                  </div>
-                </header>
-                <div className="vacancy-next-date">
-                  <CalendarDays />
-                  <div>
-                    <small>Próxima vaga</small>
-                    <strong>
-                      {dateLabel(item.proxima_data)}{' '}
-                      {item.proximo_horario ? `- ${String(item.proximo_horario).slice(0, 5)}h` : ''}
-                    </strong>
-                    <span>{item.proximo_grupo}</span>
-                  </div>
-                </div>
-                <div className="vacancy-meta">
-                  <span>
-                    <Users size={14} />
-                    <b>{item.vagas_livres}</b> vagas
-                  </span>
-                  <span>
-                    <Ticket size={14} />
-                    <b>{money(item.valor_inscricao)}</b>
-                  </span>
-                  {item.servidor ? (
-                    <span>
-                      <MapPin size={14} />
-                      {item.servidor}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="vacancy-groups">
-                  {item.grupos.slice(0, 3).map((group: any) => (
-                    <span key={group.id}>
-                      {group.nome}
-                      <b>{group.vagas_livres} livres</b>
-                    </span>
-                  ))}
-                </div>
-                <div className="vacancy-persuasion">
-                  <strong>Garanta sua vaga</strong>
-                  <span>Pagamento online com comissão deste vendedor, ou WhatsApp dele.</span>
-                </div>
-                <button
-                  className="button vacancy-register"
-                  type="button"
-                  onClick={() => setBuyTarget(item)}
-                >
-                  <PixIcon size={16} /> Comprar vaga
-                </button>
-              </div>
-            </article>
+            <VacancyCard
+              key={item.id}
+              item={item}
+              onPreview={setPreview}
+              onBuy={setBuyTarget}
+              buyLabel="Comprar vaga"
+              persuasion="Pagamento online com comissão deste vendedor, ou WhatsApp dele."
+            />
           ))}
           {visible.length === 0 ? (
             <div className="vacancies-empty">
@@ -215,17 +140,7 @@ export default function VendedorCampeonatosPage() {
           ) : null}
         </section>
 
-      {preview ? (
-        <div className="vacancy-preview-overlay" onClick={() => setPreview(null)}>
-          <button onClick={() => setPreview(null)} aria-label="Fechar banner">
-            <X size={21} />
-          </button>
-          <figure onClick={(event) => event.stopPropagation()}>
-            <img src={preview.banner_url} alt={`Banner completo de ${preview.nome}`} />
-            <figcaption>{preview.nome}</figcaption>
-          </figure>
-        </div>
-      ) : null}
+      <VacancyPreview item={preview} onClose={() => setPreview(null)} />
 
       {buyTarget ? (
         <BuyVacancyModal

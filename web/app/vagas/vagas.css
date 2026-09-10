@@ -415,6 +415,7 @@ body .vacancies-page .vacancy-register{
 }
 body .vacancies-page .vacancy-register:hover{background:var(--ui-gold-light);color:#17150d}
 body .vacancies-page .vacancy-details-link:hover{color:var(--ui-accent)}
+body .vacancies-page .vacancy-banner-fallback{display:grid;place-items:center;width:100%;height:100%;background:var(--ui-surface-soft);color:var(--ui-accent)}
 body .vacancies-page .vacancies-empty{
   border-color:var(--ui-line);
   border-radius:var(--ui-radius-md);

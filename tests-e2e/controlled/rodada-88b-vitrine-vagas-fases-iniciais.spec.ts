@@ -8,6 +8,7 @@ const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8')
 test.describe('Rodada 88B — vitrine de vagas e fases iniciais', () => {
   test('página /vagas tem filtros comerciais e badges de venda', async () => {
     const page = read('web/app/vagas/page.tsx')
+    const card = read('web/features/vacancies/VacancyCard.tsx')
     const css = read('web/app/vagas/vagas.css')
     const api = read('web/app/api/vagas/route.ts')
 
@@ -19,11 +20,12 @@ test.describe('Rodada 88B — vitrine de vagas e fases iniciais', () => {
     expect(page).toContain("filter === 'prize'")
     expect(page).toContain("filter === 'last'")
     expect(page).toContain('vaga')
-    expect(page).toContain('vagas reais')
-    expect(page).toContain('vacancy-banner-badges')
-    expect(page).toContain('vacancy-sale-line')
-    expect(page).toContain('Transmissão ao vivo')
-    expect(page).toContain('Compra segura, vaga liberada e inscrição guiada pelo sistema.')
+    expect(page).toContain('<VacancyCard')
+    expect(card).toContain('vagas reais')
+    expect(card).toContain('vacancy-banner-badges')
+    expect(card).toContain('vacancy-sale-line')
+    expect(card).toContain('Transmissão ao vivo')
+    expect(card).toContain('Compra segura, vaga liberada e inscrição guiada pelo sistema.')
 
     expect(css).toContain('.vacancy-type-badge')
     expect(css).toContain('.vacancy-banner-badges')

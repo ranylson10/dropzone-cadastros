@@ -26,7 +26,7 @@ test.describe('Consolidação cumulativa — Rodadas 1 a 13',()=>{
     expect(home).not.toContain('--home-accent:#ef3340')
     expect(home).not.toContain('--home-card:#fff')
     expect(home).not.toContain('.authenticated-home-overview{')
-    expect(home).toContain('.authenticated-home-directory-preview .directory-champ-card-grid{width:100%}')
+    expect(home).toContain('.authenticated-home-vacancies-surface .vacancies-grid{width:100%;margin:0}')
     expect(header).toContain('.app-mobile-toggle')
     expect(header).toContain('.app-mobile-profile-switcher')
   })

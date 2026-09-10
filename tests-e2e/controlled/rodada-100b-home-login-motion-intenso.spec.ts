@@ -9,7 +9,7 @@ test.describe('Rodada 100B — intensidade preservada após linguagem tática 10
   test('web mantém motion LEALT intenso com mídia leve e economia de dados',async()=>{
     const effect=read('web/components/effects/LealtMotionScene.tsx')
     const css=read('web/app/globals.css')
-    const home=read('web/features/home/PublicChampionshipHome.tsx')
+    const home=read('web/features/home/AuthenticatedHomeFeed.tsx')
     expect(effect).toContain('lealt-motion-tracer-one')
     expect(effect).toContain('lealt-motion-pulse-one')
     expect(effect).toContain('pointermove')
@@ -23,8 +23,8 @@ test.describe('Rodada 100B — intensidade preservada após linguagem tática 10
     expect(css).toContain('@keyframes dropTracerOne')
     expect(css).toContain('@keyframes dropZoneFloat')
     expect(css).toContain('@media (prefers-reduced-motion:reduce)')
-    expect(css).toMatch(/\.public-home-hero\{[^}]*overflow:\s*hidden/)
     expect(home).not.toContain('<video')
+    expect(home).toContain('<VacancyCard')
   })
 
   test('mobile mantém fundo forte e motor Reanimated sem scan/flare',async()=>{

@@ -10,13 +10,11 @@ test.describe('Rodada 88D — home autenticada com vitrine de vagas', () => {
     const component = read('web/features/home/AuthenticatedHomeFeed.tsx')
     const css = read('web/features/home/authenticated-home.css')
 
-    expect(component).toContain('banner_url?: string | null')
-    expect(component).toContain('DirectoryListClient')
-    expect(component).toContain('commercial: {')
-    expect(component).toContain('vagas_livres')
-    expect(component).toContain('authenticated-home-directory-preview')
+    expect(component).toContain('VacancyCard')
+    expect(component).toContain('authenticated-home-vacancies-surface')
+    expect(component).toContain('Ver catálogo completo')
 
-    expect(css).toContain('.authenticated-home-directory-preview')
-    expect(css).toContain('.authenticated-home-directory-loading-card')
+    expect(css).toContain('.authenticated-home-vacancies-surface')
+    expect(css).toContain('.authenticated-home-vacancy-skeleton')
   })
 })

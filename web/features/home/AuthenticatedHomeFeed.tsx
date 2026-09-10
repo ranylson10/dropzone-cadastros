@@ -16,27 +16,12 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { DirectoryListClient } from '@/features/directory/components/DirectoryListClient'
-import '@/features/directory/components/championship-directory.css'
-import type { DirectoryItem } from '@/features/directory/types'
 import type { DropZoneRow } from '@/lib/types'
 import type { ProfileType } from '@/lib/types'
+import { VacancyCard, VacancyPreview, type VacancyCatalogItem } from '@/features/vacancies/VacancyCard'
 import './authenticated-home.css'
 
-type Vacancy = {
-  id: string
-  nome: string
-  tipo?: string
-  logo_url?: string | null
-  banner_url?: string | null
-  valor_inscricao?: number | string | null
-  premiacao?: number | string | null
-  tem_live?: boolean
-  vagas_livres?: number
-  total_vagas?: number
-  proxima_data?: string | null
-  proximo_horario?: string | null
-}
+type Vacancy = VacancyCatalogItem
 
 type Props = {
   account: DropZoneRow | null
@@ -95,6 +80,7 @@ export function AuthenticatedHomeFeed({
   const [tokenValue, setTokenValue] = useState('')
   const [tokenBusy, setTokenBusy] = useState(false)
   const [tokenError, setTokenError] = useState('')
+  const [vacancyPreview, setVacancyPreview] = useState<VacancyCatalogItem | null>(null)
 
   const producer = accounts.find((item) => item.profile_type === 'produtora')
   const isPlayer = account?.profile_type === 'jogador'
@@ -142,29 +128,6 @@ export function AuthenticatedHomeFeed({
     })()
     return () => { active = false }
   }, [])
-
-  const championshipItems = useMemo<DirectoryItem[]>(
-    () => vacancies.map((item) => ({
-      id: item.id,
-      kind: 'campeonatos',
-      name: item.nome,
-      image: item.logo_url || undefined,
-      banner: item.banner_url || undefined,
-      eyebrow: item.tipo || 'Campeonato',
-      description: item.tipo || 'Campeonato',
-      commercial: {
-        valor_inscricao: Number(item.valor_inscricao || 0),
-        premiacao: Number(item.premiacao || 0),
-        tem_live: Boolean(item.tem_live),
-        vagas_livres: Number(item.vagas_livres || 0),
-        total_vagas: Number(item.total_vagas || 0),
-        data_jogo: item.proxima_data || null,
-      },
-      meta: [],
-      searchText: `${item.nome} ${item.tipo || ''}`.toLowerCase(),
-    })),
-    [vacancies],
-  )
 
   const createChampionship = () => {
     if (!producer) {
@@ -256,8 +219,8 @@ export function AuthenticatedHomeFeed({
       <section className="authenticated-home-intro">
         <div className="authenticated-home-intro-copy">
           <span className="authenticated-home-kicker">INÍCIO</span>
-          <h1>{isPlayer ? 'Seu jogo começa aqui' : isTeam ? 'Organize o próximo jogo' : isProducer ? 'Seu campeonato em movimento' : 'Sua próxima ação'}</h1>
-          <p>{isPlayer ? 'Convites, escalações e sua agenda aparecem primeiro.' : isTeam ? 'Inscrição, elenco e agenda ficam à frente da gestão.' : isProducer ? 'Crie, organize e acompanhe seus campeonatos ativos.' : 'O que importa agora aparece primeiro.'}</p>
+          <h1>{isPlayer ? 'Seu jogo começa aqui' : isTeam ? 'Organize o próximo jogo' : isProducer ? 'Seu campeonato em movimento' : 'Encontre seu próximo campeonato'}</h1>
+          <p>{isPlayer ? 'Convites, escalações e sua agenda aparecem primeiro.' : isTeam ? 'Inscrição, elenco e agenda ficam à frente da gestão.' : isProducer ? 'Crie, organize e acompanhe seus campeonatos ativos.' : 'Compare as vagas abertas e escolha onde sua equipe vai jogar.'}</p>
         </div>
         <div className="authenticated-home-primary-actions">
           {isPlayer && playerInvite ? <button type="button" className="authenticated-home-action primary" onClick={() => void acceptPriorityNotification()} disabled={respondingNotification === playerInvite.id}>
@@ -276,6 +239,34 @@ export function AuthenticatedHomeFeed({
         </div>
       </section>
 
+      <section className="authenticated-home-section authenticated-home-catalog">
+        <div className="authenticated-home-section-head">
+          <div><span>OPORTUNIDADES</span><h2>Campeonatos com vagas abertas</h2></div>
+          <a href="/vagas">Ver catálogo completo <ArrowRight size={15} /></a>
+        </div>
+
+        <div className="vacancies-page authenticated-home-vacancies-surface">
+          {loadingVacancies ? (
+            <div className="vacancies-grid authenticated-home-vacancies-loading" aria-label="Carregando campeonatos">
+              {Array.from({ length: 2 }).map((_, index) => <div className="authenticated-home-vacancy-skeleton" key={index} />)}
+            </div>
+          ) : vacancies.length ? (
+            <div className="vacancies-grid">
+              {vacancies.map((item) => (
+                <VacancyCard
+                  key={item.id}
+                  item={item}
+                  onPreview={setVacancyPreview}
+                  onBuy={(target) => window.location.assign(`/vagas?comprar=${encodeURIComponent(target.id)}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="vacancies-empty"><Ticket size={32} /><strong>Nenhuma vaga disponível agora</strong><span>Novos campeonatos aparecerão aqui assim que abrirem inscrições.</span></div>
+          )}
+        </div>
+      </section>
+
       {account ? <section className="authenticated-home-section authenticated-home-priority-section">
         <div className="authenticated-home-section-head">
           <div><span>AGORA</span><h2>{isPlayer ? 'Seu próximo compromisso' : isTeam ? 'Operação da equipe' : isProducer ? 'Campeonato ativo' : 'Continue de onde parou'}</h2></div>
@@ -290,7 +281,7 @@ export function AuthenticatedHomeFeed({
 
       <section className="authenticated-home-section authenticated-home-command-center">
         <div className="authenticated-home-section-head"><div><span>PARA VOCÊ</span><h2>Próximas ações</h2></div>{account ? <a href="/agenda">Agenda completa <ArrowRight size={15} /></a> : null}</div>
-        <div className="authenticated-home-command-grid">
+        <div className={`authenticated-home-command-grid ${account ? '' : 'is-guest'}`}>
           {account ? <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
             {priorityLoading ? <Loader2 className="spin" size={18} /> : homeTasks.length ? homeTasks.map((task) => <a className={task.urgent ? 'is-urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={16} /></a>) : <div className="authenticated-home-tasks-empty"><Check size={17}/><span><strong>Nenhuma pendência agora</strong><small>Seus próximos jogos e convites vão aparecer aqui.</small></span></div>}
           </div> : null}
@@ -318,25 +309,6 @@ export function AuthenticatedHomeFeed({
           })}
         </div>
       </section> : null}
-
-      <section className="authenticated-home-section">
-        <div className="authenticated-home-section-head">
-          <div><span>OPORTUNIDADES</span><h2>Campeonatos com vagas abertas</h2></div>
-          <a href="/vagas">Ver todas <ArrowRight size={15} /></a>
-        </div>
-
-        <div className="authenticated-home-directory-preview directory-market-page">
-          {loadingVacancies ? (
-            <div className="directory-champ-card-grid authenticated-home-directory-loading" aria-label="Carregando campeonatos">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div className="directory-champ-card authenticated-home-directory-loading-card" key={index} />
-              ))}
-            </div>
-          ) : (
-            <DirectoryListClient items={championshipItems} cardsOnly />
-          )}
-        </div>
-      </section>
 
       {gate ? (
         <div className="authenticated-home-gate-backdrop" role="presentation" onMouseDown={() => setGate(null)}>
@@ -367,6 +339,7 @@ export function AuthenticatedHomeFeed({
           </section>
         </div>
       ) : null}
+      <VacancyPreview item={vacancyPreview} onClose={() => setVacancyPreview(null)} />
     </div>
   )
 }

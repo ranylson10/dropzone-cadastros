@@ -30,14 +30,13 @@ test.describe('Regressão — Home acumulada após padronização de Campeonatos
     expect(css).toContain('background:transparent')
   })
 
-  test('oportunidades usam a mesma estrutura da aba Campeonatos', () => {
+  test('oportunidades usam o card comercial canônico da página de vagas', () => {
     const home = read('web/features/home/AuthenticatedHomeFeed.tsx')
-    const directory = read('web/features/directory/components/DirectoryListClient.tsx')
+    const vacancyCard = read('web/features/vacancies/VacancyCard.tsx')
 
-    expect(home).toContain('<DirectoryListClient items={championshipItems} cardsOnly />')
+    expect(home).toContain('<VacancyCard')
     expect(home).not.toContain('authenticated-home-vacancy-card')
-    expect(directory).toContain('directory-champ-card-grid')
-    expect(directory).toContain('directory-champ-card')
+    expect(vacancyCard).toContain('<article className="vacancy-card">')
   })
 
   test('mobile preserva o fluxo compacto aprovado', () => {
@@ -45,6 +44,6 @@ test.describe('Regressão — Home acumulada após padronização de Campeonatos
 
     expect(css).toContain('.authenticated-home-intro-copy{display:none}')
     expect(css).toContain('.authenticated-home-section{padding:0 3px;gap:10px}')
-    expect(css).toContain('.authenticated-home-directory-preview .directory-champ-card-grid{width:100%}')
+    expect(css).toContain('.authenticated-home-vacancies-surface .vacancies-grid{width:100%;margin:0}')
   })
 })

@@ -5,19 +5,13 @@ import path from 'node:path'
 const root = path.resolve(__dirname, '../..')
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), 'utf8')
 
-test('home pública mantém busca/acesso e evolui para Drop Sequence procedural', async () => {
-  const source = read('web/features/home/PublicChampionshipHome.tsx')
-  expect(source).toContain('LealtMotionScene')
-  expect(source).toContain('data-lealt-motion-host')
-  expect(source).toContain('data-drop-sequence-shell')
-  expect(source).toContain('data-drop-sequence-stage')
-  expect(source).toContain('data-drop-line')
+test('home pública abre o catálogo atual sem restaurar a landing cinematográfica', async () => {
+  const source = read('web/features/home/AuthenticatedHomeFeed.tsx')
+  expect(source).toContain('Encontre seu próximo campeonato')
   expect(source).toContain("fetch('/api/vagas'")
-  expect(source).toContain('onClick={onAccess}')
-  expect(source).toContain("window.matchMedia('(prefers-reduced-motion: reduce)').matches")
-  expect(source).toContain("behavior: reduceMotion ? 'auto' : 'smooth'")
-  expect(source).toContain("block: 'start'")
+  expect(source).toContain('<VacancyCard')
   expect(source).not.toContain('<video')
+  expect(fs.existsSync(path.join(root, 'web/features/home/PublicChampionshipHome.tsx'))).toBeFalsy()
 })
 
 test('login web mantém fluxo de autenticação e motion compartilhado', async () => {

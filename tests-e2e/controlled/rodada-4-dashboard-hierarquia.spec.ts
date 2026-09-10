@@ -33,7 +33,7 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     expect(css).not.toContain('nth-of-type')
   })
 
-  test('ação principal aparece antes dos atalhos e oportunidades', () => {
+  test('catálogo aparece antes das áreas secundárias', () => {
     const home = source('web/features/home/AuthenticatedHomeFeed.tsx')
     const view = home.slice(home.indexOf('<div className="authenticated-home">'))
 
@@ -45,9 +45,9 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     expect(home).toContain("'Seu jogo começa aqui'")
     expect(home).toContain("'Seu campeonato em movimento'")
     expect(intro).toBeGreaterThan(0)
-    expect(priority).toBeGreaterThan(intro)
+    expect(opportunities).toBeGreaterThan(intro)
+    expect(priority).toBeGreaterThan(opportunities)
     expect(areas).toBeGreaterThan(priority)
-    expect(opportunities).toBeGreaterThan(areas)
   })
 
   test('áreas da conta ficam compactas e identificadas por perfil', () => {
@@ -65,14 +65,12 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     ])
   })
 
-  test('oportunidades reutilizam a mesma lista visual da aba Campeonatos', () => {
+  test('oportunidades reutilizam o card comercial da página de vagas', () => {
     const home = source('web/features/home/AuthenticatedHomeFeed.tsx')
-    const directory = source('web/features/directory/components/DirectoryListClient.tsx')
+    const card = source('web/features/vacancies/VacancyCard.tsx')
 
-    expect(home).toContain('<DirectoryListClient items={championshipItems} cardsOnly />')
-    expect(home).toContain("import '@/features/directory/components/championship-directory.css'")
-    expect(directory).toContain('cardsOnly = false')
-    expect(directory).toContain('const isChampionshipDirectory = cardsOnly ||')
+    expect(home).toContain('<VacancyCard')
+    expect(card).toContain('<article className="vacancy-card">')
     expect(home).not.toContain('authenticated-home-vacancy-card')
   })
 
@@ -85,7 +83,7 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     expect(css).toContain('.authenticated-home-section{padding:0 3px;gap:10px}')
     expect(css).toContain('.authenticated-home-areas-grid{grid-template-columns:1fr;gap:6px}')
     expect(css).toContain('.authenticated-home-area-card{min-height:58px;padding:10px}')
-    expect(css).toContain('.authenticated-home-directory-preview .directory-champ-card-grid{width:100%}')
+    expect(css).toContain('.authenticated-home-vacancies-surface .vacancies-grid{width:100%;margin:0}')
   })
   test('mobile move menu para o topo, abre drawer lateral e usa perfil no dock', () => {
     const header = source('web/components/layout/AppHeader.tsx')

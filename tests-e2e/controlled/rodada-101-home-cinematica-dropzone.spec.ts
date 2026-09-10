@@ -7,21 +7,15 @@ const read=(file:string)=>fs.readFileSync(path.join(root,file),'utf8')
 const json=(file:string)=>JSON.parse(read(file))
 
 test.describe('Rodada 101/101A — Home Cinemática DropZone',()=>{
-  test('web usa GSAP + ScrollTrigger com shell sticky e fundo procedural',async()=>{
+  test('motor cinematográfico continua disponível para as telas que ainda o usam',async()=>{
     const pkg=json('web/package.json')
     const effect=read('web/components/effects/LealtMotionScene.tsx')
-    const home=read('web/features/home/PublicChampionshipHome.tsx')
     const css=read('web/app/globals.css')
     expect(pkg.dependencies.gsap).toBeTruthy()
     expect(effect).toContain("import('gsap/ScrollTrigger')")
     expect(effect).toContain('trigger: shell')
     expect(effect).toContain("end: 'bottom bottom'")
     expect(effect).toContain('scrub: 0.72')
-    expect(home).toContain('data-drop-sequence-shell')
-    expect(home).toContain('data-drop-transition-word')
-    expect(home).toContain('drop-sequence-line-accent')
-    expect(home).not.toContain('<video')
-    expect(home).not.toContain('/videos/dropzone-home')
     expect(css).toContain('height:190vh')
     expect(css).toContain('position:sticky')
     expect(css).toContain('.lealt-motion-phase-b')
@@ -29,13 +23,12 @@ test.describe('Rodada 101/101A — Home Cinemática DropZone',()=>{
     expect(effect).toContain("'(prefers-reduced-motion: reduce)'")
   })
 
-  test('web mantém API de vagas, busca, destaque e acesso intactos',async()=>{
-    const home=read('web/features/home/PublicChampionshipHome.tsx')
+  test('home atual mantém API de vagas e a entrada pública no catálogo',async()=>{
+    const home=read('web/features/home/AuthenticatedHomeFeed.tsx')
     expect(home).toContain("fetch('/api/vagas', { cache: 'no-store' })")
-    expect(home).toContain('setFilter(value)')
-    expect(home).toContain('data-drop-featured')
-    expect(home).toContain('Garantir vaga')
-    expect(home).toContain('onClick={onAccess}')
+    expect(home).toContain('<VacancyCard')
+    expect(home).toContain('Ver catálogo completo')
+    expect(home).toContain('Encontrar vaga')
   })
 
   test('mobile fixa versões compatíveis do Expo 54 e usa UI thread',async()=>{
