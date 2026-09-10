@@ -46,6 +46,7 @@ type Slot = {
   equipe_nome?: string | null
   line_logo_url?: string | null
   origem_entrada?: string | null
+  participacao_id?: string | null
 }
 
 type Permission = {
@@ -72,7 +73,7 @@ type BulkPhaseDraft = {
   customizeSlots: boolean
   grupos: BulkGroupDraft[]
 }
-type BatchSlotAssignment = { slotId: string; equipeId: string; lineId: string }
+type BatchSlotAssignment = { slotId: string; equipeId: string; lineId: string; lineName: string }
 
 async function authHeaders() {
   const { data } = await supabase.auth.getSession()
@@ -82,7 +83,7 @@ async function authHeaders() {
 }
 
 function slotStatus(slot: Slot): 'livre' | 'reservada' | 'ocupada' {
-  if (slot.line_id || slot.equipe_id) return 'ocupada'
+  if (slot.participacao_id || slot.line_id || slot.equipe_id || slot.status === 'ocupado' || slot.status === 'ocupada') return 'ocupada'
   if (slot.status === 'reservado' || slot.status === 'reservada') return 'reservada'
   return 'livre'
 }
@@ -243,7 +244,7 @@ export function CampeonatoEstruturaTab({
   const enrollmentFreeSlots = selectedEnrollmentGroup
     ? slots.filter((slot) => slot.grupo_id === selectedEnrollmentGroup.id && slotStatus(slot) === 'livre')
     : []
-  const batchSelectedCount = batchAssignments.filter((row) => row.equipeId && row.lineId).length
+  const batchSelectedCount = batchAssignments.filter((row) => row.equipeId && (row.lineId || row.lineName.trim())).length
 
   useEffect(() => {
     if (!enrollmentGroupId && enrollmentGroups[0]?.id) setEnrollmentGroupId(enrollmentGroups[0].id)
@@ -264,7 +265,7 @@ export function CampeonatoEstruturaTab({
     setSlotModo('adicionar')
     setBatchMode(true)
     setBatchSlots(freeSlots)
-    setBatchAssignments(freeSlots.map((freeSlot) => ({ slotId: freeSlot.id, equipeId: '', lineId: '' })))
+    setBatchAssignments(freeSlots.map((freeSlot) => ({ slotId: freeSlot.id, equipeId: '', lineId: '', lineName: '' })))
     setBusca('')
     setResultados([])
     setEquipe(null)
@@ -411,8 +412,8 @@ export function CampeonatoEstruturaTab({
   }
 
   async function adicionarVariosSlots() {
-    const incomplete = batchAssignments.some((row) => Boolean(row.equipeId) !== Boolean(row.lineId))
-    const valid = batchAssignments.filter((row) => row.slotId && row.equipeId && row.lineId)
+    const incomplete = batchAssignments.some((row) => Boolean(row.equipeId) !== Boolean(row.lineId || row.lineName.trim()))
+    const valid = batchAssignments.filter((row) => row.slotId && row.equipeId && (row.lineId || row.lineName.trim()))
     if (incomplete) {
       setSlotFeedback('Escolha uma line para cada equipe selecionada.')
       return
@@ -425,7 +426,8 @@ export function CampeonatoEstruturaTab({
       setSlotFeedback('Cada equipe precisa usar um slot diferente.')
       return
     }
-    if (new Set(valid.map((row) => row.lineId)).size !== valid.length) {
+    const selectedLineIds = valid.map((row) => row.lineId).filter(Boolean)
+    if (new Set(selectedLineIds).size !== selectedLineIds.length) {
       setSlotFeedback('A mesma line não pode ocupar dois slots diferentes neste grupo.')
       return
     }
@@ -436,6 +438,7 @@ export function CampeonatoEstruturaTab({
         slot_id: row.slotId,
         equipe_id: row.equipeId,
         line_id: row.lineId || undefined,
+        nome_line: row.lineId ? undefined : row.lineName.trim(),
       })))
       fecharSlot()
       await load({ silent: true })
@@ -1296,7 +1299,7 @@ export function CampeonatoEstruturaTab({
           batchMode ? 'Pesquise as equipes, escolha as lines e confirme todas de uma vez.' : 'Pesquise a equipe (pasta) e escolha/crie a line para este slot.'
         }
         onClose={fecharSlot}
-        size="medium"
+        size={batchMode ? 'wide' : 'medium'}
       >
         <div className="seller-invite-modal">
           {slotFeedback ? <div className="message success">{slotFeedback}</div> : null}
@@ -1334,9 +1337,10 @@ export function CampeonatoEstruturaTab({
                   ))}
                 </div>
               ) : null}
-              {batchMode && resultados.length > 0 ? (
+              {batchMode ? (
                 <div className="slot-batch-editor">
                   <div className="slot-batch-head"><strong>Preencha os slots desejados</strong><span>{batchSelectedCount} de {batchSlots.length} slot(s) selecionado(s)</span></div>
+                  {!resultados.length ? <p className="slot-batch-hint">Os slots já estão prontos. Busque uma equipe acima para carregar as opções de equipe e line.</p> : null}
                   <div className="slot-batch-table">
                     <div className="slot-batch-labels"><span>Slot</span><span>Equipe</span><span>Line</span></div>
                     {batchAssignments.map((row, index) => {
@@ -1346,18 +1350,22 @@ export function CampeonatoEstruturaTab({
                         ...slots.filter((slot) => slot.grupo_id === groupId && slot.line_id).map((slot) => String(slot.line_id)),
                         ...batchAssignments.filter((_, rowIndex) => rowIndex !== index).map((item) => item.lineId).filter(Boolean),
                       ])
-                      const availableLines = (selectedTeam?.lines || []).filter((line) => !unavailableLineIds.has(String(line.id)))
+                      const availableLines = (selectedTeam?.lines || []).filter((line) => !line.ja_inscrita && !unavailableLineIds.has(String(line.id)))
                       return <div key={`${row.slotId}-${index}`}>
                         <strong className="slot-batch-slot">{batchSlots.find((slot) => slot.id === row.slotId)?.slot_letra || `Slot ${batchSlots.find((slot) => slot.id === row.slotId)?.slot_numero || index + 1}`}</strong>
                         <select aria-label={`Equipe ${index + 1}`} value={row.equipeId} onChange={(event) => {
                           const team = resultados.find((item) => item.id === event.target.value)
-                          const selectableLines = (team?.lines || []).filter((line) => !unavailableLineIds.has(String(line.id)))
-                          updateBatchAssignment(index, { equipeId: event.target.value, lineId: selectableLines[0]?.id || '' })
-                        }}><option value="">Deixar slot livre</option>{resultados.map((item) => <option key={item.id} value={item.id}>{item.nome} {item.tag ? `· ${item.tag}` : ''}</option>)}</select>
-                        <select aria-label={`Line ${index + 1}`} value={row.lineId} disabled={!selectedTeam} onChange={(event) => updateBatchAssignment(index, { lineId: event.target.value })}>
-                          <option value="">{selectedTeam && !availableLines.length ? 'Nenhuma line disponível' : 'Selecione a line'}</option>
-                          {availableLines.map((line) => <option key={line.id} value={line.id}>{line.nome}</option>)}
-                        </select>
+                          const selectableLines = (team?.lines || []).filter((line) => !line.ja_inscrita && !unavailableLineIds.has(String(line.id)))
+                          updateBatchAssignment(index, { equipeId: event.target.value, lineId: selectableLines[0]?.id || '', lineName: '' })
+                        }} disabled={!resultados.length}><option value="">{resultados.length ? 'Deixar slot livre' : 'Busque uma equipe acima'}</option>{resultados.map((item) => <option key={item.id} value={item.id}>{item.nome} {item.tag ? `· ${item.tag}` : ''}</option>)}</select>
+                        {selectedTeam && !availableLines.length ? (
+                          <input aria-label={`Nova line ${index + 1}`} value={row.lineName} maxLength={80} placeholder="Nome da nova line" onChange={(event) => updateBatchAssignment(index, { lineId: '', lineName: event.target.value })}/>
+                        ) : (
+                          <select aria-label={`Line ${index + 1}`} value={row.lineId} disabled={!selectedTeam} onChange={(event) => updateBatchAssignment(index, { lineId: event.target.value, lineName: '' })}>
+                            <option value="">Selecione a line</option>
+                            {availableLines.map((line) => <option key={line.id} value={line.id}>{line.nome}</option>)}
+                          </select>
+                        )}
                       </div>
                     })}
                   </div>

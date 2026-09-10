@@ -159,6 +159,9 @@ async function loadStructure(campeonatoId: string) {
     const part = (slot.id && partBySlot.get(slot.id)) || (slot.line_id && partByLine.get(slot.line_id)) || null
     return {
       ...slot,
+      equipe_id: slot.equipe_id || part?.equipe_id || null,
+      line_id: slot.line_id || part?.line_id || null,
+      status: part ? 'ocupado' : slot.status,
       line_nome: part?.line_nome || part?.nome_exibicao || line?.nome || null,
       equipe_nome: part?.equipe_nome || equipe?.nome || null,
       line_logo_url: line?.logo_url || equipe?.logo_url || null,
@@ -173,7 +176,7 @@ async function loadStructure(campeonatoId: string) {
     if (!key) continue
     const current = slotsByGrupo.get(key) || { total: 0, ocupados: 0, livres: 0 }
     current.total += 1
-    if (slot.equipe_id || slot.line_id) current.ocupados += 1
+    if (slot.participacao_id || slot.equipe_id || slot.line_id || slot.status === 'ocupado' || slot.status === 'ocupada') current.ocupados += 1
     else current.livres += 1
     slotsByGrupo.set(key, current)
   }
