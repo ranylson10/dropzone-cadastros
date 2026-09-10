@@ -3,14 +3,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const PUBLIC_ROUTES = [
-  '/', '/login', '/campeonatos', '/equipes', '/jogadores', '/produtoras', '/managers', '/rank', '/vagas',
+  '/', '/login', '/campeonatos', '/equipes', '/jogadores', '/produtoras', '/managers', '/afiliados', '/rank', '/vagas',
   '/politica-de-privacidade', '/termos-de-servico', '/exclusao-de-dados',
 ]
 
 const ROLE_ROUTES: Record<string, string[]> = {
-  admin: ['/', '/admin', '/agenda', '/campeonatos', '/equipes', '/jogadores', '/produtoras', '/managers', '/rank', '/vagas'],
-  produtora: ['/', '/agenda', '/campeonatos', '/equipes', '/jogadores', '/produtoras', '/managers', '/rank', '/vagas'],
-  manager: ['/', '/agenda', '/campeonatos', '/equipes', '/jogadores', '/managers', '/rank', '/vagas'],
+  admin: ['/', '/admin', '/agenda', '/campeonatos', '/equipes', '/jogadores', '/produtoras', '/managers', '/afiliados', '/rank', '/vagas'],
+  produtora: ['/', '/agenda', '/campeonatos', '/equipes', '/jogadores', '/produtoras', '/managers', '/afiliados', '/rank', '/vagas'],
+  manager: ['/', '/agenda', '/campeonatos', '/equipes', '/jogadores', '/managers', '/afiliados', '/rank', '/vagas'],
   equipe: ['/', '/agenda', '/campeonatos', '/equipes', '/jogadores', '/rank', '/vagas', '/carteira'],
   jogador: ['/', '/agenda', '/campeonatos', '/equipes', '/jogadores', '/rank', '/vagas', '/carteira'],
 }

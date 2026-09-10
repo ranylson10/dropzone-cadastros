@@ -7271,6 +7271,22 @@ body .page-authenticated:has(.team-dashboard) .team-dashboard .team-line-inline-
 body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-row-edit,
 body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-perm-grid{background:transparent;color:var(--ui-text)}
 body .page-authenticated:has(.team-dashboard) .team-dashboard .seller-perm-item{border:0;background:var(--ui-surface-raised);color:var(--ui-text-muted)}
+
+/* Central pública de afiliados: jornada comercial separada do diretório de managers. */
+.affiliate-page{background:#090b0d;color:#f5f3ec;min-height:100vh}
+.affiliate-landing{width:min(1280px,calc(100% - 36px));margin:0 auto;padding:64px 0 72px}
+.affiliate-hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:54px;align-items:center;min-height:520px;padding:54px 64px;border:1px solid rgba(201,183,102,.22);border-radius:18px;background:radial-gradient(circle at 78% 26%,rgba(201,183,102,.18),transparent 34%),linear-gradient(135deg,#111419,#0b0d10);overflow:hidden}
+.affiliate-hero-copy{max-width:720px}.affiliate-hero .eyebrow,.affiliate-benefits .eyebrow,.affiliate-cta .eyebrow{color:#d2bd58;font-size:11px;letter-spacing:.18em;font-weight:900}
+.affiliate-hero h1{margin:13px 0 20px;font-size:clamp(44px,5.6vw,82px);line-height:.96;letter-spacing:-.045em;text-transform:uppercase}.affiliate-hero h1 span{color:#d2bd58}
+.affiliate-lead{max-width:650px;color:#aeb4bd;font-size:18px;line-height:1.65}.affiliate-hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}.affiliate-hero-actions .button,.affiliate-cta .button{display:inline-flex;align-items:center;gap:9px}
+.affiliate-trust{display:flex;align-items:center;gap:7px;margin-top:20px;color:#858c96}
+.affiliate-hero-card{padding:30px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(10,12,15,.72);box-shadow:0 24px 80px rgba(0,0,0,.35)}
+.affiliate-card-icon{display:grid;place-items:center;width:58px;height:58px;margin-bottom:28px;border-radius:13px;background:#d2bd58;color:#111}.affiliate-hero-card>p{color:#9da4ad;margin:0 0 6px}.affiliate-hero-card>strong{display:block;font-size:27px;line-height:1.15;text-transform:uppercase}
+.affiliate-mini-metrics{display:grid;gap:1px;margin-top:28px;border:1px solid rgba(255,255,255,.08)}.affiliate-mini-metrics span{display:flex;align-items:center;gap:11px;padding:14px;background:#14171b;color:#c7cbd1;font-size:13px}.affiliate-mini-metrics svg{color:#d2bd58}
+.affiliate-benefits{padding:76px 0}.affiliate-section-title{display:flex;align-items:end;justify-content:space-between;margin-bottom:26px}.affiliate-section-title h2,.affiliate-cta h2{margin:7px 0 0;font-size:clamp(28px,3vw,44px);text-transform:uppercase}
+.affiliate-benefit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.affiliate-benefit-grid article{position:relative;min-height:230px;padding:30px;border:1px solid #24282e;border-radius:12px;background:#111419}.affiliate-benefit-grid article>svg{color:#d2bd58}.affiliate-benefit-grid article>b{position:absolute;top:22px;right:25px;color:#30353c;font-size:42px}.affiliate-benefit-grid h3{margin:37px 0 10px;text-transform:uppercase}.affiliate-benefit-grid p{margin:0;color:#9299a3;line-height:1.6}
+.affiliate-cta{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:34px 40px;border-left:4px solid #d2bd58;background:#15171a}.affiliate-dashboard-page{background:#090b0d;min-height:100vh}.affiliate-dashboard-shell{width:min(1420px,calc(100% - 32px));margin:18px auto 48px}
+@media(max-width:850px){.affiliate-landing{width:min(100% - 20px,1280px);padding-top:20px}.affiliate-hero{grid-template-columns:1fr;min-height:0;padding:34px 24px}.affiliate-hero h1{font-size:43px}.affiliate-benefit-grid{grid-template-columns:1fr}.affiliate-cta{align-items:flex-start;flex-direction:column;padding:28px 24px}}
 body .page-authenticated:has(.team-dashboard) .team-dashboard .staff-tab select,
 body .page-authenticated:has(.team-dashboard) .team-dashboard .staff-tab input,
 body .page-authenticated:has(.team-dashboard) .team-dashboard .inline-action-panel input{border:0;background:var(--ui-surface);color:var(--ui-text)}

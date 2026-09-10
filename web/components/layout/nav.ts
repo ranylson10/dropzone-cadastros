@@ -29,7 +29,7 @@ export const APP_NAV: AppNavItem[] = [
   { label: 'Equipes', href: '/equipes' },
   { label: 'Jogadores', href: '/jogadores' },
   { label: 'Rank', href: '/rank' },
-  { label: 'Afiliados', href: '/managers' },
+  { label: 'Afiliados', href: '/afiliados' },
 ]
 
 /** Resolve item ativo a partir do pathname (inclui submenus). */
