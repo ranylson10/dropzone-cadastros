@@ -409,7 +409,7 @@ export default function PontuadorJogoPage() {
       }).catch(() => null)
 
       setOperation((current) => current ? { ...current, activeStep: 1 } : current)
-      const confirmation = await request<{ garena?: { status?: string; jogadores?: number; erro?: string } }>(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, equipes: linkedTeams.map((team: Row) => {
+      const confirmation = await request<{ already_confirmed?: boolean; garena?: { status?: string; jogadores?: number; erro?: string } }>(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, sincronizar_garena: false, equipes: linkedTeams.map((team: Row) => {
         const teamId = previewLinks[team.nome_normalizado]
         const edit = edits[teamId]
         return { nome: team.nome, campeonato_equipe_id: teamId, posicao: number(edit?.posicao || team.posicao), abates: number(edit?.abates || team.abates), punicao_pontos: Math.min(number(edit?.punicao), 0), punicao_motivo: edit?.motivo || '', jogadores: team.jogadores.map((player: Row) => ({ ordem: player.ordem, nick: player.nick, id_jogo: player.id_jogo, abates: player.abates })) }
@@ -425,9 +425,16 @@ export default function PontuadorJogoPage() {
           : confirmation.garena?.status === 'falhou'
             ? ` A súmula foi salva, mas os dados Garena falharam: ${confirmation.garena.erro || 'tente sincronizar novamente.'}`
             : ''
-      setNotice(`Match Result confirmado, vínculos gravados e queda travada. Use Editar para alterar.${garenaNotice}`)
+      setNotice(confirmation.already_confirmed
+        ? 'Este Match Result já havia sido adicionado nesta queda. Nenhum dado foi duplicado.'
+        : `Match Result confirmado, vínculos gravados e queda travada. Os detalhes da Garena serão sincronizados em segundo plano. Use Editar para alterar.${garenaNotice}`)
       setOperation((current) => current ? { ...current, activeStep: 3 } : current)
       await load()
+      if (!confirmation.already_confirmed) {
+        void request(`/api/campeonatos/${params.id}/sumula/matchresult/sincronizar`, {
+          method: 'POST', body: JSON.stringify({ partida_id: selectedDropId }),
+        }).catch(() => null)
+      }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao confirmar Match Result.') }
     finally { setSaving(false); setOperation(null) }
   }

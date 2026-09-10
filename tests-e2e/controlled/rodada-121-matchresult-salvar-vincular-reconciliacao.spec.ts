@@ -48,3 +48,28 @@ test('MatchResult nao sobrescreve a origem de um jogador que ja existia no elenc
   expect(source).toContain(".insert({ equipe_id: equipeId, ...rosterPayload, origem: 'matchresult' })")
   expect(source).not.toContain("origem: 'matchresult',\n    status: 'ativo',")
 })
+
+test('reenvio identico de MatchResult vira aviso idempotente e nao duplica importacao', async () => {
+  const service = read('backend/src/campeonatos/estatisticas/matchresult.service.ts')
+  const scorer = read('web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx')
+  expect(service).toContain('importacaoAnterior.conteudo_bruto === body.conteudo_bruto')
+  expect(service).toContain('already_confirmed: true')
+  expect(scorer).toContain('Este Match Result já havia sido adicionado nesta queda. Nenhum dado foi duplicado.')
+})
+
+test('ordem de jogador e global na importacao e validacao da sumula ocorre em lote', async () => {
+  const matchResult = read('backend/src/campeonatos/estatisticas/matchresult.service.ts')
+  const stats = read('backend/src/campeonatos/estatisticas/estatisticas.service.ts')
+  expect(matchResult).toContain('let importPlayerOrder = 0')
+  expect(matchResult).toContain('ordem: ++importPlayerOrder')
+  expect(stats).toContain('const teamsById = new Map')
+  expect(stats).toContain('const playersById = new Map')
+  expect(stats).toContain(".in('id', teamIds)")
+  expect(stats).toContain(".in('id', playerIds)")
+})
+
+test('pontuador salva antes e sincroniza Garena fora do caminho critico', async () => {
+  const scorer = read('web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx')
+  expect(scorer).toContain('sincronizar_garena: false')
+  expect(scorer).toContain('void request(`/api/campeonatos/${params.id}/sumula/matchresult/sincronizar`')
+})

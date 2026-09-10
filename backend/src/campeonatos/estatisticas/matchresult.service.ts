@@ -106,6 +106,8 @@ function errorMessage(error: unknown) {
 type ConfirmedImportSnapshot = {
   id: string
   created_at: string | null
+  nome_arquivo: string | null
+  conteudo_bruto: string | null
   equipes: Array<{ campeonato_equipe_id: string | null }>
   jogadores: Array<{ campeonato_jogador_id: string | null; jogador_temporario_id: string | null; jogador_id: string | null }>
 }
@@ -113,7 +115,7 @@ type ConfirmedImportSnapshot = {
 async function carregarImportacaoConfirmadaAnterior(partidaId: string): Promise<ConfirmedImportSnapshot | null> {
   const { data: importacao, error } = await supabaseAdmin
     .from('matchresult_importacoes')
-    .select('id,created_at')
+    .select('id,created_at,nome_arquivo,conteudo_bruto')
     .eq('partida_id', partidaId)
     .eq('status', 'confirmada')
     .maybeSingle()
@@ -136,6 +138,8 @@ async function carregarImportacaoConfirmadaAnterior(partidaId: string): Promise<
   return {
     id: String(importacao.id),
     created_at: importacao.created_at || null,
+    nome_arquivo: importacao.nome_arquivo || null,
+    conteudo_bruto: importacao.conteudo_bruto || null,
     equipes: equipes || [],
     jogadores: jogadores || [],
   }
@@ -453,6 +457,23 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
 
   const importacaoAnterior = await carregarImportacaoConfirmadaAnterior(partida.id)
 
+  // Repetir exatamente o mesmo arquivo na mesma queda é uma operação válida e
+  // idempotente. Não cria outra importação e não expõe constraint do banco ao usuário.
+  if (
+    importacaoAnterior
+    && importacaoAnterior.conteudo_bruto === body.conteudo_bruto
+    && String(importacaoAnterior.nome_arquivo || '') === String(body.nome_arquivo || '')
+  ) {
+    return {
+      importacao_id: importacaoAnterior.id,
+      already_confirmed: true,
+      garena: { status: 'ignorado' as const },
+      reconciliacao: { jogadores_removidos: 0, equipes_removidas: 0, membros_removidos: 0 },
+      equipes: preview.equipes.length,
+      jogadores: preview.equipes.reduce((sum: number, team: any) => sum + team.jogadores.length, 0),
+    }
+  }
+
   const { data: importacao, error: importError } = await supabaseAdmin.from('matchresult_importacoes').insert({
     produtora_id: campeonato.produtora_id,
     campeonato_id: campeonatoId,
@@ -470,7 +491,8 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
 
   try {
   const manualPayload: any = { partida_id: partida.id, origem: 'matchresult', equipes: [] }
-  for (const teamValue of preview.equipes) {
+  let importPlayerOrder = 0
+  await Promise.all(preview.equipes.map(async (teamValue) => {
     const team: any = teamValue
     const { data: ce, error: ceError } = await supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,grupo_id').eq('id', team.campeonato_equipe_id).eq('campeonato_id', campeonatoId).single()
     if (ceError) throw ceError
@@ -498,7 +520,7 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
     if (linkError) throw linkError
 
     const manualTeam: any = { campeonato_equipe_id: ce.id, posicao: team.posicao, abates: team.abates, punicao_pontos: team.punicao_pontos, punicao_motivo: team.punicao_motivo, raw_team_name: team.nome, importacao_equipe_id: importTeam.id, jogadores: [] }
-    for (const player of team.jogadores) {
+    const manualPlayers = await Promise.all(team.jogadores.map(async (player: any) => {
       let jogadorId = player.jogador_id
       let tempId = player.jogador_temporario_id
       if (!jogadorId) {
@@ -581,7 +603,9 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
       const { error: importPlayerError } = await supabaseAdmin.from('matchresult_importacoes_jogadores').insert({
         importacao_id: importacao.id,
         importacao_equipe_id: importTeam.id,
-        ordem: player.ordem,
+        // A constraint é por importação, não por equipe. A ordem local do arquivo
+        // reinicia em cada time, portanto usamos sequência global ao persistir.
+        ordem: ++importPlayerOrder,
         nick_raw: player.nick,
         nick_normalizado: player.nick_normalizado,
         id_jogo: player.id_jogo,
@@ -592,10 +616,11 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
         status_vinculo: jogadorId ? 'oficial' : 'temporario',
       })
       if (importPlayerError) throw importPlayerError
-      manualTeam.jogadores.push({ campeonato_jogador_id: participation.id, abates: player.abates })
-    }
+      return { campeonato_jogador_id: participation.id, abates: player.abates }
+    }))
+    manualTeam.jogadores.push(...manualPlayers)
     manualPayload.equipes.push(manualTeam)
-  }
+  }))
 
   const { salvarPontuacaoManual } = await import('./estatisticas.service')
   const totals = await salvarPontuacaoManual(campeonatoId, userId, manualPayload)
@@ -625,19 +650,22 @@ export async function confirmarMatchResult(campeonatoId: string, userId: string,
     throw confirmError
   }
   // Complemento privado: nunca interfere na súmula oficial caso a fonte externa esteja indisponível.
-  let garena: Awaited<ReturnType<typeof sincronizarEstatisticasGarena>> = { status: 'ignorado' }
-  try {
-    garena = await sincronizarEstatisticasGarena({
-      campeonatoId,
-      jogoId: partida.jogo_id,
-      partidaId: partida.id,
-      produtoraId: campeonato.produtora_id,
-      matchresultImportacaoId: importacao.id,
-      nomeArquivo: body.nome_arquivo,
-      userId,
-    })
-  } catch (error) {
-    console.error('Não foi possível complementar o MatchResult com estatísticas detalhadas.', error)
+  let garena: Awaited<ReturnType<typeof sincronizarEstatisticasGarena>> | { status: 'pendente' } = { status: 'pendente' }
+  if (body.sincronizar_garena !== false) {
+    try {
+      garena = await sincronizarEstatisticasGarena({
+        campeonatoId,
+        jogoId: partida.jogo_id,
+        partidaId: partida.id,
+        produtoraId: campeonato.produtora_id,
+        matchresultImportacaoId: importacao.id,
+        nomeArquivo: body.nome_arquivo,
+        userId,
+      })
+    } catch (error) {
+      console.error('Não foi possível complementar o MatchResult com estatísticas detalhadas.', error)
+      garena = { status: 'pendente' }
+    }
   }
   return { importacao_id: importacao.id, garena, reconciliacao, ...totals }
   } catch (error) {
