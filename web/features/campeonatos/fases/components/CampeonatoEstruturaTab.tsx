@@ -248,17 +248,25 @@ export function CampeonatoEstruturaTab({
     if (!enrollmentGroupId && enrollmentGroups[0]?.id) setEnrollmentGroupId(enrollmentGroups[0].id)
   }, [enrollmentGroupId, enrollmentGroups])
 
-  function startEnrollmentInGroup() {
-    const slot = enrollmentFreeSlots[0]
+  function startEnrollmentInGroup(groupId = enrollmentGroupId) {
+    const group = enrollmentGroups.find((item) => item.id === groupId) || null
+    const freeSlots = group
+      ? slots.filter((slot) => slot.grupo_id === group.id && slotStatus(slot) === 'livre')
+      : []
+    const slot = freeSlots[0]
     if (!slot) {
       setError('Este grupo não possui slots livres. Selecione outro grupo.')
       return
     }
+    setEnrollmentGroupId(groupId)
     setSlotAlvo(slot)
     setSlotModo('adicionar')
     setBatchMode(true)
-    setBatchSlots(enrollmentFreeSlots)
+    setBatchSlots(freeSlots)
     setBatchAssignments([{ slotId: slot.id, equipeId: '', lineId: '' }])
+    setBusca('')
+    setResultados([])
+    setEquipe(null)
     setSlotFeedback('')
   }
 
@@ -558,7 +566,7 @@ export function CampeonatoEstruturaTab({
                 })}
               </select>
             </label>
-            <button type="button" className="button" disabled={!enrollmentFreeSlots.length} onClick={startEnrollmentInGroup}>
+            <button type="button" className="button" disabled={!enrollmentFreeSlots.length} onClick={() => startEnrollmentInGroup()}>
               {enrollmentFreeSlots.length ? `Adicionar equipes · ${enrollmentFreeSlots.length} vaga(s)` : 'Grupo sem vagas'}
             </button>
           </div>
@@ -1069,6 +1077,18 @@ export function CampeonatoEstruturaTab({
                           </button>
                           {canEdit ? (
                             <div className="folder-actions">
+                              {canAdd ? (
+                                <button
+                                  type="button"
+                                  className="button group-batch-enrollment"
+                                  title={`Adicionar várias equipes ao ${group.nome}`}
+                                  disabled={!slotsOfGroup.some((slot) => slotStatus(slot) === 'livre')}
+                                  onClick={() => startEnrollmentInGroup(group.id)}
+                                >
+                                  <Users size={15} />
+                                  <span>Adicionar equipes</span>
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 title="Editar grupo"
