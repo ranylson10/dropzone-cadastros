@@ -5,6 +5,7 @@ import { Field, UploadField, resolvePendingImageUpload } from '@/features/dropzo
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
+import { WhatsappPhoneField } from './WhatsappPhoneField'
 
 type ProfileType = 'equipe' | 'manager' | 'jogador' | 'produtora' | 'broadcast'
 
@@ -142,7 +143,7 @@ export function ProfileEditForm(props: {
         ) : null}
         {props.profileType === 'manager' ? (
           <Field label="WhatsApp">
-            <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="https://wa.me/..." />
+            <WhatsappPhoneField value={whatsapp} onChange={setWhatsapp} />
           </Field>
         ) : null}
       </div>

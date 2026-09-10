@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Copy, CreditCard, ExternalLink, MessageCircle, RefreshCw, ShieldCheck, Trash2, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { WhatsappPhoneField } from '@/components/forms/WhatsappPhoneField'
 
 type SellerItem = {
   id: string
@@ -282,11 +283,7 @@ export function ManagerVendasView(props: {
           </label>
           <label className="field">
             <span>WhatsApp</span>
-            <input
-              value={props.whatsapp}
-              onChange={(e) => props.setWhatsapp(e.target.value)}
-              placeholder="5599999999999 ou https://wa.me/..."
-            />
+            <WhatsappPhoneField value={props.whatsapp} onChange={props.setWhatsapp} />
           </label>
         </div>
 

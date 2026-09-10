@@ -19,6 +19,7 @@ import { CampeonatoCallsTab } from '@/features/campeonatos/calls'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
 import { ProvisionalTeamsPanel } from '@/features/produtoras/components/ProvisionalTeamsPanel'
+import { WhatsappPhoneField } from '@/components/forms/WhatsappPhoneField'
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
 type ProducerSection = 'campeonatos' | 'provisorias' | 'staff' | 'vendedores' | 'vagas'
@@ -2556,12 +2557,8 @@ ${params.url}`
                                           placeholder="Nome exibido nas vendas"
                                         />
                                       </Field>
-                                      <Field label="WhatsApp / link de contato">
-                                        <input
-                                          value={sellerWhatsapp}
-                                          onChange={(e) => setSellerWhatsapp(e.target.value)}
-                                          placeholder="https://wa.me/55..."
-                                        />
+                                      <Field label="WhatsApp de contato">
+                                        <WhatsappPhoneField value={sellerWhatsapp} onChange={setSellerWhatsapp} />
                                       </Field>
                                     </div>
                                     <div className="seller-perm-grid compact">
@@ -2703,12 +2700,8 @@ ${params.url}`
                                           placeholder="Nome exibido nas vendas"
                                         />
                                       </Field>
-                                      <Field label="WhatsApp / link de contato">
-                                        <input
-                                          value={sellerWhatsapp}
-                                          onChange={(e) => setSellerWhatsapp(e.target.value)}
-                                          placeholder="https://wa.me/55..."
-                                        />
+                                      <Field label="WhatsApp de contato">
+                                        <WhatsappPhoneField value={sellerWhatsapp} onChange={setSellerWhatsapp} />
                                       </Field>
                                     </div>
                                     <div className="seller-perm-grid compact">
