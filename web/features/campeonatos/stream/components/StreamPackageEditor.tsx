@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { PointerEvent as ReactPointerEvent, SetStateAction, WheelEvent as ReactWheelEvent } from 'react'
+import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import { Check, Grid3X3, ImageIcon, ImagePlus, Loader2, Maximize2, Move, RefreshCw, Save, Timer, Trash2, Type, ZoomIn, ZoomOut } from 'lucide-react'
 import { StreamPackageStage } from './StreamPackageStage'
 import type { StreamPackageRenderData } from '../types/stream-package.types'
@@ -97,9 +97,7 @@ async function authFetch(url: string, options?: RequestInit) {
 }
 
 export function StreamPackageEditor(props: { campeonatoId: string }) {
-  const [pack, setPackState] = useState<StreamOverlayPackage>(() => normalizeStreamOverlayPackage(props.campeonatoId, {}))
-  const undoHistoryRef = useRef<StreamOverlayPackage[]>([])
-  const redoHistoryRef = useRef<StreamOverlayPackage[]>([])
+  const [pack, setPack] = useState<StreamOverlayPackage>(() => normalizeStreamOverlayPackage(props.campeonatoId, {}))
   const [activeType, setActiveType] = useState<StreamSystemOverlayType>('standings_general')
   const [activePanel, setActivePanel] = useState<EditorPanel>('assets')
   const [selectedInspectorItem, setSelectedInspectorItem] = useState<PackageInspectorItem>('event_logo')
@@ -123,57 +121,6 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const workspaceRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<{ pointerId: number; x: number; y: number; panX: number; panY: number } | null>(null)
-
-  function setPack(action: SetStateAction<StreamOverlayPackage>) {
-    setPackState((current) => {
-      const next = typeof action === 'function'
-        ? (action as (previous: StreamOverlayPackage) => StreamOverlayPackage)(current)
-        : action
-      if (next === current) return current
-      undoHistoryRef.current = [...undoHistoryRef.current.slice(-99), current]
-      redoHistoryRef.current = []
-      return next
-    })
-  }
-
-  const undo = useCallback(() => {
-    setPackState((current) => {
-      const previous = undoHistoryRef.current.pop()
-      if (!previous) return current
-      redoHistoryRef.current = [...redoHistoryRef.current.slice(-99), current]
-      return previous
-    })
-  }, [])
-
-  const redo = useCallback(() => {
-    setPackState((current) => {
-      const next = redoHistoryRef.current.pop()
-      if (!next) return current
-      undoHistoryRef.current = [...undoHistoryRef.current.slice(-99), current]
-      return next
-    })
-  }, [])
-
-  useEffect(() => {
-    function handleHistoryShortcut(event: KeyboardEvent) {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
-      const key = event.key.toLowerCase()
-      const target = event.target instanceof HTMLElement ? event.target : null
-      if (target?.closest('[data-native-undo="true"]')) return
-      if (key === 'z') {
-        event.preventDefault()
-        if (event.shiftKey) redo()
-        else undo()
-        return
-      }
-      if (key === 'y' && !event.shiftKey) {
-        event.preventDefault()
-        redo()
-      }
-    }
-    window.addEventListener('keydown', handleHistoryShortcut)
-    return () => window.removeEventListener('keydown', handleHistoryShortcut)
-  }, [redo, undo])
   const canvasProfile = useMemo(
     () => STREAM_OUTPUT_PROFILES.find((profile) => profile.id === canvasProfileId) || STREAM_OUTPUT_PROFILES[0],
     [canvasProfileId],
@@ -246,9 +193,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
       try {
         const json = await authFetch(`/api/campeonatos/${props.campeonatoId}/stream/pack`)
         if (!mounted) return
-        undoHistoryRef.current = []
-        redoHistoryRef.current = []
-        setPackState(normalizeStreamOverlayPackage(props.campeonatoId, json.pack || {}))
+        setPack(normalizeStreamOverlayPackage(props.campeonatoId, json.pack || {}))
         setNeedsSql(Boolean(json.needs_package_sql))
       } catch (error: any) {
         if (mounted) setFeedback(error?.message || 'Erro ao carregar pacote.')
@@ -600,7 +545,7 @@ export function StreamPackageEditor(props: { campeonatoId: string }) {
           schema_version: 3,
         }),
       })
-      setPackState((prev) => ({ ...prev, updated_at: json.pack?.updated_at || prev.updated_at }))
+      setPack((prev) => ({ ...prev, updated_at: json.pack?.updated_at || prev.updated_at }))
       setNeedsSql(Boolean(json.needs_package_sql))
       setFeedback('Pacote de transmissão salvo. Overlays e variantes foram atualizadas.')
     } catch (error: any) {
