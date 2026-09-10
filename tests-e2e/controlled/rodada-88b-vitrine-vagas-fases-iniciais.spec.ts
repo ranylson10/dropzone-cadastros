@@ -9,7 +9,6 @@ test.describe('Rodada 88B — vitrine de vagas e fases iniciais', () => {
   test('página /vagas tem filtros comerciais e badges de venda', async () => {
     const page = read('web/app/vagas/page.tsx')
     const card = read('web/features/vacancies/VacancyCard.tsx')
-    const css = read('web/app/vagas/vagas.css')
     const api = read('web/app/api/vagas/route.ts')
 
     for (const label of ['Hoje', 'Grátis', 'Com live', 'Premiação', 'Últimas vagas']) {
@@ -21,16 +20,11 @@ test.describe('Rodada 88B — vitrine de vagas e fases iniciais', () => {
     expect(page).toContain("filter === 'last'")
     expect(page).toContain('vaga')
     expect(page).toContain('<VacancyCard')
-    expect(card).toContain('vagas reais')
-    expect(card).toContain('vacancy-banner-badges')
-    expect(card).toContain('vacancy-sale-line')
-    expect(card).toContain('Transmissão ao vivo')
-    expect(card).toContain('Compra segura, vaga liberada e inscrição guiada pelo sistema.')
-
-    expect(css).toContain('.vacancy-type-badge')
-    expect(css).toContain('.vacancy-banner-badges')
-    expect(css).toContain('.vacancy-sale-line')
-    expect(css).toContain('.vacancy-commercial-badges')
+    expect(page).toContain('vacancy-catalog-grid')
+    expect(card).toContain('vacancy-catalog-card')
+    expect(card).toContain('vacancy-catalog-facts')
+    expect(card).toContain('vacancy-catalog-actions')
+    expect(read('web/features/vacancies/vacancy-card.css')).toContain('aspect-ratio:4/5')
 
     expect(api).toContain('premiacao')
     expect(api).toContain('tem_live')

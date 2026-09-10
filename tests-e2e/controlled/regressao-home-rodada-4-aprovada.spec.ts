@@ -36,7 +36,7 @@ test.describe('Regressão — Home acumulada após padronização de Campeonatos
 
     expect(home).toContain('<VacancyCard')
     expect(home).not.toContain('authenticated-home-vacancy-card')
-    expect(vacancyCard).toContain('<article className="vacancy-card">')
+    expect(vacancyCard).toContain('<article className="vacancy-catalog-card">')
   })
 
   test('mobile preserva o fluxo compacto aprovado', () => {

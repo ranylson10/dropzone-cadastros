@@ -70,7 +70,7 @@ test.describe('Rodada 4 — dashboard com hierarquia de produto', () => {
     const card = source('web/features/vacancies/VacancyCard.tsx')
 
     expect(home).toContain('<VacancyCard')
-    expect(card).toContain('<article className="vacancy-card">')
+    expect(card).toContain('<article className="vacancy-catalog-card">')
     expect(home).not.toContain('authenticated-home-vacancy-card')
   })
 

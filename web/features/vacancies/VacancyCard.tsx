@@ -1,7 +1,9 @@
 'use client'
 
-import { ArrowRight, CalendarDays, CheckCircle2, Flame, Gift, MapPin, Radio, Ticket, Users, X, ZoomIn } from 'lucide-react'
-import '@/app/vagas/vagas.css'
+import { Gift, Heart, ShoppingCart, Ticket, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { getWishlistItems, toggleWishlist } from '@/features/commerce/local-commerce'
+import './vacancy-card.css'
 
 export type VacancyCatalogItem = {
   id: string
@@ -26,16 +28,12 @@ export type VacancyCatalogItem = {
 
 export function vacancyDateLabel(value?: string | null) {
   if (!value) return 'Data a confirmar'
-  return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
+  return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
 export function vacancyMoney(value: unknown) {
   const number = Number(value)
   return number > 0 ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number) : 'Grátis'
-}
-
-export function vacancyRatio(item: VacancyCatalogItem) {
-  return Math.max(6, Math.min(100, (Number(item.vagas_livres || 0) / Math.max(1, Number(item.total_vagas || 1))) * 100))
 }
 
 export function hasVacancyPrize(item: VacancyCatalogItem) {
@@ -46,45 +44,59 @@ export function VacancyCard({
   item,
   onPreview,
   onBuy,
-  buyLabel = 'Garantir minha vaga',
-  persuasion = 'Compra segura, vaga liberada e inscrição guiada pelo sistema.',
+  buyLabel = 'Garantir vaga',
 }: {
   item: VacancyCatalogItem
   onPreview: (item: VacancyCatalogItem) => void
   onBuy: (item: VacancyCatalogItem) => void
   buyLabel?: string
-  persuasion?: string
 }) {
+  const detailsHref = `/campeonatos/${item.id}`
+  const prize = item.premiacao ? vacancyMoney(item.premiacao) : item.descricao_premiacao ? 'Premiação' : null
+  const [favorite, setFavorite] = useState(false)
+
+  useEffect(() => {
+    const refresh = () => setFavorite(getWishlistItems().some((saved) => saved.id === item.id))
+    refresh()
+    window.addEventListener('dropzone:commerce-updated', refresh)
+    return () => window.removeEventListener('dropzone:commerce-updated', refresh)
+  }, [item.id])
+
+  const toggleFavorite = () => {
+    const next = toggleWishlist({
+      id: item.id,
+      name: item.nome,
+      href: detailsHref,
+      image: item.logo_url,
+      banner: item.banner_url,
+      price: Number(item.valor_inscricao || 0),
+      freeSlots: Number(item.vagas_livres || 0),
+    })
+    setFavorite(next.some((saved) => saved.id === item.id))
+  }
+
   return (
-    <article className="vacancy-card">
-      <button className="vacancy-banner" type="button" onClick={() => onPreview(item)} aria-label={`Ampliar banner de ${item.nome}`}>
-        {item.banner_url ? <img src={item.banner_url} alt={`Banner ${item.nome}`} /> : <span className="vacancy-banner-fallback"><Ticket size={28} /></span>}
-        <span className="vacancy-type-badge">{item.tipo || 'Campeonato'}</span>
-        <span className="vacancy-banner-badges">
-          {item.tem_live ? <b><Radio size={12} /> Live</b> : null}
-          {hasVacancyPrize(item) ? <b><Gift size={12} /> Prêmio</b> : null}
-          {Number(item.vagas_livres || 0) <= 3 ? <b className="hot"><Flame size={12} /> Últimas</b> : null}
-        </span>
-        <span className="vacancy-zoom-label"><ZoomIn size={14} /> Ver banner</span>
-        {item.ja_tem_vaga ? <span className="vacancy-enrolled"><CheckCircle2 size={14} /> Sua equipe já tem vaga</span> : null}
-      </button>
-      <div className="vacancy-card-body">
-        <header>{item.logo_url ? <img src={item.logo_url} alt="" /> : null}<div><p>{item.tipo}</p><h2>{item.nome}</h2></div></header>
-        <div className="vacancy-next-date"><CalendarDays /><div><small>Próxima vaga</small><strong>{vacancyDateLabel(item.proxima_data)} {item.proximo_horario ? `· ${String(item.proximo_horario).slice(0, 5)}h` : ''}</strong><span>{item.proximo_grupo}</span></div></div>
-        <div className="vacancy-sale-line">
-          <span><b>{item.vagas_livres}</b> de {item.total_vagas} vagas reais</span>
-          <i><em style={{ width: `${vacancyRatio(item)}%` }} /></i>
-        </div>
-        <div className="vacancy-meta"><span><Users size={14} /><b>{item.vagas_livres}</b> vagas</span><span><Ticket size={14} /><b>{vacancyMoney(item.valor_inscricao)}</b></span>{item.servidor ? <span><MapPin size={14} />{item.servidor}</span> : null}</div>
-        {(hasVacancyPrize(item) || item.tem_live) ? <div className="vacancy-commercial-badges">
-          {item.tem_live ? <span><Radio size={13} /> Transmissão ao vivo</span> : null}
-          {item.premiacao ? <span><Gift size={13} /> Premiação {vacancyMoney(item.premiacao)}</span> : item.descricao_premiacao ? <span><Gift size={13} /> Premiação informada</span> : null}
-        </div> : null}
-        <div className="vacancy-groups">{(item.grupos || []).slice(0, 3).map((group) => <span key={group.id}>{group.nome}<b>{group.vagas_livres} livres</b></span>)}</div>
-        <div className="vacancy-persuasion"><strong>Garanta sua vaga</strong><span>{persuasion}</span></div>
-        <button className="button vacancy-register" type="button" onClick={() => onBuy(item)}>{buyLabel} <ArrowRight size={15} /></button>
-        <a className="vacancy-details-link" href={`/campeonatos/${item.id}`}>Ver detalhes do campeonato</a>
+    <article className="vacancy-catalog-card">
+      <a className="vacancy-catalog-cover" href={detailsHref} aria-label={`Abrir campeonato ${item.nome}`}>
+        {item.banner_url
+          ? <img src={item.banner_url} alt="" loading="lazy" decoding="async" />
+          : <span className="vacancy-catalog-cover-fallback"><Ticket size={34} /></span>}
+      </a>
+      <div className="vacancy-catalog-actions">
+        <button className={favorite ? 'active' : ''} type="button" onClick={toggleFavorite} aria-label={favorite ? `Remover ${item.nome} dos favoritos` : `Adicionar ${item.nome} aos favoritos`} aria-pressed={favorite}><Heart size={16} /></button>
+        <button type="button" onClick={() => onBuy(item)} aria-label={`${buyLabel}: ${item.nome}`} title={buyLabel}><ShoppingCart size={16} /></button>
       </div>
+      <a className="vacancy-catalog-content" href={detailsHref}>
+        <small>{item.tipo || 'Campeonato'}</small>
+        <h2>{item.nome}</h2>
+        <div className="vacancy-catalog-facts">
+          <span><strong>{Number(item.vagas_livres || 0)}</strong><b>livres</b></span>
+          {prize ? <span><strong>{prize}</strong><b>prêmio</b></span> : <span><strong>{vacancyMoney(item.valor_inscricao)}</strong><b>por vaga</b></span>}
+        </div>
+        <p>Próximo jogo: <strong>{vacancyDateLabel(item.proxima_data)}</strong>{item.proximo_horario ? ` · ${String(item.proximo_horario).slice(0, 5)}h` : ''}</p>
+        {item.ja_tem_vaga ? <em><Gift size={12} /> Sua equipe já participa</em> : null}
+      </a>
+      <button className="vacancy-catalog-preview" type="button" onClick={() => onPreview(item)} aria-label={`Ampliar banner de ${item.nome}`}>Ver banner</button>
     </article>
   )
 }

@@ -151,7 +151,7 @@ export default function VacanciesPage() {
 
       {error ? <div className="admin-feedback error">{error}</div> : null}
       {loading ? <DropzoneLoader compact label="Buscando vagas" /> : (
-        <section className="vacancies-grid">
+        <section className="vacancies-grid vacancy-catalog-grid">
           {visible.map((item) => <VacancyCard key={item.id} item={item as VacancyCatalogItem} onPreview={setPreview} onBuy={openBuyModal} />)}
           {visible.length === 0 ? <div className="vacancies-empty"><Ticket size={32} /><strong>Nenhuma vaga encontrada</strong><span>Tente outro filtro ou volte mais tarde.</span></div> : null}
         </section>

@@ -12,13 +12,13 @@ test.describe('Rodada 133 — catálogo de vagas unificado', () => {
     const vacancies = read('web/app/vagas/page.tsx')
     const affiliate = read('web/app/vendedores/[managerId]/page.tsx')
 
-    expect(card).toContain('<article className="vacancy-card">')
-    expect(card).toContain('vacancy-banner-badges')
-    expect(card).toContain('vacancy-sale-line')
-    expect(card).toContain('vacancy-register')
+    expect(card).toContain('<article className="vacancy-catalog-card">')
+    expect(card).toContain('vacancy-catalog-cover')
+    expect(card).toContain('vacancy-catalog-facts')
+    expect(card).toContain('vacancy-catalog-actions')
     for (const consumer of [home, vacancies, affiliate]) {
       expect(consumer).toContain('<VacancyCard')
-      expect(consumer).not.toContain('<article className="vacancy-card">')
+      expect(consumer).not.toContain('<article className="vacancy-catalog-card">')
     }
   })
 

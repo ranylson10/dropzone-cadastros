@@ -251,7 +251,7 @@ export function AuthenticatedHomeFeed({
               {Array.from({ length: 2 }).map((_, index) => <div className="authenticated-home-vacancy-skeleton" key={index} />)}
             </div>
           ) : vacancies.length ? (
-            <div className="vacancies-grid">
+            <div className="vacancies-grid vacancy-catalog-grid">
               {vacancies.map((item) => (
                 <VacancyCard
                   key={item.id}

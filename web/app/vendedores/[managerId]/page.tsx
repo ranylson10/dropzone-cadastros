@@ -120,7 +120,7 @@ export default function VendedorCampeonatosPage() {
         </section>
 
         {error ? <div className="admin-feedback error">{error}</div> : null}
-        <section className="vacancies-grid">
+        <section className="vacancies-grid vacancy-catalog-grid">
           {visible.map((item) => (
             <VacancyCard
               key={item.id}
@@ -128,7 +128,6 @@ export default function VendedorCampeonatosPage() {
               onPreview={setPreview}
               onBuy={setBuyTarget}
               buyLabel="Comprar vaga"
-              persuasion="Pagamento online com comissão deste vendedor, ou WhatsApp dele."
             />
           ))}
           {visible.length === 0 ? (
