@@ -7,11 +7,10 @@ const panel = fs.readFileSync(path.join(root, 'web/features/produtoras/component
 const route = fs.readFileSync(path.join(root, 'web/app/api/produtora/equipes-provisorias/route.ts'), 'utf8')
 const css = fs.readFileSync(path.join(root, 'web/features/produtoras/components/provisional-teams.css'), 'utf8')
 
- test('95 - colagem de planilha ignora cabeçalho comum e continua aceitando tabulação', async () => {
-  expect(panel).toContain("line.includes('\\t')")
-  expect(panel).toContain("normalizedName === 'nome'")
-  expect(panel).toContain("normalizedName === 'nome da equipe'")
-  expect(panel).toContain("normalizedTag === 'tag'")
+ test('95 - colagem em colunas ignora cabeçalhos comuns e preserva o alinhamento', async () => {
+  expect(panel).toContain("['nome', 'equipe', 'nome da equipe']")
+  expect(panel).toContain("['tag']")
+  expect(panel).toContain('tags[index]')
 })
 
 test('95 - prévia do lote pode ser corrigida e ter linhas removidas antes de salvar', async () => {
@@ -24,8 +23,8 @@ test('95 - prévia do lote pode ser corrigida e ter linhas removidas antes de sa
 })
 
 test('95 - cadastro continua sendo uma única confirmação para todo o lote', async () => {
-  expect(panel).toContain('body: JSON.stringify({ equipes: bulkRows })')
-  expect(panel).toContain('Criar {bulkRows.length')
+  expect(panel).toContain('body: JSON.stringify({ equipes })')
+  expect(panel).toContain('Promise.all(bulkRows.map')
   expect(panel).toContain('Nada é salvo até você confirmar.')
 })
 

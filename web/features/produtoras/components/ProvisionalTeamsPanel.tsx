@@ -6,24 +6,26 @@ import { supabase } from '@/lib/supabase-browser'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
 import './provisional-teams.css'
 
-type Row = { nome: string; tag: string }
+type Row = { nome: string; tag: string; logoFile?: File; logoPreview?: string }
 type Team = any
 type ManagerTab = 'dados' | 'lines' | 'campeonatos'
 
-function parseBulk(text: string): Row[] {
-  const rows = text.split(/\r?\n/).flatMap((raw) => {
-    const line = raw.trim()
-    if (!line) return []
-    const parts = line.includes('\t') ? line.split('\t') : line.includes('|') ? line.split('|') : line.includes(';') ? line.split(';') : [line]
-    const nome = String(parts[0] || '').trim().replace(/\s+/g, ' ')
-    const tag = String(parts[1] || '').trim().toUpperCase()
-    if (!nome) return []
-    const normalizedName = nome.toLocaleLowerCase('pt-BR')
-    const normalizedTag = tag.toLocaleLowerCase('pt-BR')
-    if ((normalizedName === 'nome' || normalizedName === 'equipe' || normalizedName === 'nome da equipe') && (!tag || normalizedTag === 'tag')) return []
-    return [{ nome, tag }]
-  })
-  return rows.slice(0, 100)
+function columnLines(text: string, headerNames: string[]) {
+  const lines = text.split(/\r?\n/).map((value) => value.trim())
+  if (headerNames.includes(String(lines[0] || '').toLocaleLowerCase('pt-BR'))) lines.shift()
+  while (lines.length && !lines.at(-1)) lines.pop()
+  return lines
+}
+
+function buildBulkRows(namesText: string, tagsText: string, current: Row[]): Row[] {
+  const names = columnLines(namesText, ['nome', 'equipe', 'nome da equipe'])
+  const tags = columnLines(tagsText, ['tag'])
+  return names.slice(0, 100).map((rawName, index) => ({
+    nome: rawName.replace(/\s+/g, ' '),
+    tag: String(tags[index] || '').replace(/\s+/g, '').toUpperCase(),
+    logoFile: current[index]?.logoFile,
+    logoPreview: current[index]?.logoPreview,
+  }))
 }
 
 export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: (file: File, bucket: string) => Promise<string> }) {
@@ -32,7 +34,8 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
   const [bulkOpen, setBulkOpen] = useState(false)
-  const [bulkText, setBulkText] = useState('')
+  const [bulkNamesText, setBulkNamesText] = useState('')
+  const [bulkTagsText, setBulkTagsText] = useState('')
   const [bulkRows, setBulkRows] = useState<Row[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [managerTab, setManagerTab] = useState<ManagerTab>('dados')
@@ -115,17 +118,47 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     if (!bulkRows.length) return
     setBusy('bulk'); setMessage('')
     try {
-      const payload = await request('/api/produtora/equipes-provisorias', { method: 'POST', body: JSON.stringify({ equipes: bulkRows }) })
-      setBulkText(''); setBulkRows([]); setBulkOpen(false)
+      const equipes = await Promise.all(bulkRows.map(async (row) => ({
+        nome: row.nome,
+        tag: row.tag,
+        logo_url: row.logoFile ? await uploadPublicFile(row.logoFile, 'equipe') : undefined,
+      })))
+      const payload = await request('/api/produtora/equipes-provisorias', { method: 'POST', body: JSON.stringify({ equipes }) })
+      bulkRows.forEach((row) => { if (row.logoPreview) URL.revokeObjectURL(row.logoPreview) })
+      setBulkNamesText(''); setBulkTagsText(''); setBulkRows([]); setBulkOpen(false)
       setMessage(`${payload.criadas || 0} equipe(s) criada(s). Cada cadastro recebe um ID público próprio, mesmo quando nome ou TAG se repetem.`)
       await load({ preserveMessage: true })
     } catch (error: any) { setMessage(error?.message || 'Não foi possível criar as equipes.') }
     finally { setBusy('') }
   }
 
-  function changeBulkText(value: string) { setBulkText(value); setBulkRows(parseBulk(value)) }
+  function changeBulkColumn(kind: 'names' | 'tags', value: string) {
+    const names = kind === 'names' ? value : bulkNamesText
+    const tags = kind === 'tags' ? value : bulkTagsText
+    if (kind === 'names') setBulkNamesText(value)
+    else setBulkTagsText(value)
+    setBulkRows((current) => buildBulkRows(names, tags, current))
+  }
   function updateBulkRow(index: number, patch: Partial<Row>) { setBulkRows((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row)) }
-  function removeBulkRow(index: number) { setBulkRows((current) => current.filter((_, rowIndex) => rowIndex !== index)) }
+  function updateBulkLogo(index: number, file?: File) {
+    if (!file) return
+    setBulkRows((current) => current.map((row, rowIndex) => {
+      if (rowIndex !== index) return row
+      if (row.logoPreview) URL.revokeObjectURL(row.logoPreview)
+      return { ...row, logoFile: file, logoPreview: URL.createObjectURL(file) }
+    }))
+  }
+  function removeBulkRow(index: number) {
+    setBulkRows((current) => {
+      const removed = current[index]
+      if (removed?.logoPreview) URL.revokeObjectURL(removed.logoPreview)
+      return current.filter((_, rowIndex) => rowIndex !== index)
+    })
+  }
+  function cancelBulk() {
+    bulkRows.forEach((row) => { if (row.logoPreview) URL.revokeObjectURL(row.logoPreview) })
+    setBulkNamesText(''); setBulkTagsText(''); setBulkRows([]); setBulkOpen(false)
+  }
 
   async function saveTeam() {
     if (!selected) return
@@ -233,16 +266,23 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     {message ? <div className="message">{message}</div> : null}
 
     {bulkOpen ? <div className="provisional-bulk">
-      <div className="provisional-bulk-copy"><strong>Cole direto da planilha</strong><span>Use duas colunas: Nome e TAG. Também aceitamos “Nome | TAG”, ponto e vírgula ou somente o nome.</span></div>
-      <textarea value={bulkText} onChange={(e) => changeBulkText(e.target.value)} placeholder={'Nome\tTAG\nFluxo\tFLX\nTropa do Pará\tTPA\nAmazon Cria\tAMZ'} rows={8}/>
+      <div className="provisional-bulk-copy"><strong>Cadastro em tabela</strong><span>Cole a lista de nomes na primeira coluna e a lista de TAGs na segunda. Cada linha forma uma equipe.</span></div>
+      <div className="provisional-bulk-columns">
+        <label><span>Nomes das equipes</span><textarea value={bulkNamesText} onChange={(e) => changeBulkColumn('names', e.target.value)} placeholder={'Fluxo\nTropa do Pará\nAmazon Cria'} rows={7}/></label>
+        <label><span>TAGs</span><textarea value={bulkTagsText} onChange={(e) => changeBulkColumn('tags', e.target.value)} placeholder={'FLX\nTPA\nAMZ'} rows={7}/></label>
+      </div>
       <div className="provisional-preview-head"><strong>{bulkRows.length} equipe(s) prontas</strong><span>Nada é salvo até você confirmar. Edite a prévia se a planilha precisar de correção.</span></div>
-      {bulkRows.length ? <div className="provisional-preview editable">{bulkRows.map((row, index) => <div key={`${index}-${row.nome}`}>
+      {bulkRows.length ? <div className="provisional-preview editable"><div className="provisional-preview-labels"><span>#</span><strong>Nome</strong><strong>TAG</strong><strong>Logo</strong><span/></div>{bulkRows.map((row, index) => <div key={`${index}-${row.nome}`}>
         <span>{index + 1}</span>
         <input aria-label={`Nome da equipe ${index + 1}`} value={row.nome} onChange={(event) => updateBulkRow(index, { nome: event.target.value })}/>
         <input aria-label={`TAG da equipe ${index + 1}`} value={row.tag} placeholder="Automática" onChange={(event) => updateBulkRow(index, { tag: event.target.value.toUpperCase() })}/>
+        <label className="provisional-bulk-logo" title={`Logo da equipe ${index + 1}`}>
+          {row.logoPreview ? <img src={row.logoPreview} alt=""/> : <ImagePlus size={16}/>}<span>{row.logoFile ? 'Trocar' : 'Adicionar'}</span>
+          <input type="file" accept="image/*" hidden onChange={(event) => updateBulkLogo(index, event.target.files?.[0])}/>
+        </label>
         <button type="button" className="provisional-remove-row" aria-label={`Remover equipe ${index + 1}`} onClick={() => removeBulkRow(index)}><Trash2 size={14}/></button>
       </div>)}</div> : null}
-      <div className="provisional-actions"><button type="button" className="button secondary" onClick={() => { setBulkText(''); setBulkRows([]); setBulkOpen(false) }}>Cancelar</button><button type="button" className="button" disabled={!bulkRows.length || busy === 'bulk' || bulkRows.some((row) => !row.nome.trim())} onClick={() => void createBulk()}>{busy === 'bulk' ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} Criar {bulkRows.length || ''} equipes</button></div>
+      <div className="provisional-actions"><button type="button" className="button secondary" disabled={busy === 'bulk'} onClick={cancelBulk}>Cancelar</button><button type="button" className="button" disabled={!bulkRows.length || busy === 'bulk' || bulkRows.some((row) => !row.nome.trim())} onClick={() => void createBulk()}>{busy === 'bulk' ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} {busy === 'bulk' ? 'Enviando logos e salvando...' : `Criar ${bulkRows.length || ''} equipes`}</button></div>
     </div> : null}
 
     {teams.length ? <div className="provisional-toolbar">

@@ -19,8 +19,8 @@ function indexAfter(text: string, first: string, second: string) {
 }
 
 test('100 - cadastro em massa continua sendo uma única confirmação e uma RPC de lote', async () => {
-  expect(panel).toContain("line.includes('\\t')")
-  expect(panel).toContain('body: JSON.stringify({ equipes: bulkRows })')
+  expect(panel).toContain("changeBulkColumn('names'")
+  expect(panel).toContain('body: JSON.stringify({ equipes })')
   expect(panel).toContain('Nada é salvo até você confirmar.')
   expect(provisionalRoute).toContain("supabaseAdmin.rpc('fn_criar_equipes_provisorias_em_bloco'")
   expect(provisionalMigration).toContain('jsonb_array_length(p_equipes) > 100')

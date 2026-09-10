@@ -19,8 +19,9 @@ function normalizeRows(input: unknown) {
   return input.flatMap((raw: any) => {
     const nome = String(raw?.nome || '').trim().replace(/\s+/g, ' ')
     const tag = String(raw?.tag || '').trim().toUpperCase()
+    const logoUrl = String(raw?.logo_url || '').trim().slice(0, 2000)
     if (!nome) return []
-    return [{ nome, ...(tag ? { tag } : {}) }]
+    return [{ nome, ...(tag ? { tag } : {}), ...(logoUrl ? { logo_url: logoUrl } : {}) }]
   }).slice(0, 100)
 }
 

@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { campeonatoEquipesService } from '@/features/campeonatos/equipes/services/campeonato-equipes.service'
 import type { CampeonatoVaga, EquipeBusca } from '@/features/campeonatos/equipes/types/campeonato-equipes.types'
+import './campeonato-estrutura-batch.css'
 
 type Fase = { id: string; nome: string; ordem?: number; tipo?: 'normal' | 'grande_final'; oculta?: boolean; data?: { oculta?: boolean } }
 type Grupo = {
@@ -71,6 +72,7 @@ type BulkPhaseDraft = {
   customizeSlots: boolean
   grupos: BulkGroupDraft[]
 }
+type BatchSlotAssignment = { slotId: string; equipeId: string; lineId: string }
 
 async function authHeaders() {
   const { data } = await supabase.auth.getSession()
@@ -164,6 +166,9 @@ export function CampeonatoEstruturaTab({
   const [nomeLine, setNomeLine] = useState('')
   const [slotBusy, setSlotBusy] = useState(false)
   const [slotFeedback, setSlotFeedback] = useState('')
+  const [batchMode, setBatchMode] = useState(false)
+  const [batchSlots, setBatchSlots] = useState<Slot[]>([])
+  const [batchAssignments, setBatchAssignments] = useState<BatchSlotAssignment[]>([])
   const [vagasIndex, setVagasIndex] = useState<Record<string, CampeonatoVaga>>({})
   const [enrollmentGroupId, setEnrollmentGroupId] = useState('')
 
@@ -251,6 +256,9 @@ export function CampeonatoEstruturaTab({
     }
     setSlotAlvo(slot)
     setSlotModo('adicionar')
+    setBatchMode(true)
+    setBatchSlots(enrollmentFreeSlots)
+    setBatchAssignments([{ slotId: slot.id, equipeId: '', lineId: '' }])
     setSlotFeedback('')
   }
 
@@ -384,6 +392,48 @@ export function CampeonatoEstruturaTab({
     setLineId('')
     setNomeLine('')
     setSlotFeedback('')
+    setBatchMode(false)
+    setBatchSlots([])
+    setBatchAssignments([])
+  }
+
+  function addBatchAssignment() {
+    const used = new Set(batchAssignments.map((row) => row.slotId))
+    const next = batchSlots.find((slot) => !used.has(slot.id))
+    if (next) setBatchAssignments((current) => [...current, { slotId: next.id, equipeId: '', lineId: '' }])
+  }
+
+  function updateBatchAssignment(index: number, patch: Partial<BatchSlotAssignment>) {
+    setBatchAssignments((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row))
+  }
+
+  async function adicionarVariosSlots() {
+    const valid = batchAssignments.filter((row) => row.slotId && row.equipeId)
+    if (!valid.length || valid.length !== batchAssignments.length) {
+      setSlotFeedback('Selecione a equipe de todas as linhas antes de salvar.')
+      return
+    }
+    if (new Set(valid.map((row) => row.slotId)).size !== valid.length) {
+      setSlotFeedback('Cada equipe precisa usar um slot diferente.')
+      return
+    }
+    setSlotBusy(true)
+    setSlotFeedback('')
+    try {
+      await Promise.all(valid.map((row) => campeonatoEquipesService.adicionar(campeonatoId, {
+        slot_id: row.slotId,
+        equipe_id: row.equipeId,
+        line_id: row.lineId || undefined,
+      })))
+      fecharSlot()
+      await load({ silent: true })
+      onChanged?.()
+    } catch (err: any) {
+      setSlotFeedback(err?.message || 'Erro ao adicionar as equipes em lote.')
+      await load({ silent: true })
+    } finally {
+      setSlotBusy(false)
+    }
   }
 
   async function pesquisarEquipe() {
@@ -392,8 +442,15 @@ export function CampeonatoEstruturaTab({
     setSlotFeedback('')
     try {
       const json = await campeonatoEquipesService.buscarEquipes(campeonatoId, busca.trim()) as any
-      setResultados(Array.isArray(json.equipes) ? json.equipes : json.items || [])
-      if (!(json.equipes || json.items || []).length) setSlotFeedback('Nenhuma equipe encontrada.')
+      const found = Array.isArray(json.equipes) ? json.equipes : json.items || []
+      setResultados((current) => batchMode
+        ? [...new Map([...current, ...found].map((item) => [item.id, item])).values()]
+        : found)
+      if (!found.length) setSlotFeedback('Nenhuma equipe encontrada.')
+      else if (batchMode) {
+        setBusca('')
+        setSlotFeedback(`${found.length} equipe(s) adicionada(s) à lista de seleção.`)
+      }
     } catch (err: any) {
       setSlotFeedback(err?.message || 'Erro na busca.')
       setResultados([])
@@ -488,7 +545,7 @@ export function CampeonatoEstruturaTab({
           <div>
             <p className="eyebrow">Inscrições</p>
             <h3>Inscrever equipes</h3>
-            <span>Escolha o grupo e adicione as equipes uma a uma, sem navegar por fases e slots.</span>
+            <span>Escolha o grupo, selecione várias equipes e lines e salve todas de uma vez.</span>
           </div>
           <div className="championship-enrollment-controls">
             <label>
@@ -502,7 +559,7 @@ export function CampeonatoEstruturaTab({
               </select>
             </label>
             <button type="button" className="button" disabled={!enrollmentFreeSlots.length} onClick={startEnrollmentInGroup}>
-              {enrollmentFreeSlots.length ? `Adicionar equipe · ${enrollmentFreeSlots.length} vaga(s)` : 'Grupo sem vagas'}
+              {enrollmentFreeSlots.length ? `Adicionar equipes · ${enrollmentFreeSlots.length} vaga(s)` : 'Grupo sem vagas'}
             </button>
           </div>
         </section>
@@ -1153,6 +1210,7 @@ export function CampeonatoEstruturaTab({
                                           if (status === 'livre' && canAdd) {
                                             setSlotAlvo(slot)
                                             setSlotModo('adicionar')
+                                            setBatchMode(false)
                                             setSlotFeedback('')
                                           } else if (status === 'ocupada' && canRemove) {
                                             void removerDoSlot(slot)
@@ -1208,10 +1266,10 @@ export function CampeonatoEstruturaTab({
       <SystemModal
         open={Boolean(slotAlvo && slotModo)}
         title={
-          `Adicionar line · slot ${slotAlvo?.slot_letra || ''}`
+          batchMode ? `Adicionar equipes · ${selectedEnrollmentGroup?.nome || 'grupo'}` : `Adicionar line · slot ${slotAlvo?.slot_letra || ''}`
         }
         description={
-          'Pesquise a equipe (pasta) e escolha/crie a line para este slot.'
+          batchMode ? 'Pesquise as equipes, escolha as lines e confirme todas de uma vez.' : 'Pesquise a equipe (pasta) e escolha/crie a line para este slot.'
         }
         onClose={fecharSlot}
         size="medium"
@@ -1233,7 +1291,7 @@ export function CampeonatoEstruturaTab({
                   </button>
                 </div>
               </Field>
-              {resultados.length > 0 ? (
+              {!batchMode && resultados.length > 0 ? (
                 <div className="staff-search-results">
                   {resultados.map((item: any) => (
                     <button
@@ -1252,7 +1310,32 @@ export function CampeonatoEstruturaTab({
                   ))}
                 </div>
               ) : null}
-              {equipe ? (
+              {batchMode && resultados.length > 0 ? (
+                <div className="slot-batch-editor">
+                  <div className="slot-batch-head"><strong>Equipes e lines selecionadas</strong><span>{batchAssignments.length} de {batchSlots.length} slot(s)</span></div>
+                  <div className="slot-batch-table">
+                    <div className="slot-batch-labels"><span>Slot</span><span>Equipe</span><span>Line</span><span/></div>
+                    {batchAssignments.map((row, index) => {
+                      const selectedTeam = resultados.find((item) => item.id === row.equipeId)
+                      return <div key={`${row.slotId}-${index}`}>
+                        <select aria-label={`Slot ${index + 1}`} value={row.slotId} onChange={(event) => updateBatchAssignment(index, { slotId: event.target.value })}>
+                          {batchSlots.map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}
+                        </select>
+                        <select aria-label={`Equipe ${index + 1}`} value={row.equipeId} onChange={(event) => {
+                          const team = resultados.find((item) => item.id === event.target.value)
+                          updateBatchAssignment(index, { equipeId: event.target.value, lineId: team?.lines?.[0]?.id || '' })
+                        }}><option value="">Selecione</option>{resultados.map((item) => <option key={item.id} value={item.id}>{item.nome} {item.tag ? `· ${item.tag}` : ''}</option>)}</select>
+                        <select aria-label={`Line ${index + 1}`} value={row.lineId} disabled={!selectedTeam} onChange={(event) => updateBatchAssignment(index, { lineId: event.target.value })}>
+                          <option value="">Line principal automática</option>
+                          {(selectedTeam?.lines || []).map((line) => <option key={line.id} value={line.id}>{line.nome}</option>)}
+                        </select>
+                        <button type="button" aria-label={`Remover seleção ${index + 1}`} disabled={batchAssignments.length === 1} onClick={() => setBatchAssignments((current) => current.filter((_, rowIndex) => rowIndex !== index))}><Trash2 size={14}/></button>
+                      </div>
+                    })}
+                  </div>
+                  <button type="button" className="button secondary slot-batch-add" disabled={batchAssignments.length >= batchSlots.length} onClick={addBatchAssignment}><Plus size={14}/> Adicionar outra equipe</button>
+                </div>
+              ) : equipe ? (
                 <>
                   <Field label="Line existente (opcional)">
                     <select value={lineId} onChange={(e) => setLineId(e.target.value)}>
@@ -1271,8 +1354,8 @@ export function CampeonatoEstruturaTab({
               ) : null}
               <div className="modal-form-actions">
                 <button type="button" className="button secondary" onClick={fecharSlot}>Cancelar</button>
-                <button type="button" className="button" disabled={slotBusy || !equipe} onClick={() => void adicionarNoSlot()}>
-                  {slotBusy ? 'Salvando...' : 'Adicionar ao slot'}
+                <button type="button" className="button" disabled={slotBusy || (batchMode ? !batchAssignments.length : !equipe)} onClick={() => void (batchMode ? adicionarVariosSlots() : adicionarNoSlot())}>
+                  {slotBusy ? 'Salvando...' : batchMode ? `Salvar ${batchAssignments.length} equipe(s)` : 'Adicionar ao slot'}
                 </button>
               </div>
           </>

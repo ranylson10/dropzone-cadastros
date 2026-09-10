@@ -9,12 +9,13 @@ const panel = fs.readFileSync(path.join(root, 'web/features/produtoras/component
 const access = fs.readFileSync(path.join(root, 'backend/src/equipes/manager-team-access.ts'), 'utf8')
 const producer = fs.readFileSync(path.join(root, 'web/features/dropzone/panels/produtora/ProdutoraPanel.tsx'), 'utf8')
 
-test('94 - cadastro em bloco aceita colagem de planilha e só grava ao confirmar', async () => {
-  expect(panel).toContain("line.includes('\\t')")
-  expect(panel).toContain("line.includes('|')")
-  expect(panel).toContain("line.includes(';')")
+test('94 - cadastro em bloco aceita listas separadas e só grava ao confirmar', async () => {
+  expect(panel).toContain("changeBulkColumn('names'")
+  expect(panel).toContain("changeBulkColumn('tags'")
+  expect(panel).toContain('Nomes das equipes')
+  expect(panel).toContain('TAGs')
   expect(panel).toContain('Nada é salvo até você confirmar.')
-  expect(panel).toContain('Criar {bulkRows.length')
+  expect(panel).toContain('Criar ${bulkRows.length')
   expect(migration).toContain('jsonb_array_length(p_equipes) > 100')
 })
 
