@@ -5,3 +5,16 @@
 
 .provisional-bulk-columns{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr);gap:10px}.provisional-bulk-columns label{display:grid;gap:6px}.provisional-bulk-columns label>span{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase}.provisional-preview{max-height:320px}.provisional-preview.editable>div{grid-template-columns:32px minmax(0,1fr) 120px 112px 32px}.provisional-preview.editable>.provisional-preview-labels{position:sticky;top:0;z-index:2;padding:7px 2px;background:var(--surface-soft);color:var(--muted);font-size:10px;text-transform:uppercase}.provisional-bulk-logo{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:7px;min-width:0;cursor:pointer;color:var(--brand)}.provisional-bulk-logo img{width:28px;height:28px;border-radius:7px;background:var(--surface);object-fit:contain}.provisional-bulk-logo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;font-size:10px;font-weight:700}
 @media(max-width:700px){.provisional-bulk-columns{grid-template-columns:minmax(0,2fr) minmax(90px,1fr)}.provisional-preview{overflow-x:auto}.provisional-preview.editable>div{grid-template-columns:24px minmax(150px,1fr) 72px 86px 28px;min-width:390px}}
+
+.provisional-preview.editable>div{grid-template-columns:32px minmax(0,1fr) 120px 112px minmax(190px,.75fr) 32px}
+.provisional-name-check-status,.provisional-name-check-error{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--brand) 10%,transparent);color:var(--muted);font-size:11px}
+.provisional-name-check-error{background:color-mix(in srgb,var(--danger,#dc2626) 10%,transparent);color:var(--danger,#dc2626)}
+.provisional-name-warning{display:flex;align-items:flex-start;gap:6px;min-width:0;color:#d6a94e}
+.provisional-name-warning.exact{color:var(--danger,#dc6262)}
+.provisional-name-warning>div{display:grid;gap:2px;min-width:0}
+.provisional-name-warning strong{font-size:10px}
+.provisional-name-warning span,.provisional-name-warning small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;color:var(--muted)}
+.provisional-name-warning small{white-space:normal;line-height:1.25}
+.provisional-name-warning .provisional-name-clear{color:var(--muted);font-size:10px}
+
+@media(max-width:700px){.provisional-preview.editable>div{grid-template-columns:24px minmax(150px,1fr) 72px 86px minmax(170px,1fr) 28px;min-width:610px}}

@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Archive, ChevronDown, ChevronRight, Copy, ImagePlus, Loader2, Pencil, Plus, Save, Search, ShieldCheck, Trash2, Trophy, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Archive, ChevronDown, ChevronRight, Copy, ImagePlus, Loader2, Pencil, Plus, Save, Search, ShieldCheck, Trash2, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
+import { normalizeTeamName, type TeamNameMatch } from '@/features/produtoras/lib/team-name-similarity'
 import './provisional-teams.css'
 
 type Row = { nome: string; tag: string; logoFile?: File; logoPreview?: string }
@@ -47,6 +48,9 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   const [query, setQuery] = useState('')
   const [rosterOpen, setRosterOpen] = useState(false)
   const [archiveId, setArchiveId] = useState('')
+  const [bulkNameMatches, setBulkNameMatches] = useState<Record<string, TeamNameMatch[]>>({})
+  const [checkingBulkNames, setCheckingBulkNames] = useState(false)
+  const [bulkCheckError, setBulkCheckError] = useState('')
 
   const selected = teams.find((team) => team.id === selectedId) || null
   const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR')
@@ -57,6 +61,10 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
           .some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(normalizedQuery))
       })
     : teams
+  const bulkNamesKey = useMemo(
+    () => bulkRows.map((row) => normalizeTeamName(row.nome)).filter(Boolean).join('\n'),
+    [bulkRows],
+  )
 
   async function auth() {
     const { data } = await supabase.auth.getSession()
@@ -101,6 +109,34 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   }
 
   useEffect(() => { void load() }, [])
+  useEffect(() => {
+    if (!bulkOpen || !bulkNamesKey) {
+      setBulkNameMatches({})
+      setCheckingBulkNames(false)
+      setBulkCheckError('')
+      return
+    }
+
+    let cancelled = false
+    setCheckingBulkNames(true)
+    const timer = window.setTimeout(async () => {
+      setBulkCheckError('')
+      try {
+        const payload = await request('/api/produtora/equipes-provisorias', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'check_names', nomes: bulkRows.map((row) => row.nome) }),
+        })
+        if (cancelled) return
+        setBulkNameMatches(Object.fromEntries((payload.resultados || []).map((result: any) => [result.key, result.matches || []])))
+      } catch {
+        if (!cancelled) setBulkCheckError('Não foi possível conferir nomes existentes agora. Você ainda pode criar as equipes normalmente.')
+      } finally {
+        if (!cancelled) setCheckingBulkNames(false)
+      }
+    }, 450)
+
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [bulkOpen, bulkNamesKey])
   useEffect(() => {
     if (!selected) return
     setDraft({
@@ -158,6 +194,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
   function cancelBulk() {
     bulkRows.forEach((row) => { if (row.logoPreview) URL.revokeObjectURL(row.logoPreview) })
     setBulkNamesText(''); setBulkTagsText(''); setBulkRows([]); setBulkOpen(false)
+    setBulkNameMatches({}); setBulkCheckError('')
   }
 
   async function saveTeam() {
@@ -272,7 +309,11 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
         <label><span>TAGs</span><textarea value={bulkTagsText} onChange={(e) => changeBulkColumn('tags', e.target.value)} placeholder={'FLX\nTPA\nAMZ'} rows={7}/></label>
       </div>
       <div className="provisional-preview-head"><strong>{bulkRows.length} equipe(s) prontas</strong><span>Nada é salvo até você confirmar. Edite a prévia se a planilha precisar de correção.</span></div>
-      {bulkRows.length ? <div className="provisional-preview editable"><div className="provisional-preview-labels"><span>#</span><strong>Nome</strong><strong>TAG</strong><strong>Logo</strong><span/></div>{bulkRows.map((row, index) => <div key={`${index}-${row.nome}`}>
+      {checkingBulkNames ? <div className="provisional-name-check-status"><Loader2 className="spin" size={14}/> Conferindo nomes já cadastrados...</div> : null}
+      {bulkCheckError ? <div className="provisional-name-check-error">{bulkCheckError}</div> : null}
+      {bulkRows.length ? <div className="provisional-preview editable"><div className="provisional-preview-labels"><span>#</span><strong>Nome</strong><strong>TAG</strong><strong>Logo</strong><strong>Verificação</strong><span/></div>{bulkRows.map((row, index) => {
+        const matches = bulkNameMatches[normalizeTeamName(row.nome)] || []
+        return <div key={`${index}-${row.nome}`}>
         <span>{index + 1}</span>
         <input aria-label={`Nome da equipe ${index + 1}`} value={row.nome} onChange={(event) => updateBulkRow(index, { nome: event.target.value })}/>
         <input aria-label={`TAG da equipe ${index + 1}`} value={row.tag} placeholder="Automática" onChange={(event) => updateBulkRow(index, { tag: event.target.value.toUpperCase() })}/>
@@ -280,8 +321,11 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
           {row.logoPreview ? <img src={row.logoPreview} alt=""/> : <ImagePlus size={16}/>}<span>{row.logoFile ? 'Trocar' : 'Adicionar'}</span>
           <input type="file" accept="image/*" hidden onChange={(event) => updateBulkLogo(index, event.target.files?.[0])}/>
         </label>
+        <div className={`provisional-name-warning${matches.some((match) => match.kind === 'exact') ? ' exact' : ''}`}>
+          {matches.length ? <><AlertTriangle size={14}/><div><strong>{matches.some((match) => match.kind === 'exact') ? 'Nome já cadastrado' : 'Nome parecido encontrado'}</strong>{matches.map((match) => <span key={match.id}>{match.nome}{match.tag ? ` · ${match.tag}` : ''}{match.public_id ? ` · EQ${match.public_id}` : ''}</span>)}<small>É apenas um aviso. Você pode manter ou remover esta linha.</small></div></> : <span className="provisional-name-clear">{checkingBulkNames ? 'Conferindo...' : 'Nenhuma semelhante'}</span>}
+        </div>
         <button type="button" className="provisional-remove-row" aria-label={`Remover equipe ${index + 1}`} onClick={() => removeBulkRow(index)}><Trash2 size={14}/></button>
-      </div>)}</div> : null}
+      </div>})}</div> : null}
       <div className="provisional-actions"><button type="button" className="button secondary" disabled={busy === 'bulk'} onClick={cancelBulk}>Cancelar</button><button type="button" className="button" disabled={!bulkRows.length || busy === 'bulk' || bulkRows.some((row) => !row.nome.trim())} onClick={() => void createBulk()}>{busy === 'bulk' ? <Loader2 className="spin" size={15}/> : <Save size={15}/>} {busy === 'bulk' ? 'Enviando logos e salvando...' : `Criar ${bulkRows.length || ''} equipes`}</button></div>
     </div> : null}
 

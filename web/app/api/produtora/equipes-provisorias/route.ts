@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { findTeamNameMatches, normalizeTeamName } from '@/features/produtoras/lib/team-name-similarity'
 
 async function requireOwner(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -71,6 +72,27 @@ export async function POST(req: NextRequest) {
     const user = await getBearerUser(req)
     const produtora = await requireOwner(user.id)
     const body = await req.json().catch(() => ({}))
+    if (body?.action === 'check_names') {
+      const nomes: string[] = [...new Set<string>((Array.isArray(body?.nomes) ? body.nomes : [])
+        .map((value: unknown) => String(value || '').trim().replace(/\s+/g, ' '))
+        .filter(Boolean))].slice(0, 100)
+      if (!nomes.length) return NextResponse.json({ resultados: [] })
+
+      const { data: existentes, error: existentesError } = await supabaseAdmin
+        .from('equipes')
+        .select('id,nome,tag,public_id')
+        .not('nome', 'is', null)
+        .limit(5000)
+      if (existentesError) throw existentesError
+
+      return NextResponse.json({
+        resultados: nomes.map((nome) => ({
+          nome,
+          key: normalizeTeamName(nome),
+          matches: findTeamNameMatches(nome, existentes || []),
+        })),
+      })
+    }
     const equipes = normalizeRows(body?.equipes)
     if (!equipes.length) throw new Error('Informe ao menos uma equipe.')
     const { data, error } = await supabaseAdmin.rpc('fn_criar_equipes_provisorias_em_bloco', {
