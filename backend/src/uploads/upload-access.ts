@@ -20,14 +20,14 @@ export async function requireUploadAccess(input: {
   const accounts = await getAccountsForUser(input.user)
   if (PROFILE_BUCKETS.has(input.bucket)) {
     if (accounts.some((account) => account.profile_type === input.bucket)) return
-    // Durante a criação de um perfil vinculado a entidade ainda não existe.
-    // A intenção explícita evita confiar apenas no bucket enviado pelo cliente,
-    // e a ausência do tipo garante a regra de um perfil por tipo/login.
-    if (input.uploadIntent === 'create_profile') return
     if (input.bucket === 'equipe' && input.entityId) {
       await requireEquipeAccess(input.user.id, accounts, input.entityId, 'editar')
       return
     }
+    // Durante a criação de um perfil vinculado a entidade ainda não existe.
+    // A intenção explícita evita confiar apenas no bucket enviado pelo cliente,
+    // e a ausência do tipo garante a regra de um perfil por tipo/login.
+    if (input.uploadIntent === 'create_profile') return
     throw new Error('Este usuário não pode enviar arquivos para esse perfil.')
   }
   if (input.bucket === 'campeonato') {

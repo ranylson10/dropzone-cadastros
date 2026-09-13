@@ -357,7 +357,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
                   value={draft.logo_url || ''}
                   bucket="equipe"
                   onChange={(url) => setDraft((current: any) => ({ ...current, logo_url: url }))}
-                  onUpload={(file, bucket) => uploadPublicFile(file, bucket, { uploadIntent: 'create_profile' })}
+                  onUpload={(file, bucket) => uploadPublicFile(file, bucket, { entityId: selected.id, uploadIntent: 'create_profile' })}
                 />
               </div>
               {archiveId === selected.id ? <>
@@ -384,7 +384,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
                     value={lineEdit.logo_url || ''}
                     bucket="equipe"
                     onChange={(url) => setLineEdit((current: any) => ({ ...current, logo_url: url }))}
-                    onUpload={(file, bucket) => uploadPublicFile(file, bucket, { uploadIntent: 'create_profile' })}
+                    onUpload={(file, bucket) => uploadPublicFile(file, bucket, { entityId: selected.id, uploadIntent: 'create_profile' })}
                   />
                 </div>
                 <button type="button" className="button secondary" disabled={busy === 'line-edit' || !String(lineEdit.nome || '').trim()} onClick={() => void saveLine()}><Save size={14}/> Salvar line</button>
