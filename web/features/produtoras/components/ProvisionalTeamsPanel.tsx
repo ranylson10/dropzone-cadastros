@@ -203,7 +203,12 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     if (!selected) return
     setBusy('team'); setMessage('')
     try {
-      const logoUrl = draft.logo_url ? await resolvePendingImageUpload(draft.logo_url) : ''
+      const logoUrl = draft.logo_url
+        ? await resolvePendingImageUpload(
+            draft.logo_url,
+            (file, bucket) => uploadPublicFile(file, bucket, { entityId: selected.id, uploadIntent: 'create_profile' }),
+          )
+        : ''
       await request('/api/produtora/equipes-provisorias', { method: 'PATCH', body: JSON.stringify({ equipe_id: selected.id, ...draft, logo_url: logoUrl }) })
       setMessage('Equipe atualizada.')
       setSelectedId(''); setSelectedLine(null); setRosterOpen(false); setManagerTab('dados')
@@ -240,7 +245,12 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     if (!selected || !selectedLine) return
     setBusy('line-edit'); setMessage('')
     try {
-      const logoUrl = lineEdit.logo_url ? await resolvePendingImageUpload(lineEdit.logo_url) : ''
+      const logoUrl = lineEdit.logo_url
+        ? await resolvePendingImageUpload(
+            lineEdit.logo_url,
+            (file, bucket) => uploadPublicFile(file, bucket, { entityId: selected.id, uploadIntent: 'create_profile' }),
+          )
+        : ''
       const payload = await request(`/api/equipes/${selected.id}/lines`, { method: 'PATCH', body: JSON.stringify({ line_id: selectedLine.id, ...lineEdit, logo_url: logoUrl }) })
       setSelectedLine(payload.line || selectedLine)
       setMessage('Line atualizada.')

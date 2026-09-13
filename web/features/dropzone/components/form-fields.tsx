@@ -40,10 +40,13 @@ export function discardPendingImageUpload(value: string) {
   URL.revokeObjectURL(value)
 }
 
-export async function resolvePendingImageUpload(value: string) {
+export async function resolvePendingImageUpload(
+  value: string,
+  overrideUpload?: (file: File, bucket: string) => Promise<string>,
+) {
   const pending = pendingImageUploads.get(value)
   if (!pending) return value
-  const url = await pending.upload(pending.file, pending.bucket)
+  const url = await (overrideUpload || pending.upload)(pending.file, pending.bucket)
   if (!url) throw new Error('Upload não retornou URL da imagem.')
   pendingImageUploads.delete(value)
   URL.revokeObjectURL(value)
