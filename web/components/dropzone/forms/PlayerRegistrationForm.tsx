@@ -1,4 +1,4 @@
-import { Field, UploadField } from '@/features/dropzone/components/form-fields'
+import { Field, LocationSearch, UploadField } from '@/features/dropzone/components/form-fields'
 
 type PlayerRegistrationFormProps = {
   player: { nick: string; foto_url: string; id_jogo: string; funcao: string; localidade: string; senha: string }
@@ -7,6 +7,8 @@ type PlayerRegistrationFormProps = {
 }
 
 export function PlayerRegistrationForm({ player, setPlayer, uploadPublicFile }: PlayerRegistrationFormProps) {
+  const [cidade = '', estado = ''] = String(player.localidade || '').split(/\s+-\s+/)
+
   return (
     <div className="form-grid">
       <Field label="Nick"><input value={player.nick} onChange={(e) => setPlayer({ ...player, nick: e.target.value })} /></Field>
@@ -20,7 +22,10 @@ export function PlayerRegistrationForm({ player, setPlayer, uploadPublicFile }: 
           <option value="bomber">Bomber</option>
         </select>
       </Field>
-      <Field label="Localidade"><input value={player.localidade} onChange={(e) => setPlayer({ ...player, localidade: e.target.value })} /></Field>
+      <LocationSearch
+        value={{ pais: cidade || estado ? 'Brasil' : '', estado, cidade }}
+        onSelect={(location) => setPlayer({ ...player, localidade: `${location.cidade} - ${location.estado}` })}
+      />
       <Field label="Senha"><input type="password" value={player.senha} onChange={(e) => setPlayer({ ...player, senha: e.target.value })} /></Field>
     </div>
   )

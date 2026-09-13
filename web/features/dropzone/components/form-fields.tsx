@@ -62,45 +62,127 @@ export async function resolvePendingImageUpload(
   return url
 }
 
-const BRAZIL_LOCATIONS = [
-  { cidade: 'Belém', estado: 'PA', pais: 'Brasil' },
-  { cidade: 'Ananindeua', estado: 'PA', pais: 'Brasil' },
-  { cidade: 'Marituba', estado: 'PA', pais: 'Brasil' },
-  { cidade: 'Santarém', estado: 'PA', pais: 'Brasil' },
-  { cidade: 'Marabá', estado: 'PA', pais: 'Brasil' },
-  { cidade: 'São Paulo', estado: 'SP', pais: 'Brasil' },
-  { cidade: 'Rio de Janeiro', estado: 'RJ', pais: 'Brasil' },
-  { cidade: 'Belo Horizonte', estado: 'MG', pais: 'Brasil' },
-  { cidade: 'Brasília', estado: 'DF', pais: 'Brasil' },
-  { cidade: 'Salvador', estado: 'BA', pais: 'Brasil' },
-  { cidade: 'Fortaleza', estado: 'CE', pais: 'Brasil' },
-  { cidade: 'Recife', estado: 'PE', pais: 'Brasil' },
-  { cidade: 'Manaus', estado: 'AM', pais: 'Brasil' },
-  { cidade: 'Curitiba', estado: 'PR', pais: 'Brasil' },
-  { cidade: 'Porto Alegre', estado: 'RS', pais: 'Brasil' },
-  { cidade: 'Goiânia', estado: 'GO', pais: 'Brasil' },
-  { cidade: 'Florianópolis', estado: 'SC', pais: 'Brasil' },
-  { cidade: 'Cuiabá', estado: 'MT', pais: 'Brasil' },
-  { cidade: 'Maceió', estado: 'AL', pais: 'Brasil' },
-  { cidade: 'Macapá', estado: 'AP', pais: 'Brasil' },
+type LocationOption = { cidade: string; estado: string; estadoNome?: string; pais: string }
+
+const BRAZIL_LOCATIONS: LocationOption[] = [
+  { cidade: 'Belém', estado: 'PA', estadoNome: 'Pará', pais: 'Brasil' },
+  { cidade: 'Ananindeua', estado: 'PA', estadoNome: 'Pará', pais: 'Brasil' },
+  { cidade: 'Marituba', estado: 'PA', estadoNome: 'Pará', pais: 'Brasil' },
+  { cidade: 'Santarém', estado: 'PA', estadoNome: 'Pará', pais: 'Brasil' },
+  { cidade: 'Marabá', estado: 'PA', estadoNome: 'Pará', pais: 'Brasil' },
+  { cidade: 'São Paulo', estado: 'SP', estadoNome: 'São Paulo', pais: 'Brasil' },
+  { cidade: 'Rio de Janeiro', estado: 'RJ', estadoNome: 'Rio de Janeiro', pais: 'Brasil' },
+  { cidade: 'Belo Horizonte', estado: 'MG', estadoNome: 'Minas Gerais', pais: 'Brasil' },
+  { cidade: 'Brasília', estado: 'DF', estadoNome: 'Distrito Federal', pais: 'Brasil' },
+  { cidade: 'Salvador', estado: 'BA', estadoNome: 'Bahia', pais: 'Brasil' },
+  { cidade: 'Fortaleza', estado: 'CE', estadoNome: 'Ceará', pais: 'Brasil' },
+  { cidade: 'Recife', estado: 'PE', estadoNome: 'Pernambuco', pais: 'Brasil' },
+  { cidade: 'Manaus', estado: 'AM', estadoNome: 'Amazonas', pais: 'Brasil' },
+  { cidade: 'Curitiba', estado: 'PR', estadoNome: 'Paraná', pais: 'Brasil' },
+  { cidade: 'Porto Alegre', estado: 'RS', estadoNome: 'Rio Grande do Sul', pais: 'Brasil' },
+  { cidade: 'Goiânia', estado: 'GO', estadoNome: 'Goiás', pais: 'Brasil' },
+  { cidade: 'Florianópolis', estado: 'SC', estadoNome: 'Santa Catarina', pais: 'Brasil' },
+  { cidade: 'Cuiabá', estado: 'MT', estadoNome: 'Mato Grosso', pais: 'Brasil' },
+  { cidade: 'Maceió', estado: 'AL', estadoNome: 'Alagoas', pais: 'Brasil' },
+  { cidade: 'Macapá', estado: 'AP', estadoNome: 'Amapá', pais: 'Brasil' },
 ]
+
+let brazilLocationsCache: LocationOption[] | null = null
+let brazilLocationsRequest: Promise<LocationOption[]> | null = null
 
 function normalizeText(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 }
 
-export function LocationSearch({ value, onSelect }: { value: { pais: string; estado: string; cidade: string }; onSelect: (location: { pais: string; estado: string; cidade: string }) => void }) {
-  const selectedLabel = [value.cidade, value.estado, value.pais].filter(Boolean).join(', ')
+function formatLocationLabel(value: { pais?: string; estado?: string; cidade?: string }) {
+  if (!value?.cidade && !value?.estado && !value?.pais) return ''
+  if (value.cidade && value.estado) return `${value.cidade} - ${value.estado}`
+  return [value.cidade, value.estado, value.pais].filter(Boolean).join(', ')
+}
+
+async function loadBrazilLocations() {
+  if (brazilLocationsCache) return brazilLocationsCache
+  if (!brazilLocationsRequest) {
+    brazilLocationsRequest = fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('IBGE indisponível')
+        const rows = await response.json()
+        const parsed = Array.isArray(rows)
+          ? rows.map((row: any) => {
+            const uf = row?.microrregiao?.mesorregiao?.UF
+            return {
+              cidade: String(row?.nome || ''),
+              estado: String(uf?.sigla || ''),
+              estadoNome: String(uf?.nome || ''),
+              pais: 'Brasil',
+            }
+          }).filter((item: LocationOption) => item.cidade && item.estado)
+          : []
+        brazilLocationsCache = parsed.length ? parsed : BRAZIL_LOCATIONS
+        return brazilLocationsCache
+      })
+      .catch(() => {
+        brazilLocationsCache = BRAZIL_LOCATIONS
+        return BRAZIL_LOCATIONS
+      })
+  }
+  return brazilLocationsRequest
+}
+
+function rankLocation(item: LocationOption, query: string) {
+  const cidade = normalizeText(item.cidade)
+  const estado = normalizeText(item.estado)
+  const estadoNome = normalizeText(item.estadoNome || '')
+  const pais = normalizeText(item.pais)
+  const haystack = `${cidade} ${estado} ${estadoNome} ${pais}`
+  if (cidade === query) return 0
+  if (cidade.startsWith(query)) return 1
+  if (estado === query || estadoNome.startsWith(query)) return 2
+  if (haystack.includes(query)) return 3
+  return 9
+}
+
+export function LocationSearch({
+  value,
+  onSelect,
+  label = 'Localidade',
+  placeholder = 'Digite cidade, estado ou país',
+}: {
+  value: { pais: string; estado: string; cidade: string }
+  onSelect: (location: { pais: string; estado: string; cidade: string; estadoNome?: string }) => void
+  label?: string
+  placeholder?: string
+}) {
+  const selectedLabel = formatLocationLabel(value)
   const [query, setQuery] = useState(selectedLabel)
   const [open, setOpen] = useState(false)
+  const [locations, setLocations] = useState<LocationOption[]>(BRAZIL_LOCATIONS)
+
+  useEffect(() => {
+    let active = true
+    loadBrazilLocations().then((items) => {
+      if (active) setLocations(items)
+    })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    setQuery(selectedLabel)
+  }, [selectedLabel])
+
   const filtered = useMemo(() => {
     const q = normalizeText(query)
-    if (!q) return BRAZIL_LOCATIONS.slice(0, 6)
-    return BRAZIL_LOCATIONS.filter((item) => normalizeText(`${item.cidade} ${item.estado} ${item.pais}`).includes(q)).slice(0, 8)
-  }, [query])
+    if (!q) return locations.slice(0, 6)
+    return locations
+      .map((item) => ({ item, rank: rankLocation(item, q) }))
+      .filter(({ rank }) => rank < 9)
+      .sort((a, b) => a.rank - b.rank || a.item.cidade.localeCompare(b.item.cidade, 'pt-BR'))
+      .slice(0, 8)
+      .map(({ item }) => item)
+  }, [locations, query])
 
   return (
-    <Field label="Localidade">
+    <Field label={label}>
       <div className="location-search">
         <input
           value={query}
@@ -109,7 +191,7 @@ export function LocationSearch({ value, onSelect }: { value: { pais: string; est
             setOpen(true)
           }}
           onFocus={() => setOpen(true)}
-          placeholder="Digite cidade, estado ou país"
+          placeholder={placeholder}
         />
         {open ? (
           <div className="location-results">
@@ -120,12 +202,12 @@ export function LocationSearch({ value, onSelect }: { value: { pais: string; est
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onSelect(item)
-                  setQuery(`${item.cidade}, ${item.estado}, ${item.pais}`)
+                  setQuery(formatLocationLabel(item))
                   setOpen(false)
                 }}
               >
                 <strong>{item.cidade}</strong>
-                <span>{item.estado}, {item.pais}</span>
+                <span>{item.pais}, {item.estadoNome || item.estado} - {item.estado}</span>
               </button>
             )) : <div className="location-empty">Nenhuma cidade encontrada.</div>}
           </div>

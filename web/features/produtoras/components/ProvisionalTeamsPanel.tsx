@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Archive, ChevronDown, ChevronRight, Copy, ImagePlus, Loader2, Pencil, Plus, Save, Search, ShieldCheck, Trash2, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
-import { UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
+import { LocationSearch, UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
 import { normalizeTeamName, type TeamNameMatch } from '@/features/produtoras/lib/team-name-similarity'
 import './provisional-teams.css'
 
@@ -354,10 +354,20 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
               <label><span>Nome *</span><input value={draft.nome || ''} onChange={(e) => setDraft((d: any) => ({ ...d, nome: e.target.value }))}/></label>
               <label><span>TAG *</span><input value={draft.tag || ''} onChange={(e) => setDraft((d: any) => ({ ...d, tag: e.target.value.toUpperCase() }))}/></label>
               <label className="wide"><span>E-mail de contato</span><input type="email" value={draft.email_contato || ''} onChange={(e) => setDraft((d: any) => ({ ...d, email_contato: e.target.value }))}/></label>
-              <label><span>Cidade</span><input value={draft.cidade || ''} onChange={(e) => setDraft((d: any) => ({ ...d, cidade: e.target.value }))}/></label>
-              <label><span>Estado</span><input value={draft.estado || ''} onChange={(e) => setDraft((d: any) => ({ ...d, estado: e.target.value }))}/></label>
-              <label><span>País</span><input value={draft.pais || ''} onChange={(e) => setDraft((d: any) => ({ ...d, pais: e.target.value }))}/></label>
-              <label><span>Localidade de exibição</span><input value={draft.localidade || ''} onChange={(e) => setDraft((d: any) => ({ ...d, localidade: e.target.value }))} placeholder="Belém - PA"/></label>
+              <div className="wide provisional-location-field">
+                <LocationSearch
+                  label="Localidade"
+                  value={{ pais: draft.pais || '', estado: draft.estado || '', cidade: draft.cidade || '' }}
+                  placeholder="Digite cidade, estado ou país. Ex.: Belém"
+                  onSelect={(location) => setDraft((d: any) => ({
+                    ...d,
+                    pais: location.pais,
+                    estado: location.estado,
+                    cidade: location.cidade,
+                    localidade: `${location.cidade} - ${location.estado}`,
+                  }))}
+                />
+              </div>
               <label className="wide"><span>Bio</span><textarea value={draft.bio || ''} onChange={(e) => setDraft((d: any) => ({ ...d, bio: e.target.value }))} rows={3}/></label>
             </div>
             <div className="provisional-manager-actions">
