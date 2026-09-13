@@ -24,6 +24,11 @@ export async function requireUploadAccess(input: {
       await requireEquipeAccess(input.user.id, accounts, input.entityId, 'editar')
       return
     }
+    // Produtoras precisam subir logos de equipes provisórias antes da equipe
+    // existir como perfil reivindicado. A gravação da URL na equipe continua
+    // protegida nas rotas de equipes provisórias/lines; aqui liberamos apenas
+    // o envio do arquivo público para o bucket de equipes.
+    if (input.bucket === 'equipe' && accounts.some((account) => account.profile_type === 'produtora')) return
     // Durante a criação de um perfil vinculado a entidade ainda não existe.
     // A intenção explícita evita confiar apenas no bucket enviado pelo cliente,
     // e a ausência do tipo garante a regra de um perfil por tipo/login.
