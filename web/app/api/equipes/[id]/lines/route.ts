@@ -3,6 +3,46 @@ import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { requireEquipeAccess } from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
+async function requireLineManagementAccess(user: { id: string }, equipeId: string) {
+  const accounts = await getAccountsForUser(user)
+  try {
+    await requireEquipeAccess(user.id, accounts, equipeId, 'editar')
+    return
+  } catch (accessError) {
+    const { data: produtora, error: produtoraError } = await supabaseAdmin
+      .from('produtoras')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .eq('status', 'ativo')
+      .maybeSingle()
+    if (produtoraError) throw produtoraError
+    if (!produtora) throw accessError
+
+    const { data: token, error: tokenError } = await supabaseAdmin
+      .from('tokens')
+      .select('id')
+      .eq('tipo', 'reivindicacao_equipe_historica')
+      .eq('produtora_id', produtora.id)
+      .eq('equipe_id', equipeId)
+      .eq('status', 'ativo')
+      .eq('usado', false)
+      .maybeSingle()
+    if (tokenError) throw tokenError
+    if (!token) throw accessError
+
+    const { data: team, error: teamError } = await supabaseAdmin
+      .from('equipes')
+      .select('id,auth_user_id,dono_auth_user_id,status')
+      .eq('id', equipeId)
+      .eq('status', 'ativo')
+      .is('auth_user_id', null)
+      .is('dono_auth_user_id', null)
+      .maybeSingle()
+    if (teamError) throw teamError
+    if (!team) throw new Error('Esta equipe já foi reivindicada e não está mais sob gestão provisória.')
+  }
+}
+
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id: equipeId } = await context.params
@@ -117,9 +157,8 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await getBearerUser(req)
-    const accounts = await getAccountsForUser(user)
     const { id: equipeId } = await context.params
-    await requireEquipeAccess(user.id, accounts, equipeId, 'editar')
+    await requireLineManagementAccess(user, equipeId)
 
     const body = await req.json().catch(() => ({}))
     const nome = String(body.nome || '').trim()
@@ -154,9 +193,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await getBearerUser(req)
-    const accounts = await getAccountsForUser(user)
     const { id: equipeId } = await context.params
-    await requireEquipeAccess(user.id, accounts, equipeId, 'editar')
+    await requireLineManagementAccess(user, equipeId)
 
     const body = await req.json().catch(() => ({}))
     const lineId = String(body.line_id || body.id || '').trim()
@@ -190,9 +228,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await getBearerUser(req)
-    const accounts = await getAccountsForUser(user)
     const { id: equipeId } = await context.params
-    await requireEquipeAccess(user.id, accounts, equipeId, 'editar')
+    await requireLineManagementAccess(user, equipeId)
 
     const lineId = String(req.nextUrl.searchParams.get('line_id') || '').trim()
     if (!lineId) throw new Error('line_id obrigatório.')

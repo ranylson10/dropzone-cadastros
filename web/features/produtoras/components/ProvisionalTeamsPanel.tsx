@@ -240,21 +240,12 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     if (!selected || !selectedLine) return
     setBusy('line-edit'); setMessage('')
     try {
-      const payload = await request(`/api/equipes/${selected.id}/lines`, { method: 'PATCH', body: JSON.stringify({ line_id: selectedLine.id, ...lineEdit }) })
+      const logoUrl = lineEdit.logo_url ? await resolvePendingImageUpload(lineEdit.logo_url) : ''
+      const payload = await request(`/api/equipes/${selected.id}/lines`, { method: 'PATCH', body: JSON.stringify({ line_id: selectedLine.id, ...lineEdit, logo_url: logoUrl }) })
       setSelectedLine(payload.line || selectedLine)
       setMessage('Line atualizada.')
       await load({ preserveMessage: true })
     } catch (error: any) { setMessage(error?.message || 'Não foi possível atualizar a line.') }
-    finally { setBusy('') }
-  }
-
-  async function uploadLineLogo(file?: File) {
-    if (!file) return
-    setBusy('line-logo'); setMessage('')
-    try {
-      const url = await uploadPublicFile(file, 'equipe', { uploadIntent: 'create_profile' })
-      setLineEdit((current: any) => ({ ...current, logo_url: url }))
-    } catch (error: any) { setMessage(error?.message || 'Não foi possível enviar a logo da line.') }
     finally { setBusy('') }
   }
 
@@ -387,8 +378,15 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
               <div className="provisional-subhead"><div><strong>Editar line</strong><span>Nome, TAG e logo são da própria line e não alteram o histórico.</span></div></div>
               <div className="provisional-line-edit-fields"><input value={lineEdit.nome || ''} placeholder="Nome da line" onChange={(e) => setLineEdit((d: any) => ({ ...d, nome: e.target.value }))}/><input value={lineEdit.tag || ''} placeholder="TAG" onChange={(e) => setLineEdit((d: any) => ({ ...d, tag: e.target.value.toUpperCase() }))}/></div>
               <div className="provisional-manager-actions">
-                <label className="button secondary"><ImagePlus size={14}/>{busy === 'line-logo' ? 'Enviando...' : 'Logo da line'}<input type="file" accept="image/*" hidden onChange={(e) => void uploadLineLogo(e.target.files?.[0])}/></label>
-                {lineEdit.logo_url ? <span className="provisional-logo-preview"><img src={lineEdit.logo_url} alt="Prévia da logo da line"/></span> : null}
+                <div className="provisional-upload-field">
+                  <UploadField
+                    label="Logo da line"
+                    value={lineEdit.logo_url || ''}
+                    bucket="equipe"
+                    onChange={(url) => setLineEdit((current: any) => ({ ...current, logo_url: url }))}
+                    onUpload={(file, bucket) => uploadPublicFile(file, bucket, { uploadIntent: 'create_profile' })}
+                  />
+                </div>
                 <button type="button" className="button secondary" disabled={busy === 'line-edit' || !String(lineEdit.nome || '').trim()} onClick={() => void saveLine()}><Save size={14}/> Salvar line</button>
                 <button type="button" className="button secondary" onClick={() => setRosterOpen((value) => !value)}><Users size={14}/> {rosterOpen ? 'Fechar jogadores' : 'Jogadores e convites'}</button>
                 <button type="button" className="button secondary provisional-danger" disabled={busy === 'line-archive'} onClick={() => void archiveLine()}><Archive size={14}/> Arquivar</button>

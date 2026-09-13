@@ -118,6 +118,16 @@ export async function PATCH(req: NextRequest) {
     const { data: token } = await supabaseAdmin.from('tokens').select('id').eq('tipo', 'reivindicacao_equipe_historica').eq('produtora_id', produtora.id).eq('equipe_id', equipeId).eq('status', 'ativo').eq('usado', false).maybeSingle()
     if (!token) throw new Error('Esta equipe não está mais sob gestão provisória da produtora.')
 
+    const { data: currentTeam, error: currentTeamError } = await supabaseAdmin
+      .from('equipes')
+      .select('id,logo_url')
+      .eq('id', equipeId)
+      .is('auth_user_id', null)
+      .is('dono_auth_user_id', null)
+      .maybeSingle()
+    if (currentTeamError) throw currentTeamError
+    if (!currentTeam) throw new Error('Esta equipe foi reivindicada ou alterada e não pode mais ser editada aqui.')
+
     const patch: Record<string, any> = { updated_at: new Date().toISOString() }
     for (const key of ['nome', 'tag', 'logo_url', 'localidade', 'cidade', 'estado', 'pais', 'bio']) {
       if (body[key] !== undefined) patch[key] = String(body[key] || '').trim() || null
@@ -129,6 +139,27 @@ export async function PATCH(req: NextRequest) {
 
     const { data, error } = await supabaseAdmin.from('equipes').update(patch).eq('id', equipeId).is('auth_user_id', null).is('dono_auth_user_id', null).select('*').single()
     if (error) throw error
+    if (body.logo_url !== undefined) {
+      const nextLogo = patch.logo_url || null
+      const previousLogo = currentTeam.logo_url || null
+      const linePatch = { logo_url: nextLogo, updated_at: new Date().toISOString() }
+      const { error: emptyLogoError } = await supabaseAdmin
+        .from('equipe_lines')
+        .update(linePatch)
+        .eq('equipe_id', equipeId)
+        .is('logo_url', null)
+        .neq('status', 'inativo')
+      if (emptyLogoError) throw emptyLogoError
+      if (previousLogo) {
+        const { error: inheritedLogoError } = await supabaseAdmin
+          .from('equipe_lines')
+          .update(linePatch)
+          .eq('equipe_id', equipeId)
+          .eq('logo_url', previousLogo)
+          .neq('status', 'inativo')
+        if (inheritedLogoError) throw inheritedLogoError
+      }
+    }
     return NextResponse.json({ equipe: data })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Não foi possível atualizar a equipe.' }, { status: 400 })
