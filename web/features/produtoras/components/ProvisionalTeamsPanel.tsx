@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Archive, ChevronDown, ChevronRight, Copy, ImagePlus, Loader2, Pencil, Plus, Save, Search, ShieldCheck, Trash2, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
+import { UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
 import { normalizeTeamName, type TeamNameMatch } from '@/features/produtoras/lib/team-name-similarity'
 import './provisional-teams.css'
 
 type Row = { nome: string; tag: string; logoFile?: File; logoPreview?: string }
 type Team = any
 type ManagerTab = 'dados' | 'lines' | 'campeonatos'
+type UploadContext = { entityId?: string | null; campeonatoId?: string | null; uploadIntent?: 'create_profile' | 'create_campeonato' | null }
 
 function columnLines(text: string, headerNames: string[]) {
   const lines = text.split(/\r?\n/).map((value) => value.trim())
@@ -29,7 +31,7 @@ function buildBulkRows(namesText: string, tagsText: string, current: Row[]): Row
   }))
 }
 
-export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: (file: File, bucket: string) => Promise<string> }) {
+export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: (file: File, bucket: string, context?: UploadContext) => Promise<string> }) {
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
@@ -157,7 +159,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       const equipes = await Promise.all(bulkRows.map(async (row) => ({
         nome: row.nome,
         tag: row.tag,
-        logo_url: row.logoFile ? await uploadPublicFile(row.logoFile, 'equipe') : undefined,
+        logo_url: row.logoFile ? await uploadPublicFile(row.logoFile, 'equipe', { uploadIntent: 'create_profile' }) : undefined,
       })))
       const payload = await request('/api/produtora/equipes-provisorias', { method: 'POST', body: JSON.stringify({ equipes }) })
       bulkRows.forEach((row) => { if (row.logoPreview) URL.revokeObjectURL(row.logoPreview) })
@@ -201,8 +203,10 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     if (!selected) return
     setBusy('team'); setMessage('')
     try {
-      await request('/api/produtora/equipes-provisorias', { method: 'PATCH', body: JSON.stringify({ equipe_id: selected.id, ...draft }) })
+      const logoUrl = draft.logo_url ? await resolvePendingImageUpload(draft.logo_url) : ''
+      await request('/api/produtora/equipes-provisorias', { method: 'PATCH', body: JSON.stringify({ equipe_id: selected.id, ...draft, logo_url: logoUrl }) })
       setMessage('Equipe atualizada.')
+      setSelectedId(''); setSelectedLine(null); setRosterOpen(false); setManagerTab('dados')
       await load({ preserveMessage: true })
     } catch (error: any) { setMessage(error?.message || 'Não foi possível atualizar a equipe.') }
     finally { setBusy('') }
@@ -217,16 +221,6 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       setArchiveId(''); setSelectedId(''); setSelectedLine(null); setRosterOpen(false)
       await load({ preserveMessage: true })
     } catch (error: any) { setMessage(error?.message || 'Não foi possível arquivar a equipe.') }
-    finally { setBusy('') }
-  }
-
-  async function uploadLogo(file?: File) {
-    if (!file) return
-    setBusy('logo'); setMessage('')
-    try {
-      const url = await uploadPublicFile(file, 'equipe')
-      setDraft((current: any) => ({ ...current, logo_url: url }))
-    } catch (error: any) { setMessage(error?.message || 'Não foi possível enviar a logo.') }
     finally { setBusy('') }
   }
 
@@ -258,7 +252,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
     if (!file) return
     setBusy('line-logo'); setMessage('')
     try {
-      const url = await uploadPublicFile(file, 'equipe')
+      const url = await uploadPublicFile(file, 'equipe', { uploadIntent: 'create_profile' })
       setLineEdit((current: any) => ({ ...current, logo_url: url }))
     } catch (error: any) { setMessage(error?.message || 'Não foi possível enviar a logo da line.') }
     finally { setBusy('') }
@@ -366,8 +360,15 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
               <label className="wide"><span>Bio</span><textarea value={draft.bio || ''} onChange={(e) => setDraft((d: any) => ({ ...d, bio: e.target.value }))} rows={3}/></label>
             </div>
             <div className="provisional-manager-actions">
-              <label className="button secondary"><ImagePlus size={15}/>{busy === 'logo' ? 'Enviando...' : 'Adicionar logo'}<input type="file" accept="image/*" hidden onChange={(e) => void uploadLogo(e.target.files?.[0])}/></label>
-              {draft.logo_url ? <span className="provisional-logo-preview"><img src={draft.logo_url} alt="Prévia da logo"/></span> : null}
+              <div className="provisional-upload-field">
+                <UploadField
+                  label="Logo"
+                  value={draft.logo_url || ''}
+                  bucket="equipe"
+                  onChange={(url) => setDraft((current: any) => ({ ...current, logo_url: url }))}
+                  onUpload={(file, bucket) => uploadPublicFile(file, bucket, { uploadIntent: 'create_profile' })}
+                />
+              </div>
               {archiveId === selected.id ? <>
                 <span className="provisional-archive-confirm">Arquivar esta equipe sem participação?</span>
                 <button type="button" className="button secondary" disabled={busy === 'team-archive'} onClick={() => setArchiveId('')}>Cancelar</button>
