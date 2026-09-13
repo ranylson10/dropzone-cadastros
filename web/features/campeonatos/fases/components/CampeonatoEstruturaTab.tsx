@@ -73,7 +73,7 @@ type BulkPhaseDraft = {
   customizeSlots: boolean
   grupos: BulkGroupDraft[]
 }
-type BatchSlotAssignment = { slotId: string; equipeId: string; lineId: string; lineName: string }
+type BatchSlotAssignment = { slotId: string; equipeId: string; lineId: string; lineName: string; teamQuery: string }
 
 async function authHeaders() {
   const { data } = await supabase.auth.getSession()
@@ -170,6 +170,7 @@ export function CampeonatoEstruturaTab({
   const [batchMode, setBatchMode] = useState(false)
   const [batchSlots, setBatchSlots] = useState<Slot[]>([])
   const [batchAssignments, setBatchAssignments] = useState<BatchSlotAssignment[]>([])
+  const [batchTeamOpenIndex, setBatchTeamOpenIndex] = useState<number | null>(null)
   const [vagasIndex, setVagasIndex] = useState<Record<string, CampeonatoVaga>>({})
   const [enrollmentGroupId, setEnrollmentGroupId] = useState('')
 
@@ -265,11 +266,12 @@ export function CampeonatoEstruturaTab({
     setSlotModo('adicionar')
     setBatchMode(true)
     setBatchSlots(freeSlots)
-    setBatchAssignments(freeSlots.map((freeSlot) => ({ slotId: freeSlot.id, equipeId: '', lineId: '', lineName: '' })))
+    setBatchAssignments(freeSlots.map((freeSlot) => ({ slotId: freeSlot.id, equipeId: '', lineId: '', lineName: '', teamQuery: '' })))
+    setBatchTeamOpenIndex(null)
     setBusca('')
-    setResultados([])
     setEquipe(null)
     setSlotFeedback('')
+    void buscarEquipesParaSelecao('')
   }
 
   function nextGroupName(phaseId: string) {
@@ -405,10 +407,65 @@ export function CampeonatoEstruturaTab({
     setBatchMode(false)
     setBatchSlots([])
     setBatchAssignments([])
+    setBatchTeamOpenIndex(null)
   }
 
   function updateBatchAssignment(index: number, patch: Partial<BatchSlotAssignment>) {
     setBatchAssignments((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row))
+  }
+
+  function mergeResultados(found: EquipeBusca[]) {
+    setResultados((current) => [...new Map([...current, ...found].map((item) => [item.id, item])).values()])
+  }
+
+  async function buscarEquipesParaSelecao(termo: string) {
+    try {
+      const json = await campeonatoEquipesService.buscarEquipes(campeonatoId, termo.trim()) as any
+      const found = Array.isArray(json.equipes) ? json.equipes : json.items || []
+      mergeResultados(found)
+      return found as EquipeBusca[]
+    } catch (err: any) {
+      setSlotFeedback(err?.message || 'Erro na busca.')
+      return []
+    }
+  }
+
+  useEffect(() => {
+    if (!batchMode || batchTeamOpenIndex == null) return
+    const termo = batchAssignments[batchTeamOpenIndex]?.teamQuery || ''
+    const timer = window.setTimeout(() => {
+      void buscarEquipesParaSelecao(termo)
+    }, termo ? 220 : 0)
+    return () => window.clearTimeout(timer)
+  }, [batchAssignments, batchMode, batchTeamOpenIndex])
+
+  function batchTeamOptions(index: number) {
+    const row = batchAssignments[index]
+    const selectedIds = new Set(batchAssignments.filter((_, rowIndex) => rowIndex !== index).map((item) => item.equipeId).filter(Boolean))
+    const q = String(row?.teamQuery || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim()
+    return resultados
+      .filter((item) => !selectedIds.has(item.id))
+      .filter((item) => {
+        if (!q) return true
+        const text = `${item.nome || ''} ${item.tag || ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
+        return text.includes(q)
+      })
+      .slice(0, 12)
+  }
+
+  function selectBatchTeam(index: number, team: EquipeBusca | null, unavailableLineIds: Set<string>) {
+    if (!team) {
+      updateBatchAssignment(index, { equipeId: '', lineId: '', lineName: '', teamQuery: '' })
+      return
+    }
+    const selectableLines = (team.lines || []).filter((line) => !line.ja_inscrita && !unavailableLineIds.has(String(line.id)))
+    updateBatchAssignment(index, {
+      equipeId: team.id,
+      lineId: selectableLines[0]?.id || '',
+      lineName: '',
+      teamQuery: `${team.nome}${team.tag ? ` · ${team.tag}` : ''}`,
+    })
+    setBatchTeamOpenIndex(null)
   }
 
   async function adicionarVariosSlots() {
@@ -458,9 +515,8 @@ export function CampeonatoEstruturaTab({
     try {
       const json = await campeonatoEquipesService.buscarEquipes(campeonatoId, busca.trim()) as any
       const found = Array.isArray(json.equipes) ? json.equipes : json.items || []
-      setResultados((current) => batchMode
-        ? [...new Map([...current, ...found].map((item) => [item.id, item])).values()]
-        : found)
+      if (batchMode) mergeResultados(found)
+      else setResultados(found)
       if (!found.length) setSlotFeedback('Nenhuma equipe encontrada.')
       else if (batchMode) {
         setBusca('')
@@ -1296,7 +1352,7 @@ export function CampeonatoEstruturaTab({
           batchMode ? `Adicionar equipes · ${selectedEnrollmentGroup?.nome || 'grupo'}` : `Adicionar line · slot ${slotAlvo?.slot_letra || ''}`
         }
         description={
-          batchMode ? 'Pesquise as equipes, escolha as lines e confirme todas de uma vez.' : 'Pesquise a equipe (pasta) e escolha/crie a line para este slot.'
+          batchMode ? 'Clique no campo da equipe, digite para filtrar, escolha a line e salve tudo de uma vez.' : 'Pesquise a equipe (pasta) e escolha/crie a line para este slot.'
         }
         onClose={fecharSlot}
         size={batchMode ? 'wide' : 'medium'}
@@ -1305,6 +1361,7 @@ export function CampeonatoEstruturaTab({
           {slotFeedback ? <div className="message success">{slotFeedback}</div> : null}
 
           <>
+            {!batchMode ? (
               <Field label="Buscar equipe">
                 <div className="staff-search-row">
                   <input
@@ -1318,6 +1375,7 @@ export function CampeonatoEstruturaTab({
                   </button>
                 </div>
               </Field>
+            ) : null}
               {!batchMode && resultados.length > 0 ? (
                 <div className="staff-search-results">
                   {resultados.map((item: any) => (
@@ -1340,7 +1398,7 @@ export function CampeonatoEstruturaTab({
               {batchMode ? (
                 <div className="slot-batch-editor">
                   <div className="slot-batch-head"><strong>Preencha os slots desejados</strong><span>{batchSelectedCount} de {batchSlots.length} slot(s) selecionado(s)</span></div>
-                  {!resultados.length ? <p className="slot-batch-hint">Os slots já estão prontos. Busque uma equipe acima para carregar as opções de equipe e line.</p> : null}
+                  {!resultados.length ? <p className="slot-batch-hint">Carregando equipes. Você também pode clicar no campo e digitar o nome ou TAG.</p> : null}
                   <div className="slot-batch-table">
                     <div className="slot-batch-labels"><span>Slot</span><span>Equipe</span><span>Line</span></div>
                     {batchAssignments.map((row, index) => {
@@ -1351,13 +1409,50 @@ export function CampeonatoEstruturaTab({
                         ...batchAssignments.filter((_, rowIndex) => rowIndex !== index).map((item) => item.lineId).filter(Boolean),
                       ])
                       const availableLines = (selectedTeam?.lines || []).filter((line) => !line.ja_inscrita && !unavailableLineIds.has(String(line.id)))
+                      const teamOptions = batchTeamOptions(index)
                       return <div key={`${row.slotId}-${index}`}>
                         <strong className="slot-batch-slot">{batchSlots.find((slot) => slot.id === row.slotId)?.slot_letra || `Slot ${batchSlots.find((slot) => slot.id === row.slotId)?.slot_numero || index + 1}`}</strong>
-                        <select aria-label={`Equipe ${index + 1}`} value={row.equipeId} onChange={(event) => {
-                          const team = resultados.find((item) => item.id === event.target.value)
-                          const selectableLines = (team?.lines || []).filter((line) => !line.ja_inscrita && !unavailableLineIds.has(String(line.id)))
-                          updateBatchAssignment(index, { equipeId: event.target.value, lineId: selectableLines[0]?.id || '', lineName: '' })
-                        }} disabled={!resultados.length}><option value="">{resultados.length ? 'Deixar slot livre' : 'Busque uma equipe acima'}</option>{resultados.map((item) => <option key={item.id} value={item.id}>{item.nome} {item.tag ? `· ${item.tag}` : ''}</option>)}</select>
+                        <div className="slot-team-combobox">
+                          <input
+                            aria-label={`Equipe ${index + 1}`}
+                            value={row.teamQuery}
+                            placeholder="Clique e busque a equipe"
+                            onFocus={() => {
+                              setBatchTeamOpenIndex(index)
+                              if (!resultados.length) void buscarEquipesParaSelecao('')
+                            }}
+                            onBlur={() => window.setTimeout(() => setBatchTeamOpenIndex((current) => current === index ? null : current), 120)}
+                            onChange={(event) => {
+                              setBatchTeamOpenIndex(index)
+                              updateBatchAssignment(index, { teamQuery: event.target.value, equipeId: '', lineId: '', lineName: '' })
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Escape') setBatchTeamOpenIndex(null)
+                              if (event.key === 'Enter' && teamOptions[0]) {
+                                event.preventDefault()
+                                selectBatchTeam(index, teamOptions[0], unavailableLineIds)
+                              }
+                            }}
+                          />
+                          {row.equipeId ? <button type="button" aria-label={`Limpar equipe ${index + 1}`} onClick={() => selectBatchTeam(index, null, unavailableLineIds)}>×</button> : null}
+                          {batchTeamOpenIndex === index ? (
+                            <div className="slot-team-options">
+                              <button type="button" className="slot-team-empty" onMouseDown={(event) => event.preventDefault()} onClick={() => selectBatchTeam(index, null, unavailableLineIds)}>Deixar slot livre</button>
+                              {teamOptions.map((item) => (
+                                <button
+                                  type="button"
+                                  key={item.id}
+                                  onMouseDown={(event) => event.preventDefault()}
+                                  onClick={() => selectBatchTeam(index, item, unavailableLineIds)}
+                                >
+                                  <strong>{item.nome}</strong>
+                                  <span>{item.tag || 'Equipe'} · {(item.lines || []).filter((line) => !line.ja_inscrita).length} line(s) livre(s)</span>
+                                </button>
+                              ))}
+                              {!teamOptions.length ? <div className="slot-team-no-results">Nenhuma equipe encontrada.</div> : null}
+                            </div>
+                          ) : null}
+                        </div>
                         {selectedTeam && !availableLines.length ? (
                           <input aria-label={`Nova line ${index + 1}`} value={row.lineName} maxLength={80} placeholder="Nome da nova line" onChange={(event) => updateBatchAssignment(index, { lineId: '', lineName: event.target.value })}/>
                         ) : (

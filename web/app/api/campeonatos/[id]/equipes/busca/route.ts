@@ -9,7 +9,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const user = await getBearerUser(req)
     await requireCampeonatoTeamsWrite(user.id, id)
     const q = String(req.nextUrl.searchParams.get('q') || '').trim()
-    if (q.length < 2) return NextResponse.json({ equipes: [] })
 
     const termo = q.replace(/[%_,]/g, '')
     const equipePublicIdMatch = termo.match(/^(?:EQ\s*)?(\d+)$/i)
@@ -21,9 +20,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .from('equipes')
       .select('id, nome, tag, logo_url, public_id, public_id_prefix')
       .eq('status', 'ativo')
-      .limit(15)
+      .order('nome', { ascending: true })
+      .limit(q ? 15 : 30)
 
-    if (linePublicId === null) {
+    if (linePublicId === null && termo) {
       equipesQuery = equipePublicId !== null
         ? equipesQuery.eq('public_id', equipePublicId)
         : equipesQuery.or(`nome.ilike.%${termo}%,tag.ilike.%${termo}%`)
