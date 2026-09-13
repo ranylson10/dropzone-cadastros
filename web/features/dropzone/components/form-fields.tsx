@@ -25,7 +25,14 @@ function uploadTargetFor(bucket: string) {
 type PendingImageUpload = {
   file: File
   bucket: string
-  upload: (file: File, bucket: string) => Promise<string>
+  upload: (file: File, bucket: string, ...args: any[]) => Promise<string>
+  context?: UploadFieldContext
+}
+
+type UploadFieldContext = {
+  entityId?: string | null
+  campeonatoId?: string | null
+  uploadIntent?: 'create_profile' | 'create_campeonato' | null
 }
 
 const pendingImageUploads = new Map<string, PendingImageUpload>()
@@ -46,7 +53,9 @@ export async function resolvePendingImageUpload(
 ) {
   const pending = pendingImageUploads.get(value)
   if (!pending) return value
-  const url = await (overrideUpload || pending.upload)(pending.file, pending.bucket)
+  const url = overrideUpload
+    ? await overrideUpload(pending.file, pending.bucket)
+    : await pending.upload(pending.file, pending.bucket, pending.context)
   if (!url) throw new Error('Upload não retornou URL da imagem.')
   pendingImageUploads.delete(value)
   URL.revokeObjectURL(value)
@@ -135,7 +144,23 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   )
 }
 
-export function UploadField({ label, value, bucket, cropTarget, onChange, onUpload }: { label: string; value: string; bucket: string; cropTarget?: string; onChange: (value: string) => void; onUpload: (file: File, bucket: string) => Promise<string> }) {
+export function UploadField({
+  label,
+  value,
+  bucket,
+  cropTarget,
+  uploadContext,
+  onChange,
+  onUpload,
+}: {
+  label: string
+  value: string
+  bucket: string
+  cropTarget?: string
+  uploadContext?: UploadFieldContext
+  onChange: (value: string) => void
+  onUpload: (file: File, bucket: string, ...args: any[]) => Promise<string>
+}) {
   const target = uploadTargetFor(cropTarget || bucket)
   const inputId = `${cropTarget || bucket}-upload-${useId().replace(/:/g, '')}`
   const previewWidth = 300
@@ -283,7 +308,7 @@ export function UploadField({ label, value, bucket, cropTarget, onChange, onUplo
       const croppedFile = new File([blob], `${bucket}-${Date.now()}.webp`, { type: 'image/webp' })
       if (isPendingImageUpload(value)) discardPendingImageUpload(value)
       const previewUrl = URL.createObjectURL(croppedFile)
-      pendingImageUploads.set(previewUrl, { file: croppedFile, bucket, upload: onUpload })
+      pendingImageUploads.set(previewUrl, { file: croppedFile, bucket, upload: onUpload, context: uploadContext })
       onChange(previewUrl)
       closeCropper()
     } catch (error: any) {

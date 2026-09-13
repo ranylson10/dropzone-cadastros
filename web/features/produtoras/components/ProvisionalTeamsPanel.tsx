@@ -366,6 +366,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
                   label="Logo"
                   value={draft.logo_url || ''}
                   bucket="equipe"
+                  uploadContext={{ entityId: selected.id, uploadIntent: 'create_profile' }}
                   onChange={(url) => setDraft((current: any) => ({ ...current, logo_url: url }))}
                   onUpload={(file, bucket) => uploadPublicFile(file, bucket, { entityId: selected.id, uploadIntent: 'create_profile' })}
                 />
@@ -393,6 +394,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
                     label="Logo da line"
                     value={lineEdit.logo_url || ''}
                     bucket="equipe"
+                    uploadContext={{ entityId: selected.id, uploadIntent: 'create_profile' }}
                     onChange={(url) => setLineEdit((current: any) => ({ ...current, logo_url: url }))}
                     onUpload={(file, bucket) => uploadPublicFile(file, bucket, { entityId: selected.id, uploadIntent: 'create_profile' })}
                   />
