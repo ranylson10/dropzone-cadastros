@@ -23,7 +23,9 @@ test('96 - produtora pode completar dados e logo da equipe provisória', async (
   expect(panel).toContain('Cidade')
   expect(panel).toContain('Estado')
   expect(panel).toContain('País')
-  expect(panel).toContain("uploadPublicFile(file, 'equipe')")
+  expect(panel).toContain('UploadField')
+  expect(panel).toContain('resolvePendingImageUpload(draft.logo_url)')
+  expect(panel).toContain('setSelectedId(\'\'); setSelectedLine(null); setRosterOpen(false); setManagerTab(\'dados\')')
 })
 
 test('96 - equipe provisória vazia pode ser arquivada sem apagar histórico', async () => {

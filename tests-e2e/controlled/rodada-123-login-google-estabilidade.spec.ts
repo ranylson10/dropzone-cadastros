@@ -51,8 +51,10 @@ test('123 - perfis são carregados por uma única RPC no servidor', async () => 
 
 test('123 - retorno OAuth é preservado até a sessão abrir o destino solicitado', async () => {
   expect(loginPage).toContain('function clearOAuthReturnState()')
+  expect(loginPage).toContain('function pendingAuthContext()')
   expect(loginPage).toContain('function continueToWorkspace(userAccounts: DropZoneRow[])')
-  expect(loginPage).toContain("const returnTo = safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/')")
+  expect(loginPage).toContain("returnTo: safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/')")
+  expect(loginPage).toContain('clearOAuthReturnState()\n    window.location.replace(returnTo)')
   expect(loginPage).toContain('window.location.replace(returnTo)')
   expect(loginPage).not.toContain('if (complete) {\n        try {\n          sessionStorage.removeItem(OAUTH_RETURN_KEY)')
 })

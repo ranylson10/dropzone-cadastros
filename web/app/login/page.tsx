@@ -8,7 +8,7 @@ import { SystemLogo } from '@/components/brand/SystemLogo'
 import { LealtMotionScene } from '@/components/effects/LealtMotionScene'
 import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/auth/SocialLogin'
-import { buildProfileCreationHref, parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
+import { buildProfileCreationHref, isDirectAuthReturnPath, parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { assertUsername, cleanUsername, hasCompleteAccountIdentity } from '@/lib/validation'
@@ -183,7 +183,7 @@ export default function LoginPage() {
     return refreshed.data.session || currentSession
   }
 
-  function continueToWorkspace(userAccounts: DropZoneRow[]) {
+  function pendingAuthContext() {
     const search = new URLSearchParams(window.location.search)
     let oauthReturnTo = ''
     let oauthProfileType: ReturnType<typeof parseProfileType> = null
@@ -193,7 +193,19 @@ export default function LoginPage() {
     } catch {
       // Em navegação privada, a URL continua sendo uma fonte segura de retorno.
     }
-    const requestedType = parseProfileType(search.get('profileType')) || oauthProfileType
+    return {
+      returnTo: safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/'),
+      profileType: parseProfileType(search.get('profileType')) || oauthProfileType || params.profileType,
+    }
+  }
+
+  function finishAuthReturn(returnTo: string) {
+    clearOAuthReturnState()
+    window.location.replace(returnTo)
+  }
+
+  function continueToWorkspace(userAccounts: DropZoneRow[]) {
+    const { returnTo, profileType: requestedType } = pendingAuthContext()
     let storedType: ProfileType | null = null
     try {
       storedType = parseProfileType(localStorage.getItem('dropzone_active_profile_type'))
@@ -213,8 +225,7 @@ export default function LoginPage() {
       }
     }
 
-    const returnTo = safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/')
-    window.location.replace(returnTo)
+    finishAuthReturn(returnTo)
   }
 
   /**
@@ -225,31 +236,29 @@ export default function LoginPage() {
    * apenas retomam a ação original.
    */
   function continueWithoutProfile() {
-    const search = new URLSearchParams(window.location.search)
-    let oauthReturnTo = ''
-    let oauthProfileType: ReturnType<typeof parseProfileType> = null
-    try {
-      oauthReturnTo = sessionStorage.getItem(OAUTH_RETURN_KEY) || ''
-      oauthProfileType = parseProfileType(sessionStorage.getItem(OAUTH_PROFILE_KEY))
-    } catch {
-      // A URL ainda preserva o retorno quando o storage não está disponível.
-    }
-
-    const returnTo = safeInternalPath(search.get('returnTo') || oauthReturnTo || params.returnTo || '/')
-    const profileType = parseProfileType(search.get('profileType')) || oauthProfileType || params.profileType
+    const { returnTo, profileType } = pendingAuthContext()
     if (profileType) {
+      clearOAuthReturnState()
       window.location.replace(buildProfileCreationHref(profileType, returnTo))
       return
     }
     // A conta de acesso existe independentemente dos cadastros operacionais.
     // Sem um contexto solicitado, entra normalmente no destino em vez de
     // obrigar a pessoa a escolher/criar um "tipo de perfil".
-    window.location.replace(returnTo)
+    finishAuthReturn(returnTo)
   }
 
   async function openAuthenticatedSession(currentSession: Session) {
     if (!hasCompleteIdentity(currentSession)) {
       prepareIdentityForm(currentSession)
+      return
+    }
+    const { returnTo } = pendingAuthContext()
+    if (isDirectAuthReturnPath(returnTo)) {
+      // Reivindicação de equipe resolve a regra de propriedade na própria página.
+      // Não carregamos perfis aqui: isso evita desvio ao painel e também impede o
+      // vínculo legado por e-mail de assumir a equipe antes da confirmação.
+      finishAuthReturn(returnTo)
       return
     }
     // A autenticação já está concluída neste ponto. Falha/timeout de /api/me não

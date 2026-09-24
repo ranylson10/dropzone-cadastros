@@ -16,6 +16,16 @@ export function safeInternalPath(value: string | null | undefined, fallback = '/
   }
 }
 
+/**
+ * Ações que pertencem a uma página pública e só precisam confirmar a sessão.
+ * O login deve voltar diretamente para elas, sem tentar escolher ou criar um
+ * perfil operacional antes de retomar a ação.
+ */
+export function isDirectAuthReturnPath(value: string | null | undefined) {
+  const path = safeInternalPath(value)
+  return path.startsWith('/equipe/reivindicar/')
+}
+
 export function parseProfileType(value: string | null | undefined): ProfileType | null {
   return (
     value === 'produtora' ||

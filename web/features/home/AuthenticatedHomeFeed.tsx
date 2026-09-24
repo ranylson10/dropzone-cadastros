@@ -239,6 +239,33 @@ export function AuthenticatedHomeFeed({
         </div>
       </section>
 
+      {account ? <section className="authenticated-home-section authenticated-home-priority-section">
+        <div className="authenticated-home-section-head">
+          <div><span>AGORA</span><h2>{isPlayer ? 'Seu próximo compromisso' : isTeam ? 'Operação da equipe' : isProducer ? 'Campeonato ativo' : 'Continue de onde parou'}</h2></div>
+          <a href="/agenda">Ver agenda <ArrowRight size={15} /></a>
+        </div>
+        <div className="authenticated-home-priority-card">
+          {priorityLoading ? <Loader2 className="spin" size={18} /> : <CalendarDays size={18} />}
+          <div><strong>{nextAgendaItem ? nextAgendaItem.titulo : isPlayer ? 'Nenhum jogo agendado' : 'Agenda da conta'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''} · ${nextAgendaItem.meta?.campeonato_nome || nextAgendaItem.meta?.equipe_nome || 'DropZone'}` : 'Acompanhe datas, jogos e compromissos em um só lugar.'}</small></div>
+          <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir <ChevronRight size={16} /></a>
+        </div>
+      </section> : null}
+
+      <section className="authenticated-home-section authenticated-home-command-center">
+        <div className="authenticated-home-section-head"><div><span>PARA VOCÊ</span><h2>Próximas ações</h2></div>{account ? <a href="/agenda">Agenda completa <ArrowRight size={15} /></a> : null}</div>
+        <div className={`authenticated-home-command-grid ${account ? '' : 'is-guest'}`}>
+          {account ? <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
+            {priorityLoading ? <Loader2 className="spin" size={18} /> : homeTasks.length ? homeTasks.map((task) => <a className={task.urgent ? 'is-urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={16} /></a>) : <div className="authenticated-home-tasks-empty"><Check size={17}/><span><strong>Nenhuma pendência agora</strong><small>Seus próximos jogos e convites vão aparecer aqui.</small></span></div>}
+          </div> : null}
+          <form className="authenticated-home-token" onSubmit={(event) => { event.preventDefault(); void submitToken() }}>
+            <KeyRound size={18}/><div><strong>Tem token ou link?</strong><small>Inscrição, grupo, escalação ou convite.</small></div>
+            <input value={tokenValue} onChange={(event) => { setTokenValue(event.target.value); setTokenError('') }} placeholder="Cole aqui" aria-label="Token ou link de inscrição" />
+            <button type="submit" disabled={tokenBusy}>{tokenBusy ? 'Verificando…' : 'Continuar'}</button>
+            {tokenError ? <small className="authenticated-home-token-error" role="alert">{tokenError}</small> : null}
+          </form>
+        </div>
+      </section>
+
       <section className="authenticated-home-section authenticated-home-catalog">
         <div className="authenticated-home-section-head">
           <div><span>OPORTUNIDADES</span><h2>Campeonatos com vagas abertas</h2></div>
@@ -264,33 +291,6 @@ export function AuthenticatedHomeFeed({
           ) : (
             <div className="vacancies-empty"><Ticket size={32} /><strong>Nenhuma vaga disponível agora</strong><span>Novos campeonatos aparecerão aqui assim que abrirem inscrições.</span></div>
           )}
-        </div>
-      </section>
-
-      {account ? <section className="authenticated-home-section authenticated-home-priority-section">
-        <div className="authenticated-home-section-head">
-          <div><span>AGORA</span><h2>{isPlayer ? 'Seu próximo compromisso' : isTeam ? 'Operação da equipe' : isProducer ? 'Campeonato ativo' : 'Continue de onde parou'}</h2></div>
-          <a href="/agenda">Ver agenda <ArrowRight size={15} /></a>
-        </div>
-        <div className="authenticated-home-priority-card">
-          {priorityLoading ? <Loader2 className="spin" size={18} /> : <CalendarDays size={18} />}
-          <div><strong>{nextAgendaItem ? nextAgendaItem.titulo : isPlayer ? 'Nenhum jogo agendado' : 'Agenda da conta'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''} · ${nextAgendaItem.meta?.campeonato_nome || nextAgendaItem.meta?.equipe_nome || 'DropZone'}` : 'Acompanhe datas, jogos e compromissos em um só lugar.'}</small></div>
-          <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir <ChevronRight size={16} /></a>
-        </div>
-      </section> : null}
-
-      <section className="authenticated-home-section authenticated-home-command-center">
-        <div className="authenticated-home-section-head"><div><span>PARA VOCÊ</span><h2>Próximas ações</h2></div>{account ? <a href="/agenda">Agenda completa <ArrowRight size={15} /></a> : null}</div>
-        <div className={`authenticated-home-command-grid ${account ? '' : 'is-guest'}`}>
-          {account ? <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
-            {priorityLoading ? <Loader2 className="spin" size={18} /> : homeTasks.length ? homeTasks.map((task) => <a className={task.urgent ? 'is-urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={16} /></a>) : <div className="authenticated-home-tasks-empty"><Check size={17}/><span><strong>Nenhuma pendência agora</strong><small>Seus próximos jogos e convites vão aparecer aqui.</small></span></div>}
-          </div> : null}
-          <form className="authenticated-home-token" onSubmit={(event) => { event.preventDefault(); void submitToken() }}>
-            <KeyRound size={18}/><div><strong>Tem token ou link?</strong><small>Inscrição, grupo, escalação ou convite.</small></div>
-            <input value={tokenValue} onChange={(event) => { setTokenValue(event.target.value); setTokenError('') }} placeholder="Cole aqui" aria-label="Token ou link de inscrição" />
-            <button type="submit" disabled={tokenBusy}>{tokenBusy ? 'Verificando…' : 'Continuar'}</button>
-            {tokenError ? <small className="authenticated-home-token-error" role="alert">{tokenError}</small> : null}
-          </form>
         </div>
       </section>
 

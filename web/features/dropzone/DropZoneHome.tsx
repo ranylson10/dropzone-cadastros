@@ -585,7 +585,7 @@ export function DropZoneHome() {
     }
   }
 
-  async function uploadPublicFile(file: File, bucket: string) {
+  async function uploadPublicFile(file: File, bucket: string, context?: { entityId?: string | null; campeonatoId?: string | null; uploadIntent?: 'create_profile' | 'create_campeonato' | null }) {
     setLoading(true)
     setError('')
     try {
@@ -594,9 +594,12 @@ export function DropZoneHome() {
       const uploadProfileType = profileType || account?.profile_type || null
 
       const url = await uploadStoragePublicFile(file, bucket, uploadProfileType, {
+        ...context,
         uploadIntent: bucket === 'campeonato'
           ? 'create_campeonato'
-          : linkingProfile
+          : context?.uploadIntent
+            ? context.uploadIntent
+            : linkingProfile
             ? 'create_profile'
             : null,
       })

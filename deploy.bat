@@ -1,4 +1,6 @@
 @echo off
+setlocal
+cd /d "%~dp0" || exit /b 1
 title Deploy GitHub + Vercel
 
 echo.

@@ -24,8 +24,8 @@ test('99 - reivindicação lista as lines preservadas e não ressuscita line ina
 })
 
 test('99 - incorporação comunica que todo o histórico da equipe é preservado', async () => {
-  expect(claimPage).toContain('Incorporar histórico da equipe')
-  expect(claimPage).toContain('suas lines, campeonatos, jogadores e estatísticas serão preservados')
+  expect(claimPage).toContain('Incorporar em {ownedTeam?.nome}')
+  expect(claimPage).toContain('Lines, jogadores, campeonatos e estatísticas serão preservados')
   expect(claimPage).toContain('Histórico incorporado à sua equipe. Lines, campeonatos e estatísticas foram preservados.')
 })
 

@@ -7,4 +7,13 @@
 .historical-team-login, .historical-team-action { display: grid; gap: 12px; width: 100%; margin-top: 16px; }
 .historical-team-login h2, .historical-team-action h2 { margin: 0; }
 .historical-team-login p, .historical-team-action p { margin: 0; }
+.historical-team-owned-team { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(213, 192, 99, .42); background: rgba(213, 192, 99, .08); }
+.historical-team-owned-team > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.historical-team-owned-team small { opacity: .68; }
+.historical-team-owned-team strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.historical-team-owned-logo { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; overflow: hidden; border-radius: 8px; background: rgba(255,255,255,.06); }
+.historical-team-owned-logo img { width: 100%; height: 100%; object-fit: cover; }
+.historical-team-account-alternative { display: grid; gap: 5px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.12); }
+.historical-team-account-alternative > span { opacity: .72; }
+.historical-team-account-alternative > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
 @media (max-width: 640px) { .historical-team-claim-summary { gap: 7px; } }

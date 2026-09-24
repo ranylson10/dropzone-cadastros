@@ -68,7 +68,7 @@ test('100 - incorporação transfere elenco antes das lines e preserva participa
   expect(claimMigration).toContain('update public.campeonato_jogadores')
   expect(claimMigration).not.toContain('insert into public.campeonato_equipes')
   expect(claimMigration).not.toContain('insert into public.campeonato_jogadores')
-  expect(claimPage).toContain('Incorporar histórico da equipe')
+  expect(claimPage).toContain('Incorporar em {ownedTeam?.nome}')
 })
 
 test('100 - equipe deixa automaticamente a central quando ganha dono ou é incorporada', async () => {

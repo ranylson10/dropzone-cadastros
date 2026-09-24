@@ -47,7 +47,9 @@ test('94 - produtor usa estrutura oficial de lines, jogadores e convites', async
 
 test('94 - produtor pode editar informações e logo antes da reivindicação', async () => {
   expect(route).toContain("for (const key of ['nome', 'tag', 'logo_url', 'localidade', 'cidade', 'estado', 'pais', 'bio'])")
-  expect(panel).toContain("uploadPublicFile(file, 'equipe')")
+  expect(panel).toContain('UploadField')
+  expect(panel).toContain('resolvePendingImageUpload(draft.logo_url)')
+  expect(panel).toContain('entityId: selected.id')
   expect(panel).toContain('Salvar informações')
   expect(panel).toContain('Copiar link')
 })

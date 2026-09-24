@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export default function CentralCampeonatoPage() {
   return (
-    <AppShell activeLabel="Campeonatos" loadSession mainClassName="page page-authenticated championship-central-page">
+    <AppShell activeLabel="Competições" loadSession mainClassName="page page-authenticated championship-central-page">
       <ChampionshipCentral />
     </AppShell>
   )

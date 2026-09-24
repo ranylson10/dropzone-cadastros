@@ -294,7 +294,7 @@ export default function CompraVagaPage() {
   }
 
   return (
-    <AppShell activeLabel="Vagas abertas" loadSession mainClassName="vacancies-page page">
+    <AppShell activeLabel="Competições" loadSession mainClassName="vacancies-page page">
       <section className="vacancies-hero" style={{ marginBottom: 12 }}>
         <div>
           <p className="eyebrow">Compra de vaga</p>

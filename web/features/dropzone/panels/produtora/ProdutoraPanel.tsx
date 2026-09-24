@@ -91,7 +91,7 @@ export function ProdutoraPanel(props: {
   pendingCreate: string | null
   message?: string
   error?: string
-  uploadPublicFile: (file: File, bucket: string) => Promise<string>
+  uploadPublicFile: (file: File, bucket: string, context?: { entityId?: string | null; campeonatoId?: string | null; uploadIntent?: 'create_profile' | 'create_campeonato' | null }) => Promise<string>
 }) {
   const [showCreateChamp, setShowCreateChamp] = useState(false)
 

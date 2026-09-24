@@ -17,6 +17,8 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
   const [destinoId, setDestinoId] = useState('')
 
   const returnTo = token ? `/equipe/reivindicar/${encodeURIComponent(token)}` : '/'
+  const switchAccountHref = buildLoginHref(null, returnTo, true)
+  const createAccountHref = `${switchAccountHref}&mode=criar`
 
   useEffect(() => {
     params.then((value) => setToken(decodeURIComponent(String(value.token || '').trim())))
@@ -47,6 +49,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
   }
 
   const hasTeam = Boolean(data?.equipes_usuario?.length)
+  const ownedTeam = data?.equipes_usuario?.[0] || null
   const lineNames = useMemo(() => (data?.lines || []).map((line: any) => line.nome).filter(Boolean), [data?.lines])
 
   async function submit(modo: 'assumir' | 'incorporar') {
@@ -128,18 +131,28 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
           </div>
         ) : (
           <div className="historical-team-action">
-            <h2>Você já possui equipe</h2>
-            <p>Você pode incorporar o histórico desta equipe a uma das suas equipes. A equipe provisória será encerrada, mas suas lines, campeonatos, jogadores e estatísticas serão preservados.</p>
-            <label className="field">
-              <span>Equipe de destino</span>
-              <select value={destinoId} onChange={(event) => setDestinoId(event.target.value)}>
-                {(data.equipes_usuario || []).map((team: any) => <option key={team.id} value={team.id}>{team.tag ? `[${team.tag}] ` : ''}{team.nome}</option>)}
-              </select>
-            </label>
+            <h2>Este login já possui uma equipe</h2>
+            <div className="historical-team-owned-team">
+              <span className="historical-team-owned-logo">
+                {ownedTeam?.logo_url ? <img src={ownedTeam.logo_url} alt="" /> : <Users size={22} />}
+              </span>
+              <span><small>Equipe vinculada a este login</small><strong>{ownedTeam?.tag ? `[${ownedTeam.tag}] ` : ''}{ownedTeam?.nome}</strong></span>
+            </div>
+            <p>
+              Ao continuar, <strong>{data.equipe?.nome}</strong> será incorporada a <strong>{ownedTeam?.nome}</strong>.
+              Lines, jogadores, campeonatos e estatísticas serão preservados, e a equipe provisória desaparecerá.
+            </p>
             <button className="button" type="button" disabled={submitting || !destinoId} onClick={() => void submit('incorporar')}>
-              {submitting ? <Loader2 className="spin" size={16} /> : <Users size={16} />} Incorporar histórico da equipe
+              {submitting ? <Loader2 className="spin" size={16} /> : <Users size={16} />} Incorporar em {ownedTeam?.nome}
             </button>
-            <a className="button secondary" href={buildLoginHref(null, returnTo, true)}>Usar outra conta</a>
+            <div className="historical-team-account-alternative">
+              <strong>Quer manter esta equipe separada?</strong>
+              <span>Use outro login que ainda não possua uma equipe.</span>
+              <div>
+                <a className="button secondary" href={switchAccountHref}>Entrar com outro login</a>
+                <a className="button secondary" href={createAccountHref}>Criar novo login</a>
+              </div>
+            </div>
           </div>
         )}
       </div>

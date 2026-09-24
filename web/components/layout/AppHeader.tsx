@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
+import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Search, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { DropZoneRow, ProfileType } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -118,6 +118,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [quickOpen, setQuickOpen] = useState(false)
   const [walletSaldo, setWalletSaldo] = useState<number | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [languageOpen, setLanguageOpen] = useState(false)
@@ -129,6 +130,38 @@ export function AppHeader({
   const profileRef = useRef<HTMLDivElement>(null)
   const languageRef = useRef<HTMLDivElement>(null)
   const isAuthenticated = Boolean(profileName && onSignOut)
+  const activeAccount = accounts.find((item) => item.id === activeAccountId) || accounts[0] || null
+  const activeProfileType = activeAccount?.profile_type || null
+
+  const quickActions = activeProfileType === 'produtora'
+    ? [
+        { label: 'Criar campeonato', detail: 'Começar uma nova competição', href: '/?painel=1&acao=criar-campeonato', icon: Trophy },
+        { label: 'Meus campeonatos', detail: 'Continuar uma organização', href: '/campeonatos', icon: LayoutDashboard },
+        { label: 'Agenda', detail: 'Jogos e compromissos', href: '/agenda', icon: CalendarDays },
+      ]
+    : activeProfileType === 'equipe'
+      ? [
+          { label: 'Encontrar campeonato', detail: 'Ver vagas abertas', href: '/vagas', icon: Trophy },
+          { label: 'Minha equipe', detail: 'Elenco, lines e gestão', href: '/?painel=1', icon: UsersRound },
+          { label: 'Agenda', detail: 'Próximos jogos', href: '/agenda', icon: CalendarDays },
+        ]
+      : activeProfileType === 'jogador'
+        ? [
+            { label: 'Minha agenda', detail: 'Jogos e escalações', href: '/agenda', icon: CalendarDays },
+            { label: 'Encontrar campeonato', detail: 'Explorar competições', href: '/campeonatos', icon: Trophy },
+            { label: 'Comunidade', detail: 'Equipes e jogadores', href: '/comunidade', icon: UsersRound },
+          ]
+        : activeProfileType === 'manager'
+          ? [
+              { label: 'Central de afiliados', detail: 'Vendas e comissões', href: '/afiliados', icon: LayoutDashboard },
+              { label: 'Vagas abertas', detail: 'Campeonatos disponíveis', href: '/vagas', icon: Trophy },
+              { label: 'Agenda', detail: 'Próximos compromissos', href: '/agenda', icon: CalendarDays },
+            ]
+          : [
+              { label: 'Buscar campeonato', detail: 'Explorar competições', href: '/campeonatos', icon: Search },
+              { label: 'Vagas abertas', detail: 'Encontrar uma oportunidade', href: '/vagas', icon: Trophy },
+              { label: 'Comunidade', detail: 'Equipes e jogadores', href: '/comunidade', icon: UsersRound },
+            ]
 
   useEffect(() => {
     setAccountAvatar(profileImage || '')
@@ -239,6 +272,7 @@ export function AppHeader({
           onClick={() => {
             setProfileOpen(false)
             setLanguageOpen(false)
+            setQuickOpen(false)
             setMobileOpen((value) => !value)
           }}
           aria-expanded={mobileOpen}
@@ -330,21 +364,32 @@ export function AppHeader({
         </nav>
 
         <nav className="app-mobile-dock" aria-label="Navegação rápida">
-          <a href="/" className={activeLabel === 'Início' ? 'active' : ''} onClick={() => setMobileOpen(false)}>
+          <a href="/" className={activeLabel === 'Início' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
             <Home size={19} aria-hidden />
             <span>Início</span>
           </a>
-          <a href="/campeonatos" className={activeLabel === 'Campeonatos' ? 'active' : ''} onClick={() => setMobileOpen(false)}>
+          <a href="/campeonatos" className={activeLabel === 'Competições' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
             <Trophy size={19} aria-hidden />
-            <span>Campeonatos</span>
+            <span>Competições</span>
           </a>
-          <a href="/agenda" className={activeLabel === 'Agenda' ? 'active' : ''} onClick={() => setMobileOpen(false)}>
-            <CalendarDays size={19} aria-hidden />
-            <span>Agenda</span>
-          </a>
-          <a href="/equipes" className={activeLabel === 'Equipes' ? 'active' : ''} onClick={() => setMobileOpen(false)}>
+          <button
+            type="button"
+            className={`app-mobile-quick-trigger ${quickOpen ? 'active' : ''}`}
+            aria-label="Abrir ações rápidas"
+            aria-expanded={quickOpen}
+            onClick={() => {
+              setMobileOpen(false)
+              setProfileOpen(false)
+              setLanguageOpen(false)
+              setQuickOpen((value) => !value)
+            }}
+          >
+            <span className="app-mobile-quick-icon"><Plus size={23} aria-hidden /></span>
+            <span>Ações</span>
+          </button>
+          <a href="/comunidade" className={activeLabel === 'Comunidade' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
             <UsersRound size={19} aria-hidden />
-            <span>Equipes</span>
+            <span>Comunidade</span>
           </a>
           {isAuthenticated ? (
             <button
@@ -352,6 +397,7 @@ export function AppHeader({
               className={`app-mobile-profile-switcher ${profileOpen ? 'active' : ''}`}
               onClick={() => {
                 setMobileOpen(false)
+                setQuickOpen(false)
                 setLanguageOpen(false)
                 setProfileOpen((value) => !value)
               }}
@@ -366,12 +412,36 @@ export function AppHeader({
               <span>Conta</span>
             </button>
           ) : (
-            <a href={loginHref} className="app-mobile-profile-switcher">
+            <a href={loginHref} className="app-mobile-profile-switcher" onClick={() => setQuickOpen(false)}>
               <UsersRound size={19} aria-hidden />
               <span>Entrar</span>
             </a>
           )}
         </nav>
+
+        {quickOpen ? (
+          <>
+            <button type="button" className="app-mobile-quick-backdrop" aria-label="Fechar ações rápidas" onClick={() => setQuickOpen(false)} />
+            <section className="app-mobile-quick-sheet" aria-label="Ações rápidas">
+              <div className="app-mobile-quick-head">
+                <div><small>ACESSO RÁPIDO</small><strong>O que você quer fazer?</strong></div>
+                <button type="button" onClick={() => setQuickOpen(false)} aria-label="Fechar"><X size={18} /></button>
+              </div>
+              <div className="app-mobile-quick-list">
+                {quickActions.map((action) => {
+                  const Icon = action.icon
+                  return (
+                    <a href={action.href} key={action.href + action.label} onClick={() => setQuickOpen(false)}>
+                      <span className="app-mobile-quick-action-icon"><Icon size={19} aria-hidden /></span>
+                      <span><strong>{action.label}</strong><small>{action.detail}</small></span>
+                      <span aria-hidden>›</span>
+                    </a>
+                  )
+                })}
+              </div>
+            </section>
+          </>
+        ) : null}
 
         <div className="app-global-language" data-no-translate aria-label="Language" ref={languageRef}>
           <button

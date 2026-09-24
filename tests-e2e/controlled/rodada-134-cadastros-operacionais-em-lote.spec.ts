@@ -19,7 +19,7 @@ test('134 - equipes provisórias usam tabela com nomes, tags e uma logo por linh
 
 test('134 - logos sobem em paralelo e o cadastro permanece em uma RPC de lote', async () => {
   expect(panel).toContain('Promise.all(bulkRows.map')
-  expect(panel).toContain("await uploadPublicFile(row.logoFile, 'equipe')")
+  expect(panel).toContain("await uploadPublicFile(row.logoFile, 'equipe', { uploadIntent: 'create_profile' })")
   expect(panel).toContain('body: JSON.stringify({ equipes })')
   expect(provisionalRoute).toContain("raw?.logo_url")
   expect(provisionalRoute).toContain("supabaseAdmin.rpc('fn_criar_equipes_provisorias_em_bloco'")
@@ -31,7 +31,7 @@ test('134 - slots aceitam várias equipes e lines em uma única confirmação vi
   expect(structure).toContain('BatchSlotAssignment')
   expect(structure).toContain('batchAssignments.map')
   expect(structure).toContain('Promise.all(valid.map')
-  expect(structure).toContain('Adicionar outra equipe')
-  expect(structure).toContain('Salvar ${batchAssignments.length} equipe(s)')
+  expect(structure).toContain('Preencha os slots desejados')
+  expect(structure).toContain('Salvar ${batchSelectedCount} equipe(s)')
   expect(structureCss).toContain('.slot-batch-table')
 })

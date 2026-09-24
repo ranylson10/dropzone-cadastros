@@ -28,8 +28,8 @@ test('93 - link pode assumir equipe ou incorporar histórico em equipe existente
   expect(migration).toContain('update public.campeonato_jogadores')
   expect(migration).toContain("set status = 'incorporada'")
   expect(claimPage).toContain('Assumir equipe')
-  expect(claimPage).toContain('Incorporar histórico da equipe')
-  expect(claimPage).toContain('Usar outra conta')
+  expect(claimPage).toContain('Incorporar em {ownedTeam?.nome}')
+  expect(claimPage).toContain('Entrar com outro login')
 })
 
 test('93 - token não é lido diretamente pelo cliente e reivindicação exige login para mutar', async () => {

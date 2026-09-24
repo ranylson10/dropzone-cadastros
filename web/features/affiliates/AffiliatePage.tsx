@@ -67,13 +67,13 @@ export function AffiliatePage() {
   }, [])
 
   if (!state.ready) {
-    return <AppShell activeLabel="Afiliados" loadSession><DropzoneLoader label="Carregando central de afiliados" /></AppShell>
+    return <AppShell activeLabel="Mais" loadSession><DropzoneLoader label="Carregando central de afiliados" /></AppShell>
   }
 
   if (state.affiliate) {
     return (
       <AppShell
-        activeLabel="Afiliados"
+        activeLabel="Mais"
         loadSession
         account={state.affiliate}
         identity={state.identity}
@@ -93,7 +93,7 @@ export function AffiliatePage() {
     : `/login?returnTo=${returnTo}`
 
   return (
-    <AppShell activeLabel="Afiliados" loadSession mainClassName="affiliate-page page-authenticated">
+    <AppShell activeLabel="Mais" loadSession mainClassName="affiliate-page page-authenticated">
       <div className="affiliate-landing">
         <section className="affiliate-hero">
           <div className="affiliate-hero-copy">

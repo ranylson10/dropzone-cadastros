@@ -118,7 +118,7 @@ export default function VacanciesPage() {
   }
 
   return (
-    <AppShell activeLabel="Vagas abertas" loadSession mainClassName={`vacancies-page page ${scope ? 'is-scoped' : ''}`}>
+    <AppShell activeLabel="Competições" loadSession mainClassName={`vacancies-page page ${scope ? 'is-scoped' : ''}`}>
       <section className="vacancies-hero">
         <div>
           <p className="eyebrow">{scope?.tipo === 'vendedor' ? 'Seleção do vendedor' : scope?.tipo === 'produtora' ? 'Eventos da produtora' : 'Agenda competitiva'}</p>

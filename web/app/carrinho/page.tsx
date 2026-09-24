@@ -187,7 +187,7 @@ export default function CarrinhoPage() {
   }
 
   return (
-    <AppShell activeLabel="Carrinho" loadSession mainClassName="cart-page page page-authenticated">
+    <AppShell activeLabel="Carteira" loadSession mainClassName="cart-page page page-authenticated">
       <section className="cart-hero"><div><p>DROPZONE PAY</p><h1>Meu carrinho</h1><span>Revise as vagas antes de pagar.</span></div><ShoppingBag size={34} /></section>
       {!accessToken && !loading ? <section className="cart-login"><strong>Entre para continuar sua compra</strong><span>Seu carrinho será sincronizado com a conta depois do login.</span><SocialLogin profileType="equipe" returnTo="/carrinho" /></section> : null}
       {error ? <p className="cart-error" role="alert">{error}</p> : null}

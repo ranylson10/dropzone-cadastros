@@ -75,7 +75,7 @@ export default function VendedorCampeonatosPage() {
   }
 
   return (
-    <AppShell activeLabel="Vagas abertas" loadSession mainClassName="vacancies-page page">
+    <AppShell activeLabel="Competições" loadSession mainClassName="vacancies-page page">
         <section className="vacancies-hero">
           <div>
             <p className="eyebrow">Portfólio do afiliado</p>
