@@ -82,6 +82,9 @@
     "xtreino_mapa_call_equipes": "service_role_only",
     "xtreino_anotacoes_equipes_quedas": "service_role_only",
     "produtora_convites": "service_role_only",
-    "produtora_membros": "service_role_only"
+    "produtora_membros": "service_role_only",
+    "produtora_financeiro_lancamentos": "service_role_only",
+    "produtora_financeiro_metas": "service_role_only",
+    "account_identities": "service_role_only"
   }
 }

@@ -6,52 +6,60 @@ const root = process.cwd()
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), 'utf8')
 
 const panel = read('web/features/dropzone/panels/produtora/ProdutoraPanel.tsx')
+const financePanel = read('web/features/produtoras/components/ProducerFinancePanel.tsx')
 const tabs = read('web/features/dropzone/panels/produtora/producer-tabs.ts')
 const form = read('web/components/forms/campeonato/CampeonatoForm.tsx')
 const styles = read('web/app/globals.css')
 
 test.describe('Rodada 143 — campeonatos e gestão simples da produtora', () => {
-  test('produtora reduz o primeiro nível para campeonatos operação e comercial', () => {
+  test('hierarquia criada na R143 evolui para o workspace simples da R147', () => {
     expect(panel).toContain('producer-hub-nav producer-hub-nav-primary')
+    expect(panel).toContain('<span>Visão geral</span>')
     expect(panel).toContain('<span>Campeonatos</span>')
-    expect(panel).toContain('<span>Operação</span>')
-    expect(panel).toContain('<span>Comercial</span>')
+    expect(panel).toContain('<span>Financeiro</span>')
+    expect(panel).toContain('<span>Equipe</span>')
+    expect(panel).toContain('<span>Configurações</span>')
     expect(panel).not.toContain("setProducerSection('provisorias')")
     expect(panel).not.toContain("setProducerSection('vendedores')")
   })
 
-  test('operação agrupa equipes provisórias e equipe interna', () => {
-    expect(panel).toContain('aria-label="Ferramentas de operação da produtora"')
-    expect(panel).toContain("setProducerOperationView('provisorias')")
-    expect(panel).toContain("setProducerOperationView('staff')")
+  test('equipe agrupa membros internos e cadastros provisórios', () => {
+    expect(panel).toContain("type ProducerTeamView = 'membros' | 'provisorias'")
+    expect(panel).toContain('aria-label="Equipe da produtora"')
+    expect(panel).toContain("setProducerTeamView('membros')")
+    expect(panel).toContain("setProducerTeamView('provisorias')")
   })
 
-  test('comercial agrupa vendedores e página de vagas', () => {
-    expect(panel).toContain('aria-label="Ferramentas comerciais da produtora"')
-    expect(panel).toContain("setProducerCommercialView('vendedores')")
-    expect(panel).toContain("setProducerCommercialView('vagas')")
+  test('financeiro agrupa gestão por campeonato vendedores e carteira sem misturar conceitos', () => {
+    expect(panel).toContain("type ProducerFinanceView = 'resumo' | 'vendedores'")
+    expect(panel).toContain('aria-label="Áreas financeiras da produtora"')
+    expect(panel).toContain("setProducerFinanceView('resumo')")
+    expect(panel).toContain("setProducerFinanceView('vendedores')")
+    expect(panel).toContain('<ProducerFinancePanel')
+    expect(financePanel).toContain('Carteira é saldo. Aqui ficam desempenho, custos, metas e projeções.')
+    expect(financePanel).toContain('href="/carteira"')
   })
 
-  test('campeonato passa a ter seis áreas principais', () => {
-    expect(tabs).toContain("{ id: 'visao', label: 'Início'")
+  test('campeonato evolui para cinco áreas principais orientadas por tarefa', () => {
+    expect(tabs).toContain("{ id: 'visao', label: 'Visão geral'")
     expect(tabs).toContain("{ id: 'participantes', label: 'Participantes'")
-    expect(tabs).toContain("{ id: 'estrutura', label: 'Estrutura'")
-    expect(tabs).toContain("{ id: 'jogos', label: 'Jogos'")
+    expect(tabs).toContain("{ id: 'operacao', label: 'Operação'")
     expect(tabs).toContain("{ id: 'resultados', label: 'Resultados'")
-    expect(tabs).toContain("{ id: 'mais', label: 'Mais'")
+    expect(tabs).toContain("{ id: 'financeiro', label: 'Financeiro'")
     expect(panel).toContain('aria-label="Áreas do campeonato"')
   })
 
   test('participantes reúne equipes jogadores e inscrições sem remover funções', () => {
     expect(tabs).toContain("tabs: ['equipes', 'jogadores', 'links']")
-    expect(tabs).toContain("{ id: 'links', label: 'Inscrições e links' }")
+    expect(tabs).toContain("{ id: 'links', label: 'Inscrições' }")
     expect(panel).toContain('contextualChampTabs.map')
   })
 
-  test('estrutura jogos e mais usam navegação contextual', () => {
-    expect(tabs).toContain("tabs: ['grupos', 'regulamento']")
-    expect(tabs).toContain("tabs: ['jogos', 'calls']")
-    expect(tabs).toContain("tabs: ['financeiro', 'vendedores']")
+  test('estrutura jogos regras e calls ficam contextualizados dentro de operação', () => {
+    expect(tabs).toContain("tabs: ['grupos', 'jogos', 'regulamento', 'calls']")
+    expect(tabs).toContain("{ id: 'grupos', label: 'Estrutura' }")
+    expect(tabs).toContain("{ id: 'jogos', label: 'Jogos e quedas' }")
+    expect(tabs).toContain("{ id: 'regulamento', label: 'Regras' }")
     expect(panel).toContain('producerWorkspaceForTab(tab)')
   })
 

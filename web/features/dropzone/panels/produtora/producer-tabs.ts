@@ -14,23 +14,22 @@ export type ProducerTab =
 export type ProducerWorkspace =
   | 'visao'
   | 'participantes'
-  | 'estrutura'
-  | 'jogos'
+  | 'operacao'
   | 'resultados'
-  | 'mais'
+  | 'financeiro'
 
 export const producerTabs: Array<{ id: ProducerTab; label: string }> = [
   { id: 'visao', label: 'Visão geral' },
   { id: 'equipes', label: 'Equipes' },
   { id: 'jogadores', label: 'Jogadores' },
-  { id: 'links', label: 'Inscrições e links' },
-  { id: 'grupos', label: 'Grupos e slots' },
-  { id: 'regulamento', label: 'Regulamento' },
-  { id: 'jogos', label: 'Jogos' },
+  { id: 'links', label: 'Inscrições' },
+  { id: 'grupos', label: 'Estrutura' },
+  { id: 'jogos', label: 'Jogos e quedas' },
+  { id: 'regulamento', label: 'Regras' },
   { id: 'calls', label: 'Calls' },
-  { id: 'estatisticas', label: 'Resultados' },
-  { id: 'financeiro', label: 'Financeiro' },
-  { id: 'vendedores', label: 'Vendedores' },
+  { id: 'estatisticas', label: 'Classificação' },
+  { id: 'financeiro', label: 'Resumo financeiro' },
+  { id: 'vendedores', label: 'Vendas' },
 ]
 
 export const producerWorkspaceTabs: Array<{
@@ -39,12 +38,11 @@ export const producerWorkspaceTabs: Array<{
   defaultTab: ProducerTab
   tabs: ProducerTab[]
 }> = [
-  { id: 'visao', label: 'Início', defaultTab: 'visao', tabs: ['visao'] },
+  { id: 'visao', label: 'Visão geral', defaultTab: 'visao', tabs: ['visao'] },
   { id: 'participantes', label: 'Participantes', defaultTab: 'equipes', tabs: ['equipes', 'jogadores', 'links'] },
-  { id: 'estrutura', label: 'Estrutura', defaultTab: 'grupos', tabs: ['grupos', 'regulamento'] },
-  { id: 'jogos', label: 'Jogos', defaultTab: 'jogos', tabs: ['jogos', 'calls'] },
+  { id: 'operacao', label: 'Operação', defaultTab: 'grupos', tabs: ['grupos', 'jogos', 'regulamento', 'calls'] },
   { id: 'resultados', label: 'Resultados', defaultTab: 'estatisticas', tabs: ['estatisticas'] },
-  { id: 'mais', label: 'Mais', defaultTab: 'financeiro', tabs: ['financeiro', 'vendedores'] },
+  { id: 'financeiro', label: 'Financeiro', defaultTab: 'financeiro', tabs: ['financeiro', 'vendedores'] },
 ]
 
 export function producerWorkspaceForTab(tab: ProducerTab): ProducerWorkspace {
