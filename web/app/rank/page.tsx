@@ -11,7 +11,7 @@ export default function RankPage() {
         <div className="directory-rank-hero-inner">
           <small>DIRETÓRIO COMPETITIVO</small>
           <h1>Ranking DropZone</h1>
-          <p>Tiers dinâmicos de equipes, jogadores e campeonatos, calculados por desempenho e nível competitivo.</p>
+          <p>Ranking baseado em resultados oficiais. Compare equipes, jogadores e campeonatos com um score competitivo separado dos pontos de cada torneio.</p>
         </div>
       </section>
       <div className="directory-rank-content">

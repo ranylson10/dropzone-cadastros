@@ -111,7 +111,7 @@ function groupCode(groupId: string | null | undefined, groups: DropZoneRow[]) {
   return (match?.[1] || name || '—').toUpperCase()
 }
 
-function kdValue(abates: number, quedas: number) {
+function killsPerDropValue(abates: number, quedas: number) {
   if (!quedas) return '0,00'
   return (abates / quedas).toFixed(2).replace('.', ',')
 }
@@ -345,12 +345,14 @@ export function CampeonatoEstatisticasTab(props: {
   const leader = teamStats[0] || null
   const mvpLeader = mvpStats[0] || null
   const totalDrops = teamStats.reduce((max, row) => Math.max(max, Number(row.quedas || 0)), 0)
+  const finalizedDrops = partidas.filter((partida) => String(partida.status || '') === 'finalizada').length
+  const pendingDrops = Math.max(0, partidas.length - finalizedDrops)
 
   return (
     <section className="champ-stats">
       <header className="champ-stats-head">
         <div>
-          <p>Classificação e estatísticas</p>
+          <p>Resultados e classificação</p>
           <h2>Desempenho do campeonato</h2>
         </div>
         <button
@@ -367,10 +369,18 @@ export function CampeonatoEstatisticasTab(props: {
 
       <div className="champ-stats-summary" aria-label="Resumo da classificação">
         <span><strong>{teamStats.length}</strong><small>equipes</small></span>
-        <span><strong>{totalDrops}</strong><small>quedas</small></span>
+        <span><strong>{partidas.length ? `${finalizedDrops}/${partidas.length}` : totalDrops}</strong><small>quedas finalizadas</small></span>
         <span><strong>{leader?.pontos_total ?? 0}</strong><small>pts líder</small></span>
         <span><strong>{mvpLeader?.abates ?? 0}</strong><small>kills MVP</small></span>
       </div>
+
+      {partidas.length ? (
+        <div className={`champ-stats-result-status${pendingDrops ? ' has-pending' : ' is-complete'}`}>
+          <span><strong>{finalizedDrops}</strong> resultado{finalizedDrops === 1 ? '' : 's'} finalizado{finalizedDrops === 1 ? '' : 's'}</span>
+          <span><strong>{pendingDrops}</strong> pendente{pendingDrops === 1 ? '' : 's'}</span>
+          <small>{pendingDrops ? 'Finalize as quedas restantes para fechar a classificação.' : 'Todos os resultados cadastrados estão finalizados.'}</small>
+        </div>
+      ) : null}
 
       <nav className="champ-stats-tabs" aria-label="Seções de estatísticas">
         {championSummary?.final_concluida && championSummary.campeao ? (
@@ -385,7 +395,7 @@ export function CampeonatoEstatisticasTab(props: {
           MVP
         </button>
         <button className={tab === 'pontuador' ? 'active' : ''} type="button" onClick={() => setTab('pontuador')}>
-          Pontuador
+          Lançar resultados
         </button>
       </nav>
 
@@ -509,7 +519,7 @@ export function CampeonatoEstatisticasTab(props: {
                 <div><strong>{row.nick}</strong><small>{row.id_jogo ? `ID ${row.id_jogo}` : row.tipo_jogador}</small></div>
               </div>
               <span><strong>{row.quedas}</strong><small>QD</small></span>
-              <span><strong>{kdValue(row.abates, row.quedas)}</strong><small>K.D</small></span>
+              <span><strong>{killsPerDropValue(row.abates, row.quedas)}</strong><small>K/Q</small></span>
               <span className="champ-stats-mvp-kills"><strong>{row.abates}</strong><small>KILLS</small></span>
             </article>
           ))}
@@ -520,7 +530,7 @@ export function CampeonatoEstatisticasTab(props: {
       {tab === 'pontuador' ? (
         <section className="champ-stats-scorer">
           <header>
-            <div><small>Pontuador</small><h3>Selecione o jogo</h3></div>
+            <div><small>Lançar resultados</small><h3>Selecione o jogo</h3></div>
             <p>A pontuação abre em uma tela dedicada com slots, quedas, MVP e MatchResult.</p>
           </header>
 

@@ -551,3 +551,45 @@ body .champ-public .champ-public-info-agenda .agenda-sequence{background:var(--u
     cursor:pointer;
   }
 }
+
+/* Rodada 144 — leitura rápida dos resultados publicados. */
+body .champ-public .champ-public-stats-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1px;
+  overflow:hidden;
+  margin:0 0 10px;
+  border:1px solid var(--ui-line);
+  border-radius:var(--ui-radius-sm);
+  background:var(--ui-line);
+}
+body .champ-public .champ-public-stats-summary>span{
+  display:grid;
+  align-content:center;
+  min-width:0;
+  min-height:62px;
+  padding:9px 11px;
+  background:var(--ui-surface-raised);
+}
+body .champ-public .champ-public-stats-summary small{
+  color:var(--ui-text-muted);
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+body .champ-public .champ-public-stats-summary strong,
+body .champ-public .champ-public-stats-summary b{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+body .champ-public .champ-public-stats-summary strong{margin-top:3px;color:var(--ui-text);font-size:12px}
+body .champ-public .champ-public-stats-summary b{margin-top:2px;color:var(--ui-accent);font-size:8px;font-weight:850}
+@media(max-width:820px){
+  body .champ-public .champ-public-stats-summary{grid-template-columns:1fr;margin-bottom:8px}
+  body .champ-public .champ-public-stats-summary>span{grid-template-columns:54px minmax(0,1fr) auto;align-items:center;gap:7px;min-height:42px;padding:7px 9px}
+  body .champ-public .champ-public-stats-summary small{font-size:7px}
+  body .champ-public .champ-public-stats-summary strong{margin:0;font-size:10px}
+  body .champ-public .champ-public-stats-summary b{margin:0;font-size:7px;text-align:right}
+}

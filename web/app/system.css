@@ -1438,3 +1438,33 @@ body .notif-inbox-status {
   gap: 4px;
 }
 body .notif-inbox-status .is-live { color: var(--ui-accent); }
+
+/* Rodada 144 — ranking explicável, pesquisável e conectado aos perfis. */
+body .directory-rank-context{display:grid;grid-template-columns:minmax(220px,360px) minmax(0,1fr);align-items:start;gap:12px;width:min(760px,100%);margin:0 auto 12px}
+body .directory-rank-search{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 11px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface);color:var(--ui-text-muted)}
+body .directory-rank-search:focus-within{border-color:var(--ui-accent)}
+body .directory-rank-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--ui-text);font:inherit;font-size:11px}
+body .directory-rank-search input::placeholder{color:var(--ui-text-muted)}
+body .directory-rank-method{display:flex;min-height:40px;align-items:center;justify-content:flex-end;gap:12px;color:var(--ui-text-muted);font-size:9px}
+body .directory-rank-method>span{white-space:nowrap}
+body .directory-rank-method details{position:relative}
+body .directory-rank-method summary{display:flex;align-items:center;gap:5px;min-height:32px;padding:0 8px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface);color:var(--ui-text);font-weight:850;cursor:pointer;list-style:none}
+body .directory-rank-method summary::-webkit-details-marker{display:none}
+body .directory-rank-method details p{position:absolute;z-index:12;right:0;top:38px;width:min(360px,80vw);margin:0;padding:11px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:var(--ui-surface-raised);color:var(--ui-text-muted);box-shadow:0 12px 30px rgba(0,0,0,.28);line-height:1.45}
+body .directory-rank-detail-advanced{margin-top:12px;border-top:1px solid var(--ui-line)}
+body .directory-rank-detail-advanced>summary{padding:12px 0;color:var(--ui-text);font-size:10px;font-weight:900;cursor:pointer}
+body .directory-rank-detail-advanced dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0}
+body .directory-rank-detail-advanced dl>div{display:grid;gap:4px;min-height:56px;padding:10px 0;border-bottom:1px solid var(--ui-line)}
+body .directory-rank-detail-advanced dl>div:nth-child(odd){padding-right:12px}
+body .directory-rank-detail-advanced dl>div:nth-child(even){padding-left:12px;border-left:1px solid var(--ui-line)}
+body .directory-rank-detail-advanced dt{color:var(--ui-text-muted);font-size:8px;font-weight:900;text-transform:uppercase}
+body .directory-rank-detail-advanced dd{margin:0;color:var(--ui-text);font-size:11px;font-weight:750;overflow-wrap:anywhere}
+body .directory-rank-profile-link{display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;margin-top:14px;border:1px solid var(--ui-accent);border-radius:var(--ui-radius-sm);color:var(--ui-accent);font-size:10px;font-weight:900;text-decoration:none}
+body .directory-rank-profile-link:hover{background:color-mix(in srgb,var(--ui-accent) 10%,transparent)}
+@media(max-width:700px){
+  body .directory-rank-context{grid-template-columns:1fr;gap:7px}
+  body .directory-rank-method{justify-content:space-between;min-height:32px}
+  body .directory-rank-method details p{right:0;width:calc(100vw - 34px)}
+  body .directory-rank-detail-advanced dl{grid-template-columns:1fr}
+  body .directory-rank-detail-advanced dl>div:nth-child(odd),body .directory-rank-detail-advanced dl>div:nth-child(even){padding:9px 0;border-left:0}
+}

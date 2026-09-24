@@ -442,6 +442,13 @@ export function ChampionshipPublicView({
 type StatsView = 'campeao' | 'tabela' | 'mvp'
 type MobileFilterMode = 'general' | 'phase' | 'map'
 
+type StatsPublication = {
+  delay_segundos?: number
+  corte_em?: string
+  partidas_publicadas?: string[]
+  modo?: string
+}
+
 type TeamStatsRow = {
   campeonato_equipe_id: string
   nome: string
@@ -547,6 +554,7 @@ function StatsDashboard({
   const [players, setPlayers] = useState<MvpStatsRow[]>(() => initialPlayers)
   const [loading, setLoading] = useState(false)
   const [championSummary, setChampionSummary] = useState<any>(null)
+  const [publication, setPublication] = useState<StatsPublication | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [mobileFilterMode, setMobileFilterMode] = useState<MobileFilterMode>('general')
 
@@ -617,6 +625,7 @@ function StatsDashboard({
         if (Array.isArray(teamData.equipes)) setTeams(teamData.equipes)
         if (Array.isArray(playerData.jogadores)) setPlayers(playerData.jogadores)
         setChampionSummary(championData)
+        setPublication(teamData.publicacao || playerData.publicacao || championData?.publicacao || null)
         if (!championData?.final_concluida || !championData?.campeao) setView((current) => current === 'campeao' ? 'tabela' : current)
       })
       .catch((error) => {
@@ -637,8 +646,29 @@ function StatsDashboard({
     return normalized || '—'
   }
 
-  const kdLabel = (row: MvpStatsRow) =>
+  const killsPerDropLabel = (row: MvpStatsRow) =>
     row.quedas > 0 ? (row.abates / row.quedas).toFixed(2).replace('.', ',') : '0,00'
+
+  const leader = teams[0] || null
+  const mvpLeader = players[0] || null
+  const scopeLabel = useMemo(() => {
+    const labels = [
+      filters?.phases.find((item) => item.id === faseId)?.label,
+      availableGroups.find((item) => item.id === grupoId)?.label,
+      filters?.games.find((item) => item.id === jogoId)?.label,
+      availableRounds.find((item) => item.id === partidaId)?.label,
+      filters?.maps.find((item) => item.id === mapaCodigo)?.label,
+    ].filter(Boolean)
+    return labels.length ? labels.join(' · ') : 'Geral'
+  }, [availableGroups, availableRounds, faseId, filters?.games, filters?.maps, filters?.phases, grupoId, jogoId, mapaCodigo, partidaId])
+  const publicationLabel = useMemo(() => {
+    if (!publication) return 'Dados oficiais publicados'
+    const delaySeconds = Number(publication.delay_segundos || 0)
+    if (delaySeconds <= 0) return 'Publicação imediata'
+    if (delaySeconds < 60) return `Publicação com ${delaySeconds}s de atraso`
+    const minutes = Math.round(delaySeconds / 60)
+    return `Publicação com ${minutes} min de atraso`
+  }, [publication])
 
   const hasFilters = Boolean(
     filters?.phases.length || filters?.groups.length || filters?.games.length || filters?.rounds.length || filters?.maps.length,
@@ -667,6 +697,12 @@ function StatsDashboard({
         </div>
         {loading ? <span className="champ-stats-loading">Atualizando…</span> : null}
       </header>
+
+      <div className="champ-public-stats-summary" aria-label="Resumo dos resultados publicados">
+        <span><small>Líder</small><strong>{leader?.nome || '—'}</strong><b>{leader ? `${leader.pontos_total} pts` : 'Sem resultado'}</b></span>
+        <span><small>MVP</small><strong>{mvpLeader?.nick || '—'}</strong><b>{mvpLeader ? `${mvpLeader.abates} kills` : 'Sem resultado'}</b></span>
+        <span><small>Recorte</small><strong>{scopeLabel}</strong><b>{publicationLabel}</b></span>
+      </div>
 
       <div className="champ-stats-tabs" role="tablist" aria-label="Tipo de estatística">
         {championSummary?.final_concluida && championSummary?.campeao ? <button type="button" className={view === 'campeao' ? 'active' : ''} onClick={() => setView('campeao')}><Flag size={14} /> Campeão</button> : null}
@@ -841,13 +877,13 @@ function StatsDashboard({
               <thead><tr><th className="pos">#</th><th className="identity">Equipe</th><th>GP</th><th>QD</th><th>B!</th><th>Kill</th><th className="total">Pts</th></tr></thead>
               <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong></span></td><td className="stat-group"><b>{groupName(row.grupo_id)}</b></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary">{row.booyahs}</td><td className="stat-secondary">{row.abates}</td><td className="total"><b>{row.pontos_total}</b></td></tr>)}</tbody>
             </table>
-          ) : <div className="directory-empty compact">Tabela ainda sem dados para este filtro.</div>
+          ) : <div className="directory-empty compact">A organização ainda não publicou classificação neste recorte.</div>
         ) : players.length ? (
           <table className="champ-stats-table champ-stats-mvp-table">
-            <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>QD</th><th>K.D</th><th className="total">Kill</th></tr></thead>
-            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{kdLabel(row)}</b></td><td className="total"><b>{row.abates}</b></td></tr>)}</tbody>
+            <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>QD</th><th>K/Q</th><th className="total">Kill</th></tr></thead>
+            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{killsPerDropLabel(row)}</b></td><td className="total"><b>{row.abates}</b></td></tr>)}</tbody>
           </table>
-        ) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
+        ) : <div className="directory-empty compact">A organização ainda não publicou MVP neste recorte.</div>}
       </div> : null}
 
       {view !== 'campeao' ? <div className="champ-stats-mobile-list">
@@ -862,18 +898,18 @@ function StatsDashboard({
               </span>
               <span className="champ-stats-mobile-primary"><small>Pontos</small><b>{row.pontos_total}</b></span>
             </article>
-          )) : <div className="directory-empty compact">Tabela ainda sem dados para este filtro.</div>
+          )) : <div className="directory-empty compact">A organização ainda não publicou classificação neste recorte.</div>
         ) : players.length ? players.map((row) => (
           <article key={row.campeonato_jogador_id} className="champ-stats-mobile-row">
             <span className="champ-stats-mobile-position">{row.colocacao}</span>
             <span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span>
             <span className="champ-stats-mobile-copy">
               <strong>{row.nick}</strong>
-              <small>{teamName(row.campeonato_equipe_id)} · {row.quedas} quedas · K.D {kdLabel(row)} · {row.dano} dano · {row.assistencias} AST · {row.revives} rev</small>
+              <small>{teamName(row.campeonato_equipe_id)} · {row.quedas} quedas · K/Q {killsPerDropLabel(row)} · {row.dano} dano · {row.assistencias} AST · {row.revives} rev</small>
             </span>
             <span className="champ-stats-mobile-primary"><small>Kills</small><b>{row.abates}</b></span>
           </article>
-        )) : <div className="directory-empty compact">MVP ainda sem dados para este filtro.</div>}
+        )) : <div className="directory-empty compact">A organização ainda não publicou MVP neste recorte.</div>}
       </div> : null}
     </section>
   )

@@ -128,3 +128,27 @@
 .champ-stats-lineup{grid-template-columns:repeat(2,minmax(0,1fr))}
 .champ-stats-scorer-fields{grid-template-columns:1fr}
 }
+
+/* Rodada 144 — estado operacional dos resultados. */
+.champ-stats-result-status{
+  display:grid;
+  grid-template-columns:auto auto minmax(0,1fr);
+  align-items:center;
+  gap:12px;
+  min-height:42px;
+  padding:8px 10px;
+  border:1px solid rgba(245,243,237,.07);
+  border-radius:8px;
+  background:var(--ui-surface,#141518);
+  color:#a9abb0;
+  font-size:9px;
+}
+.champ-stats-result-status>span{white-space:nowrap}
+.champ-stats-result-status strong{color:var(--ui-text,#f5f3ed);font-size:11px}
+.champ-stats-result-status small{justify-self:end;color:#73767c;font-size:8px;text-align:right}
+.champ-stats-result-status.has-pending{border-left:3px solid #d59c55}
+.champ-stats-result-status.is-complete{border-left:3px solid #6fac7b}
+@media(max-width:760px){
+  .champ-stats-result-status{grid-template-columns:1fr auto;gap:4px 8px;padding:8px}
+  .champ-stats-result-status small{grid-column:1/-1;justify-self:start;text-align:left}
+}
