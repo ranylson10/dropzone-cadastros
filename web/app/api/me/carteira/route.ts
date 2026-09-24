@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser, getActiveAccount } from '@backend/auth/server-auth'
 import { getOrCreateWallet, listWalletMovements } from '@backend/billing/wallet'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireProducerWorkspaceAccess } from '@backend/produtora/workspace-access'
 
 function resolveOwner(account: any, userId: string) {
   let donoTipo: 'manager' | 'produtora' | 'auth_user' = 'auth_user'
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const account = await getActiveAccount(req, user)
+    if (account?.profile_type === 'produtora') await requireProducerWorkspaceAccess(user.id, account.id, 'financeiro')
     const { donoTipo, donoId } = resolveOwner(account, user.id)
 
     const wallet = await getOrCreateWallet({
@@ -85,6 +87,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const account = await getActiveAccount(req, user)
+    if (account?.profile_type === 'produtora') await requireProducerWorkspaceAccess(user.id, account.id, 'financeiro')
     const body = await req.json().catch(() => ({}))
     const { donoTipo, donoId } = resolveOwner(account, user.id)
 
@@ -134,6 +137,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const account = await getActiveAccount(req, user)
+    if (account?.profile_type === 'produtora') await requireProducerWorkspaceAccess(user.id, account.id, 'financeiro')
     const { donoTipo, donoId } = resolveOwner(account, user.id)
 
     const wallet = await getOrCreateWallet({

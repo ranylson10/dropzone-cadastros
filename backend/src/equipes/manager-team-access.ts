@@ -83,7 +83,15 @@ export async function listControllableEquipes(
       })
   }
 
-  const producerIds = accounts.filter((a) => a.profile_type === 'produtora').map((a) => a.id).filter(Boolean)
+  const producerIds = accounts
+    .filter((a) => {
+      if (a.profile_type !== 'produtora') return false
+      const role = String(a.data?.workspace_role || '')
+      const permissions = a.data?.workspace_permissions || {}
+      return role === 'proprietario' || Boolean(permissions.pode_administrar || permissions.pode_operar)
+    })
+    .map((a) => a.id)
+    .filter(Boolean)
   let provisoria: ControllableEquipe[] = []
 
   if (producerIds.length) {

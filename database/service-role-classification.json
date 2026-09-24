@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-09-08",
+  "updated_at": "2026-09-24",
   "routes": {
     "api/admin/aprovacoes": {
       "decision": "system-admin",
@@ -113,6 +113,10 @@
     "api/vendedores/[managerId]/vagas": {
       "decision": "public-read",
       "reason": "Leitura pública das vagas e links ativos do vendedor; não possui escrita."
+    },
+    "api/admin/produtoras/convites": {
+      "decision": "system-admin",
+      "reason": "GET, POST e DELETE exigem requireSystemAdmin; os convites usam token hash e destinatário de conta já cadastrada."
     }
   }
 }

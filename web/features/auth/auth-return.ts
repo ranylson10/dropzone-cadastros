@@ -23,7 +23,7 @@ export function safeInternalPath(value: string | null | undefined, fallback = '/
  */
 export function isDirectAuthReturnPath(value: string | null | undefined) {
   const path = safeInternalPath(value)
-  return path.startsWith('/equipe/reivindicar/')
+  return path.startsWith('/equipe/reivindicar/') || path.startsWith('/convite/produtora/')
 }
 
 export function parseProfileType(value: string | null | undefined): WebProfileType | null {

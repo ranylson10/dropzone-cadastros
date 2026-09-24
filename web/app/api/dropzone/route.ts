@@ -8,6 +8,7 @@ import {
   softRemoveParticipacao,
 } from '@backend/campeonatos/participacao-sync'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireProducerWorkspaceAccess, type ProducerCapability } from '@backend/produtora/workspace-access'
 import { syncRulebookFromCampeonato } from '@backend/campeonatos/rulebook'
 import { CHAMPIONSHIP_TYPES, DAILY_HOURS, GROUP_LETTERS, type ChampionshipType } from '@/lib/dropzone-constants'
 import {
@@ -204,7 +205,12 @@ async function freeSlotParticipation(slot: {
     .eq('id', slot.id)
 }
 
-async function requireChampionshipOwner(championshipId: string | null | undefined, userId: string, produtoraId?: string | null) {
+async function requireChampionshipOwner(
+  championshipId: string | null | undefined,
+  userId: string,
+  produtoraId?: string | null,
+  capability: ProducerCapability = 'operar',
+) {
   if (!championshipId) throw new Error('Campeonato obrigatorio.')
   let data: any
   let error: any
@@ -228,17 +234,12 @@ async function requireChampionshipOwner(championshipId: string | null | undefine
   if (!data) throw new Error('Campeonato nao encontrado.')
   if (produtoraId && data.produtora_id !== produtoraId) throw new Error('Este campeonato pertence a outra produtora.')
 
-  // Dono = criado_por OU auth da produtora dona
   if (data.criado_por === userId) return data
   if (data.produtora_id) {
-    const { data: produtora } = await supabaseAdmin
-      .from('produtoras')
-      .select('id, auth_user_id')
-      .eq('id', data.produtora_id)
-      .maybeSingle()
-    if (produtora?.auth_user_id === userId) return data
+    await requireProducerWorkspaceAccess(userId, String(data.produtora_id), capability)
+    return data
   }
-  throw new Error('Somente o administrador do campeonato pode executar esta ação.')
+  throw new Error('Você não tem permissão para executar esta ação no campeonato.')
 }
 
 function normalizeChampionshipType(value: unknown): ChampionshipType {
@@ -1084,6 +1085,7 @@ export async function POST(req: NextRequest) {
       const bannerUrl = String(data.banner_url || '').trim() || null
       if (!nome) throw new Error('Informe o nome do campeonato.')
       if (!logoUrl) throw new Error('Envie a logo do campeonato.')
+      await requireProducerWorkspaceAccess(user.id, account.id, 'criar_campeonato')
 
       const { assertProdutoraAprovada } = await import('@backend/admin/aprovacao')
       await assertProdutoraAprovada(account.id)
@@ -1605,7 +1607,7 @@ export async function PATCH(req: NextRequest) {
     const data = body.data || {}
 
     if (entityType === 'championship') {
-      await requireChampionshipOwner(id, user.id, account.id)
+      await requireChampionshipOwner(id, user.id, account.id, 'administrar')
       const { data: currentChamp, error: currentChampError } = await supabaseAdmin
         .from('campeonatos')
         .select('aprovacao_status')
@@ -1838,7 +1840,7 @@ export async function DELETE(req: NextRequest) {
     const entityType = String(body.entity_type || '')
     const id = String(body.id || '')
     if (entityType === 'championship') {
-      await requireChampionshipOwner(id, user.id, account.id)
+      await requireChampionshipOwner(id, user.id, account.id, 'administrar')
       const { error } = await supabaseAdmin.from('campeonatos').update({ deleted_at: new Date().toISOString(), status: 'excluido' }).eq('id', id)
       if (error) throw error
       revalidateTag('directory:campeonatos', { expire: 0 })

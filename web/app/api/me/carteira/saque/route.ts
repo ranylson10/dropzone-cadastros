@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser, getActiveAccount } from '@backend/auth/server-auth'
 import { getOrCreateWallet } from '@backend/billing/wallet'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireProducerWorkspaceAccess } from '@backend/produtora/workspace-access'
 
 const MIN_SAQUE_CENTAVOS = 1000 // R$ 10,00
 
@@ -13,6 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const account = await getActiveAccount(req, user)
+    if (account?.profile_type === 'produtora') await requireProducerWorkspaceAccess(user.id, account.id, 'financeiro')
     const body = await req.json().catch(() => ({}))
 
     const valorCentavos = Math.floor(Number(body.valor_centavos))

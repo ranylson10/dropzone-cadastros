@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       uploadIntent: body.upload_intent === 'create_profile' || body.upload_intent === 'create_campeonato'
         ? body.upload_intent
         : null,
+      activeProfileId: String(req.headers.get('x-profile-id') || '').trim() || null,
     })
 
     const media = normalizeMedia(contentTypeIn, fileName)

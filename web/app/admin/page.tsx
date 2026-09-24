@@ -10,10 +10,12 @@ import {
   Database,
   HardDrive,
   LockKeyhole,
+  MailPlus,
   RefreshCw,
   ShieldCheck,
   UserRoundCheck,
   Users,
+  Trash2,
   XCircle,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -45,6 +47,10 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [aprovFilter, setAprovFilter] = useState('pendente')
   const [busyId, setBusyId] = useState('')
+  const [producerInvites, setProducerInvites] = useState<any[]>([])
+  const [producerInviteEmail, setProducerInviteEmail] = useState('')
+  const [producerInviteName, setProducerInviteName] = useState('')
+  const [producerInviteBusy, setProducerInviteBusy] = useState(false)
 
   async function headers() {
     const { data: sess } = await supabase.auth.getSession()
@@ -88,6 +94,13 @@ export default function AdminPage() {
     setSaques(json.saques || [])
   }, [])
 
+  const loadProducerInvites = useCallback(async () => {
+    const res = await fetch('/api/admin/produtoras/convites', { headers: await headers(), cache: 'no-store' })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.error)
+    setProducerInvites(json.convites || [])
+  }, [])
+
   async function load() {
     setLoading(true)
     setError('')
@@ -96,6 +109,7 @@ export default function AdminPage() {
       if (tab === 'aprovacoes') await loadAprovacoes()
       if (tab === 'precos') await loadPrecos()
       if (tab === 'saques') await loadSaques()
+      if (tab === 'produtoras') await loadProducerInvites()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -112,7 +126,8 @@ export default function AdminPage() {
     if (tab === 'aprovacoes') void loadAprovacoes(aprovFilter).catch((e) => setError(e.message))
     if (tab === 'precos') void loadPrecos().catch((e) => setError(e.message))
     if (tab === 'saques') void loadSaques().catch((e) => setError(e.message))
-  }, [tab, aprovFilter, loadAprovacoes, loadPrecos, loadSaques])
+    if (tab === 'produtoras') void loadProducerInvites().catch((e) => setError(e.message))
+  }, [tab, aprovFilter, loadAprovacoes, loadPrecos, loadSaques, loadProducerInvites])
 
   const accounts = useMemo(
     () =>
@@ -126,6 +141,52 @@ export default function AdminPage() {
     () => (data?.accounts || []).filter((item: any) => item.tipo === 'produtora'),
     [data],
   )
+
+  async function sendProducerInvite() {
+    if (!producerInviteEmail.trim() || !producerInviteName.trim()) {
+      setError('Informe o e-mail cadastrado e o nome da produtora.')
+      return
+    }
+    setProducerInviteBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const res = await fetch('/api/admin/produtoras/convites', {
+        method: 'POST',
+        headers: await headers(),
+        body: JSON.stringify({ email: producerInviteEmail, nome_produtora: producerInviteName }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || 'Não foi possível enviar o convite.')
+      setProducerInviteEmail('')
+      setProducerInviteName('')
+      setNotice('Convite enviado por e-mail. A produtora só será criada quando o usuário aceitar.')
+      await loadProducerInvites()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setProducerInviteBusy(false)
+    }
+  }
+
+  async function cancelProducerInvite(id: string) {
+    if (!window.confirm('Cancelar este convite de produtora?')) return
+    setBusyId(id)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/produtoras/convites?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: await headers(),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || 'Não foi possível cancelar o convite.')
+      await loadProducerInvites()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId('')
+    }
+  }
 
   async function moderate(item: any, action: 'suspender' | 'banir' | 'restaurar') {
     const reason =
@@ -427,6 +488,34 @@ export default function AdminPage() {
               <p>Nenhum usuário cria produtora pelo cadastro público. Novos workspaces entram somente por convite enviado pela Central DropZone para um e-mail já cadastrado.</p>
             </div>
           </div>
+
+          <section className="admin-producer-invite-card">
+            <header>
+              <div><small>NOVA PRODUTORA</small><h3>Enviar convite por e-mail</h3></div>
+              <MailPlus size={22} />
+            </header>
+            <p>O e-mail precisa pertencer a uma conta já cadastrada. A produtora só é criada depois que essa conta aceita o convite.</p>
+            <div className="admin-producer-invite-form">
+              <label><span>E-mail cadastrado</span><input type="email" value={producerInviteEmail} onChange={(event) => setProducerInviteEmail(event.target.value)} placeholder="usuario@email.com" /></label>
+              <label><span>Nome da produtora</span><input value={producerInviteName} onChange={(event) => setProducerInviteName(event.target.value)} placeholder="Ex.: ABC Eventos" /></label>
+              <button type="button" disabled={producerInviteBusy} onClick={() => void sendProducerInvite()}><MailPlus size={16} /> {producerInviteBusy ? 'Enviando…' : 'Enviar convite'}</button>
+            </div>
+          </section>
+
+          {producerInvites.some((item: any) => item.status === 'pendente') ? (
+            <section className="admin-producer-pending">
+              <header><div><small>AGUARDANDO ACEITE</small><h3>Convites pendentes</h3></div></header>
+              <div>
+                {producerInvites.filter((item: any) => item.status === 'pendente').map((item: any) => (
+                  <article key={item.id}>
+                    <span><strong>{item.nome_produtora}</strong><small>{item.email} · expira {new Date(item.expira_em).toLocaleDateString('pt-BR')}</small></span>
+                    <button type="button" disabled={busyId === item.id} onClick={() => void cancelProducerInvite(item.id)} aria-label="Cancelar convite"><Trash2 size={15} /></button>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <div className="admin-table-wrap">
             <table>
               <thead><tr><th>Produtora</th><th>Status</th><th>Criada em</th><th>Modelo</th></tr></thead>

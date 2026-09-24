@@ -333,6 +333,7 @@ export function DropZoneHome() {
         // seleção de perfil: só escolhe, nesta navegação, uma área já ligada
         // à mesma conta autenticada.
         const requestedActiveProfile = parseProfileType(String(params.get('perfil') || ''))
+        const requestedActiveProfileId = String(params.get('perfil_id') || '').trim() || null
         // O retorno do login social só aceita áreas do produto Web. Perfis técnicos
         // legados não podem ser criados nem ativados pela experiência principal.
         const requestedRegisterType = parseProfileType(requestedRegister)
@@ -487,8 +488,9 @@ export function DropZoneHome() {
           try {
             const rawStoredType = localStorage.getItem('dropzone_active_profile_type')
             const storedType = isWebProfileType(rawStoredType) ? rawStoredType : null
+            const storedId = requestedActiveProfileId || (requestedActiveProfile ? null : localStorage.getItem('dropzone_active_profile_id'))
             const preferredType = requestedActiveProfile || storedType
-            const cachedSnapshot = readPanelSnapshot(preferredType)
+            const cachedSnapshot = readPanelSnapshot(preferredType, storedId)
             if (cachedSnapshot) {
               setAccount(cachedSnapshot.account)
               setAccounts(cachedSnapshot.accounts)
@@ -496,7 +498,7 @@ export function DropZoneHome() {
               // Libera a UI cedo com cache; loadMeAndRows atualiza em seguida
               if (!cancelled) setQueryReady(true)
             }
-            await loadMeAndRows(session.access_token, preferredType)
+            await loadMeAndRows(session.access_token, preferredType, storedId)
           } catch {
             setAccount(null)
             setAccounts([])
@@ -543,11 +545,15 @@ export function DropZoneHome() {
   }
 
   function saveRecentProfiles(profiles: DropZoneRow[]) {
-    const byType = new Map<ProfileType, DropZoneRow>()
-    for (const profile of profiles) {
-      if (profile.profile_type && !byType.has(profile.profile_type)) byType.set(profile.profile_type, profile)
-    }
-    const next = WEB_PROFILE_TYPES.map((type) => byType.get(type)).filter(Boolean) as DropZoneRow[]
+    const seen = new Set<string>()
+    const next = profiles
+      .filter((profile) => {
+        const key = `${profile.profile_type}:${profile.id}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      .slice(0, 8)
     setRecentProfiles(next)
     localStorage.setItem('dropzone_recent_profiles', JSON.stringify(next))
   }
@@ -561,9 +567,13 @@ export function DropZoneHome() {
     }
   }
 
-  function readPanelSnapshot(profileType?: ProfileType | null) {
+  function readPanelSnapshot(profileType?: ProfileType | null, profileId?: string | null) {
     try {
-      const key = profileType ? `dropzone_panel_snapshot_${profileType}` : 'dropzone_panel_snapshot_last'
+      const key = profileId
+        ? `dropzone_panel_snapshot_id_${profileId}`
+        : profileType
+          ? `dropzone_panel_snapshot_${profileType}`
+          : 'dropzone_panel_snapshot_last'
       const cached = localStorage.getItem(key)
       if (!cached) return null
       const snapshot = JSON.parse(cached) as PanelSnapshot
@@ -588,6 +598,7 @@ export function DropZoneHome() {
       }
       localStorage.setItem('dropzone_panel_snapshot_last', JSON.stringify(snapshot))
       localStorage.setItem(`dropzone_panel_snapshot_${nextAccount.profile_type}`, JSON.stringify(snapshot))
+      localStorage.setItem(`dropzone_panel_snapshot_id_${nextAccount.id}`, JSON.stringify(snapshot))
     } catch {
       // O painel continua funcionando normalmente quando o navegador limita o cache.
     }
@@ -603,6 +614,7 @@ export function DropZoneHome() {
 
       const url = await uploadStoragePublicFile(file, bucket, uploadProfileType, {
         ...context,
+        profileId: account?.profile_type === uploadProfileType ? account.id : null,
         uploadIntent: bucket === 'campeonato'
           ? 'create_campeonato'
           : context?.uploadIntent
@@ -705,27 +717,32 @@ export function DropZoneHome() {
     return loadedAccounts
   }
 
-  async function loadMeAndRows(token?: string, preferredType?: WebProfileType | null) {
+  async function loadMeAndRows(token?: string, preferredType?: WebProfileType | null, preferredId?: string | null) {
     const accessToken = token || await getToken()
     if (!accessToken) throw new Error('Sessão não encontrada.')
     const rawStoredType = preferredType || localStorage.getItem('dropzone_active_profile_type')
     const storedType = isWebProfileType(rawStoredType) ? rawStoredType : null
+    const storedId = preferredId || (!preferredType ? localStorage.getItem('dropzone_active_profile_id') : null)
 
     const meRes = await fetch('/api/me', {
-      headers: authHeaders(accessToken, storedType),
+      headers: authHeaders(accessToken, storedType, storedId),
     })
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
 
     const loadedAccounts = ((meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[])
       .filter((item) => isWebProfileType(item.profile_type))
-    const selectedAccount = loadedAccounts.find((item) => item.profile_type === storedType) || loadedAccounts[0] || null
+    const selectedAccount = (storedId ? loadedAccounts.find((item) => item.id === storedId) : null)
+      || loadedAccounts.find((item) => item.profile_type === storedType)
+      || loadedAccounts[0]
+      || null
     if (!selectedAccount) {
       setAccounts([])
       setAccount(null)
       setRows([])
       saveRecentProfiles([])
       localStorage.removeItem('dropzone_active_profile_type')
+      localStorage.removeItem('dropzone_active_profile_id')
       return
     }
     if (preferredType && selectedAccount.profile_type !== preferredType) {
@@ -739,9 +756,10 @@ export function DropZoneHome() {
     setActiveAuthType(null)
     setLinkingProfile(false)
     localStorage.setItem('dropzone_active_profile_type', String(selectedAccount.profile_type || ''))
+    localStorage.setItem('dropzone_active_profile_id', selectedAccount.id)
 
     const rowsRes = await fetch('/api/dropzone', {
-      headers: authHeaders(accessToken, selectedAccount.profile_type),
+      headers: authHeaders(accessToken, selectedAccount.profile_type, selectedAccount.id),
     })
     const rowsJson = await rowsRes.json()
     if (!rowsRes.ok) throw new Error(rowsJson.error || 'Erro ao listar dados.')
@@ -795,10 +813,11 @@ export function DropZoneHome() {
     setError('')
     try {
       localStorage.setItem('dropzone_active_profile_type', String(nextAccount.profile_type || ''))
+      localStorage.setItem('dropzone_active_profile_id', nextAccount.id)
       setAccount(nextAccount)
       setRows(readPanelCache(nextAccount.id))
       setMessage(`Abrindo ${typeLabels[nextAccount.profile_type as WebProfileType].toLowerCase()}...`)
-      await loadMeAndRows(undefined, nextAccount.profile_type as WebProfileType)
+      await loadMeAndRows(undefined, nextAccount.profile_type as WebProfileType, nextAccount.id)
       setMessage('')
     } catch (err: any) {
       setError(err?.message || 'Não foi possível abrir esta área.')
@@ -986,7 +1005,7 @@ export function DropZoneHome() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token, account?.profile_type),
+          ...authHeaders(token, account?.profile_type, account?.id),
         },
         body: JSON.stringify(payload),
       })
@@ -1018,7 +1037,7 @@ export function DropZoneHome() {
       const token = await getToken()
       const res = await fetch('/api/dropzone', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type) },
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type, account?.id) },
         body: JSON.stringify({ entity_type: entityType, id, data }),
       })
       const json = await res.json()
@@ -1038,7 +1057,7 @@ export function DropZoneHome() {
       const token = await getToken()
       const res = await fetch('/api/dropzone', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type) },
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type, account?.id) },
         body: JSON.stringify({ entity_type: entityType, id }),
       })
       const json = await res.json()
@@ -1085,7 +1104,7 @@ export function DropZoneHome() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token, account?.profile_type),
+          ...authHeaders(token, account?.profile_type, account?.id),
         },
         body: JSON.stringify({
           entity_type: 'championship',
@@ -1118,7 +1137,7 @@ export function DropZoneHome() {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token, account?.profile_type),
+          ...authHeaders(token, account?.profile_type, account?.id),
         },
         body: JSON.stringify({
           entity_type: 'championship',
@@ -1285,7 +1304,7 @@ export function DropZoneHome() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token, account?.profile_type),
+          ...authHeaders(token, account?.profile_type, account?.id),
         },
         body: JSON.stringify({
           fase_id: game.fase_id,
@@ -1356,7 +1375,7 @@ export function DropZoneHome() {
       const token = await getToken()
       const res = await fetch(`/api/campeonatos/${champ.id}/jogos/${gameId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type) },
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, account?.profile_type, account?.id) },
         body: JSON.stringify({
           fase_id: game.fase_id,
           nome: game.nome.trim(),
@@ -1405,7 +1424,7 @@ export function DropZoneHome() {
       const token = await getToken()
       const res = await fetch(`/api/campeonatos/${champ.id}/jogos/${gameId}`, {
         method: 'DELETE',
-        headers: authHeaders(token, account?.profile_type),
+        headers: authHeaders(token, account?.profile_type, account?.id),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.error || 'Erro ao excluir jogo.')

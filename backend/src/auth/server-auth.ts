@@ -63,7 +63,8 @@ const CLIENT_PROFILE_DATA_FIELDS = [
   'status', 'logo_url', 'avatar_url', 'foto_url', 'foto_perfil_url', 'imagem_url',
   'tag', 'pais', 'estado', 'cidade', 'localidade', 'bio', 'papel',
   'disponivel_recrutamento', 'funcao', 'id_jogo', 'whatsapp_url',
-  'nome_publico_vendas', 'created_at', 'updated_at',
+  'nome_publico_vendas', 'workspace_owner_auth_user_id', 'workspace_member_id',
+  'workspace_role', 'workspace_permissions', 'created_at', 'updated_at',
 ] as const
 
 /** Versão mínima e segura do perfil para browser/app no fluxo de login. */
@@ -179,8 +180,11 @@ export async function getActiveAccount(
   user: { id: string; email?: string | null; email_confirmed_at?: string | null },
 ) {
   const requested = String(req.headers.get('x-profile-type') || '').trim() as ProfileType
+  const requestedId = String(req.headers.get('x-profile-id') || '').trim()
   const valid = Object.prototype.hasOwnProperty.call(PROFILE_TABLES, requested) ? requested : null
   const accounts = await getAccountsForUser(user)
   if (!accounts.length) throw new Error('Conta nao encontrada na DropZone.')
-  return (valid && accounts.find((account) => account.profile_type === valid)) || accounts[0]
+  return (requestedId && accounts.find((account) => account.id === requestedId))
+    || (valid && accounts.find((account) => account.profile_type === valid))
+    || accounts[0]
 }

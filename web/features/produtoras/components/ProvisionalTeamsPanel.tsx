@@ -31,7 +31,7 @@ function buildBulkRows(namesText: string, tagsText: string, current: Row[]): Row
   }))
 }
 
-export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: (file: File, bucket: string, context?: UploadContext) => Promise<string> }) {
+export function ProvisionalTeamsPanel({ producerId, uploadPublicFile }: { producerId: string; uploadPublicFile: (file: File, bucket: string, context?: UploadContext) => Promise<string> }) {
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
@@ -83,6 +83,7 @@ export function ProvisionalTeamsPanel({ uploadPublicFile }: { uploadPublicFile: 
       ...options,
       headers: {
         Authorization: `Bearer ${token}`,
+        'X-Produtora-Id': producerId,
         ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
         ...(options?.headers || {}),
       },

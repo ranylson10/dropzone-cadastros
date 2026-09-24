@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireProducerWorkspaceAccess } from '@backend/produtora/workspace-access'
 
 function novoToken() {
   return randomBytes(18).toString('base64url').toUpperCase()
@@ -27,8 +28,11 @@ function sellerCommissionBps(value: unknown) {
 async function requireProdutoraAccount(req: NextRequest) {
   const user = await getBearerUser(req)
   const accounts = await getAccountsForUser(user)
-  const produtora = accounts.find((a) => a.profile_type === 'produtora')
+  const requestedId = String(req.headers.get('x-produtora-id') || '').trim()
+  const produtoras = accounts.filter((a) => a.profile_type === 'produtora')
+  const produtora = (requestedId ? produtoras.find((a) => a.id === requestedId) : null) || produtoras[0]
   if (!produtora) throw new Error('Somente a produtora pode gerenciar vendedores.')
+  await requireProducerWorkspaceAccess(user.id, produtora.id, 'comercial')
   return { user, produtora }
 }
 

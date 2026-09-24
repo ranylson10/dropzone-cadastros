@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser, getActiveAccount } from '@backend/auth/server-auth'
 import { getOrCreateWallet } from '@backend/billing/wallet'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireProducerWorkspaceAccess } from '@backend/produtora/workspace-access'
 
 /**
  * Dados do comprovante (pagamento ou saque) no estilo extrato bancário.
@@ -58,6 +59,9 @@ export async function GET(
     }
 
     if (tipo === 'lancamento') {
+      if (account?.profile_type === 'produtora') {
+        await requireProducerWorkspaceAccess(user.id, account.id, 'financeiro')
+      }
       let donoTipo: 'manager' | 'produtora' | 'auth_user' = 'auth_user'
       let donoId = account?.id || user.id
       if (account?.profile_type === 'manager') donoTipo = 'manager'

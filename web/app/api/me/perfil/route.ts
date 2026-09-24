@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireProducerWorkspaceAccess } from '@backend/produtora/workspace-access'
 
 const TABLES: Record<string, { table: string; logoField: string; nameField: string }> = {
   equipe: { table: 'equipes', logoField: 'logo_url', nameField: 'nome' },
@@ -23,6 +24,7 @@ export async function PATCH(req: NextRequest) {
 
     const account = accounts.find((a) => a.profile_type === profileType && (!profileId || a.id === profileId))
     if (!account) throw new Error('Perfil não encontrado neste login.')
+    if (profileType === 'produtora') await requireProducerWorkspaceAccess(user.id, account.id, 'administrar')
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
 

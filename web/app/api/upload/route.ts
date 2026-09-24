@@ -164,6 +164,7 @@ export async function POST(req: NextRequest) {
       entityId: String(payload.entity_id || '').trim() || null,
       campeonatoId: String(payload.campeonato_id || '').trim() || null,
       uploadIntent: payload.upload_intent || null,
+      activeProfileId: String(req.headers.get('x-profile-id') || '').trim() || null,
     })
 
     const decoded = decodeUpload(payload)

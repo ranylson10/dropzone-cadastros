@@ -61,9 +61,13 @@ export default function CarteiraPage() {
       redirectToLogin(null, currentInternalPath())
       throw new Error('Redirecionando para o login…')
     }
+    const profileType = typeof window !== 'undefined' ? localStorage.getItem('dropzone_active_profile_type') : null
+    const profileId = typeof window !== 'undefined' ? localStorage.getItem('dropzone_active_profile_id') : null
     return {
       Authorization: `Bearer ${sess.session.access_token}`,
       'Content-Type': 'application/json',
+      ...(profileType ? { 'X-Profile-Type': profileType } : {}),
+      ...(profileId ? { 'X-Profile-Id': profileId } : {}),
     }
   }
 

@@ -25,9 +25,10 @@ export function safeHeaderText(value: string) {
   return String(value || '').trim().replace(/[^\x20-\x7E]/g, '')
 }
 
-export function authHeaders(token: string, profileType?: string | null) {
+export function authHeaders(token: string, profileType?: string | null, profileId?: string | null) {
   const headers: Record<string, string> = { Authorization: `Bearer ${safeHeaderText(token)}` }
   if (profileType) headers['X-Profile-Type'] = safeHeaderText(profileType)
+  if (profileId) headers['X-Profile-Id'] = safeHeaderText(profileId)
   return headers
 }
 

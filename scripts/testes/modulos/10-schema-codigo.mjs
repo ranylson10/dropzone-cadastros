@@ -2,6 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { REPORT_DIR, ROOT, normalizePath, result, safeRead, walk } from '../lib/util.mjs';
 
+function collectMigrationTables() {
+  const tables = new Set();
+  const roots = [path.join(ROOT, 'database', 'migrations'), path.join(ROOT, 'supabase', 'migrations')];
+  for (const base of roots) {
+    if (!fs.existsSync(base)) continue;
+    for (const file of walk(base).filter((item) => item.endsWith('.sql'))) {
+      const text = safeRead(file);
+      for (const match of text.matchAll(/create\s+table(?:\s+if\s+not\s+exists)?\s+(?:public\.)?[\"]?([a-zA-Z0-9_]+)[\"]?/gim)) {
+        tables.add(match[1]);
+      }
+    }
+  }
+  return tables;
+}
+
 function collectCodeTables() {
   const refs = new Map();
   const files = walk(ROOT, {
@@ -46,9 +61,22 @@ export async function executar() {
     const dbTables = new Set((parsed.tables ?? []).map((x) => x.table_name));
     const refs = collectCodeTables();
     const absent = [...refs.keys()].filter((name) => !dbTables.has(name)).sort();
+    const migrationTables = collectMigrationTables();
+    const migrationBacked = absent.filter((name) => migrationTables.has(name));
+    const trulyAbsent = absent.filter((name) => !migrationTables.has(name));
     const used = [...refs.keys()].filter((name) => dbTables.has(name));
     const out = [result('OK', 'Schema versus código', 'Tabelas referenciadas', `${used.length} tabela(s)/view(s) usadas no código foram localizadas no banco publicado.`)];
-    for (const table of absent) {
+    for (const table of migrationBacked) {
+      out.push(result(
+        'AVISO',
+        'Schema versus código',
+        `Inventário anterior à migration: ${table}`,
+        `A tabela é referenciada no código e está declarada em migration local, mas ainda não aparece no retrato banco-publicado.json.`,
+        'Atualize o inventário publicado na próxima auditoria completa para confirmar o estado real do banco.',
+        { table, files: [...refs.get(table)] },
+      ));
+    }
+    for (const table of trulyAbsent) {
       out.push(result(
         'ERRO',
         'Schema versus código',
@@ -59,6 +87,7 @@ export async function executar() {
       ));
     }
     if (!absent.length) out.push(result('OK', 'Schema versus código', 'Cobertura do schema', 'Nenhuma tabela/view referenciada pelo Supabase client está ausente no inventário publicado.'));
+    else if (!trulyAbsent.length) out.push(result('OK', 'Schema versus código', 'Cobertura por migrations', 'As referências ausentes do inventário antigo possuem criação versionada em migration local; nenhuma tabela ficou sem contrato conhecido.'));
     return out;
   } catch (error) {
     return [result('ERRO', 'Schema versus código', 'Falha ao comparar', error instanceof Error ? error.message : String(error), 'Verifique banco-publicado.json.')];

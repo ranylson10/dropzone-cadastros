@@ -2,6 +2,29 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { REPORT_DIR, ROOT, result } from '../lib/util.mjs';
 
+function collectMigrationTables() {
+  const tables = new Set();
+  const roots = [path.join(ROOT, 'database', 'migrations'), path.join(ROOT, 'supabase', 'migrations')];
+  for (const base of roots) {
+    if (!fs.existsSync(base)) continue;
+    for (const file of walkSql(base)) {
+      const text = fs.readFileSync(file, 'utf8');
+      for (const match of text.matchAll(/create\s+table(?:\s+if\s+not\s+exists)?\s+(?:public\.)?[\"]?([a-zA-Z0-9_]+)[\"]?/gim)) tables.add(match[1]);
+    }
+  }
+  return tables;
+}
+
+function walkSql(base) {
+  const out = [];
+  for (const entry of fs.readdirSync(base, { withFileTypes: true })) {
+    const full = path.join(base, entry.name);
+    if (entry.isDirectory()) out.push(...walkSql(full));
+    else if (entry.name.endsWith('.sql')) out.push(full);
+  }
+  return out;
+}
+
 function duplicateIndexGroups(indexes) {
   const groups = new Map();
   for (const index of indexes) {
@@ -48,7 +71,11 @@ export async function executar() {
       ? JSON.parse(fs.readFileSync(classificationFile, 'utf8')).tables ?? {}
       : {};
     const unclassifiedWithoutPolicy = tablesWithoutPolicy.filter((table) => !classification[table.table_name]);
-    const staleClassifications = Object.keys(classification).filter((tableName) => !tablesWithoutPolicy.some((table) => table.table_name === tableName));
+    const migrationTables = collectMigrationTables();
+    const staleClassifications = Object.keys(classification).filter((tableName) =>
+      !tablesWithoutPolicy.some((table) => table.table_name === tableName)
+      && !migrationTables.has(tableName)
+    );
 
     const out = [
       result('OK', 'Banco publicado', 'Inventário carregado', `${publicTables.length} tabela(s), ${columns.length} coluna(s), ${constraints.length} constraint(s), ${indexes.length} índice(s), ${policies.length} policy(s).`),

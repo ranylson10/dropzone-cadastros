@@ -1698,3 +1698,22 @@ body .admin-feedback { border-radius: 0; background: #fff; color: #333; }
   .admin-private-model { grid-template-columns: 36px minmax(0, 1fr); padding: 12px; }
   .admin-private-model > span { width: 36px; height: 36px; }
 }
+
+/* Rodada 146 — convites privados de produtora */
+.admin-producer-invite-card,
+.admin-producer-pending{margin:14px 0;border:1px solid #111113;background:#fff}
+.admin-producer-invite-card>header,
+.admin-producer-pending>header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-bottom:1px solid #dedbd3}
+.admin-producer-invite-card>header small,
+.admin-producer-pending>header small{display:block;color:var(--ui-accent);font-size:9px;font-weight:950;letter-spacing:.11em}
+.admin-producer-invite-card>header h3,
+.admin-producer-pending>header h3{margin:3px 0 0;color:#111113;font-size:18px;text-transform:uppercase}
+.admin-producer-invite-card>p{margin:0;padding:14px 16px 0;color:#625f5a;font-size:12px;line-height:1.55}
+.admin-producer-invite-form{display:grid;grid-template-columns:minmax(190px,1fr) minmax(190px,1fr) auto;gap:10px;align-items:end;padding:14px 16px 16px}
+.admin-producer-invite-form label{display:grid;gap:6px}.admin-producer-invite-form label>span{color:#625f5a;font-size:9px;font-weight:950;text-transform:uppercase}
+.admin-producer-invite-form input{min-height:42px;border:1px solid #cfcac1!important;background:#f8f6f1!important}
+.admin-producer-invite-form button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 16px;border:1px solid #111113;border-radius:0;background:#111113;color:#fff;font-weight:900;cursor:pointer}
+.admin-producer-invite-form button:hover{border-color:var(--ui-accent);background:var(--ui-accent)}.admin-producer-invite-form button:disabled{opacity:.55;cursor:wait}
+.admin-producer-pending>div{display:grid}.admin-producer-pending article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid #e2ded6}.admin-producer-pending article:first-child{border-top:0}
+.admin-producer-pending article>span{display:grid;gap:3px}.admin-producer-pending article strong{font-size:12px;color:#111113}.admin-producer-pending article small{font-size:10px;color:#777168}.admin-producer-pending article button{display:grid;width:34px;height:34px;place-items:center;border:1px solid #c94848;background:#fff;color:#a92f2f;cursor:pointer}
+@media(max-width:760px){.admin-producer-invite-form{grid-template-columns:1fr}.admin-producer-invite-form button{width:100%}.admin-producer-pending article{padding:11px 12px}}

@@ -74,13 +74,14 @@ async function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
-async function authHeaders(profileType?: string | null) {
+async function authHeaders(profileType?: string | null, profileId?: string | null) {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) throw new Error('Sessão expirada.')
   return {
     Authorization: `Bearer ${token}`,
     ...(profileType ? { 'x-profile-type': profileType } : {}),
+    ...(profileId ? { 'x-profile-id': profileId } : {}),
   }
 }
 
@@ -93,6 +94,7 @@ type UploadContext = {
   entityId?: string | null
   campeonatoId?: string | null
   uploadIntent?: 'create_profile' | 'create_campeonato' | null
+  profileId?: string | null
 }
 
 /** Upload PNG público via /api/upload (precisa sessão). */
@@ -110,7 +112,7 @@ export async function uploadPublicFile(
   }
 
   const dataUrl = await fileToDataUrl(uploadFile)
-  const headers = await authHeaders(profileType)
+  const headers = await authHeaders(profileType, context?.profileId)
 
   const res = await fetch('/api/upload', {
     method: 'POST',
@@ -143,7 +145,7 @@ export async function uploadPublicMedia(
   profileType?: string | null,
   context?: UploadContext,
 ): Promise<{ url: string; content_type: string; kind: 'image' | 'video' }> {
-  const headers = await authHeaders(profileType)
+  const headers = await authHeaders(profileType, context?.profileId)
   const uploadFile = await optimizeImageForStorage(file)
   const contentType = uploadFile.type || guessContentType(uploadFile.name)
 

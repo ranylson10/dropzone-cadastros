@@ -47,8 +47,11 @@ export async function GET(req: NextRequest) {
     }
 
     const requested = String(req.headers.get('x-profile-type') || '').trim()
+    const requestedId = String(req.headers.get('x-profile-id') || '').trim()
     const clientAccounts = accounts.map(toClientProfile)
-    const account = clientAccounts.find((item) => item.profile_type === requested) || clientAccounts[0]
+    const account = (requestedId ? clientAccounts.find((item) => item.id === requestedId) : null)
+      || clientAccounts.find((item) => item.profile_type === requested)
+      || clientAccounts[0]
 
     return NextResponse.json({
       user: identity,

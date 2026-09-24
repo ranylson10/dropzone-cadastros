@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../shared/supabase-admin'
+import { getProducerWorkspaceAccess } from '../produtora/workspace-access'
 
 /**
  * Modelo de permissões do campeonato
@@ -67,7 +68,7 @@ export type CampeonatoPermission = {
   /** Criar/editar/excluir jogos e rodadas. */
   canManageGames: boolean
   canScore: boolean
-  role: 'owner' | 'manager' | 'seller' | 'none'
+  role: 'owner' | 'workspace' | 'manager' | 'seller' | 'none'
   produtoraId: string | null
   sellerPermissions: SellerPermissions | null
 }
@@ -75,6 +76,7 @@ export type CampeonatoPermission = {
 export function canUseLocalStudio(permission: CampeonatoPermission) {
   return (
     permission.role === 'owner'
+    || permission.role === 'workspace'
     || permission.role === 'manager'
     || permission.canManage
     || permission.canOrganizeGroups
@@ -183,6 +185,27 @@ export async function getCampeonatoPermission(userId: string, campeonatoId: stri
 
   if (campeonato.criado_por === userId) {
     return fullOwnerPermission(produtoraId)
+  }
+
+  // Membro do workspace da produtora. As permissões vêm do cargo concedido
+  // pelo proprietário/administrador e não exigem um perfil `manager` separado.
+  if (produtoraId) {
+    const workspace = await getProducerWorkspaceAccess(userId, produtoraId)
+    if (workspace?.pode_ver) {
+      const manage = Boolean(workspace.pode_administrar || workspace.pode_operar)
+      return {
+        canView: true,
+        canManage: manage,
+        canRemove: manage,
+        canGenerateToken: Boolean(workspace.pode_administrar || workspace.pode_operar || workspace.pode_comercial),
+        canOrganizeGroups: Boolean(workspace.pode_administrar || workspace.pode_operar),
+        canManageGames: Boolean(workspace.pode_administrar || workspace.pode_operar),
+        canScore: Boolean(workspace.pode_administrar || workspace.pode_operar || workspace.pode_pontuar),
+        role: 'workspace',
+        produtoraId,
+        sellerPermissions: null,
+      }
+    }
   }
 
   const { data: managers, error: managerError } = await supabaseAdmin
@@ -353,7 +376,7 @@ export async function requireCampeonatoScore(userId: string, campeonatoId: strin
 /** Estrutura (fases/grupos/jogos): leitura. */
 export async function requireCampeonatoStructure(userId: string, campeonatoId: string) {
   const permission = await getCampeonatoPermission(userId, campeonatoId)
-  if (permission.role === 'owner' || permission.role === 'manager') {
+  if (permission.role === 'owner' || permission.role === 'workspace' || permission.role === 'manager') {
     if (!permission.canView) throw new Error('Você não tem permissão para ver este campeonato.')
     return permission
   }

@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireProducerWorkspaceAccess } from '@backend/produtora/workspace-access'
 import { findTeamNameMatches, normalizeTeamName } from '@/features/produtoras/lib/team-name-similarity'
 
-async function requireOwner(userId: string) {
+async function requireWorkspace(req: NextRequest, userId: string) {
+  const produtoraId = String(req.headers.get('x-produtora-id') || '').trim()
+  if (!produtoraId) throw new Error('Selecione a produtora antes de gerenciar equipes provisórias.')
+  await requireProducerWorkspaceAccess(userId, produtoraId, 'operar')
   const { data, error } = await supabaseAdmin
     .from('produtoras')
     .select('id,nome,status')
-    .eq('auth_user_id', userId)
+    .eq('id', produtoraId)
     .eq('status', 'ativo')
     .maybeSingle()
   if (error) throw error
-  if (!data) throw new Error('Somente o dono da produtora pode gerenciar equipes provisórias.')
+  if (!data) throw new Error('Produtora não encontrada ou inativa.')
   return data
 }
 
@@ -29,7 +33,7 @@ function normalizeRows(input: unknown) {
 export async function GET(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const produtora = await requireOwner(user.id)
+    const produtora = await requireWorkspace(req, user.id)
     const { data: tokens, error } = await supabaseAdmin
       .from('tokens')
       .select('id,token,equipe_id,line_id,created_at')
@@ -70,7 +74,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const produtora = await requireOwner(user.id)
+    const produtora = await requireWorkspace(req, user.id)
     const body = await req.json().catch(() => ({}))
     if (body?.action === 'check_names') {
       const nomes: string[] = [...new Set<string>((Array.isArray(body?.nomes) ? body.nomes : [])
@@ -110,7 +114,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const produtora = await requireOwner(user.id)
+    const produtora = await requireWorkspace(req, user.id)
     const body = await req.json().catch(() => ({}))
     const equipeId = String(body?.equipe_id || '')
     if (!equipeId) throw new Error('Equipe não informada.')
@@ -169,7 +173,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
-    const produtora = await requireOwner(user.id)
+    const produtora = await requireWorkspace(req, user.id)
     const equipeId = String(req.nextUrl.searchParams.get('equipe_id') || '').trim()
     if (!equipeId) throw new Error('Equipe não informada.')
 

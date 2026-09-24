@@ -17,6 +17,7 @@ import { CampeonatoCallsTab } from '@/features/campeonatos/calls'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, producerWorkspaceForTab, producerWorkspaceTabs, type ProducerTab } from './producer-tabs'
 import { ProvisionalTeamsPanel } from '@/features/produtoras/components/ProvisionalTeamsPanel'
+import { ProducerMembersPanel } from '@/features/produtoras/components/ProducerMembersPanel'
 import { WhatsappPhoneField } from '@/components/forms/WhatsappPhoneField'
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
@@ -94,6 +95,13 @@ export function ProdutoraPanel(props: {
   uploadPublicFile: (file: File, bucket: string, context?: { entityId?: string | null; campeonatoId?: string | null; uploadIntent?: 'create_profile' | 'create_campeonato' | null }) => Promise<string>
 }) {
   const [showCreateChamp, setShowCreateChamp] = useState(false)
+  const workspacePermissions = (props.account?.data?.workspace_permissions || {}) as Record<string, boolean>
+  const workspaceRole = String(props.account?.data?.workspace_role || 'proprietario')
+  const legacyOwnerFallback = !props.account?.data?.workspace_role
+  const canOperateWorkspace = legacyOwnerFallback || Boolean(workspacePermissions.pode_operar || workspacePermissions.pode_administrar)
+  const canCommercialWorkspace = legacyOwnerFallback || Boolean(workspacePermissions.pode_comercial || workspacePermissions.pode_administrar)
+  const canManageMembers = legacyOwnerFallback || Boolean(workspacePermissions.pode_gerenciar_membros || workspacePermissions.pode_administrar)
+  const canCreateChampionship = legacyOwnerFallback || Boolean(workspacePermissions.pode_criar_campeonato || workspacePermissions.pode_administrar)
 
 
   function closeCreateChampionship() {
@@ -224,6 +232,7 @@ export function ProdutoraPanel(props: {
       headers: {
         ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
         Authorization: `Bearer ${token}`,
+        ...(props.account?.id ? { 'X-Produtora-Id': props.account.id } : {}),
         ...(options?.headers || {}),
       },
     })
@@ -1476,15 +1485,16 @@ ${params.url}`
         </div>
       ) : null}
 
+      <div className="producer-workspace-access-bar"><span><ShieldCheck size={14} /> Workspace privado</span><b>{workspaceRole === 'proprietario' ? 'Proprietário' : workspaceRole}</b></div>
       <nav className="producer-hub-nav producer-hub-nav-primary" aria-label="Áreas da produtora">
         <button type="button" className={producerSection === 'campeonatos' ? 'active' : ''} onClick={() => setProducerSection('campeonatos')}><Trophy size={17} /><span>Campeonatos</span></button>
-        <button type="button" className={producerSection === 'operacao' ? 'active' : ''} onClick={() => setProducerSection('operacao')}><ShieldCheck size={17} /><span>Operação</span></button>
-        <button type="button" className={producerSection === 'comercial' ? 'active' : ''} onClick={() => setProducerSection('comercial')}><BriefcaseBusiness size={17} /><span>Comercial</span></button>
+        {canOperateWorkspace || canManageMembers ? <button type="button" className={producerSection === 'operacao' ? 'active' : ''} onClick={() => setProducerSection('operacao')}><ShieldCheck size={17} /><span>Operação</span></button> : null}
+        {canCommercialWorkspace ? <button type="button" className={producerSection === 'comercial' ? 'active' : ''} onClick={() => setProducerSection('comercial')}><BriefcaseBusiness size={17} /><span>Comercial</span></button> : null}
       </nav>
 
       {producerSection === 'operacao' ? (
         <nav className="producer-hub-subnav" aria-label="Ferramentas de operação da produtora">
-          <button type="button" className={producerOperationView === 'provisorias' ? 'active' : ''} onClick={() => setProducerOperationView('provisorias')}>Equipes provisórias</button>
+          {canOperateWorkspace ? <button type="button" className={producerOperationView === 'provisorias' ? 'active' : ''} onClick={() => setProducerOperationView('provisorias')}>Equipes provisórias</button> : null}
           <button type="button" className={producerOperationView === 'staff' ? 'active' : ''} onClick={() => setProducerOperationView('staff')}>Equipe interna</button>
         </nav>
       ) : null}
@@ -1496,18 +1506,12 @@ ${params.url}`
         </nav>
       ) : null}
 
-      {producerSection === 'operacao' && producerOperationView === 'provisorias' ? (
-        <ProvisionalTeamsPanel uploadPublicFile={props.uploadPublicFile} />
+      {producerSection === 'operacao' && producerOperationView === 'provisorias' && props.account?.id ? (
+        <ProvisionalTeamsPanel producerId={props.account.id} uploadPublicFile={props.uploadPublicFile} />
       ) : null}
 
-      {producerSection === 'operacao' && producerOperationView === 'staff' ? (
-        <section className="producer-hub-section">
-          <header><div><p className="eyebrow">Equipe da produtora</p><h2>Equipe interna</h2></div><Users size={22} /></header>
-          <div className="producer-simple-list">
-            <a href="/managers"><span><UserPlus size={18} /></span><div><strong>Líderes e ajudantes</strong><small>Gerencie responsáveis e acessos operacionais.</small></div><ChevronRight size={17} /></a>
-            <button type="button" onClick={() => { setProducerSection('comercial'); setProducerCommercialView('vendedores') }}><span><BriefcaseBusiness size={18} /></span><div><strong>Vendedores</strong><small>Convites, limites e campeonatos vinculados.</small></div><ChevronRight size={17} /></button>
-          </div>
-        </section>
+      {producerSection === 'operacao' && producerOperationView === 'staff' && props.account?.id ? (
+        <ProducerMembersPanel producerId={props.account.id} />
       ) : null}
 
       {producerSection === 'comercial' && producerCommercialView === 'vendedores' ? (
@@ -1553,7 +1557,7 @@ ${params.url}`
         </div>
 
         <div className="producer-primary-actions" role="group" aria-label="Ações dos campeonatos">
-          <button type="button" className="producer-action primary" disabled={produtoraAprovacao !== 'aprovado'} title="Novo campeonato" aria-label="Novo campeonato" onClick={() => setShowCreateChamp(true)}><Plus size={18} /><span>Novo</span></button>
+          <button type="button" className="producer-action primary" disabled={produtoraAprovacao !== 'aprovado' || !canCreateChampionship} title={canCreateChampionship ? 'Novo campeonato' : 'Seu cargo não permite criar campeonatos'} aria-label="Novo campeonato" onClick={() => setShowCreateChamp(true)}><Plus size={18} /><span>Novo</span></button>
           <button className={`producer-action ${showChampFilters ? 'active' : ''}`} type="button" onClick={() => setShowChampFilters((value) => !value)} title="Filtrar campeonatos"><Filter size={18} /><span>Filtrar</span></button>
         </div>
 
