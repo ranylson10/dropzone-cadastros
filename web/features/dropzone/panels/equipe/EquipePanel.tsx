@@ -1480,26 +1480,45 @@ Acesse: ${url}`
           <div><p className="eyebrow">{props.accountType === 'manager' ? 'Manager' : 'Equipe'}</p><h2>Painel da equipe</h2></div>
           <Shield />
         </div>
-        <div className="tabs panel-tabs team-panel-tabs">
-          <button className={`tab ${tab === 'dashboard' ? 'active' : ''}`} onClick={() => setTab('dashboard')}>Dashboard</button>
-          <button className={`tab ${tab === 'campeonatos' ? 'active' : ''}`} onClick={() => setTab('campeonatos')}>Campeonatos</button>
-          <button className={`tab ${tab === 'treinos' ? 'active' : ''}`} onClick={() => setTab('treinos')}>Treinos</button>
-          <button className={`tab ${tab === 'lines' ? 'active' : ''}`} onClick={() => setTab('lines')}>Lines</button>
-          <button className={`tab ${tab === 'jogadores' ? 'active' : ''}`} onClick={() => setTab('jogadores')}>Jogadores</button>
-          <button className={`tab ${tab === 'convites' ? 'active' : ''}`} onClick={() => setTab('convites')}>Convites</button>
-          {showStaffTools ? <button className={`tab ${tab === 'staff' ? 'active' : ''}`} onClick={() => setTab('staff')}>Staff</button> : null}
-          <button className={`tab ${tab === 'config' ? 'active' : ''}`} onClick={() => setTab('config')}>Configurações</button>
+        <div className="tabs panel-tabs team-panel-tabs team-primary-nav" aria-label="Áreas da equipe">
+          <button className={`tab ${tab === 'dashboard' ? 'active' : ''}`} onClick={() => setTab('dashboard')}>Início</button>
+          <button className={`tab ${['lines', 'jogadores', 'convites'].includes(tab) ? 'active' : ''}`} onClick={() => setTab('jogadores')}>Elenco</button>
+          <button className={`tab ${tab === 'campeonatos' ? 'active' : ''}`} onClick={() => setTab('campeonatos')}>Competições</button>
+          <button className={`tab ${tab === 'treinos' ? 'active' : ''}`} onClick={() => setTab('treinos')}>Desempenho</button>
+          <button className={`tab ${['staff', 'config'].includes(tab) ? 'active' : ''}`} onClick={() => setTab(showStaffTools ? 'staff' : 'config')}>Mais</button>
         </div>
 
+        {['lines', 'jogadores', 'convites'].includes(tab) ? (
+          <div className="team-secondary-nav" aria-label="Ferramentas de elenco">
+            <button type="button" className={tab === 'jogadores' ? 'active' : ''} onClick={() => setTab('jogadores')}>Jogadores</button>
+            <button type="button" className={tab === 'lines' ? 'active' : ''} onClick={() => setTab('lines')}>Lines</button>
+            <button type="button" className={tab === 'convites' ? 'active' : ''} onClick={() => setTab('convites')}>Convites</button>
+          </div>
+        ) : null}
+
+        {['staff', 'config'].includes(tab) ? (
+          <div className="team-secondary-nav" aria-label="Mais opções da equipe">
+            {showStaffTools ? <button type="button" className={tab === 'staff' ? 'active' : ''} onClick={() => setTab('staff')}>Staff</button> : null}
+            <button type="button" className={tab === 'config' ? 'active' : ''} onClick={() => setTab('config')}>Configurações</button>
+          </div>
+        ) : null}
+
         {tab === 'dashboard' ? (
-          <TeamAnalyticsDashboard
-            equipeId={props.activeTeamId}
-            nextGame={championshipStats.nextGame}
-            onOpenNextGame={() => {
-              setTab('campeonatos')
-              setExpanded(championshipStats.nextGame?.campeonato_equipe_id || '')
-            }}
-          />
+          <>
+            <div className="team-start-actions" aria-label="Acesso rápido da equipe">
+              <a href="/agenda"><CalendarDays size={18}/><span><strong>Minha agenda</strong><small>Jogos, treinos e compromissos</small></span><ChevronRight size={16}/></a>
+              <button type="button" onClick={() => setTab('jogadores')}><Users size={18}/><span><strong>Gerenciar elenco</strong><small>{teamPlayers.length} jogador(es) vinculado(s)</small></span><ChevronRight size={16}/></button>
+              <a href="/campeonatos?vagas=1"><Search size={18}/><span><strong>Encontrar campeonato</strong><small>Veja competições com vagas</small></span><ChevronRight size={16}/></a>
+            </div>
+            <TeamAnalyticsDashboard
+              equipeId={props.activeTeamId}
+              nextGame={championshipStats.nextGame}
+              onOpenNextGame={() => {
+                setTab('campeonatos')
+                setExpanded(championshipStats.nextGame?.campeonato_equipe_id || '')
+              }}
+            />
+          </>
         ) : null}
 
         {lineupError ? <div className="message error">{lineupError}</div> : null}

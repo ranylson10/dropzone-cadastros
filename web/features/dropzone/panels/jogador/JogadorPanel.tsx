@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, BarChart3, Gamepad2, KeyRound, Loader2, Shield, Swords, Target, Users } from 'lucide-react'
+import { Activity, BarChart3, CalendarDays, ChevronRight, Gamepad2, KeyRound, Loader2, Shield, Swords, Target, Trophy, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { dataText, rowTitle } from '../../utils'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
@@ -173,7 +173,7 @@ export function JogadorPanel(props: {
   const teamIds = new Set(memberships.map((row) => String(row.ref_id || row.data?.team_id || '')))
   const myTeams = props.teams.filter((team) => teamIds.has(team.id))
   const myLines = props.teamLines.filter((line) => teamIds.has(String(line.ref_id || line.data?.team_id || '')))
-  const [tab, setTab] = useState<'resumo' | 'desempenho' | 'perfil'>('resumo')
+  const [tab, setTab] = useState<'resumo' | 'equipe' | 'desempenho' | 'perfil'>('resumo')
   const [performance, setPerformance] = useState<PlayerPerformance | null>(null)
   const [performanceLoading, setPerformanceLoading] = useState(false)
   const [performanceError, setPerformanceError] = useState('')
@@ -457,8 +457,9 @@ export function JogadorPanel(props: {
           <div><p className="eyebrow">Jogador</p><h2>Meu painel</h2></div>
           <Gamepad2 />
         </div>
-        <div className="producer-tabs manager-champ-tabs" style={{ marginBottom: 12 }}>
-          <button type="button" className={tab === 'resumo' ? 'active' : ''} onClick={() => setTab('resumo')}>Resumo</button>
+        <div className="producer-tabs manager-champ-tabs player-primary-nav" style={{ marginBottom: 12 }} aria-label="Áreas do jogador">
+          <button type="button" className={tab === 'resumo' ? 'active' : ''} onClick={() => setTab('resumo')}>Início</button>
+          <button type="button" className={tab === 'equipe' ? 'active' : ''} onClick={() => setTab('equipe')}>Equipe</button>
           <button type="button" className={tab === 'desempenho' ? 'active' : ''} onClick={() => setTab('desempenho')}>Desempenho</button>
           <button type="button" className={tab === 'perfil' ? 'active' : ''} onClick={() => setTab('perfil')}>Perfil</button>
         </div>
@@ -471,12 +472,20 @@ export function JogadorPanel(props: {
         ) : null}
 
         {tab === 'resumo' ? (
-          <div className="player-summary-grid">
-            <div><Shield size={18} /><strong>{myTeams.length}</strong><span>Equipes</span></div>
-            <div><Users size={18} /><strong>{myLines.length}</strong><span>Lines</span></div>
-            <div><Swords size={18} /><strong>{enrolledChampionships.length}</strong><span>Campeonatos</span></div>
-            <div><BarChart3 size={18} /><strong>{performance?.statistics?.partidas || 0}</strong><span>Partidas pontuadas</span></div>
-          </div>
+          <>
+            <div className="player-summary-grid">
+              <div><Shield size={18} /><strong>{myTeams.length}</strong><span>Equipes</span></div>
+              <div><Users size={18} /><strong>{myLines.length}</strong><span>Lines</span></div>
+              <div><Swords size={18} /><strong>{enrolledChampionships.length}</strong><span>Campeonatos</span></div>
+              <div><BarChart3 size={18} /><strong>{performance?.statistics?.partidas || 0}</strong><span>Partidas pontuadas</span></div>
+            </div>
+            <div className="player-start-actions" aria-label="Acesso rápido do jogador">
+              <a href="/agenda"><CalendarDays size={18}/><span><strong>Minha agenda</strong><small>Jogos e compromissos</small></span><ChevronRight size={16}/></a>
+              <button type="button" onClick={() => setTab('equipe')}><Users size={18}/><span><strong>{myTeams.length ? 'Minha equipe' : 'Encontrar equipe'}</strong><small>{myTeams.length ? 'Elenco, lines e escalação' : 'Procure uma equipe para entrar'}</small></span><ChevronRight size={16}/></button>
+              <a href="/campeonatos?vagas=1"><Trophy size={18}/><span><strong>Encontrar campeonatos</strong><small>Veja competições com vagas</small></span><ChevronRight size={16}/></a>
+            </div>
+            {!myTeams.length ? <div className="player-next-step"><Users size={18}/><span><strong>Próximo passo: entre em uma equipe</strong><small>Você pode pesquisar pelo nome, tag ou @ da equipe e enviar um pedido.</small></span><button type="button" onClick={() => setTab('equipe')}>Encontrar equipe</button></div> : null}
+          </>
         ) : null}
 
         {tab === 'desempenho' ? (
@@ -581,10 +590,13 @@ export function JogadorPanel(props: {
       </section>
 
       {tab === 'resumo' ? <>
-        <section className="panel span-2"><h2>Campeonatos inscritos</h2><div className="player-championship-list">{enrolledChampionships.length === 0 ? <p className="empty">Você ainda não está inscrito em campeonato.</p> : null}{enrolledChampionships.map(({ registration, championshipName, championshipType, teamName, teamTag }) => <article key={registration.id}><span>{championshipType || 'Campeonato'}</span><strong>{championshipName}</strong><small>{teamTag ? `${teamTag} · ` : ''}{teamName}</small></article>)}</div></section>
-        <section className="panel"><h2>Escalação</h2><div className="player-lineup-token"><div><KeyRound size={18}/><span><strong>Usar token de escalação</strong><small>Cole o token ou link enviado pela equipe.</small></span></div><div className="player-lineup-token-form"><input value={lineupToken} onChange={(event) => { setLineupToken(event.target.value); setLineupTokenError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openLineupToken() }} placeholder="Token ou link de escalação"/><button type="button" onClick={openLineupToken}>Abrir</button></div>{lineupTokenError ? <small className="player-lineup-token-error">{lineupTokenError}</small> : null}</div></section>
-        <section className="panel"><h2>Minha equipe</h2>{myTeams.length === 0 ? <p className="empty">Você ainda não faz parte de uma equipe.</p> : null}<div className="team-line-grid">{myTeams.map((team) => <article className="team-line-card" key={team.id}><img src={dataText(team, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'Sem tag'}</span></div></article>)}</div><PlayerTeamRequest mode="request_join"/></section>
-        <section className="panel"><h2>Minhas lines</h2>{myLines.length === 0 ? <p className="empty">Nenhuma line vinculada ao seu elenco.</p> : null}<div className="team-line-grid">{myLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span></div></article>)}</div></section>
+        <section className="panel span-3"><div className="team-section-title"><div><p className="eyebrow">Participações</p><h2>Meus campeonatos</h2></div><a className="button secondary compact" href="/campeonatos?vagas=1">Encontrar campeonatos</a></div><div className="player-championship-list">{enrolledChampionships.length === 0 ? <p className="empty">Você ainda não está inscrito em campeonato.</p> : null}{enrolledChampionships.map(({ registration, championshipName, championshipType, teamName, teamTag }) => <article key={registration.id}><span>{championshipType || 'Campeonato'}</span><strong>{championshipName}</strong><small>{teamTag ? `${teamTag} · ` : ''}{teamName}</small></article>)}</div></section>
+      </> : null}
+
+      {tab === 'equipe' ? <>
+        <section className="panel span-2 player-team-workspace"><div className="team-section-title"><div><p className="eyebrow">Vínculos</p><h2>Minha equipe</h2></div><span className="count-pill"><Users size={14}/>{myTeams.length}</span></div>{myTeams.length === 0 ? <p className="empty">Você ainda não faz parte de uma equipe.</p> : null}<div className="team-line-grid">{myTeams.map((team) => <article className="team-line-card" key={team.id}><img src={dataText(team, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'Sem tag'}</span></div></article>)}</div><div className="player-lines-inline"><strong>Minhas lines</strong>{myLines.length === 0 ? <p className="empty">Nenhuma line vinculada ao seu elenco.</p> : null}<div className="team-line-grid">{myLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span></div></article>)}</div></div></section>
+        <section className="panel"><h2>{myTeams.length ? 'Pedir entrada em outra equipe' : 'Encontrar equipe'}</h2><PlayerTeamRequest mode="request_join"/></section>
+        <section className="panel span-3"><div className="team-section-title"><div><p className="eyebrow">Escalação</p><h2>Entrar por convite</h2></div></div><div className="player-lineup-token"><div><KeyRound size={18}/><span><strong>Usar token de escalação</strong><small>Cole o token ou link enviado pela equipe.</small></span></div><div className="player-lineup-token-form"><input value={lineupToken} onChange={(event) => { setLineupToken(event.target.value); setLineupTokenError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openLineupToken() }} placeholder="Token ou link de escalação"/><button type="button" onClick={openLineupToken}>Abrir</button></div>{lineupTokenError ? <small className="player-lineup-token-error">{lineupTokenError}</small> : null}</div></section>
       </> : null}
     </div>
   )

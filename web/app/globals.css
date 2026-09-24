@@ -8859,3 +8859,39 @@ body .team-analytics-insights>p{margin:0;color:var(--ui-text-muted);font-size:8p
 .whatsapp-phone-dial{display:flex;align-items:center;padding:0 9px;color:var(--ui-muted,var(--muted,#8f969f));font-size:12px;font-weight:850}
 .whatsapp-phone-field>input{width:100%;min-width:0;height:42px;padding:0 10px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--ui-text,var(--text,#fff))}
 @media(max-width:620px){.whatsapp-phone-field{grid-template-columns:minmax(112px,.85fr) auto minmax(105px,1fr)}.whatsapp-country-select{padding-left:8px}.whatsapp-country-select select{font-size:10px}.whatsapp-phone-dial{padding:0 6px}}
+
+
+/* Rodada 141 — hierarquia simples para Equipes e Jogadores */
+body .team-primary-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible}
+body .team-primary-nav>button{width:100%;justify-content:center;text-align:center}
+body .team-secondary-nav{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px;padding:8px;background:var(--ui-surface-raised);border:1px solid var(--ui-line)}
+body .team-secondary-nav button{min-height:34px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--ui-text-muted);font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+body .team-secondary-nav button:hover{background:var(--ui-surface);color:var(--ui-text)}
+body .team-secondary-nav button.active{background:rgba(201,183,102,.14);color:var(--ui-accent-light)}
+body .team-start-actions,body .player-start-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 16px}
+body .team-start-actions>a,body .team-start-actions>button,body .player-start-actions>a,body .player-start-actions>button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:66px;padding:11px 12px;border:1px solid var(--ui-line);border-radius:8px;background:var(--ui-surface-raised);color:var(--ui-text);text-align:left;text-decoration:none;cursor:pointer}
+body .team-start-actions>a:hover,body .team-start-actions>button:hover,body .player-start-actions>a:hover,body .player-start-actions>button:hover{border-color:rgba(201,183,102,.5);background:rgba(201,183,102,.07)}
+body .team-start-actions svg:first-child,body .player-start-actions svg:first-child{color:var(--ui-accent)}
+body .team-start-actions span,body .player-start-actions span{display:grid;gap:2px;min-width:0}
+body .team-start-actions strong,body .player-start-actions strong{font-size:10px;color:var(--ui-text);text-transform:uppercase;letter-spacing:.035em}
+body .team-start-actions small,body .player-start-actions small{font-size:8px;color:var(--ui-text-muted);white-space:normal}
+body .team-start-actions svg:last-child,body .player-start-actions svg:last-child{color:var(--ui-text-muted)}
+body .player-next-step{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;margin-top:10px;padding:11px 12px;border-left:3px solid var(--ui-accent);background:rgba(201,183,102,.08)}
+body .player-next-step>svg{color:var(--ui-accent)}
+body .player-next-step>span{display:grid;gap:2px}
+body .player-next-step strong{font-size:10px;color:var(--ui-text)}
+body .player-next-step small{font-size:9px;color:var(--ui-text-muted)}
+body .player-next-step button{min-height:34px;padding:0 12px;border:0;border-radius:7px;background:var(--ui-accent);color:#101820;font-size:9px;font-weight:900;text-transform:uppercase;cursor:pointer}
+body .player-team-workspace{align-content:start}
+body .player-lines-inline{display:grid;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--ui-line)}
+body .player-lines-inline>strong{font-size:10px;color:var(--ui-text);text-transform:uppercase;letter-spacing:.05em}
+body .player-primary-nav{overflow:visible}
+body .player-team-request-title span{line-height:1.45}
+@media(max-width:760px){
+  body .team-primary-nav{grid-template-columns:repeat(5,minmax(74px,1fr));overflow-x:auto}
+  body .team-primary-nav>button{min-width:74px;padding-inline:8px;font-size:8px}
+  body .team-start-actions,body .player-start-actions{grid-template-columns:1fr}
+  body .team-start-actions>a,body .team-start-actions>button,body .player-start-actions>a,body .player-start-actions>button{min-height:58px}
+  body .player-next-step{grid-template-columns:auto minmax(0,1fr)}
+  body .player-next-step button{grid-column:1 / -1;width:100%}
+}
