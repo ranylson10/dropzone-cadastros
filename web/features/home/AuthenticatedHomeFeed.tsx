@@ -216,7 +216,7 @@ export function AuthenticatedHomeFeed({
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
-  const profileLabel = isProducer ? 'Produtora' : isTeam ? 'Equipe' : isPlayer ? 'Jogador' : account?.profile_type === 'manager' ? 'Afiliado' : account?.profile_type === 'broadcast' ? 'Transmissão' : 'Conta'
+  const profileLabel = isProducer ? 'Produtora' : isTeam ? 'Equipe' : isPlayer ? 'Jogador' : account?.profile_type === 'manager' ? 'Afiliado' : 'Conta'
   const primaryTask = homeTasks[0] || null
   const visibleTasks = homeTasks.slice(0, 3)
   const showOpportunities = !account || isPlayer || isTeam
@@ -337,7 +337,7 @@ export function AuthenticatedHomeFeed({
         <div className="authenticated-home-areas-grid">
           {accounts.map((item) => {
             const type = item.profile_type as ProfileType
-            const label = type === 'equipe' ? 'Minha equipe' : type === 'jogador' ? 'Perfil competitivo' : type === 'produtora' ? 'Minha produtora' : type === 'manager' ? 'Afiliados' : 'Transmissão'
+            const label = type === 'equipe' ? 'Minha equipe' : type === 'jogador' ? 'Perfil competitivo' : type === 'produtora' ? 'Minha produtora' : type === 'manager' ? 'Afiliados' : 'Área da conta'
             const Icon = type === 'manager' ? Store : type === 'produtora' ? Trophy : type === 'equipe' ? Users : LayoutDashboard
             return <button key={item.id} type="button" className="authenticated-home-area-card" onClick={() => void onOpenPanel(item)}><Icon size={19}/><span><strong>{label}</strong><small>{item.name || item.username}</small></span><ChevronRight size={16}/></button>
           })}

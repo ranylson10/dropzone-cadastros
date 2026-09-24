@@ -2,7 +2,7 @@
 
 import { MessageCircle, Trophy, UserRound, Users, Wallet } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import type { DropZoneRow, ProfileType } from '@/lib/types'
+import type { DropZoneRow, WebProfileType } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import {
   MANAGER_CONTEXT_CARDS,
@@ -27,7 +27,7 @@ export function ManagerPanel(props: {
   account: DropZoneRow
   accounts?: DropZoneRow[]
   onSwitchAccount?: (account: DropZoneRow) => void
-  onCreateLinkedProfile?: (profileType?: ProfileType) => void
+  onCreateLinkedProfile?: (profileType?: WebProfileType) => void
   /** Aceita modes antigos (vendas/campeonatos) e normaliza. */
   initialMode?: string
 }) {

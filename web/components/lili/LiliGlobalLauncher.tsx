@@ -16,8 +16,6 @@ function entityFromPath(pathname: string) {
     produtoras: 'produtora',
     carteira: 'carteira',
     agenda: 'agenda',
-    broadcast: 'transmissao',
-    stream: 'transmissao',
   }
   if (pathname.includes('/pontuador/')) return { type: 'pontuador', id: parts[1] || '' }
   return { type: map[first] || 'geral', id }

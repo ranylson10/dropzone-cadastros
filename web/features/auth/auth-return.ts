@@ -1,4 +1,4 @@
-import type { ProfileType } from '@/lib/types'
+import { isWebProfileType, type ProfileType, type WebProfileType } from '@/lib/types'
 
 export const SOCIAL_PROVIDERS = ['google', 'facebook', 'discord'] as const
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
@@ -26,16 +26,8 @@ export function isDirectAuthReturnPath(value: string | null | undefined) {
   return path.startsWith('/equipe/reivindicar/')
 }
 
-export function parseProfileType(value: string | null | undefined): ProfileType | null {
-  return (
-    value === 'produtora' ||
-    value === 'equipe' ||
-    value === 'jogador' ||
-    value === 'manager' ||
-    value === 'broadcast'
-  )
-    ? value
-    : null
+export function parseProfileType(value: string | null | undefined): WebProfileType | null {
+  return isWebProfileType(value) ? value : null
 }
 
 export function buildLoginHref(profileType?: ProfileType | null, returnTo = '/', switchAccount = false) {
@@ -46,7 +38,7 @@ export function buildLoginHref(profileType?: ProfileType | null, returnTo = '/',
   return `/login?${params.toString()}`
 }
 
-export function buildProfileCreationHref(profileType: ProfileType, returnTo = '/') {
+export function buildProfileCreationHref(profileType: WebProfileType, returnTo = '/') {
   const params = new URLSearchParams({
     cadastro: profileType,
     vincular: '1',

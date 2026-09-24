@@ -1,4 +1,4 @@
-import { PROFILE_TYPES, type ProfileType } from './types'
+import { PROFILE_TYPES, isWebProfileType, type ProfileType, type WebProfileType } from './types'
 
 export function cleanUsername(value: unknown) {
   return String(value || '')
@@ -10,6 +10,11 @@ export function cleanUsername(value: unknown) {
 export function assertProfileType(value: unknown): ProfileType {
   if (PROFILE_TYPES.includes(value as ProfileType)) return value as ProfileType
   throw new Error('Tipo de perfil invalido.')
+}
+
+export function assertWebProfileType(value: unknown): WebProfileType {
+  if (isWebProfileType(value)) return value
+  throw new Error('Tipo de perfil indisponivel no site.')
 }
 
 export function assertUsername(value: unknown) {

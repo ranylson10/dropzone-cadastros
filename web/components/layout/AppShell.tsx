@@ -8,17 +8,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
-import type { DropZoneRow, ProfileType } from '@/lib/types'
+import { isWebProfileType, type DropZoneRow, type WebProfileType } from '@/lib/types'
 import { AppHeader } from './AppHeader'
 import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
 import { signOutEverywhere } from '@/lib/auth-client-state'
-
-const TYPE_LABELS: Record<string, string> = {
-  produtora: 'Produtora',
-  equipe: 'Equipe',
-  jogador: 'Jogador',
-  manager: 'Afiliados',
-}
 
 function mediaFor(account?: DropZoneRow | null) {
   return String(account?.data?.logo_url || account?.data?.avatar_url || '')
@@ -48,7 +41,7 @@ export type AppShellProps = {
   activeAccountId?: string
   switchingAccountId?: string
   onSwitchAccount?: (account: DropZoneRow) => void
-  onCreateLinkedProfile?: (profileType?: ProfileType) => void
+  onCreateLinkedProfile?: (profileType?: WebProfileType) => void
   onSignOut?: () => void
   /** Se true, carrega sessão via /api/me (páginas públicas) */
   loadSession?: boolean
@@ -83,8 +76,10 @@ export function AppShell({
   const [sessionIdentity, setSessionIdentity] = useState<{ name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null; complete?: boolean } | null>(null)
 
   const controlled = accountProp !== undefined
-  const account = controlled ? accountProp : sessionAccount
-  const accounts = controlled ? (accountsProp || []) : sessionAccounts
+  const controlledAccounts = (accountsProp || []).filter((item) => isWebProfileType(item.profile_type))
+  const controlledAccount = accountProp === null ? null : accountProp && isWebProfileType(accountProp.profile_type) ? accountProp : controlledAccounts[0] || null
+  const account = controlled ? controlledAccount : sessionAccount
+  const accounts = controlled ? controlledAccounts : sessionAccounts
   const identity = identityProp || sessionIdentity
 
   // Se o editor Stream/modais deixaram overflow travado, libera no shell do sistema
@@ -105,7 +100,8 @@ export function AppShell({
     let activeRequest = true
 
     try {
-      const cached = JSON.parse(localStorage.getItem('dropzone_recent_profiles') || '[]') as DropZoneRow[]
+      const cached = (JSON.parse(localStorage.getItem('dropzone_recent_profiles') || '[]') as DropZoneRow[])
+        .filter((item) => isWebProfileType(item.profile_type))
       const preferred = localStorage.getItem('dropzone_active_profile_type') || ''
       const recent = cached.find((item) => item.profile_type === preferred) || cached[0]
       if (recent) {
@@ -149,11 +145,18 @@ export function AppShell({
         avatar_url: String(payload.user?.avatar_url || ''),
         complete: payload.user?.complete !== false,
       })
-      setSessionAccount(payload.account || null)
-      setSessionAccounts(payload.accounts || [])
-      if (payload.account) {
-        localStorage.setItem('dropzone_active_profile_type', String(payload.account.profile_type || ''))
-        localStorage.setItem('dropzone_recent_profiles', JSON.stringify(payload.accounts || [payload.account]))
+      const webAccounts = (Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : [])
+        .filter((item: DropZoneRow) => isWebProfileType(item.profile_type))
+      const preferredWeb = isWebProfileType(preferred) ? preferred : null
+      const webAccount = webAccounts.find((item: DropZoneRow) => item.profile_type === preferredWeb) || webAccounts[0] || null
+      setSessionAccount(webAccount)
+      setSessionAccounts(webAccounts)
+      if (webAccount) {
+        localStorage.setItem('dropzone_active_profile_type', String(webAccount.profile_type || ''))
+        localStorage.setItem('dropzone_recent_profiles', JSON.stringify(webAccounts))
+      } else {
+        localStorage.removeItem('dropzone_active_profile_type')
+        localStorage.setItem('dropzone_recent_profiles', '[]')
       }
     }
 

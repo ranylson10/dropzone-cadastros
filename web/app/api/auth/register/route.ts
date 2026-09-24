@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
-import { assertPassword, assertProfileType, assertUsername, cleanEmail } from '@/lib/validation'
+import { assertPassword, assertWebProfileType, assertUsername, cleanEmail } from '@/lib/validation'
 import { profileTable } from '@backend/auth/server-auth'
 import { verifyCode } from '@/lib/auth-verification-codes'
 
@@ -13,8 +13,6 @@ const TYPE_PREFIX = {
 } as const
 
 const PROFILE_TABLES = ['produtoras', 'equipes', 'jogadores', 'managers', 'broadcasts'] as const
-
-const BROADCAST_PAPEIS = new Set(['stream', 'narrador', 'comentarista', 'apresentador'])
 
 function cleanText(value: unknown) {
   return String(value || '').trim()
@@ -65,7 +63,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const profileType = assertProfileType(body.profile_type)
+    const profileType = assertWebProfileType(body.profile_type)
     const username = assertUsername(body.username)
     const name = cleanText(body.name)
     const mediaUrl = cleanText(body.media_url) || null
@@ -93,10 +91,6 @@ export async function POST(req: Request) {
     if (profileType === 'jogador') {
       if (!cleanText(details.id_jogo)) throw new Error('Informe o ID de jogo.')
       if (!['support', 'rush', 'sniper', 'bomber'].includes(cleanText(details.funcao))) throw new Error('Selecione uma funcao valida.')
-    }
-    if (profileType === 'broadcast') {
-      const papel = cleanText(details.papel || 'stream').toLowerCase()
-      if (!BROADCAST_PAPEIS.has(papel)) throw new Error('Selecione um papel valido (stream, narrador, comentarista, apresentador).')
     }
 
     const table = profileTable(profileType)
@@ -194,10 +188,6 @@ export async function POST(req: Request) {
       payload.funcao = cleanText(details.funcao)
     }
     if (profileType === 'manager') payload.avatar_url = mediaUrl
-    if (profileType === 'broadcast') {
-      payload.avatar_url = mediaUrl
-      payload.papel = cleanText(details.papel || 'stream').toLowerCase() || 'stream'
-    }
 
     let account: any
     {

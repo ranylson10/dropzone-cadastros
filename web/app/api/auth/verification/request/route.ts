@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
-import { assertPassword, assertProfileType, assertUsername, cleanEmail } from '@/lib/validation'
+import { assertPassword, assertProfileType, assertWebProfileType, assertUsername, cleanEmail } from '@/lib/validation'
 import { createVerificationCode, sendVerificationEmail } from '@/lib/auth-verification-codes'
 
 function clean(value: unknown) {
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const purpose = clean(body.purpose)
-    const profileType = purpose === 'register' ? assertProfileType(body.profile_type) : null
+    const profileType = purpose === 'register' ? assertWebProfileType(body.profile_type) : null
 
     if (purpose === 'register') {
       const username = assertUsername(body.username)

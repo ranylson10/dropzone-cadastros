@@ -2,7 +2,7 @@
 
 import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Search, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import type { DropZoneRow, ProfileType } from '@/lib/types'
+import { isWebProfileType, type DropZoneRow, type WebProfileType } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { APP_NAV, type AppNavItem } from './nav'
@@ -23,7 +23,7 @@ type AppHeaderProps = {
   activeAccountId?: string
   switchingAccountId?: string
   onSwitchAccount?: (account: DropZoneRow) => void
-  onCreateLinkedProfile?: (profileType?: ProfileType) => void
+  onCreateLinkedProfile?: (profileType?: WebProfileType) => void
   onSignOut?: () => void
   /** Guest CTA when not logged in */
   loginHref?: string
@@ -43,7 +43,6 @@ function areaLabel(type?: string | null) {
   if (type === 'jogador') return 'Perfil competitivo'
   if (type === 'produtora') return 'Minha produtora'
   if (type === 'manager') return 'Afiliados'
-  if (type === 'broadcast') return 'Transmissão'
   return 'Área da conta'
 }
 
@@ -130,7 +129,8 @@ export function AppHeader({
   const profileRef = useRef<HTMLDivElement>(null)
   const languageRef = useRef<HTMLDivElement>(null)
   const isAuthenticated = Boolean(profileName && onSignOut)
-  const activeAccount = accounts.find((item) => item.id === activeAccountId) || accounts[0] || null
+  const visibleAccounts = accounts.filter((item) => isWebProfileType(item.profile_type))
+  const activeAccount = visibleAccounts.find((item) => item.id === activeAccountId) || visibleAccounts[0] || null
   const activeProfileType = activeAccount?.profile_type || null
 
   const quickActions = activeProfileType === 'produtora'
@@ -548,7 +548,7 @@ export function AppHeader({
                 <div className="app-profile-menu-head" style={{ padding: 14, borderBottom: '1px solid var(--ui-line)', background: 'var(--ui-surface)' }}>
                   <strong>Minha conta</strong>
                   <span style={{ display: 'block', marginTop: 3, color: 'var(--ui-muted)', fontSize: 11 }}>
-                    {accounts.length ? 'Cadastros disponíveis nesta conta' : 'Conta DropZone conectada'}
+                    {visibleAccounts.length ? 'Cadastros disponíveis nesta conta' : 'Conta DropZone conectada'}
                   </span>
                 </div>
                 <input
@@ -580,7 +580,7 @@ export function AppHeader({
                   {avatarUploading ? 'Enviando foto...' : accountAvatar ? 'Alterar foto de perfil' : 'Adicionar foto de perfil'}
                 </button>
                 {avatarError ? <span role="alert" style={{ display: 'block', padding: '0 14px 11px', color: 'var(--ui-danger, #d76c6c)', fontSize: 11 }}>{avatarError}</span> : null}
-                {accounts.length ? <a
+                {visibleAccounts.length ? <a
                   href="/#meus-cadastros"
                   onClick={() => {
                     setProfileOpen(false)

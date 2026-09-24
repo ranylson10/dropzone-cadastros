@@ -220,8 +220,8 @@ export const emptyCampeonatoForm: CampeonatoFormValue = {
   bg_image_url: '',
   cor_texto_clara: '#ffffff',
   cor_texto_escura: '#17191d',
-  recurso_export: true,
-  recurso_stream: true,
+  recurso_export: false,
+  recurso_stream: false,
   recurso_rulebook: true,
   recurso_stats: true,
   recurso_broadcast: false,
@@ -459,11 +459,11 @@ export function CampeonatoForm({
             tipo: value.tipo,
             numero_vagas: Number(value.numero_vagas) || 0,
             recursos: {
-              export: value.recurso_export !== false,
-              stream: value.recurso_stream !== false,
+              export: false,
+              stream: false,
               rulebook: value.recurso_rulebook !== false,
               stats: value.recurso_stats !== false,
-              broadcast: value.recurso_broadcast === true,
+              broadcast: false,
             },
           }),
         })
@@ -488,11 +488,8 @@ export function CampeonatoForm({
     step,
     value.tipo,
     value.numero_vagas,
-    value.recurso_export,
-    value.recurso_stream,
     value.recurso_rulebook,
     value.recurso_stats,
-    value.recurso_broadcast,
   ])
 
   function update<K extends keyof CampeonatoFormValue>(key: K, next: CampeonatoFormValue[K]) {
@@ -2638,11 +2635,8 @@ export function CampeonatoForm({
           <div className="championship-resource-grid">
             {(
               [
-                ['recurso_export', 'Export / Spec'],
-                ['recurso_stream', 'Overlays Stream'],
-                ['recurso_rulebook', 'Rulebook PDF'],
-                ['recurso_stats', 'Tabelas e stats'],
-                ['recurso_broadcast', 'Broadcast pack'],
+                ['recurso_rulebook', 'Regulamento e PDF'],
+                ['recurso_stats', 'Resultados e estatísticas'],
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="championship-resource-toggle">

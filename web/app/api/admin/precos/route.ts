@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const sample = await quoteChampionshipPrice({
       tipo: 'copa',
       numero_vagas: 16,
-      recursos: { export: true, stream: true, rulebook: true, stats: true, broadcast: false },
+      recursos: { export: false, stream: false, rulebook: true, stats: true, broadcast: false },
     })
     return NextResponse.json({ precos: table, exemplo: sample })
   } catch (error: any) {

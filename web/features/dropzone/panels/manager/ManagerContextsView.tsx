@@ -12,7 +12,7 @@ import {
   UserRound,
   Users,
 } from 'lucide-react'
-import type { DropZoneRow, ProfileType } from '@/lib/types'
+import type { DropZoneRow, WebProfileType } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
 import { Field, UploadField, resolvePendingImageUpload } from '../../components/form-fields'
 import { uploadPublicFile } from '@/lib/upload-public'
@@ -97,12 +97,12 @@ export function ManagerContextsView(props: {
   linkedProfiles: DropZoneRow[]
   loading?: boolean
   error?: string
-  onCreateLinkedProfile?: (profileType?: ProfileType) => void
+  onCreateLinkedProfile?: (profileType?: WebProfileType) => void
   onOpenStaff?: (item: StaffVinculo) => void
 }) {
   const isEquipe = props.context === 'equipes'
   const Icon = isEquipe ? Users : UserRound
-  const profileType: ProfileType = isEquipe ? 'equipe' : 'jogador'
+  const profileType: WebProfileType = isEquipe ? 'equipe' : 'jogador'
   const listTitle = isEquipe ? 'Equipes' : 'Jogadores'
   const emptyAll = isEquipe ? 'Nenhuma equipe vinculada.' : 'Nenhum jogador vinculado.'
 

@@ -1,15 +1,15 @@
 'use client'
 
 import { Plus, Shield, UserRound, Users } from 'lucide-react'
-import type { DropZoneRow, ProfileType } from '@/lib/types'
+import type { DropZoneRow, WebProfileType } from '@/lib/types'
 
 export function ManagerProfileSwitchView(props: {
   mode: 'equipes' | 'jogador'
   accounts: DropZoneRow[]
   onSwitchAccount?: (account: DropZoneRow) => void
-  onCreateLinkedProfile?: (profileType: ProfileType) => void
+  onCreateLinkedProfile?: (profileType: WebProfileType) => void
 }) {
-  const targetType: ProfileType = props.mode === 'equipes' ? 'equipe' : 'jogador'
+  const targetType: WebProfileType = props.mode === 'equipes' ? 'equipe' : 'jogador'
   const matches = props.accounts.filter((item) => item.profile_type === targetType)
   const Icon = props.mode === 'equipes' ? Users : UserRound
 

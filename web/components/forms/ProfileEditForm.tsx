@@ -7,7 +7,7 @@ import { uploadPublicFile } from '@/lib/upload-public'
 import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 import { WhatsappPhoneField } from './WhatsappPhoneField'
 
-type ProfileType = 'equipe' | 'manager' | 'jogador' | 'produtora' | 'broadcast'
+type ProfileType = 'equipe' | 'manager' | 'jogador' | 'produtora'
 
 export function ProfileEditForm(props: {
   profileType: ProfileType
@@ -26,13 +26,12 @@ export function ProfileEditForm(props: {
   onSaved?: (profile: any) => void
 }) {
   const logoField =
-    props.profileType === 'manager' || props.profileType === 'jogador' || props.profileType === 'broadcast'
+    props.profileType === 'manager' || props.profileType === 'jogador'
       ? 'avatar_url'
       : 'logo_url'
   const bucket =
     props.profileType === 'jogador' ||
-    props.profileType === 'manager' ||
-    props.profileType === 'broadcast'
+    props.profileType === 'manager'
       ? props.profileType
       : props.profileType === 'equipe'
         ? 'equipe'

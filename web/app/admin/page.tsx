@@ -509,7 +509,7 @@ export default function AdminPage() {
           </header>
           {precos?.exemplo ? (
             <p className="admin-feedback" style={{ borderColor: 'var(--line)' }}>
-              Exemplo copa 16 vagas + export + stream + rulebook + stats:{' '}
+              Exemplo copa 16 vagas + regulamento + estatísticas:{' '}
               <strong>{precos.exemplo.valor_total_brl}</strong>
             </p>
           ) : null}
@@ -525,7 +525,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {(precos?.precos || []).map((row: any) => (
+                {(precos?.precos || []).filter((row: any) => !['rec_export', 'rec_stream', 'rec_broadcast'].includes(String(row.chave))).map((row: any) => (
                   <tr key={row.chave}>
                     <td>
                       <strong>{row.rotulo}</strong>

@@ -2,6 +2,14 @@ export const PROFILE_TYPES = ['produtora', 'equipe', 'jogador', 'manager', 'broa
 
 export type ProfileType = (typeof PROFILE_TYPES)[number]
 
+/** Perfis que fazem parte do produto Web. `broadcast` fica somente como legado técnico/integracao. */
+export const WEB_PROFILE_TYPES = ['produtora', 'equipe', 'jogador', 'manager'] as const
+export type WebProfileType = (typeof WEB_PROFILE_TYPES)[number]
+
+export function isWebProfileType(value: unknown): value is WebProfileType {
+  return WEB_PROFILE_TYPES.includes(value as WebProfileType)
+}
+
 /** Papéis do perfil Broadcast (MVP foca em stream). */
 export const BROADCAST_PAPEIS = ['stream', 'narrador', 'comentarista', 'apresentador'] as const
 export type BroadcastPapel = (typeof BROADCAST_PAPEIS)[number]

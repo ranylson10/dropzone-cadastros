@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { ClipboardList, Loader2, Pencil, Send, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile as uploadStoragePublicFile } from '@/lib/upload-public'
-import { PROFILE_TYPES, type DropZoneRow, type ProfileType } from '@/lib/types'
+import { WEB_PROFILE_TYPES, isWebProfileType, type DropZoneRow, type ProfileType, type WebProfileType } from '@/lib/types'
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
 import { Field, LocationSearch, UploadField, resolvePendingImageUpload } from './components/form-fields'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
@@ -32,10 +32,6 @@ const JogadorPanel = dynamic(() => import('./panels/jogador/JogadorPanel').then(
 const ManagerPanel = dynamic(() => import('./panels/manager/ManagerPanel').then((module) => module.ManagerPanel), {
   loading: () => <DropzoneLoader label="Carregando painel do afiliado" />,
 })
-const BroadcastPanel = dynamic(() => import('@/features/broadcast/components/BroadcastPanel').then((module) => module.BroadcastPanel), {
-  loading: () => <DropzoneLoader label="Carregando painel de transmissão" />,
-})
-
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
 
@@ -94,8 +90,8 @@ const emptyChampionship = {
   bg_image_url: '',
   cor_texto_clara: '#ffffff',
   cor_texto_escura: '#17191d',
-  recurso_export: true,
-  recurso_stream: true,
+  recurso_export: false,
+  recurso_stream: false,
   recurso_rulebook: true,
   recurso_stats: true,
   recurso_broadcast: false,
@@ -106,7 +102,7 @@ const typeLabels: Record<ProfileType, string> = {
   equipe: 'Equipe',
   jogador: 'Jogador',
   manager: 'Afiliado',
-  broadcast: 'Broadcast',
+  broadcast: 'Integração técnica (legado)',
 }
 
 const typeDescriptions: Record<ProfileType, string> = {
@@ -114,11 +110,11 @@ const typeDescriptions: Record<ProfileType, string> = {
   equipe: 'Acesso do lider para montar elenco e entrar em eventos.',
   jogador: 'Cadastro competitivo e inscricoes em partidas.',
   manager: 'Área de afiliados para divulgar campeonatos e acompanhar vendas.',
-  broadcast: 'Stream, narrador, comentarista ou apresentador — lives e overlays.',
+  broadcast: 'Perfil técnico legado, fora da experiência principal do site.',
 }
 
-function parseProfileType(value: string): ProfileType | null {
-  return PROFILE_TYPES.includes(value as ProfileType) ? value as ProfileType : null
+function parseProfileType(value: string): WebProfileType | null {
+  return isWebProfileType(value) ? value : null
 }
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
@@ -135,7 +131,7 @@ type PanelSnapshot = {
 export function DropZoneHome() {
   const [mode, setMode] = useState<AuthMode>('entrar')
   const [authIdentity, setAuthIdentity] = useState<{ id: string; email: string; name: string; username: string; avatar_url: string } | null>(null)
-  const [profileType, setProfileType] = useState<ProfileType>('produtora')
+  const [profileType, setProfileType] = useState<WebProfileType>('produtora')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -149,14 +145,13 @@ export function DropZoneHome() {
     tag: '',
     id_jogo: '',
     funcao: 'support',
-    papel: 'stream',
     pais: '',
     estado: '',
     cidade: '',
     token_convite: '',
     senha_convite: '',
   })
-  const [activeAuthType, setActiveAuthType] = useState<ProfileType | null>(null)
+  const [activeAuthType, setActiveAuthType] = useState<WebProfileType | null>(null)
   const [showAccountProfile, setShowAccountProfile] = useState(false)
   const [recentProfiles, setRecentProfiles] = useState<any[]>([])
   const [account, setAccount] = useState<DropZoneRow | null>(null)
@@ -168,7 +163,7 @@ export function DropZoneHome() {
   const [loading, setLoading] = useState(false)
   const [pendingCreate, setPendingCreate] = useState<string | null>(null)
   const createLockRef = useRef(false)
-  const [accessLoadingType, setAccessLoadingType] = useState<ProfileType | null>(null)
+  const [accessLoadingType, setAccessLoadingType] = useState<WebProfileType | null>(null)
   const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null)
   const [queryReady, setQueryReady] = useState(false)
   const [inviteReturnTo, setInviteReturnTo] = useState('')
@@ -337,9 +332,8 @@ export function DropZoneHome() {
         // seleção de perfil: só escolhe, nesta navegação, uma área já ligada
         // à mesma conta autenticada.
         const requestedActiveProfile = parseProfileType(String(params.get('perfil') || ''))
-        // O retorno do login social pode pedir qualquer um dos cinco perfis.
-        // Antes, somente equipe e jogador eram reconhecidos; produtora, manager
-        // e broadcast voltavam para a seleção mesmo quando o cadastro era explícito.
+        // O retorno do login social só aceita áreas do produto Web. Perfis técnicos
+        // legados não podem ser criados nem ativados pela experiência principal.
         const forcedProfileType = parseProfileType(requestedRegister) || parseProfileType(requestedLogin)
         const forcedType = Boolean(forcedProfileType)
         const wantsCreate = Boolean(forcedProfileType && requestedRegister === forcedProfileType)
@@ -351,8 +345,9 @@ export function DropZoneHome() {
           const saved = localStorage.getItem('dropzone_recent_profiles')
           if (saved) {
             const parsed = JSON.parse(saved)
-            hasRecentLogin = Array.isArray(parsed) && parsed.length > 0
-            if (hasRecentLogin) setRecentProfiles(parsed)
+            const visibleRecent = Array.isArray(parsed) ? parsed.filter((item) => isWebProfileType(item?.profile_type)) : []
+            hasRecentLogin = visibleRecent.length > 0
+            if (hasRecentLogin) setRecentProfiles(visibleRecent)
           }
         } catch {
           // localStorage corrompido — ignora e segue
@@ -478,7 +473,8 @@ export function DropZoneHome() {
             avatar_url: String(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''),
           })
           try {
-            const storedType = localStorage.getItem('dropzone_active_profile_type') as ProfileType | null
+            const rawStoredType = localStorage.getItem('dropzone_active_profile_type')
+            const storedType = isWebProfileType(rawStoredType) ? rawStoredType : null
             const preferredType = requestedActiveProfile || storedType
             const cachedSnapshot = readPanelSnapshot(preferredType)
             if (cachedSnapshot) {
@@ -539,7 +535,7 @@ export function DropZoneHome() {
     for (const profile of profiles) {
       if (profile.profile_type && !byType.has(profile.profile_type)) byType.set(profile.profile_type, profile)
     }
-    const next = PROFILE_TYPES.map((type) => byType.get(type)).filter(Boolean) as DropZoneRow[]
+    const next = WEB_PROFILE_TYPES.map((type) => byType.get(type)).filter(Boolean) as DropZoneRow[]
     setRecentProfiles(next)
     localStorage.setItem('dropzone_recent_profiles', JSON.stringify(next))
   }
@@ -590,7 +586,7 @@ export function DropZoneHome() {
     setError('')
     try {
       // Preferir o tipo do formulário (cadastro/multi-perfil), senão o perfil ativo.
-      // Ex.: criando Broadcast com conta Produtora logada → x-profile-type = broadcast
+      // A experiência Web só cria perfis de competição, equipe, jogador e afiliado.
       const uploadProfileType = profileType || account?.profile_type || null
 
       const url = await uploadStoragePublicFile(file, bucket, uploadProfileType, {
@@ -636,7 +632,7 @@ export function DropZoneHome() {
     setResendCooldown(0)
   }
 
-  function clearRegisterForm(nextType?: ProfileType) {
+  function clearRegisterForm(nextType?: WebProfileType) {
     setName('')
     setEmail('')
     setUsername('')
@@ -648,8 +644,7 @@ export function DropZoneHome() {
       tag: '',
       id_jogo: '',
       funcao: 'support',
-      papel: 'stream',
-      pais: '',
+        pais: '',
       estado: '',
       cidade: '',
       token_convite: '',
@@ -658,7 +653,7 @@ export function DropZoneHome() {
     if (nextType) setProfileType(nextType)
   }
 
-  function prepareGoogleProfile(user: { email?: string | null; user_metadata?: Record<string, any> }, nextType: ProfileType) {
+  function prepareGoogleProfile(user: { email?: string | null; user_metadata?: Record<string, any> }, nextType: WebProfileType) {
     clearRegisterForm(nextType)
     const googleName = String(user.user_metadata?.full_name || user.user_metadata?.name || '').trim()
     const googleAvatar = String(user.user_metadata?.avatar_url || user.user_metadata?.picture || '').trim()
@@ -691,16 +686,18 @@ export function DropZoneHome() {
     }
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
-    const loadedAccounts = (meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[]
+    const loadedAccounts = ((meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[])
+      .filter((item) => isWebProfileType(item.profile_type))
     setAccounts(loadedAccounts)
     saveRecentProfiles(loadedAccounts)
     return loadedAccounts
   }
 
-  async function loadMeAndRows(token?: string, preferredType?: ProfileType | null) {
+  async function loadMeAndRows(token?: string, preferredType?: WebProfileType | null) {
     const accessToken = token || await getToken()
     if (!accessToken) throw new Error('Sessão não encontrada.')
-    const storedType = preferredType || (localStorage.getItem('dropzone_active_profile_type') as ProfileType | null)
+    const rawStoredType = preferredType || localStorage.getItem('dropzone_active_profile_type')
+    const storedType = isWebProfileType(rawStoredType) ? rawStoredType : null
 
     const meRes = await fetch('/api/me', {
       headers: authHeaders(accessToken, storedType),
@@ -708,16 +705,18 @@ export function DropZoneHome() {
     const meJson = await meRes.json()
     if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
 
-    const selectedAccount = meJson.account as DropZoneRow | null
-    const loadedAccounts = (meJson.accounts || [selectedAccount]).filter(Boolean) as DropZoneRow[]
+    const loadedAccounts = ((meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[])
+      .filter((item) => isWebProfileType(item.profile_type))
+    const selectedAccount = loadedAccounts.find((item) => item.profile_type === storedType) || loadedAccounts[0] || null
     if (!selectedAccount) {
       setAccounts([])
       setAccount(null)
       setRows([])
       saveRecentProfiles([])
+      localStorage.removeItem('dropzone_active_profile_type')
       return
     }
-    if (preferredType && selectedAccount?.profile_type !== preferredType) {
+    if (preferredType && selectedAccount.profile_type !== preferredType) {
       throw new Error(`Perfil de ${typeLabels[preferredType].toLowerCase()} ainda não existe nesta conta.`)
     }
 
@@ -779,15 +778,15 @@ export function DropZoneHome() {
   async function switchLinkedAccount(nextAccount: DropZoneRow) {
     if (nextAccount.id === account?.id) return
     setLoading(true)
-    setAccessLoadingType(nextAccount.profile_type as ProfileType)
+    setAccessLoadingType(nextAccount.profile_type as WebProfileType)
     setSwitchingAccountId(nextAccount.id)
     setError('')
     try {
       localStorage.setItem('dropzone_active_profile_type', String(nextAccount.profile_type || ''))
       setAccount(nextAccount)
       setRows(readPanelCache(nextAccount.id))
-      setMessage(`Abrindo ${typeLabels[nextAccount.profile_type as ProfileType].toLowerCase()}...`)
-      await loadMeAndRows(undefined, nextAccount.profile_type as ProfileType)
+      setMessage(`Abrindo ${typeLabels[nextAccount.profile_type as WebProfileType].toLowerCase()}...`)
+      await loadMeAndRows(undefined, nextAccount.profile_type as WebProfileType)
       setMessage('')
     } catch (err: any) {
       setError(err?.message || 'Não foi possível abrir esta área.')
@@ -798,15 +797,15 @@ export function DropZoneHome() {
     }
   }
 
-  function startLinkedProfile(preferredType?: ProfileType) {
+  function startLinkedProfile(preferredType?: WebProfileType) {
     const used = new Set(accounts.map((item) => item.profile_type))
     if (preferredType && used.has(preferredType)) {
       setError(`Este login já possui um perfil de ${typeLabels[preferredType].toLowerCase()}.`)
       return
     }
-    const available = preferredType || PROFILE_TYPES.find((type) => !used.has(type))
+    const available = preferredType || WEB_PROFILE_TYPES.find((type) => !used.has(type))
     if (!available) {
-      setError('Este login já possui um perfil de cada tipo disponível.')
+      setError('Este login já possui todas as áreas disponíveis no site.')
       return
     }
     clearRegisterForm(available)
@@ -1653,8 +1652,7 @@ export function DropZoneHome() {
                             profileType === 'equipe' ? 'Nome da equipe'
                               : profileType === 'jogador' ? 'Nick'
                                 : profileType === 'manager' ? 'Nome do manager'
-                                  : profileType === 'broadcast' ? 'Nome do broadcast'
-                                    : 'Nome da produtora'
+                                : 'Nome da produtora'
                           }>
                             <input value={name} onChange={(e) => updateName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
                           </Field>
@@ -1681,16 +1679,6 @@ export function DropZoneHome() {
                             </>
                           ) : null}
 
-                          {profileType === 'broadcast' ? (
-                            <Field label="Papel">
-                              <select value={registerData.papel || 'stream'} onChange={(e) => updateRegisterData('papel', e.target.value)}>
-                                <option value="stream">Stream</option>
-                                <option value="narrador">Narrador</option>
-                                <option value="comentarista">Comentarista</option>
-                                <option value="apresentador">Apresentador</option>
-                              </select>
-                            </Field>
-                          ) : null}
                         </div>
 
                         <LocationSearch value={registerData} onSelect={selectLocation} />
@@ -1905,10 +1893,6 @@ export function DropZoneHome() {
                 teamLines={teamLines}
                 championships={championships}
               />
-            ) : null}
-
-            {account.profile_type === 'broadcast' ? (
-              <BroadcastPanel account={account} accounts={accounts} />
             ) : null}
 
             {message ? <div className="message floating">{message}</div> : null}

@@ -8,7 +8,7 @@ import { OAUTH_RETURN_KEY } from '@/features/auth/SocialLogin'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 import { clientText, normalizeLocale } from '@/features/lili/i18n'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
-import type { DropZoneRow } from '@/lib/types'
+import { isWebProfileType, type DropZoneRow } from '@/lib/types'
 import {
   GLOBAL_LOCALE_EVENT,
   readGlobalLocale,
@@ -33,7 +33,6 @@ const PROFILE_LABELS: Record<string, string> = {
   equipe: 'Equipe',
   jogador: 'Jogador',
   manager: 'Manager',
-  broadcast: 'Broadcast',
 }
 
 function profileImage(account?: DropZoneRow | null) {
@@ -161,11 +160,15 @@ export default function LiliPage() {
         const payload = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(payload?.error || 'Não foi possível carregar os perfis.')
         if (cancelled) return
-        setAccount(payload.account || null)
-        setAccounts(payload.accounts || [])
-        if (payload.account) {
-          localStorage.setItem('dropzone_active_profile_type', String(payload.account.profile_type || ''))
-          localStorage.setItem('dropzone_recent_profiles', JSON.stringify(payload.accounts || [payload.account]))
+        const webAccounts = (Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : [])
+          .filter((item: DropZoneRow) => isWebProfileType(item.profile_type))
+        const preferredWeb = isWebProfileType(preferred) ? preferred : null
+        const webAccount = webAccounts.find((item: DropZoneRow) => item.profile_type === preferredWeb) || webAccounts[0] || null
+        setAccount(webAccount)
+        setAccounts(webAccounts)
+        if (webAccount) {
+          localStorage.setItem('dropzone_active_profile_type', String(webAccount.profile_type || ''))
+          localStorage.setItem('dropzone_recent_profiles', JSON.stringify(webAccounts))
         }
       } catch {
         if (!cancelled) {

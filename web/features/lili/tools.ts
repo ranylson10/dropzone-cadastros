@@ -1674,15 +1674,7 @@ export type CompetitiveOperationsOverview = {
   games: any[]
   teamResults: any[]
   playerResults: any[]
-  broadcastProfile: any | null
-  broadcastLinks: any[]
-  liveSessions: any[]
-  streamKeys: any[]
   issues: Array<{ level: 'critical' | 'attention' | 'info'; title: string; detail: string }>
-}
-
-function optionalRelationError(error: any) {
-  return Boolean(error && ['42P01', 'PGRST205', '42703'].includes(String(error.code || '')))
 }
 
 export async function getCompetitiveOperationsOverview(authUserId: string, championshipId: string): Promise<CompetitiveOperationsOverview> {
@@ -1697,39 +1689,22 @@ export async function getCompetitiveOperationsOverview(authUserId: string, champ
   if (championshipError) throw championshipError
   if (!championship) throw new Error('Campeonato não encontrado.')
 
-  const [gamesResult, teamResultsResult, playerResultsResult, broadcastResult, keysResult] = await Promise.all([
+  const [gamesResult, teamResultsResult, playerResultsResult] = await Promise.all([
     supabaseAdmin.from('campeonato_jogos').select('*').eq('campeonato_id', championshipId).order('created_at', { ascending: false }).limit(100),
     supabaseAdmin.from('campeonato_resultados_equipes').select('*').eq('campeonato_id', championshipId).order('updated_at', { ascending: false }).limit(500),
     supabaseAdmin.from('campeonato_resultados_jogadores').select('*').eq('campeonato_id', championshipId).order('updated_at', { ascending: false }).limit(1000),
-    supabaseAdmin.from('broadcasts').select('id,nome,username,papel,avatar_url,status').eq('auth_user_id', authUserId).order('created_at', { ascending: true }).limit(1).maybeSingle(),
-    supabaseAdmin.from('campeonato_stream_keys').select('id,label,ativo,created_at,updated_at').eq('campeonato_id', championshipId).order('created_at', { ascending: false }),
   ])
 
-  for (const result of [gamesResult, teamResultsResult, playerResultsResult, broadcastResult, keysResult]) {
-    if (result.error && !optionalRelationError(result.error)) throw result.error
+  for (const result of [gamesResult, teamResultsResult, playerResultsResult]) {
+    if (result.error) throw result.error
   }
 
-  const broadcastProfile = broadcastResult.error ? null : broadcastResult.data
-  let broadcastLinks: any[] = []
-  let liveSessions: any[] = []
-  if (broadcastProfile?.id) {
-    const [linksResult, sessionsResult] = await Promise.all([
-      supabaseAdmin.from('broadcast_campeonato_links').select('id,display_name,created_at,stream_key_id').eq('broadcast_id', broadcastProfile.id).eq('campeonato_id', championshipId),
-      supabaseAdmin.from('broadcast_live_sessions').select('id,nome,controller_token,obs_token,active_overlay_type,ativo,created_at,updated_at').eq('broadcast_id', broadcastProfile.id).eq('campeonato_id', championshipId).order('updated_at', { ascending: false }),
-    ])
-    if (linksResult.error && !optionalRelationError(linksResult.error)) throw linksResult.error
-    if (sessionsResult.error && !optionalRelationError(sessionsResult.error)) throw sessionsResult.error
-    broadcastLinks = linksResult.error ? [] : linksResult.data || []
-    liveSessions = sessionsResult.error ? [] : sessionsResult.data || []
-  }
-
-  const games = gamesResult.error ? [] : gamesResult.data || []
-  const teamResults = teamResultsResult.error ? [] : teamResultsResult.data || []
-  const playerResults = playerResultsResult.error ? [] : playerResultsResult.data || []
-  const streamKeys = keysResult.error ? [] : keysResult.data || []
+  const games = gamesResult.data || []
+  const teamResults = teamResultsResult.data || []
+  const playerResults = playerResultsResult.data || []
   const issues: CompetitiveOperationsOverview['issues'] = []
 
-  if (!games.length) issues.push({ level: 'attention', title: 'Nenhum jogo cadastrado', detail: 'Crie os jogos antes de abrir o pontuador ou preparar a transmissão.' })
+  if (!games.length) issues.push({ level: 'attention', title: 'Nenhum jogo cadastrado', detail: 'Crie os jogos antes de abrir o pontuador.' })
   const unscheduled = games.filter((game: any) => !(game.data || game.data_jogo || game.inicio_em || game.data_hora))
   if (unscheduled.length) issues.push({ level: 'attention', title: 'Jogos sem horário', detail: `${unscheduled.length} jogo(s) ainda não possuem data e horário definidos.` })
 
@@ -1754,21 +1729,13 @@ export async function getCompetitiveOperationsOverview(authUserId: string, champ
   })
   if (gamesWithoutResults.length) issues.push({ level: 'attention', title: 'Jogos finalizados sem resultados', detail: `${gamesWithoutResults.length} jogo(s) aparecem como finalizados, mas não possuem resultados de equipe.` })
 
-  if (!broadcastProfile) issues.push({ level: 'info', title: 'Perfil de transmissão não vinculado', detail: 'Use a área Stream para criar ou vincular um perfil de broadcast.' })
-  else if (!broadcastLinks.length) issues.push({ level: 'attention', title: 'Campeonato não vinculado ao Stream', detail: 'Envie ou aceite a chave do campeonato para disponibilizá-lo na mesa de transmissão.' })
-  if (broadcastProfile && broadcastLinks.length && !liveSessions.some((row: any) => row.ativo)) issues.push({ level: 'attention', title: 'Nenhuma sessão de live ativa', detail: 'Crie ou reative a mesa para gerar os links de controle e OBS.' })
-  if (!streamKeys.some((row: any) => row.ativo)) issues.push({ level: 'info', title: 'Chave Stream ausente', detail: 'O organizador pode gerar uma chave para vincular uma equipe de transmissão.' })
-  if (!issues.length) issues.push({ level: 'info', title: 'Operação competitiva organizada', detail: 'Não encontrei pendências básicas de pontuação, resultados ou transmissão.' })
+  if (!issues.length) issues.push({ level: 'info', title: 'Operação competitiva organizada', detail: 'Não encontrei pendências básicas de pontuação ou resultados.' })
 
   return {
     championship: { ...championship, permission } as ManagedChampionship,
     games,
     teamResults,
     playerResults,
-    broadcastProfile,
-    broadcastLinks,
-    liveSessions,
-    streamKeys,
     issues,
   }
 }
@@ -1782,16 +1749,15 @@ function gameDateLabel(game: any, locale: LiliLocale) {
 }
 
 export function competitiveSummaryCard(overview: CompetitiveOperationsOverview, locale: LiliLocale = 'pt-BR'): LiliCard {
-  const activeSessions = overview.liveSessions.filter((row: any) => row.ativo).length
   const critical = overview.issues.filter((issue) => issue.level === 'critical').length
   const attention = overview.issues.filter((issue) => issue.level === 'attention').length
   return {
     id: `competitive-summary-${overview.championship.id}`,
     kind: 'summary',
     title: overview.championship.nome,
-    subtitle: 'Pontuador, resultados e transmissão',
+    subtitle: 'Pontuação e resultados',
     imageUrl: overview.championship.logo_url || overview.championship.banner_url || null,
-    badges: [`${overview.games.length} jogo(s)`, `${overview.teamResults.length} resultado(s)`, `${activeSessions} live ativa(s)`],
+    badges: [`${overview.games.length} jogo(s)`, `${overview.teamResults.length} resultado(s)`],
     details: [
       { label: 'Resultados de equipes', value: String(overview.teamResults.length) },
       { label: 'Resultados de jogadores', value: String(overview.playerResults.length) },
@@ -1826,45 +1792,8 @@ export function competitiveAuditCards(overview: CompetitiveOperationsOverview): 
     title: issue.title,
     subtitle: issue.detail,
     badges: [issue.level === 'critical' ? 'Crítico' : issue.level === 'attention' ? 'Atenção' : 'Informação'],
-    actions: [{ id: `competitive-fix-${index}`, label: issue.title.toLowerCase().includes('transmiss') || issue.title.toLowerCase().includes('stream') || issue.title.toLowerCase().includes('live') ? 'Abrir transmissão' : 'Abrir campeonato', href: issue.title.toLowerCase().includes('transmiss') || issue.title.toLowerCase().includes('stream') || issue.title.toLowerCase().includes('live') ? `/campeonatos/${overview.championship.id}/stream` : `/campeonatos/${overview.championship.id}`, variant: issue.level === 'critical' ? 'primary' : 'secondary' }],
+    actions: [{ id: `competitive-fix-${index}`, label: 'Abrir campeonato', href: `/campeonatos/${overview.championship.id}`, variant: issue.level === 'critical' ? 'primary' : 'secondary' }],
   }))
 }
 
-export function broadcastOperationsCards(overview: CompetitiveOperationsOverview): LiliCard[] {
-  const cards: LiliCard[] = []
-  if (overview.broadcastProfile) {
-    cards.push({
-      id: `broadcast-profile-${overview.broadcastProfile.id}`,
-      kind: 'broadcast',
-      title: overview.broadcastProfile.nome || overview.broadcastProfile.username || 'Perfil Stream',
-      subtitle: overview.broadcastProfile.papel || 'broadcast',
-      imageUrl: overview.broadcastProfile.avatar_url || null,
-      badges: [overview.broadcastProfile.status || 'ativo', overview.broadcastLinks.length ? 'Campeonato vinculado' : 'Sem vínculo'],
-      details: [
-        { label: 'Sessões', value: String(overview.liveSessions.length) },
-        { label: 'Sessões ativas', value: String(overview.liveSessions.filter((row: any) => row.ativo).length) },
-        { label: 'Chaves ativas', value: String(overview.streamKeys.filter((row: any) => row.ativo).length) },
-      ],
-      actions: [{ id: 'broadcast-panel', label: 'Abrir mesa Stream', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'primary' }],
-    })
-  }
-  for (const session of overview.liveSessions.slice(0, 8)) {
-    cards.push({
-      id: `broadcast-session-${session.id}`,
-      kind: 'broadcast',
-      title: session.nome || 'Mesa de transmissão',
-      subtitle: session.ativo ? 'Sessão ativa' : 'Sessão encerrada',
-      badges: [session.ativo ? 'Ao vivo / pronta' : 'Inativa', session.active_overlay_type ? 'Overlay selecionado' : 'Sem overlay'],
-      details: [
-        { label: 'Controle', value: session.controller_token ? 'Link disponível' : 'Não gerado' },
-        { label: 'OBS', value: session.obs_token ? 'Browser Source disponível' : 'Não gerado' },
-        { label: 'Atualizada', value: session.updated_at ? new Date(session.updated_at).toLocaleString('pt-BR') : 'Sem registro' },
-      ],
-      actions: [
-        ...(session.controller_token ? [{ id: `broadcast-control-${session.id}`, label: 'Abrir controle', href: `/broadcast/control/${session.controller_token}`, variant: 'primary' as const }] : []),
-        ...(session.obs_token ? [{ id: `broadcast-obs-${session.id}`, label: 'Abrir fonte OBS', href: `/broadcast/obs/${session.obs_token}`, variant: 'secondary' as const }] : []),
-      ],
-    })
-  }
-  return cards
-}
+

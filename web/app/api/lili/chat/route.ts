@@ -57,7 +57,6 @@ import {
   competitiveSummaryCard,
   scoringGameCards,
   competitiveAuditCards,
-  broadcastOperationsCards,
 } from '@/features/lili/tools'
 import type { LiliAction, LiliChatResponse, LiliClientContext, LiliCurrency, LiliIntent, LiliLocale } from '@/features/lili/types'
 
@@ -438,11 +437,11 @@ function contextualHelpResponse(context: LiliClientContext, locale: LiliLocale):
     { id: 'ctx-games', label: 'Próximos jogos', message: 'Mostrar próximos jogos', intent: 'listar_proximos_jogos', variant: 'primary', context: withId() },
     { id: 'ctx-notifications', label: 'Notificações', message: 'Mostrar minhas notificações', intent: 'listar_notificacoes', variant: 'secondary', context: withId() }, ...common], context: withId(), source: 'system' }
 
-  if (type === 'pontuador' || type === 'transmissao') return { reply: 'Você está na operação competitiva. Posso ajudar com jogos, pontuação, auditoria, transmissão e OBS.', intent: 'ajuda_contextual', actions: [
+  if (type === 'pontuador') return { reply: 'Você está na operação competitiva. Posso ajudar com jogos, pontuação e auditoria de resultados.', intent: 'ajuda_contextual', actions: [
     { id: 'ctx-competitive', label: 'Central competitiva', message: 'Abrir central competitiva', intent: 'abrir_central_competitiva', variant: 'primary', context: withId(id ? { selectedChampionshipId: id } : {}) },
     { id: 'ctx-scoring', label: 'Jogos para pontuar', message: 'Mostrar jogos para pontuar', intent: 'listar_jogos_pontuacao', variant: 'primary', context: withId(id ? { selectedChampionshipId: id } : {}) },
     { id: 'ctx-results-audit', label: 'Auditar resultados', message: 'Auditar resultados', intent: 'auditar_resultados_campeonato', variant: 'secondary', context: withId(id ? { selectedChampionshipId: id } : {}) },
-    { id: 'ctx-broadcast', label: 'Transmissão e OBS', message: 'Abrir central de transmissão', intent: 'abrir_central_transmissao', variant: 'secondary', context: withId(id ? { selectedChampionshipId: id } : {}) }, ...common], context: withId(), source: 'system' }
+    ...common], context: withId(), source: 'system' }
 
   return { reply: 'Posso orientar você com base na área do sistema que estava acessando.', intent: 'ajuda_contextual', actions: menuActions(locale), context: withId(), source: 'system' }
 }
@@ -630,7 +629,7 @@ export async function POST(req: NextRequest) {
             { id: 'services-invite', label: locale === 'en' ? 'Invite or token' : locale === 'es' ? 'Invitación o token' : 'Convite ou token', message: 'Tenho um convite ou token', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
             { id: 'services-wallet', label: locale === 'en' ? 'Wallet and withdrawals' : locale === 'es' ? 'Cartera y retiros' : 'Carteira e saques', message: 'Abrir central da carteira', intent: 'abrir_central_carteira', variant: 'secondary', context: { locale } },
             { id: 'services-sellers', label: locale === 'en' ? 'Sales and sellers' : locale === 'es' ? 'Ventas y vendedores' : 'Vendas e vendedores', message: 'Abrir central de vendedores', intent: 'abrir_central_vendedores', variant: 'secondary', context: { locale } },
-            { id: 'services-competitive', label: locale === 'en' ? 'Scoring, results and broadcast' : locale === 'es' ? 'Puntuación, resultados y transmisión' : 'Pontuação, resultados e transmissão', message: 'Abrir central competitiva', intent: 'abrir_central_competitiva', variant: 'secondary', context: { locale } },
+            { id: 'services-competitive', label: locale === 'en' ? 'Scoring and results' : locale === 'es' ? 'Puntuación y resultados' : 'Pontuação e resultados', message: 'Abrir central competitiva', intent: 'abrir_central_competitiva', variant: 'secondary', context: { locale } },
             backToMainMenu(locale),
           ], context: { locale }, source: match.source,
         }
@@ -915,7 +914,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'abrir_central_competitiva': {
-        if (!user) { response = { reply: 'Entre na sua conta para acessar pontuação, resultados e transmissão.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
+        if (!user) { response = { reply: 'Entre na sua conta para acessar pontuação e resultados.', intent: match.intent, requiresAuth: true, context: { locale }, source: 'system' }; break }
         let championshipId = context.selectedChampionshipId ? String(context.selectedChampionshipId) : ''
         if (!championshipId) {
           const managed = await listManagedChampionships(user.id)
@@ -924,7 +923,7 @@ export async function POST(req: NextRequest) {
             break
           }
           response = {
-            reply: 'Escolha o campeonato para consultar pontuação, resultados e transmissão.',
+            reply: 'Escolha o campeonato para consultar pontuação e resultados.',
             intent: match.intent,
             cards: managedChampionshipCards(managed, locale),
             actions: [{ id: 'competitive-back-menu', label: 'Voltar ao início', message: 'Voltar ao início', intent: 'menu', variant: 'secondary', context: { locale } }],
@@ -938,13 +937,12 @@ export async function POST(req: NextRequest) {
         response = {
           reply: critical || attention
             ? `Central competitiva de ${overview.championship.nome}: encontrei ${critical} problema(s) crítico(s) e ${attention} ponto(s) de atenção.`
-            : `Central competitiva de ${overview.championship.nome} pronta. Pontuação, resultados e transmissão estão organizados.`,
+            : `Central competitiva de ${overview.championship.nome} pronta. Pontuação e resultados estão organizados.`,
           intent: match.intent,
           cards: [competitiveSummaryCard(overview, locale)],
           actions: [
             { id: `competitive-games-${championshipId}`, label: 'Jogos e pontuador', message: `Mostrar jogos para pontuar de ${overview.championship.nome}`, intent: 'listar_jogos_pontuacao', variant: 'primary', context: { locale, selectedChampionshipId: championshipId, currentFlow: 'competitive_center' } },
             { id: `competitive-audit-${championshipId}`, label: 'Auditar resultados', message: `Auditar resultados do campeonato ${overview.championship.nome}`, intent: 'auditar_resultados_campeonato', variant: critical ? 'primary' : 'secondary', context: { locale, selectedChampionshipId: championshipId, currentFlow: 'competitive_center' } },
-            { id: `competitive-broadcast-${championshipId}`, label: 'Transmissão e OBS', message: `Abrir transmissão e OBS de ${overview.championship.nome}`, intent: 'abrir_central_transmissao', variant: 'primary', context: { locale, selectedChampionshipId: championshipId, currentFlow: 'competitive_center' } },
             { id: `competitive-championship-${championshipId}`, label: 'Abrir campeonato', href: `/campeonatos/${championshipId}`, variant: 'secondary' },
             { id: 'competitive-other', label: 'Escolher outro campeonato', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'secondary', context: { locale } },
           ],
@@ -982,26 +980,6 @@ export async function POST(req: NextRequest) {
             { id: `audit-games-${overview.championship.id}`, label: 'Abrir jogos e pontuador', message: `Mostrar jogos para pontuar de ${overview.championship.nome}`, intent: 'listar_jogos_pontuacao', variant: 'primary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
             { id: `audit-refresh-${overview.championship.id}`, label: 'Auditar novamente', message: `Auditar resultados do campeonato ${overview.championship.nome}`, intent: 'auditar_resultados_campeonato', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
             { id: `audit-back-competitive-${overview.championship.id}`, label: 'Voltar à central competitiva', message: `Abrir central competitiva do campeonato ${overview.championship.nome}`, intent: 'abrir_central_competitiva', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
-          ],
-          context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' }, source: 'system',
-        }
-        break
-      }
-
-      case 'abrir_central_transmissao': {
-        if (!user || !context.selectedChampionshipId) throw new Error('Campeonato não informado.')
-        const overview = await getCompetitiveOperationsOverview(user.id, String(context.selectedChampionshipId))
-        const cards = broadcastOperationsCards(overview)
-        response = {
-          reply: cards.length
-            ? `Transmissão de ${overview.championship.nome}: encontrei ${overview.liveSessions.length} sessão(ões), sendo ${overview.liveSessions.filter((row: any) => row.ativo).length} ativa(s).`
-            : 'Não encontrei perfil ou sessão de transmissão vinculada a este campeonato.',
-          intent: match.intent,
-          cards: cards.length ? cards : [competitiveSummaryCard(overview, locale)],
-          actions: [
-            { id: `broadcast-config-${overview.championship.id}`, label: 'Configurar transmissão', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'primary' },
-            { id: 'broadcast-catalog', label: 'Catálogo de overlays', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'secondary' },
-            { id: `broadcast-back-${overview.championship.id}`, label: 'Voltar à central competitiva', message: `Abrir central competitiva do campeonato ${overview.championship.nome}`, intent: 'abrir_central_competitiva', variant: 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
           ],
           context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' }, source: 'system',
         }
@@ -1319,7 +1297,6 @@ export async function POST(req: NextRequest) {
             { id: `organizer-operation-${overview.championship.id}`, label: 'Jogos e inscrições', message: `Ver operação do campeonato ${overview.championship.nome}`, intent: 'ver_operacao_campeonato', variant: 'primary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
             { id: `organizer-audit-${overview.championship.id}`, label: 'Auditar campeonato', message: `Auditar campeonato ${overview.championship.nome}`, intent: 'auditar_campeonato', variant: critical || attention ? 'primary' : 'secondary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'organizer_center' } },
             { id: `organizer-rulebook-${overview.championship.id}`, label: 'Regulamento', href: `/campeonatos/${overview.championship.id}/regulamento`, variant: 'secondary' },
-            { id: `organizer-stream-${overview.championship.id}`, label: 'Transmissão', href: `/campeonatos/${overview.championship.id}/stream`, variant: 'secondary' },
             { id: `organizer-competitive-${overview.championship.id}`, label: 'Pontuação e resultados', message: `Abrir central competitiva do campeonato ${overview.championship.nome}`, intent: 'abrir_central_competitiva', variant: 'primary', context: { locale, selectedChampionshipId: overview.championship.id, currentFlow: 'competitive_center' } },
             { id: `organizer-open-page-${overview.championship.id}`, label: 'Abrir painel completo', href: `/campeonatos/${overview.championship.id}`, variant: 'secondary' },
             { id: 'organizer-back-list', label: 'Outros campeonatos', message: 'Mostrar campeonatos que administro', intent: 'listar_campeonatos_gerenciados', variant: 'secondary', context: { locale } },

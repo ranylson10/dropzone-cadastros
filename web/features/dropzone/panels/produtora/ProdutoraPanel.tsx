@@ -12,9 +12,7 @@ import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
 import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
 import { CampeonatoEstruturaTab } from '@/features/campeonatos/fases'
 import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
-import { CampeonatoExportTab } from '@/features/campeonatos/export'
 import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
-import { CampeonatoStreamTab } from '@/features/campeonatos/stream'
 import { CampeonatoCallsTab } from '@/features/campeonatos/calls'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, type ProducerTab } from './producer-tabs'
@@ -2391,9 +2389,6 @@ ${params.url}`
                 )
               })() : null}
 
-              {tab === 'stream' ? <CampeonatoStreamTab campeonatoId={selectedChamp.id} /> : null}
-
-              {tab === 'exportar' ? <CampeonatoExportTab campeonatoId={selectedChamp.id} /> : null}
 
               {tab === 'vendedores' ? (() => {
                 const pendingInvites = mgrInvites.filter((c) => c.status === 'pendente')

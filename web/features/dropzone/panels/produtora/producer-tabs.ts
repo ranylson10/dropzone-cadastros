@@ -10,8 +10,6 @@ export type ProducerTab =
   | 'regulamento'
   | 'estatisticas'
   | 'financeiro'
-  | 'stream'
-  | 'exportar'
 
 export const producerTabs: Array<{ id: ProducerTab; label: string }> = [
   { id: 'visao', label: 'Visão geral' },
@@ -25,6 +23,4 @@ export const producerTabs: Array<{ id: ProducerTab; label: string }> = [
   { id: 'regulamento', label: 'Regulamento' },
   { id: 'estatisticas', label: 'Pontuação' },
   { id: 'financeiro', label: 'Financeiro' },
-  { id: 'stream', label: 'Transmissão' },
-  { id: 'exportar', label: 'Exportação' },
 ]

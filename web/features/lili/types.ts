@@ -20,7 +20,6 @@ export type LiliIntent =
   | 'abrir_central_competitiva'
   | 'listar_jogos_pontuacao'
   | 'auditar_resultados_campeonato'
-  | 'abrir_central_transmissao'
   | 'listar_campeonatos_abertos'
   | 'buscar_campeonato'
   | 'abrir_campeonato'
@@ -130,7 +129,7 @@ export type LiliClientContext = {
   selectedFinancialReviewId?: string | null
   selectedFinancialReviewDecision?: 'manter_inscricao' | 'solicitar_regularizacao' | 'marcar_regularizada' | null
   currentPath?: string | null
-  currentEntityType?: 'campeonato' | 'equipe' | 'jogador' | 'manager' | 'produtora' | 'carteira' | 'agenda' | 'transmissao' | 'pontuador' | 'geral' | null
+  currentEntityType?: 'campeonato' | 'equipe' | 'jogador' | 'manager' | 'produtora' | 'carteira' | 'agenda' | 'pontuador' | 'geral' | null
   currentEntityId?: string | null
 }
 
@@ -147,7 +146,7 @@ export type LiliAction = {
 
 export type LiliCard = {
   id: string
-  kind: 'championship' | 'rulebook' | 'team' | 'registration' | 'agenda' | 'summary' | 'payment' | 'line' | 'slot' | 'notification' | 'wallet' | 'withdrawal' | 'seller' | 'game' | 'result' | 'broadcast'
+  kind: 'championship' | 'rulebook' | 'team' | 'registration' | 'agenda' | 'summary' | 'payment' | 'line' | 'slot' | 'notification' | 'wallet' | 'withdrawal' | 'seller' | 'game' | 'result'
   title: string
   subtitle?: string | null
   imageUrl?: string | null
