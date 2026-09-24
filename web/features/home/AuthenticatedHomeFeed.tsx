@@ -15,6 +15,7 @@ import {
   Ticket,
   Trophy,
   Users,
+  ShieldCheck,
   X,
 } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
@@ -30,7 +31,7 @@ type Props = {
   onOpenPanel: (target?: DropZoneRow) => void | Promise<void>
 }
 
-type GateKind = 'produtora' | 'equipe' | null
+type GateKind = 'equipe' | null
 
 type HomeNotification = {
   id: string
@@ -131,10 +132,7 @@ export function AuthenticatedHomeFeed({
   }, [])
 
   const createChampionship = () => {
-    if (!producer) {
-      setGate('produtora')
-      return
-    }
+    if (!producer) return
     const url = new URL(window.location.href)
     url.searchParams.set('acao', 'criar-campeonato')
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
@@ -222,7 +220,7 @@ export function AuthenticatedHomeFeed({
   const visibleTasks = homeTasks.slice(0, 3)
   const showOpportunities = !account || isPlayer || isTeam
 
-  const createProfileHref = (type: 'jogador' | 'equipe' | 'produtora' | 'manager', returnTo = '/?painel=1') =>
+  const createProfileHref = (type: 'jogador' | 'equipe' | 'manager', returnTo = '/?painel=1') =>
     `/?cadastro=${type}&returnTo=${encodeURIComponent(returnTo)}`
 
   return (
@@ -269,9 +267,10 @@ export function AuthenticatedHomeFeed({
           <a className="authenticated-home-onboarding-card" href={createProfileHref('equipe')}>
             <Users size={22}/><span><strong>Tenho uma equipe</strong><small>Monte elenco, crie lines e inscreva a equipe em campeonatos.</small></span><ChevronRight size={17}/>
           </a>
-          <a className="authenticated-home-onboarding-card" href={createProfileHref('produtora', '/?painel=1&acao=criar-campeonato')}>
-            <Trophy size={22}/><span><strong>Organizo campeonatos</strong><small>Cadastre sua produtora, crie competições e venda vagas.</small></span><ChevronRight size={17}/>
-          </a>
+        </div>
+        <div className="authenticated-home-private-producer" role="note">
+          <ShieldCheck size={18}/>
+          <span><strong>Produtoras são privadas</strong><small>Workspaces de organização são liberados somente pela administração para contas convidadas.</small></span>
         </div>
         <details className="authenticated-home-onboarding-more">
           <summary>Outras opções</summary>
@@ -368,12 +367,12 @@ export function AuthenticatedHomeFeed({
         <div className="authenticated-home-gate-backdrop" role="presentation" onMouseDown={() => setGate(null)}>
           <section className="authenticated-home-gate" role="dialog" aria-modal="true" aria-labelledby="authenticated-home-gate-title" onMouseDown={(event) => event.stopPropagation()}>
             <button type="button" className="authenticated-home-gate-close" onClick={() => setGate(null)} aria-label="Fechar"><X size={18}/></button>
-            <span className="authenticated-home-gate-icon">{gate === 'produtora' ? <Trophy size={25}/> : <Users size={25}/>}</span>
+            <span className="authenticated-home-gate-icon"><Users size={25}/></span>
             <small>ANTES DE CONTINUAR</small>
-            <h2 id="authenticated-home-gate-title">{gate === 'produtora' ? 'Cadastre sua produtora' : 'Cadastre sua equipe'}</h2>
-            <p>{gate === 'produtora' ? 'Para criar, vender vagas e administrar campeonatos, precisamos primeiro dos dados da sua produtora.' : 'Para gerenciar elenco, lines e inscrições, precisamos primeiro dos dados da sua equipe.'}</p>
+            <h2 id="authenticated-home-gate-title">Cadastre sua equipe</h2>
+            <p>Para gerenciar elenco, lines e inscrições, precisamos primeiro dos dados da sua equipe.</p>
             <div className="authenticated-home-gate-actions">
-              <button type="button" className="primary" onClick={() => { const target = gate === 'produtora' ? 'produtora' : 'equipe'; const returnTo = target === 'produtora' ? '/?painel=1&acao=criar-campeonato' : '/?painel=1'; window.location.assign(`/?cadastro=${target}&returnTo=${encodeURIComponent(returnTo)}`) }}>{gate === 'produtora' ? 'Cadastrar produtora' : 'Cadastrar equipe'} <ArrowRight size={16}/></button>
+              <button type="button" className="primary" onClick={() => { const returnTo = '/?painel=1'; window.location.assign(`/?cadastro=equipe&returnTo=${encodeURIComponent(returnTo)}`) }}>Cadastrar equipe <ArrowRight size={16}/></button>
               <button type="button" onClick={() => setGate(null)}>Agora não</button>
             </div>
           </section>

@@ -1468,3 +1468,233 @@ body .directory-rank-profile-link:hover{background:color-mix(in srgb,var(--ui-ac
   body .directory-rank-detail-advanced dl{grid-template-columns:1fr}
   body .directory-rank-detail-advanced dl>div:nth-child(odd),body .directory-rank-detail-advanced dl>div:nth-child(even){padding:9px 0;border-left:0}
 }
+
+/* Rodada 145 — DropZone privado + visual claro/brutalista. */
+:root {
+  color-scheme: light;
+  --ui-bg: #f1efe9;
+  --ui-surface: #ffffff;
+  --ui-surface-soft: #f7f5ef;
+  --ui-surface-raised: #ffffff;
+  --ui-text: #111113;
+  --ui-text-soft: #35343a;
+  --ui-text-muted: #716e69;
+  --ui-muted: #716e69;
+  --ui-line: #cbc7bd;
+  --ui-accent: #6f43ff;
+  --ui-accent-strong: #5c30ef;
+  --ui-primary: #6f43ff;
+  --ui-primary-light: #8b6bff;
+  --ui-gold: #6f43ff;
+  --ui-gold-light: #8b6bff;
+  --ui-success: #138a49;
+  --ui-warning: #d98900;
+  --ui-danger: #c64242;
+  --ui-radius-sm: 2px;
+  --ui-radius-md: 4px;
+  --ui-radius-lg: 6px;
+}
+
+body,
+.app-shell-main,
+.page-authenticated,
+.directory-shell,
+.public-page,
+.invite-page,
+.legal-page-shell {
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.page-authenticated .panel,
+.page-authenticated .card,
+.page-authenticated .list-item,
+.page-authenticated .ref-champ-item,
+.page-authenticated .event-row,
+.directory-list-row,
+.directory-empty,
+.invite-card,
+.legal-page-card {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  box-shadow: none;
+}
+
+.page-authenticated .button:not(.secondary),
+.invite-page .button:not(.secondary),
+.public-page .button:not(.secondary) {
+  border-color: #111113;
+  border-radius: var(--ui-radius-sm);
+  background: #111113;
+  color: #fff;
+}
+
+.page-authenticated .button:not(.secondary):hover,
+.invite-page .button:not(.secondary):hover,
+.public-page .button:not(.secondary):hover {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  color: #fff;
+}
+
+.page-authenticated .button.secondary,
+.page-authenticated .link-button,
+.page-authenticated .tab,
+.directory-toolbar button,
+.directory-profile-tabs button {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: #fff;
+  color: var(--ui-text);
+}
+
+.page-authenticated .tab.active,
+.directory-toolbar button.active,
+.directory-profile-tabs button.active {
+  border-color: #111113;
+  background: #111113;
+  color: #fff;
+}
+
+.page-authenticated input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+.page-authenticated select,
+.page-authenticated textarea,
+.invite-page input,
+.invite-page select,
+.invite-page textarea,
+.system-admin-page input,
+.system-admin-page select,
+.system-admin-page textarea {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  background: #fff;
+  color: var(--ui-text);
+  box-shadow: none;
+}
+
+.page-authenticated input:focus,
+.page-authenticated select:focus,
+.page-authenticated textarea:focus,
+.system-admin-page input:focus,
+.system-admin-page select:focus,
+.system-admin-page textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  outline-offset: 1px;
+  border-color: var(--ui-accent);
+}
+
+/* Central administrativa: blocos claros, borda firme, hierarquia forte. */
+body .system-admin-page {
+  min-height: 100dvh;
+  padding: 22px;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+body .system-admin-header {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 18px 20px;
+  border: 1px solid #111113;
+  border-left: 7px solid var(--ui-accent);
+  border-radius: 0;
+  background: #111113;
+  color: #fff;
+}
+body .system-admin-header h1 { color: #fff; font-size: clamp(24px, 3vw, 38px); letter-spacing: -.045em; text-transform: uppercase; }
+body .system-admin-header p { color: #a9a6a0; }
+body .system-admin-header button { border: 1px solid #36343a; border-radius: 2px; background: #1d1d20; color: #fff; }
+body .system-admin-tabs {
+  max-width: 1500px;
+  margin: 10px auto 0;
+  gap: 0;
+  padding: 0;
+  overflow-x: auto;
+  border: 0;
+  border-bottom: 1px solid #111113;
+  border-radius: 0;
+  background: transparent;
+}
+body .system-admin-tabs button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #5d5a56;
+  font-weight: 900;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+body .system-admin-tabs button.active { border-bottom-color: var(--ui-accent); background: transparent; color: #111113; }
+body .admin-metric-grid article,
+body .admin-infra-grid article,
+body .admin-section,
+body .admin-publication-grid article,
+body .admin-report-list article,
+body .admin-audit-list > div {
+  border: 1px solid var(--ui-line);
+  border-radius: 0;
+  background: #fff;
+  color: #111113;
+  box-shadow: none;
+}
+body .admin-metric-grid article { min-height: 108px; align-items: flex-start; }
+body .admin-metric-grid strong { color: #111113; font-size: 30px; letter-spacing: -.04em; }
+body .admin-metric-grid svg,
+body .admin-infra-grid svg { color: var(--ui-accent); }
+body .admin-section > header { border-bottom-color: var(--ui-line); }
+body .admin-section > header h2 { color: #111113; letter-spacing: -.025em; }
+body .admin-section > header p { color: var(--ui-accent); font-weight: 950; letter-spacing: .12em; }
+body .admin-table-wrap { border: 1px solid var(--ui-line); border-radius: 0; background: #fff; }
+body .admin-table-wrap table { color: #111113; }
+body .admin-table-wrap thead { background: #111113; color: #fff; }
+body .admin-table-wrap th { color: #fff; }
+body .admin-table-wrap td { border-color: #dedbd3; }
+body .admin-row-actions button { border: 1px solid #111113; border-radius: 1px; background: #111113; color: #fff; }
+body .admin-row-actions button:hover { border-color: var(--ui-accent); background: var(--ui-accent); }
+body .admin-row-actions button.danger { border-color: #c64242; background: #fff; color: #a72525; }
+body .admin-feedback { border-radius: 0; background: #fff; color: #333; }
+
+.admin-private-badge,
+.admin-workspace-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  padding: 6px 8px;
+  border: 1px solid #111113;
+  border-radius: 0;
+  background: #fff;
+  color: #111113;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.admin-private-model {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid #111113;
+  border-left: 6px solid var(--ui-accent);
+  background: #f7f5ef;
+}
+.admin-private-model > span { display: grid; width: 44px; height: 44px; place-items: center; background: #111113; color: #fff; }
+.admin-private-model strong { display: block; margin-bottom: 4px; color: #111113; font-size: 14px; text-transform: uppercase; }
+.admin-private-model p { max-width: 840px; margin: 0; color: #625f5a; font-size: 12px; line-height: 1.55; }
+
+@media (max-width: 760px) {
+  body .system-admin-page { padding: 10px 10px 90px; }
+  body .system-admin-header { align-items: flex-start; padding: 14px; }
+  body .system-admin-header h1 { font-size: 24px; }
+  body .system-admin-tabs { margin-top: 8px; }
+  body .system-admin-tabs button { min-width: max-content; padding-inline: 12px; font-size: 9px; }
+  .admin-private-model { grid-template-columns: 36px minmax(0, 1fr); padding: 12px; }
+  .admin-private-model > span { width: 36px; height: 36px; }
+}

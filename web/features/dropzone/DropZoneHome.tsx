@@ -120,6 +120,7 @@ function parseProfileType(value: string): WebProfileType | null {
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
 const PLAYER_INVITE_TYPES = new Set(['convite_jogador_campeonato', 'convite_jogador_equipe', 'player_invite'])
 const PANEL_CACHE_TTL_MS = 5 * 60 * 1000
+const SELF_SERVICE_PROFILE_TYPES: WebProfileType[] = ['jogador', 'equipe', 'manager']
 
 type PanelSnapshot = {
   account: DropZoneRow
@@ -131,7 +132,7 @@ type PanelSnapshot = {
 export function DropZoneHome() {
   const [mode, setMode] = useState<AuthMode>('entrar')
   const [authIdentity, setAuthIdentity] = useState<{ id: string; email: string; name: string; username: string; avatar_url: string } | null>(null)
-  const [profileType, setProfileType] = useState<WebProfileType>('produtora')
+  const [profileType, setProfileType] = useState<WebProfileType>('jogador')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -334,9 +335,14 @@ export function DropZoneHome() {
         const requestedActiveProfile = parseProfileType(String(params.get('perfil') || ''))
         // O retorno do login social só aceita áreas do produto Web. Perfis técnicos
         // legados não podem ser criados nem ativados pela experiência principal.
-        const forcedProfileType = parseProfileType(requestedRegister) || parseProfileType(requestedLogin)
+        const requestedRegisterType = parseProfileType(requestedRegister)
+        const selfServiceRegisterType = requestedRegisterType === 'produtora' ? null : requestedRegisterType
+        if (requestedRegisterType === 'produtora') {
+          setError('Produtoras são criadas somente por convite da administração do DropZone.')
+        }
+        const forcedProfileType = selfServiceRegisterType || parseProfileType(requestedLogin)
         const forcedType = Boolean(forcedProfileType)
-        const wantsCreate = Boolean(forcedProfileType && requestedRegister === forcedProfileType)
+        const wantsCreate = Boolean(selfServiceRegisterType && requestedRegister === selfServiceRegisterType)
         const wantsNewAccount = params.get('nova_conta') === '1'
         const wantsSwitchAccount = params.get('trocar_conta') === '1'
 
@@ -413,6 +419,12 @@ export function DropZoneHome() {
             // abre o formulario de criacao em vez de mandar de volta sem perfil.
             const availableAccounts = await loadAccountsOnly(session.access_token).catch(() => [] as DropZoneRow[])
             const existing = availableAccounts.find((item) => item.profile_type === forcedProfileType)
+
+            if (forcedProfileType === 'produtora' && !existing) {
+              setError('Esta conta ainda não possui uma produtora. Novos workspaces são liberados somente por convite da administração do DropZone.')
+              await loadMeAndRows(session.access_token).catch(() => undefined)
+              return
+            }
 
             if (existing && !wantsCreate) {
               try {
@@ -803,7 +815,11 @@ export function DropZoneHome() {
       setError(`Este login já possui um perfil de ${typeLabels[preferredType].toLowerCase()}.`)
       return
     }
-    const available = preferredType || WEB_PROFILE_TYPES.find((type) => !used.has(type))
+    if (preferredType === 'produtora') {
+      setError('Produtoras são criadas somente por convite da administração do DropZone.')
+      return
+    }
+    const available = preferredType || SELF_SERVICE_PROFILE_TYPES.find((type) => !used.has(type))
     if (!available) {
       setError('Este login já possui todas as áreas disponíveis no site.')
       return

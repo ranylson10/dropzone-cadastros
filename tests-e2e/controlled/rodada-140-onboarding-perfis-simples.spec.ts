@@ -43,14 +43,15 @@ test.describe('Rodada 140 — onboarding e perfis simples', () => {
     expect(styles).toContain('.login-account-name-fields-simple')
   })
 
-  test('conta sem perfil recebe escolhas claras de jogador, equipe e produtora', () => {
+  test('conta sem perfil recebe escolhas claras de jogador e equipe; produtora é privada', () => {
     expect(home).toContain('Sua conta está pronta')
     expect(home).toContain('Sou jogador')
     expect(home).toContain('Tenho uma equipe')
-    expect(home).toContain('Organizo campeonatos')
+    expect(home).toContain('Produtoras são privadas')
     expect(home).toContain("createProfileHref('jogador')")
     expect(home).toContain("createProfileHref('equipe')")
-    expect(home).toContain("createProfileHref('produtora'")
+    expect(home).not.toContain('Organizo campeonatos')
+    expect(home).not.toContain("createProfileHref('produtora'")
   })
 
   test('afiliado fica como opção secundária e explorar continua possível sem perfil', () => {

@@ -64,6 +64,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const profileType = assertWebProfileType(body.profile_type)
+    if (profileType === 'produtora') throw new Error('Produtoras são criadas somente por convite da administração do DropZone.')
     const username = assertUsername(body.username)
     const name = cleanText(body.name)
     const mediaUrl = cleanText(body.media_url) || null
@@ -172,11 +173,6 @@ export async function POST(req: Request) {
     }
 
     if (profileType !== 'jogador' || table !== 'jogadores') payload.public_id_prefix = TYPE_PREFIX[profileType]
-    if (profileType === 'produtora') {
-      payload.logo_url = mediaUrl
-      // Nova produtora aguarda liberação do admin do sistema (SQL: aprovacao_status)
-      payload.aprovacao_status = 'pendente'
-    }
     if (profileType === 'equipe') {
       payload.logo_url = mediaUrl
       payload.tag = cleanText(details.tag).toUpperCase()

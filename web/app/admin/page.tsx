@@ -5,9 +5,11 @@ import {
   AlertTriangle,
   Ban,
   BarChart3,
+  Building2,
   CheckCircle2,
   Database,
   HardDrive,
+  LockKeyhole,
   RefreshCw,
   ShieldCheck,
   UserRoundCheck,
@@ -29,7 +31,7 @@ function money(centavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((centavos || 0) / 100)
 }
 
-type Tab = 'overview' | 'aprovacoes' | 'precos' | 'saques' | 'accounts' | 'reports' | 'audit'
+type Tab = 'overview' | 'produtoras' | 'aprovacoes' | 'precos' | 'saques' | 'accounts' | 'reports' | 'audit'
 
 export default function AdminPage() {
   const [data, setData] = useState<any>(null)
@@ -118,6 +120,11 @@ export default function AdminPage() {
         `${item.nome} ${item.username} ${item.tipo} ${item.status}`.toLowerCase().includes(search.toLowerCase()),
       ),
     [data, search],
+  )
+
+  const producerAccounts = useMemo(
+    () => (data?.accounts || []).filter((item: any) => item.tipo === 'produtora'),
+    [data],
   )
 
   async function moderate(item: any, action: 'suspender' | 'banir' | 'restaurar') {
@@ -281,7 +288,7 @@ export default function AdminPage() {
           <img src="/dropzone-icon.png" alt="" />
           <span>
             <p>DropZone</p>
-            <h1>Administração do sistema</h1>
+            <h1>Central DropZone</h1>
           </span>
         </div>
         <button type="button" onClick={() => void load()}>
@@ -293,7 +300,8 @@ export default function AdminPage() {
         {(
           [
             ['overview', 'Visão geral'],
-            ['aprovacoes', 'Aprovações'],
+            ['produtoras', 'Produtoras'],
+            ['aprovacoes', 'Publicações'],
             ['precos', 'Preços'],
             ['saques', 'Saques'],
             ['accounts', 'Contas'],
@@ -403,12 +411,47 @@ export default function AdminPage() {
         </>
       ) : null}
 
+      {tab === 'produtoras' ? (
+        <section className="admin-section admin-producers-section">
+          <header>
+            <div>
+              <p>ACESSO PRIVADO</p>
+              <h2>Produtoras autorizadas</h2>
+            </div>
+            <span className="admin-private-badge"><LockKeyhole size={14} /> Somente por convite</span>
+          </header>
+          <div className="admin-private-model">
+            <span><Building2 size={22} /></span>
+            <div>
+              <strong>Criação fechada pela administração</strong>
+              <p>Nenhum usuário cria produtora pelo cadastro público. Novos workspaces entram somente por convite enviado pela Central DropZone para um e-mail já cadastrado.</p>
+            </div>
+          </div>
+          <div className="admin-table-wrap">
+            <table>
+              <thead><tr><th>Produtora</th><th>Status</th><th>Criada em</th><th>Modelo</th></tr></thead>
+              <tbody>
+                {producerAccounts.map((item: any) => (
+                  <tr key={item.id}>
+                    <td><strong>{item.nome}</strong><small>@{item.username || '-'}</small></td>
+                    <td><span className={`admin-status ${item.status}`}>{item.status}</span></td>
+                    <td>{new Date(item.created_at).toLocaleDateString('pt-BR')}</td>
+                    <td><span className="admin-workspace-label">Workspace privado</span></td>
+                  </tr>
+                ))}
+                {!producerAccounts.length ? <tr><td colSpan={4}><span className="empty">Nenhuma produtora cadastrada.</span></td></tr> : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
       {tab === 'aprovacoes' ? (
         <section className="admin-section">
           <header>
             <div>
-              <p>Gate de publicação</p>
-              <h2>Aprovar produtoras e campeonatos</h2>
+              <p>GATE DE PUBLICAÇÃO</p>
+              <h2>Campeonatos e cadastros legados</h2>
             </div>
             <select value={aprovFilter} onChange={(e) => setAprovFilter(e.target.value)}>
               <option value="pendente">Pendentes</option>
@@ -422,7 +465,7 @@ export default function AdminPage() {
             </div>
           ) : null}
 
-          <h3>Produtoras ({(aprovacoes?.produtoras || []).length})</h3>
+          <h3>Produtoras legadas pendentes ({(aprovacoes?.produtoras || []).length})</h3>
           <div className="admin-publication-grid">
             {(aprovacoes?.produtoras || []).map((p: any) => (
               <article key={p.id}>

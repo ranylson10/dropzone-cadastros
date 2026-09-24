@@ -977,3 +977,159 @@
   .app-mobile-quick-list > a > span:last-child { color:var(--ui-muted,#918c84);font-size:20px; }
   .app-mobile-quick-action-icon { display:grid;width:40px;height:40px;place-items:center;border-radius:9px;background:var(--ui-surface-soft,#202125);color:var(--ui-accent-strong,#dfcf85); }
 }
+
+/* Rodada 145 — navegação desktop em sidebar; mobile preserva dock inferior. */
+@media (min-width: 901px) {
+  .app-header:has(+ .app-shell-main.page-authenticated) {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 140;
+    width: 232px;
+    height: 100dvh;
+    border-right: 1px solid #25252a;
+    background: #0c0c0e;
+    color: #fff;
+  }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-header-inner {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 18px 14px 14px;
+  }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand {
+    min-height: 58px;
+    padding: 0 8px 16px;
+    border-bottom: 1px solid #28282d;
+    color: #fff;
+  }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand-copy strong,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand-copy strong span:last-child { color: #fff; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand-copy strong span:first-child { color: #8b6bff; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand-copy small { color: #77747d; }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav {
+    display: grid;
+    align-content: start;
+    justify-content: stretch;
+    gap: 4px;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav > a,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav .app-nav-parent {
+    min-height: 43px;
+    justify-content: flex-start;
+    padding: 0 12px;
+    border-radius: 2px;
+    color: #b8b5bd;
+    font-size: 10px;
+    letter-spacing: .055em;
+  }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav > a::after,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav .app-nav-parent::after { display: none; }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav > a:hover,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav .app-nav-parent:hover { background: #1b1a1f; color: #fff; }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav > a.active,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav .app-nav-parent.active {
+    background: #6f43ff;
+    color: #fff;
+  }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-dropdown { display: block; width: 100%; height: auto; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-submenu {
+    top: 0;
+    left: calc(100% + 10px);
+    min-width: 220px;
+    border: 1px solid #29282e;
+    border-radius: 2px;
+    background: #111114;
+    transform: translateY(4px);
+  }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-dropdown:hover .app-nav-submenu,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-dropdown:focus-within .app-nav-submenu { transform: translateY(0); }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-submenu a { border-radius: 1px; color: #c6c3cb; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-submenu a:hover { background: #25242b; color: #fff; }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-global-language { margin-top: auto; padding-top: 10px; border-top: 1px solid #28282d; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-global-language-trigger,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-wallet-chip,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-admin-chip,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-trigger,
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile .notif-bell-trigger {
+    border-radius: 2px;
+    color: #c6c3cb;
+  }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    justify-content: stretch;
+    gap: 5px;
+    width: 100%;
+    height: auto;
+  }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-wallet-chip { grid-column: 1 / -1; justify-content: flex-start; min-height: 36px; padding: 0 10px; background: #17171b; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-admin-chip { min-height: 34px; justify-content: center; background: #17171b; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile .notif-bell { justify-self: start; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-trigger {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    min-height: 54px;
+    justify-content: flex-start;
+    padding: 7px;
+    border-top: 1px solid #28282d;
+  }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-trigger:hover { background: #17171b; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-copy strong { color: #fff; }
+  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-copy small { color: #817e86 !important; }
+
+  .app-header:has(+ .app-shell-main.page-authenticated) + .app-shell-main.page-authenticated {
+    min-height: 100dvh;
+    margin-left: 232px;
+    background: #f1efe9;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-header { background: #0c0c0e; color: #fff; }
+  .app-header-inner { width: calc(100% - 18px); }
+  .app-brand-copy strong,
+  .app-brand-copy strong span:last-child { color: #fff; }
+  .app-brand-copy strong span:first-child { color: #8b6bff; }
+  .app-mobile-toggle,
+  .app-profile .notif-bell-trigger { color: #d7d4dc; }
+  .app-main-nav { background: #0c0c0e; }
+  .app-mobile-dock {
+    border-top: 1px solid #d6d1c8;
+    background: rgba(255,255,255,.97);
+    color: #343137;
+    box-shadow: 0 -6px 20px rgba(31,28,38,.08);
+  }
+  .app-mobile-dock a,
+  .app-mobile-dock button { color: #706c75; }
+  .app-mobile-dock a.active,
+  .app-mobile-dock button.active { background: transparent; color: #5c30ef; }
+  .app-mobile-quick-icon { border-radius: 8px; background: #111113; color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.16); }
+  .app-mobile-quick-trigger.active .app-mobile-quick-icon { background: #6f43ff; }
+  .app-mobile-quick-sheet { border: 1px solid #111113; border-radius: 4px; background: #fff; color: #111113; box-shadow: 0 18px 45px rgba(25,21,31,.18); }
+  .app-mobile-quick-head strong { color: #111113; }
+  .app-mobile-quick-head small { color: #6f43ff; }
+  .app-mobile-quick-head > button { border: 1px solid #d7d2c9; border-radius: 2px; background: #f4f1eb; color: #111113; }
+  .app-mobile-quick-list > a { border: 1px solid #d7d2c9; border-radius: 2px; background: #fff; }
+  .app-mobile-quick-list strong { color: #111113; }
+  .app-mobile-quick-list small { color: #716e69; }
+  .app-mobile-quick-action-icon { border-radius: 2px; background: #f0edf7; color: #6f43ff; }
+  .app-shell-main.page-authenticated { background: #f1efe9; }
+}

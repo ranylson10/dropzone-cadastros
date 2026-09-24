@@ -9,10 +9,10 @@ test.describe('Login publico — smoke e troca de conta', () => {
     await expect(page.getByRole('heading', { name: 'Campeonatos com vagas abertas' })).toBeVisible()
     await expect(page.getByRole('link', { name: /Entrar no sistema/i })).toBeVisible()
 
-    await page.getByRole('button', { name: /Criar campeonato/i }).click()
-    await expect(page.getByRole('dialog', { name: 'Cadastre sua produtora' })).toBeVisible()
-    await page.getByRole('button', { name: /Cadastrar produtora/i }).click()
-    await expect(page.getByRole('dialog', { name: 'Cadastrar produtora' })).toContainText('Entre com sua conta')
+    await expect(page.getByText('Produtoras são privadas')).toBeVisible()
+    await expect(page.getByText(/Workspaces de organização são liberados somente pela administração/i)).toBeVisible()
+    await expect(page.getByText('Organizo campeonatos')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Criar campeonato/i })).toHaveCount(0)
   })
 
   test('pagina de login abre, switch limpa fluxo e callback sem sessao mostra acao de entrada', async ({ page }) => {

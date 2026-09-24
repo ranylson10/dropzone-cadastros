@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const purpose = clean(body.purpose)
     const profileType = purpose === 'register' ? assertWebProfileType(body.profile_type) : null
+    if (purpose === 'register' && profileType === 'produtora') throw new Error('Produtoras são criadas somente por convite da administração do DropZone.')
 
     if (purpose === 'register') {
       const username = assertUsername(body.username)
