@@ -1637,17 +1637,8 @@ export function DropZoneHome() {
                       <small>Complete os dados necessários para continuar esta ação.</small>
                     </div>
 
-                    <div className="register-compact-grid">
-                      <UploadField
-                        label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo' : 'Foto'}
-                        value={mediaUrl}
-                        bucket={profileType}
-                        onChange={setMediaUrl}
-                        onUpload={uploadPublicFile}
-                      />
-
-                      <div className="register-main-fields">
-                        <div className="mini-grid tight-grid">
+                    <div className="register-main-fields">
+                      <div className="mini-grid tight-grid">
                           <Field label={
                             profileType === 'equipe' ? 'Nome da equipe'
                               : profileType === 'jogador' ? 'Nick'
@@ -1657,16 +1648,27 @@ export function DropZoneHome() {
                             <input value={name} onChange={(e) => updateName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
                           </Field>
 
+                          <Field label="@usuário deste perfil">
+                            <input
+                              value={username}
+                              onChange={(e) => setUsername(cleanUsername(e.target.value).replace(/[^a-z0-9._]/g, '').slice(0, 24))}
+                              placeholder={profileType === 'equipe' ? 'aloe.gaming' : profileType === 'jogador' ? 'six.ff' : profileType === 'produtora' ? 'sixblack' : 'six.afiliado'}
+                              minLength={3}
+                              maxLength={24}
+                              autoComplete="off"
+                            />
+                          </Field>
+
                           {profileType === 'equipe' ? (
                             <Field label="Tag">
-                              <input value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="6B" />
+                              <input value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="6B" required />
                             </Field>
                           ) : null}
 
                           {profileType === 'jogador' ? (
                             <>
                               <Field label="ID de jogo">
-                                <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" />
+                                <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" required />
                               </Field>
                               <Field label="Função">
                                 <select value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
@@ -1678,18 +1680,28 @@ export function DropZoneHome() {
                               </Field>
                             </>
                           ) : null}
-
-                        </div>
-
-                        <LocationSearch value={registerData} onSelect={selectLocation} />
                       </div>
                     </div>
 
+                    <details className="profile-onboarding-optional">
+                      <summary>Adicionar foto/logo e localização <span>Opcional</span></summary>
+                      <div className="profile-onboarding-optional-grid">
+                        <UploadField
+                          label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo' : 'Foto'}
+                          value={mediaUrl}
+                          bucket={profileType}
+                          onChange={setMediaUrl}
+                          onUpload={uploadPublicFile}
+                        />
+                        <LocationSearch value={registerData} onSelect={selectLocation} />
+                      </div>
+                    </details>
+
                     <div className="auth-actions-row">
-                      <button className="button" disabled={loading || !name.trim() || !username.trim()}>
+                      <button className="button" disabled={loading || !name.trim() || !username.trim() || (profileType === 'equipe' && !registerData.tag.trim()) || (profileType === 'jogador' && !registerData.id_jogo.trim())}>
                         {loading ? 'Salvando cadastro...' : `Concluir cadastro de ${typeLabels[profileType].toLowerCase()}`}
                       </button>
-                      <button type="button" className="button secondary" onClick={signOut}>Usar outra conta</button>
+                      <button type="button" className="button secondary" onClick={closeContextualRegistration}>Agora não</button>
                     </div>
                   </form>
                 )}

@@ -42,6 +42,16 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase()
 }
 
+function usernameSuggestion(value: string) {
+  return cleanUsername(
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9._]+/g, ''),
+  ).slice(0, 24)
+}
+
 function passwordIssue(password: string) {
   if (password.length < 8) return 'Use pelo menos 8 caracteres.'
   if (!/[a-z]/.test(password)) return 'Inclua pelo menos uma letra minúscula.'
@@ -616,6 +626,14 @@ export default function LoginPage() {
     setShowConfirmPassword(false)
   }
 
+  function updateDisplayName(value: string) {
+    const previousSuggestion = usernameSuggestion(displayName)
+    setDisplayName(value)
+    if (emailMode === 'criar' && (!accountUsername || accountUsername === previousSuggestion)) {
+      setAccountUsername(usernameSuggestion(value))
+    }
+  }
+
   async function changeAccount() {
     discardPendingImageUpload(accountAvatar)
     clearOAuthReturnState()
@@ -684,11 +702,11 @@ export default function LoginPage() {
 
             {stage === 'authenticate' ? (
               <div className="login-auth-step">
-                <span className="login-panel-step">PASSO 01</span>
+                <span className="login-panel-step">{emailMode === 'criar' ? 'NOVA CONTA' : emailMode === 'entrar' ? 'ACESSO' : 'SEGURANÇA'}</span>
                 <h2>{authTitle}</h2>
                 <p>
                   {emailMode === 'criar'
-                    ? 'Escolha seu @usuário único, nome de exibição, foto, e-mail e senha para criar sua conta completa.'
+                    ? 'Crie sua conta principal. Depois você escolhe se quer ser jogador, gerenciar uma equipe ou organizar campeonatos.'
                     : emailMode === 'confirmar-cadastro'
                       ? 'Digite abaixo o código de 6 dígitos enviado para seu e-mail.'
                       : emailMode === 'completar-conta'
@@ -702,8 +720,19 @@ export default function LoginPage() {
                             : 'Entre com seu e-mail e senha. Se preferir, o acesso com Google continua disponível como alternativa.'}
                 </p>
 
+                {emailMode === 'criar' ? (
+                  <>
+                    <div className="login-create-fast-track">
+                      <strong>Mais rápido</strong>
+                      <span>Use sua conta Google e pule e-mail, senha e confirmação.</span>
+                    </div>
+                    <SocialLogin profileType={params.profileType} returnTo={params.returnTo} />
+                    <div className="login-auth-divider"><span>ou crie com e-mail</span></div>
+                  </>
+                ) : null}
+
                 <form className="login-email-form" onSubmit={handleEmailAuth}>
-                  {emailMode === 'criar' || emailMode === 'completar-conta' ? (
+                  {emailMode === 'completar-conta' ? (
                     <div className="login-account-identity-fields">
                       <div className="login-account-avatar-field">
                         <UploadField
@@ -722,7 +751,7 @@ export default function LoginPage() {
                             autoComplete="name"
                             maxLength={60}
                             value={displayName}
-                            onChange={(event) => setDisplayName(event.target.value)}
+                            onChange={(event) => updateDisplayName(event.target.value)}
                             placeholder="Como devemos chamar você?"
                             required
                           />
@@ -745,6 +774,38 @@ export default function LoginPage() {
                           <small className="login-username-hint">3 a 24 caracteres. Use letras, números, ponto ou underline.</small>
                         </label>
                       </div>
+                    </div>
+                  ) : emailMode === 'criar' ? (
+                    <div className="login-account-name-fields login-account-name-fields-simple">
+                      <label className="login-email-field">
+                        <span>Como devemos chamar você?</span>
+                        <input
+                          type="text"
+                          autoComplete="name"
+                          maxLength={60}
+                          value={displayName}
+                          onChange={(event) => updateDisplayName(event.target.value)}
+                          placeholder="Seu nome ou apelido"
+                          required
+                        />
+                      </label>
+                      <label className="login-email-field">
+                        <span>Seu @ no DropZone</span>
+                        <span className="login-username-control">
+                          <b>@</b>
+                          <input
+                            type="text"
+                            autoComplete="username"
+                            minLength={3}
+                            maxLength={24}
+                            value={accountUsername}
+                            onChange={(event) => setAccountUsername(cleanUsername(event.target.value).replace(/[^a-z0-9._]/g, ''))}
+                            placeholder="six"
+                            required
+                          />
+                        </span>
+                        <small className="login-username-hint">Sugerimos automaticamente pelo seu nome. Você pode alterar.</small>
+                      </label>
                     </div>
                   ) : null}
 

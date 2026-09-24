@@ -7,6 +7,7 @@ import {
   Check,
   ChevronRight,
   CirclePlus,
+  Gamepad2,
   KeyRound,
   LayoutDashboard,
   Loader2,
@@ -221,21 +222,24 @@ export function AuthenticatedHomeFeed({
   const visibleTasks = homeTasks.slice(0, 3)
   const showOpportunities = !account || isPlayer || isTeam
 
+  const createProfileHref = (type: 'jogador' | 'equipe' | 'produtora' | 'manager', returnTo = '/?painel=1') =>
+    `/?cadastro=${type}&returnTo=${encodeURIComponent(returnTo)}`
+
   return (
     <div className="authenticated-home">
-      <section className="authenticated-home-focus" aria-label="Resumo da conta">
+      <section className={`authenticated-home-focus ${account ? '' : 'authenticated-home-focus-onboarding'}`} aria-label="Resumo da conta">
         <div className="authenticated-home-focus-copy">
           <span className="authenticated-home-kicker">INÍCIO</span>
           <div className="authenticated-home-focus-title">
             <div>
-              <h1>{greeting}, {account?.name || account?.username || 'bem-vindo'}</h1>
-              <p>{primaryTask ? 'Você tem algo que merece atenção agora.' : 'Tudo certo por aqui. Escolha o que deseja fazer.'}</p>
+              <h1>{account ? `${greeting}, ${account.name || account.username}` : 'Sua conta está pronta'}</h1>
+              <p>{account ? (primaryTask ? 'Você tem algo que merece atenção agora.' : 'Tudo certo por aqui. Escolha o que deseja fazer.') : 'Agora escolha apenas a área que você realmente precisa. Você pode criar outras depois.'}</p>
             </div>
             {account ? <span className="authenticated-home-profile-chip">{profileLabel}</span> : null}
           </div>
         </div>
 
-        <div className="authenticated-home-focus-status">
+        {account ? <div className="authenticated-home-focus-status">
           <span className={`authenticated-home-focus-count ${homeTasks.length ? 'has-items' : 'is-clear'}`}>
             <strong>{priorityLoading ? '…' : homeTasks.length}</strong>
             <small>{homeTasks.length === 1 ? 'ação pendente' : 'ações pendentes'}</small>
@@ -251,10 +255,29 @@ export function AuthenticatedHomeFeed({
               <ChevronRight size={18} />
             </a>
           )}
-        </div>
+        </div> : <a className="authenticated-home-focus-explore" href="/campeonatos?vagas=1"><span><small>AINDA NÃO QUERO CADASTRAR PERFIL</small><strong>Explorar campeonatos</strong></span><ChevronRight size={18}/></a>}
       </section>
 
-      <section className="authenticated-home-section authenticated-home-quick-section">
+      {!account ? <section className="authenticated-home-section authenticated-home-onboarding">
+        <div className="authenticated-home-section-head compact">
+          <div><span>COMECE POR AQUI</span><h2>O que você quer fazer?</h2></div>
+        </div>
+        <div className="authenticated-home-onboarding-grid">
+          <a className="authenticated-home-onboarding-card primary" href={createProfileHref('jogador')}>
+            <Gamepad2 size={22}/><span><strong>Sou jogador</strong><small>Crie seu perfil, entre em equipes e acompanhe sua agenda.</small></span><ChevronRight size={17}/>
+          </a>
+          <a className="authenticated-home-onboarding-card" href={createProfileHref('equipe')}>
+            <Users size={22}/><span><strong>Tenho uma equipe</strong><small>Monte elenco, crie lines e inscreva a equipe em campeonatos.</small></span><ChevronRight size={17}/>
+          </a>
+          <a className="authenticated-home-onboarding-card" href={createProfileHref('produtora', '/?painel=1&acao=criar-campeonato')}>
+            <Trophy size={22}/><span><strong>Organizo campeonatos</strong><small>Cadastre sua produtora, crie competições e venda vagas.</small></span><ChevronRight size={17}/>
+          </a>
+        </div>
+        <details className="authenticated-home-onboarding-more">
+          <summary>Outras opções</summary>
+          <a href={createProfileHref('manager')}><Store size={16}/><span><strong>Sou afiliado</strong><small>Divulgue campeonatos e acompanhe vendas.</small></span><ChevronRight size={15}/></a>
+        </details>
+      </section> : <section className="authenticated-home-section authenticated-home-quick-section">
         <div className="authenticated-home-section-head compact">
           <div><span>ACESSO RÁPIDO</span><h2>O que você quer fazer?</h2></div>
         </div>
@@ -279,12 +302,9 @@ export function AuthenticatedHomeFeed({
             <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><LayoutDashboard size={20}/><span><strong>Meu painel</strong><small>Abrir área principal</small></span><ChevronRight size={16}/></button>
             <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Compromissos</small></span><ChevronRight size={16}/></a>
             <a className="authenticated-home-quick" href="/campeonatos"><Trophy size={20}/><span><strong>Competições</strong><small>Ver campeonatos</small></span><ChevronRight size={16}/></a>
-          </> : <>
-            <a className="authenticated-home-quick primary" href="/campeonatos?vagas=1"><Ticket size={20}/><span><strong>Encontrar campeonato</strong><small>Vagas abertas</small></span><ChevronRight size={16}/></a>
-            <button type="button" className="authenticated-home-quick" onClick={createChampionship}><CirclePlus size={20}/><span><strong>Criar campeonato</strong><small>Começar evento</small></span><ChevronRight size={16}/></button>
-          </>}
+          </> : null}
         </div>
-      </section>
+      </section>}
 
       {account ? <section className="authenticated-home-section authenticated-home-command-center">
         <div className="authenticated-home-section-head compact">
