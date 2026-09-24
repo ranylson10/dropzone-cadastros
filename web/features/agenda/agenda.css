@@ -1513,3 +1513,69 @@ body .agenda-page .agenda-root:not(.is-compact) .agenda-sequence-event:hover{
     padding:9px 10px;
   }
 }
+
+/* Rodada 142 — a agenda pessoal começa pelo que vem a seguir. */
+.agenda-next {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--ui-line, rgba(255,255,255,.1));
+  border-radius: var(--ui-radius-md, 10px);
+  background: var(--ui-surface, #141518);
+}
+
+.agenda-next > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--ui-line, rgba(255,255,255,.1));
+}
+
+.agenda-next > header .eyebrow { margin: 0; }
+.agenda-next > header h3 { margin: 3px 0 0; color: var(--ui-text, #f5f3ed); font-size: 17px; }
+.agenda-next > header > small { color: var(--ui-text-muted, #aaa59b); font-size: 10px; }
+
+.agenda-next-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.agenda-next-item {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 0;
+  border-right: 1px solid var(--ui-line, rgba(255,255,255,.08));
+  border-bottom: 1px solid var(--ui-line, rgba(255,255,255,.08));
+  background: transparent;
+  color: var(--ui-text, #f5f3ed);
+  text-align: left;
+  cursor: pointer;
+}
+
+.agenda-next-item:hover { background: var(--ui-surface-raised, #1b1c20); }
+.agenda-next-date,
+.agenda-next-copy { display: grid; min-width: 0; }
+.agenda-next-date { gap: 2px; color: var(--ui-accent, #d8be56); }
+.agenda-next-date strong { font-size: 13px; }
+.agenda-next-date small { color: var(--ui-text-muted, #aaa59b); font-size: 10px; }
+.agenda-next-copy strong,
+.agenda-next-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-next-copy strong { font-size: 13px; }
+.agenda-next-copy small { margin-top: 3px; color: var(--ui-text-muted, #aaa59b); font-size: 10px; }
+.agenda-next-empty { grid-column: 1 / -1; margin: 0; padding: 16px; color: var(--ui-text-muted, #aaa59b); font-size: 12px; }
+
+@media (max-width: 900px) {
+  .agenda-next-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .agenda-next > header { align-items: flex-start; }
+  .agenda-next-list { grid-template-columns: 1fr; }
+  .agenda-next-item { border-right: 0; }
+}

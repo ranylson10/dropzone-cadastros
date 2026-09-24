@@ -169,13 +169,13 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
   // A agenda é uma única central de consulta. Datas oficiais vêm dos jogos;
   // não há mais calendário livre criado dentro de perfis ou pela página /agenda.
   const canCreate = canManage && props.scope === 'me'
-  const contextualMode = false
-  const load = useCallback(async () => {
+  const contextualMode = props.compact || props.scope !== 'me'
+  const load = useCallback(async (force = false) => {
     setLoading(true)
     setError('')
     const [result, directory] = await Promise.all([
-      fetchAgenda({ scope: props.scope, scopeId: props.scopeId, year, month }),
-      fetchAgenda({ scope: props.scope, scopeId: props.scopeId, year, month, all: true }),
+      fetchAgenda({ scope: props.scope, scopeId: props.scopeId, year, month, force }),
+      fetchAgenda({ scope: props.scope, scopeId: props.scopeId, year, month, all: true, force }),
     ])
     if (result.error) setError(result.error)
     setItems(result.items)
@@ -188,6 +188,21 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
 
   useEffect(() => {
     void load()
+  }, [load])
+
+  useEffect(() => {
+    const refresh = () => void load(true)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    const timer = window.setInterval(refresh, 60_000)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [load])
 
   function shiftMonth(delta: number) {
@@ -235,7 +250,9 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
 
   const eventMonths = useMemo(() => {
     const dates = new Map<string, AgendaItem[]>()
-    items
+    const sourceItems = contextualMode ? allItems : items
+    sourceItems
+      .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item.data))
       .slice()
       .sort((a, b) => a.data.localeCompare(b.data) || a.horario_inicio.localeCompare(b.horario_inicio))
       .forEach((item) => {
@@ -257,7 +274,15 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
       label: formatMonthGroup(key),
       dates: datesInMonth,
     }))
-  }, [items])
+  }, [allItems, contextualMode, items])
+
+  const upcomingItems = useMemo(() => {
+    const today = todayISO()
+    return [...new Map(allItems.map((item) => [item.id, item])).values()]
+      .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item.data) && item.data >= today)
+      .sort((a, b) => a.data.localeCompare(b.data) || a.horario_inicio.localeCompare(b.horario_inicio))
+      .slice(0, 6)
+  }, [allItems])
 
   function shiftSelectedDay(delta: number) {
     if (!selectedDay) return
@@ -409,7 +434,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
               <ChevronRight size={18} />
             </button>
           </div> : null}
-          <button type="button" className="button secondary" onClick={() => void load()} disabled={loading}>
+          <button type="button" className="button secondary" onClick={() => void load(true)} disabled={loading}>
             <RefreshCw size={15} /> Atualizar
           </button>
           {canCreate ? (
@@ -433,6 +458,34 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
       ) : null}
 
       {error ? <div className="agenda-error">{error}</div> : null}
+
+      {!contextualMode ? (
+        <section className="agenda-next" aria-label="Próximos compromissos">
+          <header>
+            <div>
+              <p className="eyebrow">Agora e depois</p>
+              <h3>Próximos compromissos</h3>
+            </div>
+            <small>Atualização automática</small>
+          </header>
+          <div className="agenda-next-list">
+            {upcomingItems.length ? upcomingItems.map((item) => (
+              <button key={item.id} type="button" className="agenda-next-item" onClick={() => jumpToEvent(item)}>
+                <span className="agenda-next-date">
+                  <strong>{item.data.slice(8, 10)}/{item.data.slice(5, 7)}</strong>
+                  <small>{item.horario_inicio.slice(0, 5)}</small>
+                </span>
+                <span className="agenda-next-copy">
+                  <strong>{item.titulo}</strong>
+                  <small>{item.meta.campeonato_nome || item.meta.equipe_nome || item.tipo}</small>
+                </span>
+              </button>
+            )) : (
+              <p className="agenda-next-empty">Nenhum compromisso futuro encontrado.</p>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <div className="agenda-content-grid">
       <div className={`agenda-sheet ${props.compact ? 'is-compact' : ''}`}>

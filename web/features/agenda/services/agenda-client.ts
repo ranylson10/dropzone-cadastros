@@ -27,13 +27,14 @@ export async function fetchAgenda(params: {
   from?: string
   to?: string
   all?: boolean
+  force?: boolean
 }): Promise<AgendaFetchResult> {
   const cacheKey = `${params.scope}:${params.scopeId || 'me'}:${params.all ? 'all' : params.from || `${params.year}-${params.month}`}:${params.to || ''}`
   const cached = agendaCache.get(cacheKey)
-  if (cached && cached.expiresAt > Date.now()) return cached.value
+  if (!params.force && cached && cached.expiresAt > Date.now()) return cached.value
 
   const pending = agendaPending.get(cacheKey)
-  if (pending) return pending
+  if (!params.force && pending) return pending
 
   const request = (async () => {
     const token = await sessionToken()

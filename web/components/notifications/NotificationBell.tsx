@@ -32,9 +32,10 @@ export function NotificationBell() {
   const [unseen, setUnseen] = useState(0)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState('')
+  const [realtimeState, setRealtimeState] = useState<'connecting' | 'live' | 'fallback'>('connecting')
   const ref = useRef<HTMLDivElement>(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     try {
       const { data } = await supabase.auth.getSession()
       const token = data.session?.access_token
@@ -43,7 +44,7 @@ export function NotificationBell() {
         setUnseen(0)
         return
       }
-      setLoading(true)
+      if (!options?.silent) setLoading(true)
       setError('')
       const res = await fetch('/api/notificacoes?limit=30', {
         headers: { Authorization: `Bearer ${token}` },
@@ -56,14 +57,57 @@ export function NotificationBell() {
     } catch (err: any) {
       setError(err?.message || 'Erro ao carregar correio.')
     } finally {
-      setLoading(false)
+      if (!options?.silent) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     void load()
-    const timer = window.setInterval(() => void load(), 45000)
-    return () => window.clearInterval(timer)
+    const refresh = () => void load({ silent: true })
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    const timer = window.setInterval(refresh, 90_000)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [load])
+
+  useEffect(() => {
+    let active = true
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    void (async () => {
+      const { data } = await supabase.auth.getSession()
+      const userId = data.session?.user.id
+      if (!active || !userId) {
+        if (active) setRealtimeState('fallback')
+        return
+      }
+
+      setRealtimeState('connecting')
+      channel = supabase
+        .channel(`user:${userId}:notifications`, { config: { private: true } })
+        .on('broadcast', { event: 'notification_changed' }, () => {
+          void load({ silent: true })
+        })
+        .subscribe((status) => {
+          if (!active) return
+          if (status === 'SUBSCRIBED') setRealtimeState('live')
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            setRealtimeState('fallback')
+          }
+        })
+    })()
+
+    return () => {
+      active = false
+      if (channel) void supabase.removeChannel(channel)
+    }
   }, [load])
 
   useEffect(() => {
@@ -221,7 +265,7 @@ export function NotificationBell() {
       <button
         type="button"
         className="notif-bell-trigger"
-        aria-label="Correio"
+        aria-label="Notificações"
         aria-expanded={open}
         onClick={() => void toggleInbox()}
       >
@@ -234,7 +278,13 @@ export function NotificationBell() {
           <header className="notif-inbox-head">
             <div>
               <strong>Notificações</strong>
-              <small>{unseen ? `${unseen} nova${unseen === 1 ? '' : 's'}` : 'Tudo visto'}</small>
+              <small className="notif-inbox-status">
+                {unseen ? `${unseen} nova${unseen === 1 ? '' : 's'}` : 'Tudo visto'}
+                <span aria-hidden="true">·</span>
+                <span className={realtimeState === 'live' ? 'is-live' : ''}>
+                  {realtimeState === 'live' ? 'Atualização instantânea' : 'Atualização automática'}
+                </span>
+              </small>
             </div>
             <div className="notif-inbox-head-actions">
               {items.some((item) => item.status === 'nao_lida' && !ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo)) ? (

@@ -87,7 +87,7 @@ test.describe('Rodada 138 — escopo do produto Web e separação do Engine', ()
     expect(exists('web/app/api/campeonatos/[id]/stream/data/route.ts')).toBeTruthy()
   })
 
-  test('frontend não captura banco em realtime nem dados brutos do SPEC diretamente', () => {
+  test('frontend não captura tabelas/SPEC diretamente; Broadcast de UX é permitido', () => {
     const dirs = ['web/app', 'web/components', 'web/features']
     const files: string[] = []
     const walk = (dir: string) => {
@@ -100,7 +100,8 @@ test.describe('Rodada 138 — escopo do produto Web e separação do Engine', ()
     dirs.forEach(walk)
     const source = files.map(read).join('\n')
 
-    expect(source).not.toContain('supabase.channel(')
+    // Broadcast privado pode ser usado para avisar a UI que algo mudou.
+    // O navegador continua proibido de assinar mudanças brutas de tabelas.
     expect(source).not.toContain("postgres_changes")
     expect(source).not.toContain('supabase.from(')
     expect(source).not.toContain('new WebSocket(')
