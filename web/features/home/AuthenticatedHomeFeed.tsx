@@ -214,64 +214,109 @@ export function AuthenticatedHomeFeed({
     }
   }
 
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
+  const profileLabel = isProducer ? 'Produtora' : isTeam ? 'Equipe' : isPlayer ? 'Jogador' : account?.profile_type === 'manager' ? 'Afiliado' : account?.profile_type === 'broadcast' ? 'Transmissão' : 'Conta'
+  const primaryTask = homeTasks[0] || null
+  const visibleTasks = homeTasks.slice(0, 3)
+  const showOpportunities = !account || isPlayer || isTeam
+
   return (
     <div className="authenticated-home">
-      <section className="authenticated-home-intro">
-        <div className="authenticated-home-intro-copy">
+      <section className="authenticated-home-focus" aria-label="Resumo da conta">
+        <div className="authenticated-home-focus-copy">
           <span className="authenticated-home-kicker">INÍCIO</span>
-          <h1>{isPlayer ? 'Seu jogo começa aqui' : isTeam ? 'Organize o próximo jogo' : isProducer ? 'Seu campeonato em movimento' : 'Encontre seu próximo campeonato'}</h1>
-          <p>{isPlayer ? 'Convites, escalações e sua agenda aparecem primeiro.' : isTeam ? 'Inscrição, elenco e agenda ficam à frente da gestão.' : isProducer ? 'Crie, organize e acompanhe seus campeonatos ativos.' : 'Compare as vagas abertas e escolha onde sua equipe vai jogar.'}</p>
+          <div className="authenticated-home-focus-title">
+            <div>
+              <h1>{greeting}, {account?.name || account?.username || 'bem-vindo'}</h1>
+              <p>{primaryTask ? 'Você tem algo que merece atenção agora.' : 'Tudo certo por aqui. Escolha o que deseja fazer.'}</p>
+            </div>
+            {account ? <span className="authenticated-home-profile-chip">{profileLabel}</span> : null}
+          </div>
         </div>
-        <div className="authenticated-home-primary-actions">
-          {isPlayer && playerInvite ? <button type="button" className="authenticated-home-action primary" onClick={() => void acceptPriorityNotification()} disabled={respondingNotification === playerInvite.id}>
-            {respondingNotification === playerInvite.id ? <Loader2 className="spin" size={19} /> : <Check size={19} />}
-            <span><strong>Aceitar convite</strong><small>{playerInvite.titulo}</small></span><ChevronRight size={18} />
-          </button> : null}
-          {isPlayer && !playerInvite ? <a className="authenticated-home-action primary" href="/agenda"><CalendarDays size={19} /><span><strong>Ver minha agenda</strong><small>Jogos e escalações programadas</small></span><ChevronRight size={18} /></a> : null}
-          {isTeam ? <a className="authenticated-home-action primary" href="/vagas"><Ticket size={19} /><span><strong>Inscrever equipe</strong><small>Campeonatos com vagas abertas</small></span><ChevronRight size={18} /></a> : null}
-          {isProducer ? <button type="button" className="authenticated-home-action primary" onClick={createChampionship}><CirclePlus size={19} /><span><strong>Criar campeonato</strong><small>Comece um novo evento</small></span><ChevronRight size={18} /></button> : null}
-          {!isPlayer && !isTeam && !isProducer ? <a className="authenticated-home-action primary" href="/vagas"><Ticket size={19} /><span><strong>Encontrar vaga</strong><small>Campeonatos com inscrições abertas</small></span><ChevronRight size={18} /></a> : null}
-          {!account ? <button type="button" className="authenticated-home-action" onClick={createChampionship}><CirclePlus size={19} /><span><strong>Criar campeonato</strong><small>Cadastre a produtora quando continuar</small></span><ChevronRight size={18} /></button> : null}
 
-          {isPlayer ? <a className="authenticated-home-action" href="/agenda"><CalendarDays size={19} /><span><strong>Próximo jogo</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}` : 'Confira sua disponibilidade'}</small></span><ChevronRight size={18} /></a> : null}
-          {isTeam && account ? <button type="button" className="authenticated-home-action" onClick={() => openPanelAt(account, 'jogadores')}><Users size={19} /><span><strong>Escalar elenco</strong><small>Prepare a equipe para jogar</small></span><ChevronRight size={18} /></button> : null}
-          {isProducer && account ? <button type="button" className="authenticated-home-action" onClick={() => openPanelAt(account, 'equipes')}><Users size={19} /><span><strong>Organizar equipes</strong><small>Adicionar e posicionar participantes</small></span><ChevronRight size={18} /></button> : null}
+        <div className="authenticated-home-focus-status">
+          <span className={`authenticated-home-focus-count ${homeTasks.length ? 'has-items' : 'is-clear'}`}>
+            <strong>{priorityLoading ? '…' : homeTasks.length}</strong>
+            <small>{homeTasks.length === 1 ? 'ação pendente' : 'ações pendentes'}</small>
+          </span>
+          {primaryTask ? (
+            <a className="authenticated-home-focus-next" href={primaryTask.href || '/agenda'}>
+              <span><small>PRÓXIMA AÇÃO</small><strong>{primaryTask.title}</strong></span>
+              <ChevronRight size={18} />
+            </a>
+          ) : (
+            <a className="authenticated-home-focus-next" href="/agenda">
+              <span><small>PRÓXIMO PASSO</small><strong>Ver minha agenda</strong></span>
+              <ChevronRight size={18} />
+            </a>
+          )}
         </div>
       </section>
 
-      {account ? <section className="authenticated-home-section authenticated-home-priority-section">
-        <div className="authenticated-home-section-head">
-          <div><span>AGORA</span><h2>{isPlayer ? 'Seu próximo compromisso' : isTeam ? 'Operação da equipe' : isProducer ? 'Campeonato ativo' : 'Continue de onde parou'}</h2></div>
-          <a href="/agenda">Ver agenda <ArrowRight size={15} /></a>
+      <section className="authenticated-home-section authenticated-home-quick-section">
+        <div className="authenticated-home-section-head compact">
+          <div><span>ACESSO RÁPIDO</span><h2>O que você quer fazer?</h2></div>
         </div>
-        <div className="authenticated-home-priority-card">
-          {priorityLoading ? <Loader2 className="spin" size={18} /> : <CalendarDays size={18} />}
-          <div><strong>{nextAgendaItem ? nextAgendaItem.titulo : isPlayer ? 'Nenhum jogo agendado' : 'Agenda da conta'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''} · ${nextAgendaItem.meta?.campeonato_nome || nextAgendaItem.meta?.equipe_nome || 'DropZone'}` : 'Acompanhe datas, jogos e compromissos em um só lugar.'}</small></div>
-          <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir <ChevronRight size={16} /></a>
+        <div className="authenticated-home-quick-grid">
+          {isProducer ? <>
+            <button type="button" className="authenticated-home-quick primary" onClick={createChampionship}><CirclePlus size={20}/><span><strong>Criar campeonato</strong><small>Novo evento</small></span><ChevronRight size={16}/></button>
+            {account ? <button type="button" className="authenticated-home-quick" onClick={() => void onOpenPanel(account)}><LayoutDashboard size={20}/><span><strong>Meu painel</strong><small>Gerenciar produtora</small></span><ChevronRight size={16}/></button> : null}
+            <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Datas e jogos</small></span><ChevronRight size={16}/></a>
+          </> : isTeam ? <>
+            {account ? <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><Users size={20}/><span><strong>Minha equipe</strong><small>Elenco e inscrições</small></span><ChevronRight size={16}/></button> : null}
+            <a className="authenticated-home-quick" href="/vagas"><Ticket size={20}/><span><strong>Encontrar campeonato</strong><small>Vagas abertas</small></span><ChevronRight size={16}/></a>
+            <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Próximos jogos</small></span><ChevronRight size={16}/></a>
+          </> : isPlayer ? <>
+            {playerInvite ? <button type="button" className="authenticated-home-quick primary" onClick={() => void acceptPriorityNotification()} disabled={respondingNotification === playerInvite.id}>{respondingNotification === playerInvite.id ? <Loader2 className="spin" size={20}/> : <Check size={20}/>}<span><strong>Aceitar convite</strong><small>{playerInvite.titulo}</small></span><ChevronRight size={16}/></button> : <a className="authenticated-home-quick primary" href="/agenda"><CalendarDays size={20}/><span><strong>Minha agenda</strong><small>Jogos e escalações</small></span><ChevronRight size={16}/></a>}
+            {account ? <button type="button" className="authenticated-home-quick" onClick={() => void onOpenPanel(account)}><LayoutDashboard size={20}/><span><strong>Meu perfil</strong><small>Dados competitivos</small></span><ChevronRight size={16}/></button> : null}
+            <a className="authenticated-home-quick" href="/vagas"><Trophy size={20}/><span><strong>Campeonatos</strong><small>Encontrar oportunidades</small></span><ChevronRight size={16}/></a>
+          </> : account?.profile_type === 'manager' ? <>
+            <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><Store size={20}/><span><strong>Meus afiliados</strong><small>Vendas e campeonatos</small></span><ChevronRight size={16}/></button>
+            <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Compromissos</small></span><ChevronRight size={16}/></a>
+            <a className="authenticated-home-quick" href="/campeonatos"><Trophy size={20}/><span><strong>Competições</strong><small>Ver campeonatos</small></span><ChevronRight size={16}/></a>
+          </> : account ? <>
+            <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><LayoutDashboard size={20}/><span><strong>Meu painel</strong><small>Abrir área principal</small></span><ChevronRight size={16}/></button>
+            <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Compromissos</small></span><ChevronRight size={16}/></a>
+            <a className="authenticated-home-quick" href="/campeonatos"><Trophy size={20}/><span><strong>Competições</strong><small>Ver campeonatos</small></span><ChevronRight size={16}/></a>
+          </> : <>
+            <a className="authenticated-home-quick primary" href="/vagas"><Ticket size={20}/><span><strong>Encontrar campeonato</strong><small>Vagas abertas</small></span><ChevronRight size={16}/></a>
+            <button type="button" className="authenticated-home-quick" onClick={createChampionship}><CirclePlus size={20}/><span><strong>Criar campeonato</strong><small>Começar evento</small></span><ChevronRight size={16}/></button>
+          </>}
+        </div>
+      </section>
+
+      {account ? <section className="authenticated-home-section authenticated-home-command-center">
+        <div className="authenticated-home-section-head compact">
+          <div><span>AGORA</span><h2>{visibleTasks.length ? 'Precisa da sua atenção' : 'Sem pendências'}</h2></div>
+          <a href="/agenda">Ver tudo <ArrowRight size={15}/></a>
+        </div>
+        <div className="authenticated-home-now-grid">
+          <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
+            {priorityLoading ? <div className="authenticated-home-tasks-empty"><Loader2 className="spin" size={17}/><span><strong>Carregando</strong><small>Buscando suas próximas ações.</small></span></div> : visibleTasks.length ? visibleTasks.map((task) => <a className={task.urgent ? 'is-urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={16}/></a>) : <div className="authenticated-home-tasks-empty"><Check size={17}/><span><strong>Nada pendente agora</strong><small>Quando surgir algo importante, aparece aqui.</small></span></div>}
+          </div>
+          <div className="authenticated-home-next-event">
+            <span>PRÓXIMO COMPROMISSO</span>
+            <div><CalendarDays size={18}/><p><strong>{nextAgendaItem ? nextAgendaItem.titulo : 'Nenhum compromisso agendado'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''}` : 'Sua agenda está livre no momento.'}</small></p></div>
+            <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir agenda <ChevronRight size={15}/></a>
+          </div>
         </div>
       </section> : null}
 
-      <section className="authenticated-home-section authenticated-home-command-center">
-        <div className="authenticated-home-section-head"><div><span>PARA VOCÊ</span><h2>Próximas ações</h2></div>{account ? <a href="/agenda">Agenda completa <ArrowRight size={15} /></a> : null}</div>
-        <div className={`authenticated-home-command-grid ${account ? '' : 'is-guest'}`}>
-          {account ? <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
-            {priorityLoading ? <Loader2 className="spin" size={18} /> : homeTasks.length ? homeTasks.map((task) => <a className={task.urgent ? 'is-urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={16} /></a>) : <div className="authenticated-home-tasks-empty"><Check size={17}/><span><strong>Nenhuma pendência agora</strong><small>Seus próximos jogos e convites vão aparecer aqui.</small></span></div>}
-          </div> : null}
-          <form className="authenticated-home-token" onSubmit={(event) => { event.preventDefault(); void submitToken() }}>
-            <KeyRound size={18}/><div><strong>Tem token ou link?</strong><small>Inscrição, grupo, escalação ou convite.</small></div>
-            <input value={tokenValue} onChange={(event) => { setTokenValue(event.target.value); setTokenError('') }} placeholder="Cole aqui" aria-label="Token ou link de inscrição" />
-            <button type="submit" disabled={tokenBusy}>{tokenBusy ? 'Verificando…' : 'Continuar'}</button>
-            {tokenError ? <small className="authenticated-home-token-error" role="alert">{tokenError}</small> : null}
-          </form>
-        </div>
-      </section>
+      <details className="authenticated-home-more">
+        <summary><KeyRound size={17}/><span><strong>Tenho um token ou link</strong><small>Inscrição, grupo, escalação ou convite</small></span><ChevronRight size={16}/></summary>
+        <form className="authenticated-home-token" onSubmit={(event) => { event.preventDefault(); void submitToken() }}>
+          <input value={tokenValue} onChange={(event) => { setTokenValue(event.target.value); setTokenError('') }} placeholder="Cole o token ou link aqui" aria-label="Token ou link de inscrição" />
+          <button type="submit" disabled={tokenBusy}>{tokenBusy ? 'Verificando…' : 'Continuar'}</button>
+          {tokenError ? <small className="authenticated-home-token-error" role="alert">{tokenError}</small> : null}
+        </form>
+      </details>
 
-      <section className="authenticated-home-section authenticated-home-catalog">
-        <div className="authenticated-home-section-head">
-          <div><span>OPORTUNIDADES</span><h2>Campeonatos com vagas abertas</h2></div>
-          <a href="/vagas">Ver catálogo completo <ArrowRight size={15} /></a>
+      {showOpportunities ? <section className="authenticated-home-section authenticated-home-catalog">
+        <div className="authenticated-home-section-head compact">
+          <div><span>OPORTUNIDADES</span><h2>Campeonatos com vagas</h2></div>
+          <a href="/vagas">Ver todos <ArrowRight size={15}/></a>
         </div>
-
         <div className="vacancies-page authenticated-home-vacancies-surface">
           {loadingVacancies ? (
             <div className="vacancies-grid authenticated-home-vacancies-loading" aria-label="Carregando campeonatos">
@@ -279,33 +324,22 @@ export function AuthenticatedHomeFeed({
             </div>
           ) : vacancies.length ? (
             <div className="vacancies-grid vacancy-catalog-grid">
-              {vacancies.map((item) => (
-                <VacancyCard
-                  key={item.id}
-                  item={item}
-                  onPreview={setVacancyPreview}
-                  onBuy={(target) => window.location.assign(`/vagas?comprar=${encodeURIComponent(target.id)}`)}
-                />
-              ))}
+              {vacancies.slice(0, 4).map((item) => <VacancyCard key={item.id} item={item} onPreview={setVacancyPreview} onBuy={(target) => window.location.assign(`/vagas?comprar=${encodeURIComponent(target.id)}`)} />)}
             </div>
           ) : (
-            <div className="vacancies-empty"><Ticket size={32} /><strong>Nenhuma vaga disponível agora</strong><span>Novos campeonatos aparecerão aqui assim que abrirem inscrições.</span></div>
+            <div className="vacancies-empty"><Ticket size={32}/><strong>Nenhuma vaga disponível agora</strong><span>Novos campeonatos aparecerão aqui quando abrirem inscrições.</span></div>
           )}
         </div>
-      </section>
+      </section> : null}
 
-      {accounts.length ? <section className="authenticated-home-section authenticated-home-areas" id="meus-cadastros">
-        <div className="authenticated-home-section-head">
-          <div><span>MINHA CONTA</span><h2>Meus cadastros</h2></div>
-        </div>
+      {accounts.length > 1 ? <section className="authenticated-home-section authenticated-home-areas" id="meus-cadastros">
+        <div className="authenticated-home-section-head compact"><div><span>CONTA</span><h2>Trocar área</h2></div></div>
         <div className="authenticated-home-areas-grid">
           {accounts.map((item) => {
             const type = item.profile_type as ProfileType
             const label = type === 'equipe' ? 'Minha equipe' : type === 'jogador' ? 'Perfil competitivo' : type === 'produtora' ? 'Minha produtora' : type === 'manager' ? 'Afiliados' : 'Transmissão'
             const Icon = type === 'manager' ? Store : type === 'produtora' ? Trophy : type === 'equipe' ? Users : LayoutDashboard
-            return <button key={item.id} type="button" className="authenticated-home-area-card" onClick={() => void onOpenPanel(item)}>
-              <Icon size={19} /><span><strong>{label}</strong><small>{item.name || item.username}</small></span><ChevronRight size={16} />
-            </button>
+            return <button key={item.id} type="button" className="authenticated-home-area-card" onClick={() => void onOpenPanel(item)}><Icon size={19}/><span><strong>{label}</strong><small>{item.name || item.username}</small></span><ChevronRight size={16}/></button>
           })}
         </div>
       </section> : null}
@@ -313,27 +347,13 @@ export function AuthenticatedHomeFeed({
       {gate ? (
         <div className="authenticated-home-gate-backdrop" role="presentation" onMouseDown={() => setGate(null)}>
           <section className="authenticated-home-gate" role="dialog" aria-modal="true" aria-labelledby="authenticated-home-gate-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button type="button" className="authenticated-home-gate-close" onClick={() => setGate(null)} aria-label="Fechar"><X size={18} /></button>
-            <span className="authenticated-home-gate-icon">{gate === 'produtora' ? <Trophy size={25} /> : <Users size={25} />}</span>
+            <button type="button" className="authenticated-home-gate-close" onClick={() => setGate(null)} aria-label="Fechar"><X size={18}/></button>
+            <span className="authenticated-home-gate-icon">{gate === 'produtora' ? <Trophy size={25}/> : <Users size={25}/>}</span>
             <small>ANTES DE CONTINUAR</small>
             <h2 id="authenticated-home-gate-title">{gate === 'produtora' ? 'Cadastre sua produtora' : 'Cadastre sua equipe'}</h2>
-            <p>{gate === 'produtora'
-              ? 'Para criar, vender vagas e administrar campeonatos, precisamos primeiro dos dados da sua produtora.'
-              : 'Para gerenciar elenco, lines e inscrições, precisamos primeiro dos dados da sua equipe.'}</p>
+            <p>{gate === 'produtora' ? 'Para criar, vender vagas e administrar campeonatos, precisamos primeiro dos dados da sua produtora.' : 'Para gerenciar elenco, lines e inscrições, precisamos primeiro dos dados da sua equipe.'}</p>
             <div className="authenticated-home-gate-actions">
-              <button
-                type="button"
-                className="primary"
-                onClick={() => {
-                  const target = gate === 'produtora' ? 'produtora' : 'equipe'
-                  const returnTo = target === 'produtora'
-                    ? '/?painel=1&acao=criar-campeonato'
-                    : '/?painel=1'
-                  window.location.assign(`/?cadastro=${target}&returnTo=${encodeURIComponent(returnTo)}`)
-                }}
-              >
-                {gate === 'produtora' ? 'Cadastrar produtora' : 'Cadastrar equipe'} <ArrowRight size={16} />
-              </button>
+              <button type="button" className="primary" onClick={() => { const target = gate === 'produtora' ? 'produtora' : 'equipe'; const returnTo = target === 'produtora' ? '/?painel=1&acao=criar-campeonato' : '/?painel=1'; window.location.assign(`/?cadastro=${target}&returnTo=${encodeURIComponent(returnTo)}`) }}>{gate === 'produtora' ? 'Cadastrar produtora' : 'Cadastrar equipe'} <ArrowRight size={16}/></button>
               <button type="button" onClick={() => setGate(null)}>Agora não</button>
             </div>
           </section>
