@@ -15,12 +15,14 @@ import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
 import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
 import { CampeonatoCallsTab } from '@/features/campeonatos/calls'
 import { dataText, rowTitle } from '../../utils'
-import { producerTabs, type ProducerTab } from './producer-tabs'
+import { producerTabs, producerWorkspaceForTab, producerWorkspaceTabs, type ProducerTab } from './producer-tabs'
 import { ProvisionalTeamsPanel } from '@/features/produtoras/components/ProvisionalTeamsPanel'
 import { WhatsappPhoneField } from '@/components/forms/WhatsappPhoneField'
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
-type ProducerSection = 'campeonatos' | 'provisorias' | 'staff' | 'vendedores' | 'vagas'
+type ProducerSection = 'campeonatos' | 'operacao' | 'comercial'
+type ProducerOperationView = 'provisorias' | 'staff'
+type ProducerCommercialView = 'vendedores' | 'vagas'
 
 export function ProdutoraPanel(props: {
   account?: DropZoneRow | null
@@ -117,6 +119,8 @@ export function ProdutoraPanel(props: {
   const [typeFilter, setTypeFilter] = useState('todos')
   const [showChampFilters, setShowChampFilters] = useState(false)
   const [producerSection, setProducerSection] = useState<ProducerSection>('campeonatos')
+  const [producerOperationView, setProducerOperationView] = useState<ProducerOperationView>('provisorias')
+  const [producerCommercialView, setProducerCommercialView] = useState<ProducerCommercialView>('vendedores')
   const [championshipDetailOpen, setChampionshipDetailOpen] = useState(true)
   const [tab, setTab] = useState<ProducerTab>('visao')
   const [payInfo, setPayInfo] = useState<any>(null)
@@ -519,6 +523,16 @@ export function ProdutoraPanel(props: {
 
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
+  const activeChampWorkspace = producerWorkspaceForTab(tab)
+  const activeWorkspaceConfig = producerWorkspaceTabs.find((item) => item.id === activeChampWorkspace) || producerWorkspaceTabs[0]
+  const contextualChampTabs = producerTabs.filter((item) =>
+    activeWorkspaceConfig.tabs.includes(item.id)
+    && (item.id !== 'calls' || selectedChampType.toLowerCase() === 'xtreino')
+  )
+
+  useEffect(() => {
+    if (tab === 'calls' && selectedChamp && selectedChampType.toLowerCase() !== 'xtreino') setTab('jogos')
+  }, [tab, selectedChamp?.id, selectedChampType])
 
   async function loadEditionLifecycle(campeonatoId: string) {
     try {
@@ -982,11 +996,11 @@ export function ProdutoraPanel(props: {
 
 
   useEffect(() => {
-    if (producerSection === 'vendedores') {
+    if (producerSection === 'comercial' && producerCommercialView === 'vendedores') {
       setSellerSelected(null)
       void loadSellers()
     }
-  }, [producerSection])
+  }, [producerSection, producerCommercialView])
 
   useEffect(() => {
     setLinkStatusFilter('todos')
@@ -1462,29 +1476,41 @@ ${params.url}`
         </div>
       ) : null}
 
-      <nav className="producer-hub-nav" aria-label="Áreas da produtora">
+      <nav className="producer-hub-nav producer-hub-nav-primary" aria-label="Áreas da produtora">
         <button type="button" className={producerSection === 'campeonatos' ? 'active' : ''} onClick={() => setProducerSection('campeonatos')}><Trophy size={17} /><span>Campeonatos</span></button>
-        <button type="button" className={producerSection === 'provisorias' ? 'active' : ''} onClick={() => setProducerSection('provisorias')}><ShieldCheck size={17} /><span>Equipes provisórias</span></button>
-        <button type="button" className={producerSection === 'staff' ? 'active' : ''} onClick={() => setProducerSection('staff')}><Users size={17} /><span>Equipe interna</span></button>
-        <button type="button" className={producerSection === 'vendedores' ? 'active' : ''} onClick={() => setProducerSection('vendedores')}><BriefcaseBusiness size={17} /><span>Vendedores</span></button>
-        <button type="button" className={producerSection === 'vagas' ? 'active' : ''} onClick={() => setProducerSection('vagas')}><Store size={17} /><span>Página de vagas</span></button>
+        <button type="button" className={producerSection === 'operacao' ? 'active' : ''} onClick={() => setProducerSection('operacao')}><ShieldCheck size={17} /><span>Operação</span></button>
+        <button type="button" className={producerSection === 'comercial' ? 'active' : ''} onClick={() => setProducerSection('comercial')}><BriefcaseBusiness size={17} /><span>Comercial</span></button>
       </nav>
 
-      {producerSection === 'provisorias' ? (
+      {producerSection === 'operacao' ? (
+        <nav className="producer-hub-subnav" aria-label="Ferramentas de operação da produtora">
+          <button type="button" className={producerOperationView === 'provisorias' ? 'active' : ''} onClick={() => setProducerOperationView('provisorias')}>Equipes provisórias</button>
+          <button type="button" className={producerOperationView === 'staff' ? 'active' : ''} onClick={() => setProducerOperationView('staff')}>Equipe interna</button>
+        </nav>
+      ) : null}
+
+      {producerSection === 'comercial' ? (
+        <nav className="producer-hub-subnav" aria-label="Ferramentas comerciais da produtora">
+          <button type="button" className={producerCommercialView === 'vendedores' ? 'active' : ''} onClick={() => setProducerCommercialView('vendedores')}>Vendedores</button>
+          <button type="button" className={producerCommercialView === 'vagas' ? 'active' : ''} onClick={() => setProducerCommercialView('vagas')}>Página de vagas</button>
+        </nav>
+      ) : null}
+
+      {producerSection === 'operacao' && producerOperationView === 'provisorias' ? (
         <ProvisionalTeamsPanel uploadPublicFile={props.uploadPublicFile} />
       ) : null}
 
-      {producerSection === 'staff' ? (
+      {producerSection === 'operacao' && producerOperationView === 'staff' ? (
         <section className="producer-hub-section">
           <header><div><p className="eyebrow">Equipe da produtora</p><h2>Equipe interna</h2></div><Users size={22} /></header>
           <div className="producer-simple-list">
             <a href="/managers"><span><UserPlus size={18} /></span><div><strong>Líderes e ajudantes</strong><small>Gerencie responsáveis e acessos operacionais.</small></div><ChevronRight size={17} /></a>
-            <button type="button" onClick={() => setProducerSection('vendedores')}><span><BriefcaseBusiness size={18} /></span><div><strong>Vendedores</strong><small>Convites, limites e campeonatos vinculados.</small></div><ChevronRight size={17} /></button>
+            <button type="button" onClick={() => { setProducerSection('comercial'); setProducerCommercialView('vendedores') }}><span><BriefcaseBusiness size={18} /></span><div><strong>Vendedores</strong><small>Convites, limites e campeonatos vinculados.</small></div><ChevronRight size={17} /></button>
           </div>
         </section>
       ) : null}
 
-      {producerSection === 'vendedores' ? (
+      {producerSection === 'comercial' && producerCommercialView === 'vendedores' ? (
         <section className="producer-hub-section">
           <header><div><p className="eyebrow">Comercial</p><h2>Vendedores</h2></div><BriefcaseBusiness size={22} /></header>
           <div className="producer-inline-actions">
@@ -1506,7 +1532,7 @@ ${params.url}`
         </section>
       ) : null}
 
-      {producerSection === 'vagas' ? (
+      {producerSection === 'comercial' && producerCommercialView === 'vagas' ? (
         <section className="producer-hub-section">
           <header><div><p className="eyebrow">Página pública</p><h2>Campeonatos com vagas</h2></div><Store size={22} /></header>
           <p className="producer-section-copy">Compartilhe uma única página com os campeonatos disponíveis da produtora.</p>
@@ -1840,15 +1866,26 @@ ${params.url}`
               </div>
             </header>
 
-            <nav className="champ-subtabs-ref champ-subtabs-compact champ-subtabs-all" aria-label="Abas do campeonato">
-              <div className="champ-subtabs-primary">
-                {producerTabs
-                  .filter((item) => item.id !== 'calls' || String(dataText(props.selectedChamp, 'tipo')).toLowerCase() === 'xtreino')
-                  .map((item) => (
-                    <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
-                  ))}
-              </div>
+            <nav className="champ-workspace-nav" aria-label="Áreas do campeonato">
+              {producerWorkspaceTabs.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={activeChampWorkspace === item.id ? 'active' : ''}
+                  onClick={() => setTab(item.defaultTab)}
+                >
+                  {item.label}
+                </button>
+              ))}
             </nav>
+
+            {contextualChampTabs.length > 1 ? (
+              <nav className="champ-context-nav" aria-label={`Ferramentas de ${activeWorkspaceConfig.label.toLowerCase()}`}>
+                {contextualChampTabs.map((item) => (
+                  <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
+                ))}
+              </nav>
+            ) : null}
 
             <div className="champ-tab-body-ref">
               {tab === 'visao' ? (
@@ -1857,7 +1894,7 @@ ${params.url}`
                     <div>
                       <p className="eyebrow">Próximo passo</p>
                       <h3>Monte e opere o campeonato por etapas.</h3>
-                      <span>Use as abas acima para acessar todas as ferramentas do campeonato.</span>
+                      <span>Use as áreas acima para acessar as ferramentas do campeonato sem misturar tudo na mesma tela.</span>
                     </div>
                     <div className="champ-overview-flow">
                       <button type="button" onClick={() => setTab('grupos')}>

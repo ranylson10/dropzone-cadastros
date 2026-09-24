@@ -8895,3 +8895,140 @@ body .player-team-request-title span{line-height:1.45}
   body .player-next-step{grid-template-columns:auto minmax(0,1fr)}
   body .player-next-step button{grid-column:1 / -1;width:100%}
 }
+
+/* Rodada 143 — hierarquia simples para produtora e operação do campeonato. */
+.producer-hub-nav.producer-hub-nav-primary{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.producer-hub-subnav{
+  grid-column:1 / -1;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:-4px 0 12px;
+  padding:0 0 10px;
+  overflow-x:auto;
+  border-bottom:1px solid var(--ui-line);
+  scrollbar-width:thin;
+}
+.producer-hub-subnav button{
+  flex:0 0 auto;
+  min-height:36px;
+  padding:0 12px;
+  border:1px solid var(--ui-line);
+  border-radius:8px;
+  background:var(--ui-surface-raised);
+  color:var(--ui-text-muted);
+  font:inherit;
+  font-size:10px;
+  font-weight:850;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.producer-hub-subnav button.active{
+  border-color:rgba(201,183,102,.5);
+  background:rgba(201,183,102,.12);
+  color:var(--ui-text);
+}
+.producer-layout-ref .champ-workspace-nav{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:4px;
+  margin:10px 0 6px;
+  padding:4px;
+  border:1px solid var(--ui-line);
+  border-radius:10px;
+  background:var(--ui-surface);
+}
+.producer-layout-ref .champ-workspace-nav button{
+  min-width:0;
+  min-height:42px;
+  padding:7px 8px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:var(--ui-text-muted);
+  font:inherit;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.producer-layout-ref .champ-workspace-nav button:hover{
+  background:var(--ui-surface-raised);
+  color:var(--ui-text);
+}
+.producer-layout-ref .champ-workspace-nav button.active{
+  background:rgba(201,183,102,.14);
+  color:var(--ui-accent);
+}
+.producer-layout-ref .champ-context-nav{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  margin:0 0 14px;
+  padding:0 2px 8px;
+  overflow-x:auto;
+  border-bottom:1px solid var(--ui-line);
+  scrollbar-width:thin;
+}
+.producer-layout-ref .champ-context-nav button{
+  flex:0 0 auto;
+  min-height:34px;
+  padding:0 10px;
+  border:0;
+  border-bottom:2px solid transparent;
+  background:transparent;
+  color:var(--ui-text-muted);
+  font:inherit;
+  font-size:9px;
+  font-weight:850;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.producer-layout-ref .champ-context-nav button.active{
+  border-bottom-color:var(--ui-accent);
+  color:var(--ui-text);
+}
+@media (max-width:900px){
+  .producer-hub-nav.producer-hub-nav-primary{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .producer-hub-subnav{
+    margin:0;
+    padding:8px 10px 10px;
+  }
+  .producer-layout-ref .champ-workspace-nav{
+    display:flex;
+    grid-template-columns:none;
+    gap:4px;
+    margin:8px 0 4px;
+    overflow-x:auto;
+    scrollbar-width:thin;
+  }
+  .producer-layout-ref .champ-workspace-nav button{
+    flex:0 0 auto;
+    min-width:104px;
+  }
+  .producer-layout-ref .champ-context-nav{
+    margin-bottom:10px;
+    padding-inline:6px;
+  }
+}
+
+@media (max-width:560px){
+  .producer-hub-nav.producer-hub-nav-primary button{
+    min-height:46px;
+    font-size:8px;
+  }
+  .producer-hub-subnav button{
+    min-height:34px;
+    padding-inline:10px;
+    font-size:9px;
+  }
+  .producer-layout-ref .champ-workspace-nav button{
+    min-width:94px;
+    min-height:40px;
+    font-size:9px;
+  }
+}

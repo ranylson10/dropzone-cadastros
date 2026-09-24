@@ -1190,7 +1190,6 @@ export function CampeonatoForm({
       ? [
           { id: 'origin', label: 'Início' },
           { id: 'operation', label: 'Vagas e prêmio' },
-          { id: 'scoring', label: 'Pontuação' },
           { id: 'format' as const, label: 'Fases e grupos' },
           { id: 'matches' as const, label: 'Final' },
           { id: 'review', label: 'Revisão' },
@@ -1199,7 +1198,6 @@ export function CampeonatoForm({
         ? [
             { id: 'origin', label: 'Início' },
             { id: 'operation', label: 'Vagas e prêmio' },
-            { id: 'scoring', label: 'Pontuação' },
             { id: 'matches' as const, label: 'Quedas' },
             { id: 'format' as const, label: 'Horários' },
             { id: 'review', label: 'Revisão' },
@@ -1208,21 +1206,18 @@ export function CampeonatoForm({
         ? [
             { id: 'origin', label: 'Início' },
             { id: 'format' as const, label: 'Organização' },
-            { id: 'scoring', label: 'Pontuação' },
             { id: 'review', label: 'Revisão' },
           ]
         : value.tipo === 'xtreino'
           ? [
               { id: 'origin', label: 'Início' },
               { id: 'format' as const, label: 'Configuração' },
-              { id: 'scoring', label: 'Pontuação' },
               { id: 'review', label: 'Revisão' },
             ]
         : [
             { id: 'origin', label: 'Início' },
             { id: 'format' as const, label: 'Estrutura' },
             { id: 'operation', label: 'Operação' },
-            { id: 'scoring', label: 'Pontuação' },
             { id: 'review', label: 'Revisão' },
           ]
   const currentPageIndex = Math.max(0, wizardPages.findIndex((page) => page.id === formPage))
@@ -2560,6 +2555,10 @@ export function CampeonatoForm({
             <div>
               <small>Regra de abate</small>
               <strong>{value.pontos_por_abate || '0'} ponto(s) por abate · {value.sistema_pontuacao_tipo === 'garena' ? 12 : value.pontuacao_equipes_por_partida} posições</strong>
+            </div>
+            <div className="championship-review-wide">
+              <small>Pontuação</small>
+              <strong>Você pode alterar este sistema depois em Editar campeonato → Pontuação.</strong>
             </div>
             {(value.tipo === 'diario' || value.tipo === 'copa') ? (
               <div>

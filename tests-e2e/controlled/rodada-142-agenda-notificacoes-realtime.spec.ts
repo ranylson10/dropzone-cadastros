@@ -24,7 +24,7 @@ test.describe('Rodada 142 — agenda, notificações e realtime seguro', () => {
   })
 
   test('migration transmite apenas id/operação e autoriza somente o tópico do próprio usuário', () => {
-    const migration = read('supabase/migrations/20260924153000_notificacoes_realtime_privado.sql')
+    const migration = read('supabase/migrations/20260924173500_notificacoes_realtime_privado.sql')
     expect(migration).toContain('realtime.send(')
     expect(migration).toContain("'notification_changed'")
     expect(migration).toContain("'user:' || recipient::text || ':notifications'")
