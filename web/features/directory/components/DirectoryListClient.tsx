@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronRight, CirclePlus, Flame, Heart, Radio, Search, ShoppingCart, SlidersHorizontal, Users, X } from 'lucide-react'
+import { ChevronRight, CirclePlus, Flame, Heart, Search, ShoppingCart, SlidersHorizontal, Ticket, Users, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { addToCart, getCartItems, getWishlistItems, removeFromCart, toggleWishlist, type LocalCommerceItem } from '@/features/commerce/local-commerce'
 import { supabase } from '@/lib/supabase-browser'
@@ -28,6 +28,14 @@ function money(value: unknown) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
 }
 
+function registrationPriceLabel(value: unknown) {
+  if (value == null || String(value).trim() === '') return 'Sob consulta'
+  const number = Number(value)
+  if (!Number.isFinite(number)) return 'Sob consulta'
+  if (number <= 0) return 'Grátis'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
+}
+
 function moneyNumber(value: unknown) {
   const number = Number(value)
   return Number.isFinite(number) && number > 0 ? number : 0
@@ -39,6 +47,21 @@ function nextGameLabel(value: unknown) {
   const date = new Date(raw.length === 10 ? `${raw}T12:00:00` : raw)
   if (Number.isNaN(date.getTime())) return 'Data a confirmar'
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
+function shortDateLabel(value: unknown) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const date = new Date(raw.length === 10 ? `${raw}T12:00:00` : raw)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
+function championshipFormat(item: DirectoryItem) {
+  const format = getMetaValue(item, 'Formato')
+  if (format !== '—') return format
+  const type = getMetaValue(item, 'Tipo')
+  return type !== '—' ? type : 'Competição'
 }
 
 function commerceItemFromDirectory(item: DirectoryItem): LocalCommerceItem {
@@ -95,6 +118,7 @@ function isToday(value: unknown) {
 }
 
 type ChampFilters = {
+  openVacancies: boolean
   today: boolean
   free: boolean
   lastVacancies: boolean
@@ -106,6 +130,7 @@ type ChampFilters = {
 }
 
 const emptyChampFilters: ChampFilters = {
+  openVacancies: false,
   today: false,
   free: false,
   lastVacancies: false,
@@ -117,7 +142,7 @@ const emptyChampFilters: ChampFilters = {
 }
 
 function hasChampFilters(filters: ChampFilters) {
-  return filters.today || filters.free || filters.lastVacancies || filters.live || filters.withPrize || filters.mine || filters.maxPrice || filters.minPrize
+  return filters.openVacancies || filters.today || filters.free || filters.lastVacancies || filters.live || filters.withPrize || filters.mine || filters.maxPrice || filters.minPrize
 }
 
 function filterChampionships(items: DirectoryItem[], filters: ChampFilters, myChampionshipIds: Set<string>) {
@@ -128,8 +153,9 @@ function filterChampionships(items: DirectoryItem[], filters: ChampFilters, myCh
     const prize = moneyNumber(item.commercial?.premiacao)
     const free = Number(item.commercial?.vagas_livres ?? 0)
     if (filters.mine && !myChampionshipIds.has(item.id)) return false
+    if (filters.openVacancies && free <= 0) return false
     if (filters.today && !isToday(item.commercial?.data_jogo || item.commercial?.data_limite_inscricao)) return false
-    if (filters.free && price > 0) return false
+    if (filters.free && !(item.commercial?.valor_inscricao != null && Number(item.commercial.valor_inscricao) <= 0)) return false
     if (filters.lastVacancies && !(free > 0 && free <= 3)) return false
     if (filters.live && !item.commercial?.tem_live) return false
     if (filters.withPrize && prize <= 0) return false
@@ -162,11 +188,15 @@ function ChampionshipCards({
     <div className="directory-champ-card-grid">
       {items.map((item) => {
         const free = Number(item.commercial?.vagas_livres ?? 0)
+        const price = moneyNumber(item.commercial?.valor_inscricao)
         const hasPrize = Number(item.commercial?.premiacao || 0) > 0
         const isMine = myChampionshipIds.has(item.id)
         const isInCart = cartIds.has(item.id)
         const coverUrl = cachedStorageMediaUrl(item.banner || item.image || '')
         const championshipHref = `/${item.kind}/${item.id}`
+        const buyHref = `${championshipHref}?comprar=1`
+        const deadlineLabel = shortDateLabel(item.commercial?.data_limite_inscricao)
+        const formatLabel = championshipFormat(item)
         const openChampionship = (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => {
           const target = event.target as HTMLElement
           if (target.closest('a,button,input,select,textarea,label')) return
@@ -193,14 +223,14 @@ function ChampionshipCards({
                 {coverUrl ? <img src={coverUrl} alt="" loading="lazy" decoding="async" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}
               </span>
               <span className="directory-champ-badges">
-                {item.commercial?.tem_live ? <b><Radio size={11} /> Live</b> : null}
+                {free > 0 ? <b><Ticket size={11} /> {free} vaga{free === 1 ? '' : 's'}</b> : <b className="is-full">Sem vagas</b>}
                 {free > 0 && free <= 3 ? <b><Flame size={11} /> Últimas vagas</b> : null}
               </span>
             </a>
             <div className="directory-champ-body">
               <div className="directory-champ-title-row">
                 <a className="directory-champ-title" href={championshipHref}>
-                  <small>{item.eyebrow || item.description || 'Campeonato'}</small>
+                  <small>{formatLabel}</small>
                   <strong>{item.name}</strong>
                 </a>
                 <span className="directory-champ-quick-actions">
@@ -230,30 +260,25 @@ function ChampionshipCards({
                   </button>
                 </span>
               </div>
+              {isMine ? <span className="directory-champ-participating"><Users size={12} /> Sua equipe participa</span> : null}
               <div className="directory-champ-facts">
-                <span><b>{money(item.commercial?.valor_inscricao)}</b><small>vaga</small></span>
-                {hasPrize ? <span><b>{money(item.commercial?.premiacao)}</b><small>prêmio</small></span> : null}
+                <span><b>{registrationPriceLabel(item.commercial?.valor_inscricao)}</b><small>por vaga</small></span>
                 <span><b>{free}</b><small>livres</small></span>
+                {hasPrize ? <span><b>{money(item.commercial?.premiacao)}</b><small>prêmio</small></span> : null}
               </div>
-              <div className="directory-champ-next-game">Próximo jogo: <b>{nextGameLabel(item.commercial?.data_jogo)}</b></div>
+              <div className="directory-champ-next-game">
+                <span>Próximo jogo <b>{nextGameLabel(item.commercial?.data_jogo)}</b></span>
+                {deadlineLabel ? <span>Inscrições até <b>{deadlineLabel}</b></span> : null}
+              </div>
               <div className="directory-champ-vacancy">
-                <small>{free} de {item.commercial?.total_vagas || 0} vagas disponíveis</small>
+                <small>{free > 0 ? `${free} de ${item.commercial?.total_vagas || 0} vagas disponíveis` : 'Inscrições sem vagas disponíveis agora'}</small>
               </div>
               <div className="directory-champ-actions">
-                <a href={championshipHref}>Ver campeonato <ChevronRight size={14} /></a>
-                <a className="directory-champ-cart-action" href={championshipHref}>
-                  {free > 0 ? 'Garantir vaga' : 'Ver campeonato'} <ChevronRight size={14} />
-                </a>
+                <a className="directory-champ-details-link" href={championshipHref}>Detalhes <ChevronRight size={14} /></a>
+                {free > 0
+                  ? <a className="directory-champ-cart-action" href={price > 0 ? buyHref : championshipHref}>{price > 0 ? 'Comprar vaga' : 'Ver inscrição'} <ChevronRight size={14} /></a>
+                  : <span className="directory-champ-cart-action is-disabled">Sem vagas</span>}
               </div>
-              {isMine ? (
-                <button
-                  type="button"
-                  className="directory-champ-lineup-action"
-                  onClick={() => { window.location.href = '/?painel=1&section=campeonatos' }}
-                >
-                  <Users size={14} /> Escalar elenco
-                </button>
-              ) : null}
             </div>
           </article>
         )
@@ -262,7 +287,7 @@ function ChampionshipCards({
   )
 }
 
-export function DirectoryListClient({ items, cardsOnly = false }: { items: DirectoryItem[]; cardsOnly?: boolean }) {
+export function DirectoryListClient({ items, kind, cardsOnly = false }: { items: DirectoryItem[]; kind?: DirectoryItem['kind']; cardsOnly?: boolean }) {
   const [query, setQuery] = useState('')
   const [champFilters, setChampFilters] = useState<ChampFilters>(emptyChampFilters)
   const [myChampionshipIds, setMyChampionshipIds] = useState<Set<string>>(new Set())
@@ -273,7 +298,8 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
   const [pendingCartIds, setPendingCartIds] = useState<Set<string>>(new Set())
   const [pendingWishlistIds, setPendingWishlistIds] = useState<Set<string>>(new Set())
   const [canCreateChampionship, setCanCreateChampionship] = useState(false)
-  const isChampionshipDirectory = cardsOnly || items[0]?.kind === 'campeonatos'
+  const [authenticated, setAuthenticated] = useState(false)
+  const isChampionshipDirectory = cardsOnly || kind === 'campeonatos' || items[0]?.kind === 'campeonatos'
 
   const refreshRemoteCart = useCallback(async (token: string): Promise<LocalCommerceItem[]> => {
     const response = await fetch('/api/me/commerce/cart', {
@@ -305,9 +331,18 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
 
   useEffect(() => {
     if (!isChampionshipDirectory) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('vagas') === '1') {
+      setChampFilters((current) => ({ ...current, openVacancies: true }))
+    }
+  }, [isChampionshipDirectory])
+
+  useEffect(() => {
+    if (!isChampionshipDirectory) return
     let alive = true
     void supabase.auth.getSession().then(async ({ data }) => {
       const accessToken = data.session?.access_token
+      setAuthenticated(Boolean(accessToken))
       if (!accessToken) return
       setAccessToken(accessToken)
       const localCart = getCartItems()
@@ -357,14 +392,24 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
   const filtered = useMemo(() => {
     const clean = query.trim().toLowerCase()
     const queryItems = clean ? items.filter((item) => item.searchText.includes(clean)) : items
-    return isChampionshipDirectory ? filterChampionships(queryItems, champFilters, myChampionshipIds) : queryItems
+    if (!isChampionshipDirectory) return queryItems
+
+    return filterChampionships(queryItems, champFilters, myChampionshipIds)
+      .sort((a, b) => {
+        const aFree = Number(a.commercial?.vagas_livres || 0)
+        const bFree = Number(b.commercial?.vagas_livres || 0)
+        if (Boolean(aFree) !== Boolean(bFree)) return bFree > 0 ? 1 : -1
+        const aDate = String(a.commercial?.data_jogo || '9999-12-31')
+        const bDate = String(b.commercial?.data_jogo || '9999-12-31')
+        return aDate.localeCompare(bDate) || a.name.localeCompare(b.name, 'pt-BR')
+      })
   }, [champFilters, isChampionshipDirectory, items, myChampionshipIds, query])
 
   const metaLabels = useMemo(() => getMetaLabels(items), [items])
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((item) => item.id)), [wishlistItems])
   const cartIds = useMemo(() => new Set(cartItems.map((item) => item.id)), [cartItems])
   const cartQuantity = cartItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
-  const toggleChampFilter = (key: keyof Pick<ChampFilters, 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine'>) => {
+  const toggleChampFilter = (key: keyof Pick<ChampFilters, 'openVacancies' | 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine'>) => {
     setChampFilters((current) => ({ ...current, [key]: !current[key] }))
   }
   const handleCartToggle = async (item: DirectoryItem) => {
@@ -454,7 +499,7 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
                 placeholder="Buscar campeonato"
               />
             </label>
-            <span className="directory-result-count"><strong>{filtered.length}</strong> resultado{filtered.length === 1 ? '' : 's'}</span>
+            <span className="directory-result-count"><strong>{filtered.length}</strong> campeonato{filtered.length === 1 ? '' : 's'}</span>
             {canCreateChampionship ? <a className="directory-create-championship" href="/?painel=1&perfil=produtora&acao=criar-campeonato"><CirclePlus size={16} /> Criar campeonato</a> : null}
             <a className="directory-market-cart-link" href="/carrinho" aria-label={`Abrir carrinho com ${cartQuantity} vagas`}><ShoppingCart size={18} /><b>{cartQuantity}</b></a>
             <details className="directory-market-tool directory-wishlist-preview">
@@ -469,19 +514,20 @@ export function DirectoryListClient({ items, cardsOnly = false }: { items: Direc
 
           <div className="directory-market-filters" aria-label="Filtros de campeonatos">
             <div className="directory-market-filter-chips">
+              <button type="button" className={champFilters.openVacancies ? 'active' : ''} onClick={() => toggleChampFilter('openVacancies')}>Vagas abertas</button>
               <button type="button" className={champFilters.today ? 'active' : ''} onClick={() => toggleChampFilter('today')}>Hoje</button>
               <button type="button" className={champFilters.free ? 'active' : ''} onClick={() => toggleChampFilter('free')}>Grátis</button>
               <button type="button" className={champFilters.lastVacancies ? 'active' : ''} onClick={() => toggleChampFilter('lastVacancies')}>Últimas vagas</button>
-              <button type="button" className={champFilters.live ? 'active' : ''} onClick={() => toggleChampFilter('live')}>Live</button>
-              <button type="button" className={champFilters.withPrize ? 'active' : ''} onClick={() => toggleChampFilter('withPrize')}>Premiação</button>
-              <button type="button" className={champFilters.mine ? 'active' : ''} onClick={() => toggleChampFilter('mine')}>Meus</button>
+              {authenticated ? <button type="button" className={champFilters.mine ? 'active' : ''} onClick={() => toggleChampFilter('mine')}>Meus</button> : null}
             </div>
             <details className="directory-market-more">
               <summary><SlidersHorizontal size={15} /> Filtros</summary>
               <div className="directory-market-filter-fields">
                 <label><span>Vaga até R$</span><input inputMode="decimal" min="0" type="number" value={champFilters.maxPrice} onChange={(event) => setChampFilters((current) => ({ ...current, maxPrice: event.target.value }))} placeholder="0" /></label>
                 <label><span>Prêmio mínimo</span><input inputMode="decimal" min="0" type="number" value={champFilters.minPrize} onChange={(event) => setChampFilters((current) => ({ ...current, minPrize: event.target.value }))} placeholder="R$" /></label>
-                {hasChampFilters(champFilters) ? <button type="button" className="directory-market-clear" onClick={() => setChampFilters(emptyChampFilters)}><X size={14} /> Limpar</button> : null}
+                <button type="button" className={champFilters.withPrize ? 'active' : ''} onClick={() => toggleChampFilter('withPrize')}>Com premiação</button>
+                <button type="button" className={champFilters.live ? 'active' : ''} onClick={() => toggleChampFilter('live')}>Com transmissão</button>
+                {hasChampFilters(champFilters) ? <button type="button" className="directory-market-clear" onClick={() => setChampFilters(emptyChampFilters)}><X size={14} /> Limpar filtros</button> : null}
               </div>
             </details>
           </div>

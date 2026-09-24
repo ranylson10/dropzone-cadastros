@@ -37,7 +37,7 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
             </div>
           </section>
         )}
-        <DirectoryListClient items={items} />
+        <DirectoryListClient items={items} kind={kind} />
       </div>
     </AppShell>
   )

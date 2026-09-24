@@ -126,12 +126,29 @@ export function ChampionshipPublicView({
   const enrollment = profile.enrollment
   const canEnroll = Boolean(
     enrollment?.aceita_novas_inscricoes
+    && (enrollment?.vagas_livres == null || Number(enrollment.vagas_livres) > 0)
     && (
       Number(enrollment?.valor_inscricao || 0) >= 1
       || (enrollment?.contatos_whatsapp?.length || 0) > 0
     ),
   )
   const valorLabel = moneyLabel(enrollment?.valor_inscricao)
+  const isFreeEnrollment = enrollment?.valor_inscricao != null && Number(enrollment.valor_inscricao) <= 0
+  const enrollmentActionLabel = valorLabel ? 'Comprar vaga' : isFreeEnrollment ? 'Inscrição grátis' : 'Solicitar vaga'
+
+  useEffect(() => {
+    if (!canEnroll) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('comprar') === '1') setBuyOpen(true)
+  }, [canEnroll])
+
+  function closeBuyModal() {
+    setBuyOpen(false)
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has('comprar')) return
+    url.searchParams.delete('comprar')
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  }
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
@@ -222,9 +239,9 @@ export function ChampionshipPublicView({
               {canEnroll ? (
                 <div className="champ-public-enroll">
                   <div className="champ-public-enroll-meta">
-                    {valorLabel ? (
+                    {valorLabel || isFreeEnrollment ? (
                       <span>
-                        <Ticket size={13} /> Inscrição {valorLabel}
+                        <Ticket size={13} /> {isFreeEnrollment ? 'Inscrição gratuita' : `Inscrição ${valorLabel}`}
                       </span>
                     ) : null}
                     {enrollment?.vagas_livres != null && enrollment.vagas_livres > 0 ? (
@@ -242,7 +259,7 @@ export function ChampionshipPublicView({
                   >
                     <PixIcon size={16} />
                     <WhatsAppIcon size={16} />
-                    Garantir vaga
+                    {enrollmentActionLabel}
                   </button>
                 </div>
               ) : null}
@@ -387,6 +404,15 @@ export function ChampionshipPublicView({
         ) : null}
       </div>
 
+      {canEnroll ? (
+        <div className="champ-public-mobile-enroll" aria-label="Ação de inscrição">
+          <span>
+            <small>{isFreeEnrollment ? 'Inscrição gratuita' : valorLabel ? `Vaga ${valorLabel}` : 'Inscrição disponível'}</small>
+            <strong>{enrollment?.vagas_livres ?? 0} vaga{Number(enrollment?.vagas_livres || 0) === 1 ? '' : 's'} livre{Number(enrollment?.vagas_livres || 0) === 1 ? '' : 's'}</strong>
+          </span>
+          <button type="button" onClick={() => setBuyOpen(true)}>{enrollmentActionLabel}</button>
+        </div>
+      ) : null}
 
       {buyOpen && enrollment ? (
         <BuyVacancyModal
@@ -405,7 +431,7 @@ export function ChampionshipPublicView({
           }}
           returnTo={`/campeonatos/${profile.id}`}
           authenticated={authenticated}
-          onClose={() => setBuyOpen(false)}
+          onClose={closeBuyModal}
         />
       ) : null}
     </div>

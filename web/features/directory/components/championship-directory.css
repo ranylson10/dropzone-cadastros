@@ -495,3 +495,126 @@
   .directory-market-page .directory-champ-quick-actions{top:7px;right:7px;gap:3px}
   .directory-market-page .directory-champ-wish,.directory-market-page .directory-champ-cart-icon{width:27px;height:27px}
 }
+
+
+/* Rodada 139 — descoberta e compra: decisão rápida sem esconder preço ou CTA. */
+.directory-market-page .directory-champ-badges{
+  display:flex;
+  left:10px;
+  bottom:auto;
+  top:10px;
+}
+.directory-market-page .directory-champ-badges b{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:5px 7px;
+  border-radius:999px;
+  background:rgba(10,11,13,.78);
+  color:var(--champ-text);
+  font-size:7px;
+  letter-spacing:.04em;
+  backdrop-filter:blur(8px);
+}
+.directory-market-page .directory-champ-badges b.is-full{color:var(--champ-muted)}
+.directory-market-page .directory-champ-body{
+  gap:7px;
+  padding:16px;
+  background:linear-gradient(180deg,rgba(9,10,12,0) 18%,rgba(9,10,12,.08) 30%,rgba(9,10,12,.76) 57%,rgba(9,10,12,.96) 76%,#090a0c 100%);
+}
+.directory-market-page .directory-champ-facts span:first-child{display:grid}
+.directory-market-page .directory-champ-facts span:last-child{order:initial}
+.directory-market-page .directory-champ-participating{
+  display:inline-flex;
+  width:max-content;
+  align-items:center;
+  gap:5px;
+  padding:4px 7px;
+  border-radius:999px;
+  background:rgba(201,183,102,.16);
+  color:var(--champ-accent-strong);
+  font-size:8px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.directory-market-page .directory-champ-next-game{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px 12px;
+}
+.directory-market-page .directory-champ-next-game span{white-space:nowrap}
+.directory-market-page .directory-champ-actions{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:7px;
+  min-height:36px;
+  margin-top:2px;
+  padding-top:0;
+}
+.directory-market-page .directory-champ-actions>a,
+.directory-market-page .directory-champ-actions>span{
+  display:inline-flex;
+  min-height:36px;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  border-radius:8px;
+  padding:0 10px;
+  font-size:8px;
+  font-weight:950;
+  text-decoration:none;
+  text-transform:uppercase;
+}
+.directory-market-page .directory-champ-details-link{
+  border:1px solid rgba(255,255,255,.18);
+  color:var(--champ-text);
+  background:rgba(13,14,16,.62);
+}
+.directory-market-page .directory-champ-cart-action{
+  background:var(--champ-accent);
+  color:#15140d;
+}
+.directory-market-page .directory-champ-cart-action.is-disabled{
+  background:rgba(255,255,255,.08);
+  color:var(--champ-muted);
+}
+.directory-market-page .directory-champ-vacancy,
+.directory-market-page .directory-champ-lineup-action{display:none}
+.directory-market-filter-fields>button{
+  min-height:36px;
+  border:0;
+  border-radius:8px;
+  background:var(--champ-bg);
+  color:var(--champ-muted);
+  padding:0 10px;
+  font:inherit;
+  font-size:10px;
+  font-weight:850;
+  cursor:pointer;
+}
+.directory-market-filter-fields>button.active{
+  background:var(--champ-accent);
+  color:#15140d;
+}
+.directory-market-page .directory-market-clear{
+  background:transparent;
+  color:var(--champ-accent-strong);
+}
+
+@media(max-width:760px){
+  .directory-market-page .directory-champ-card-grid{grid-template-columns:1fr;gap:8px}
+  .directory-market-page .directory-champ-card{aspect-ratio:auto;min-height:210px}
+  .directory-market-page .directory-champ-cover-empty img{object-fit:cover}
+  .directory-market-page .directory-champ-body{justify-content:flex-end;gap:6px;padding:14px}
+  .directory-market-page .directory-champ-title strong{font-size:17px}
+  .directory-market-page .directory-champ-title small{font-size:8px}
+  .directory-market-page .directory-champ-facts{gap:0}
+  .directory-market-page .directory-champ-facts span{padding-right:9px}
+  .directory-market-page .directory-champ-facts span + span{padding-left:9px}
+  .directory-market-page .directory-champ-facts b{font-size:11px}
+  .directory-market-page .directory-champ-facts small{font-size:7px}
+  .directory-market-page .directory-champ-next-game{font-size:9px}
+  .directory-market-page .directory-champ-actions{grid-template-columns:92px minmax(0,1fr)}
+  .directory-market-page .directory-champ-actions>a,
+  .directory-market-page .directory-champ-actions>span{min-height:38px;font-size:8px}
+}

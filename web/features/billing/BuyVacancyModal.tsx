@@ -127,7 +127,9 @@ export function BuyVacancyModal({
   const [operation, setOperation] = useState<{ title: string; steps: string[]; activeStep: number } | null>(null)
 
   const valorLabel = money(championship.valor_inscricao)
+  const hasExplicitPrice = championship.valor_inscricao != null && String(championship.valor_inscricao).trim() !== ''
   const price = Number(championship.valor_inscricao || 0)
+  const isFree = hasExplicitPrice && Number.isFinite(price) && price <= 0
   const canPayOnline = price >= 1
   const asaasMinimumMet = price >= 5
   const pixAvailable = Boolean(canPayOnline && asaasMinimumMet && championship.pagamento_pix_ativo !== false)
@@ -345,7 +347,7 @@ export function BuyVacancyModal({
             <p className="eyebrow">Garantir vaga</p>
             <h2>{championship.nome}</h2>
             <span>
-              {valorLabel ? `Inscrição ${valorLabel}` : 'Valor sob consulta'}
+              {isFree ? 'Inscrição gratuita' : valorLabel ? `Inscrição ${valorLabel}` : 'Valor sob consulta'}
               {championship.proximo_grupo ? ` · ${championship.proximo_grupo}` : ''}
             </span>
           </div>
@@ -359,8 +361,9 @@ export function BuyVacancyModal({
         {step === 'choose' ? (
           <>
             <p className="vacancy-buy-lead">
-              Escolha como prefere garantir a vaga. Após a confirmação do pagamento, o sistema libera o
-              próximo grupo com slots livres para você escolher e entrar.
+              {isFree
+                ? 'A inscrição é gratuita. Use o canal disponível da organização para solicitar sua vaga.'
+                : 'Escolha como prefere garantir a vaga. Após a confirmação do pagamento, o sistema libera o próximo grupo com slots livres para você escolher e entrar.'}
             </p>
 
             {error ? <div className="admin-feedback error">{error}</div> : null}
@@ -381,17 +384,17 @@ export function BuyVacancyModal({
                     <small>Pagamento instantâneo · libera a vaga automaticamente</small>
                   </span>
                 </button>
-              ) : (
+              ) : canPayOnline ? (
                 <div className="vacancy-buy-option vacancy-buy-option-disabled">
                   <span className="vacancy-buy-brand-icon vacancy-buy-brand-pix is-muted" aria-hidden>
                     <PixIcon size={22} />
                   </span>
                   <span>
                     <strong>PIX indisponível</strong>
-                    <small>Este campeonato não tem valor de inscrição cobrável.</small>
+                    <small>PIX e cartão ficam disponíveis a partir de R$ 5,00.</small>
                   </span>
                 </div>
-              )}
+              ) : null}
 
               {cardAvailable ? (
                 <button

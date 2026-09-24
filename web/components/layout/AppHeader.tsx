@@ -141,7 +141,7 @@ export function AppHeader({
       ]
     : activeProfileType === 'equipe'
       ? [
-          { label: 'Encontrar campeonato', detail: 'Ver vagas abertas', href: '/vagas', icon: Trophy },
+          { label: 'Encontrar campeonato', detail: 'Ver vagas abertas', href: '/campeonatos?vagas=1', icon: Trophy },
           { label: 'Minha equipe', detail: 'Elenco, lines e gestão', href: '/?painel=1', icon: UsersRound },
           { label: 'Agenda', detail: 'Próximos jogos', href: '/agenda', icon: CalendarDays },
         ]
@@ -154,12 +154,12 @@ export function AppHeader({
         : activeProfileType === 'manager'
           ? [
               { label: 'Central de afiliados', detail: 'Vendas e comissões', href: '/afiliados', icon: LayoutDashboard },
-              { label: 'Vagas abertas', detail: 'Campeonatos disponíveis', href: '/vagas', icon: Trophy },
+              { label: 'Vagas abertas', detail: 'Campeonatos disponíveis', href: '/campeonatos?vagas=1', icon: Trophy },
               { label: 'Agenda', detail: 'Próximos compromissos', href: '/agenda', icon: CalendarDays },
             ]
           : [
               { label: 'Buscar campeonato', detail: 'Explorar competições', href: '/campeonatos', icon: Search },
-              { label: 'Vagas abertas', detail: 'Encontrar uma oportunidade', href: '/vagas', icon: Trophy },
+              { label: 'Vagas abertas', detail: 'Encontrar uma oportunidade', href: '/campeonatos?vagas=1', icon: Trophy },
               { label: 'Comunidade', detail: 'Equipes e jogadores', href: '/comunidade', icon: UsersRound },
             ]
 

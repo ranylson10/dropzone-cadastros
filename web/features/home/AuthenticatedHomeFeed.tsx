@@ -265,12 +265,12 @@ export function AuthenticatedHomeFeed({
             <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Datas e jogos</small></span><ChevronRight size={16}/></a>
           </> : isTeam ? <>
             {account ? <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><Users size={20}/><span><strong>Minha equipe</strong><small>Elenco e inscrições</small></span><ChevronRight size={16}/></button> : null}
-            <a className="authenticated-home-quick" href="/vagas"><Ticket size={20}/><span><strong>Encontrar campeonato</strong><small>Vagas abertas</small></span><ChevronRight size={16}/></a>
+            <a className="authenticated-home-quick" href="/campeonatos?vagas=1"><Ticket size={20}/><span><strong>Encontrar campeonato</strong><small>Vagas abertas</small></span><ChevronRight size={16}/></a>
             <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Próximos jogos</small></span><ChevronRight size={16}/></a>
           </> : isPlayer ? <>
             {playerInvite ? <button type="button" className="authenticated-home-quick primary" onClick={() => void acceptPriorityNotification()} disabled={respondingNotification === playerInvite.id}>{respondingNotification === playerInvite.id ? <Loader2 className="spin" size={20}/> : <Check size={20}/>}<span><strong>Aceitar convite</strong><small>{playerInvite.titulo}</small></span><ChevronRight size={16}/></button> : <a className="authenticated-home-quick primary" href="/agenda"><CalendarDays size={20}/><span><strong>Minha agenda</strong><small>Jogos e escalações</small></span><ChevronRight size={16}/></a>}
             {account ? <button type="button" className="authenticated-home-quick" onClick={() => void onOpenPanel(account)}><LayoutDashboard size={20}/><span><strong>Meu perfil</strong><small>Dados competitivos</small></span><ChevronRight size={16}/></button> : null}
-            <a className="authenticated-home-quick" href="/vagas"><Trophy size={20}/><span><strong>Campeonatos</strong><small>Encontrar oportunidades</small></span><ChevronRight size={16}/></a>
+            <a className="authenticated-home-quick" href="/campeonatos?vagas=1"><Trophy size={20}/><span><strong>Campeonatos</strong><small>Encontrar oportunidades</small></span><ChevronRight size={16}/></a>
           </> : account?.profile_type === 'manager' ? <>
             <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><Store size={20}/><span><strong>Meus afiliados</strong><small>Vendas e campeonatos</small></span><ChevronRight size={16}/></button>
             <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Compromissos</small></span><ChevronRight size={16}/></a>
@@ -280,7 +280,7 @@ export function AuthenticatedHomeFeed({
             <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Compromissos</small></span><ChevronRight size={16}/></a>
             <a className="authenticated-home-quick" href="/campeonatos"><Trophy size={20}/><span><strong>Competições</strong><small>Ver campeonatos</small></span><ChevronRight size={16}/></a>
           </> : <>
-            <a className="authenticated-home-quick primary" href="/vagas"><Ticket size={20}/><span><strong>Encontrar campeonato</strong><small>Vagas abertas</small></span><ChevronRight size={16}/></a>
+            <a className="authenticated-home-quick primary" href="/campeonatos?vagas=1"><Ticket size={20}/><span><strong>Encontrar campeonato</strong><small>Vagas abertas</small></span><ChevronRight size={16}/></a>
             <button type="button" className="authenticated-home-quick" onClick={createChampionship}><CirclePlus size={20}/><span><strong>Criar campeonato</strong><small>Começar evento</small></span><ChevronRight size={16}/></button>
           </>}
         </div>
@@ -315,7 +315,7 @@ export function AuthenticatedHomeFeed({
       {showOpportunities ? <section className="authenticated-home-section authenticated-home-catalog">
         <div className="authenticated-home-section-head compact">
           <div><span>OPORTUNIDADES</span><h2>Campeonatos com vagas</h2></div>
-          <a href="/vagas">Ver todos <ArrowRight size={15}/></a>
+          <a href="/campeonatos?vagas=1">Ver todos <ArrowRight size={15}/></a>
         </div>
         <div className="vacancies-page authenticated-home-vacancies-surface">
           {loadingVacancies ? (
@@ -324,7 +324,7 @@ export function AuthenticatedHomeFeed({
             </div>
           ) : vacancies.length ? (
             <div className="vacancies-grid vacancy-catalog-grid">
-              {vacancies.slice(0, 4).map((item) => <VacancyCard key={item.id} item={item} onPreview={setVacancyPreview} onBuy={(target) => window.location.assign(`/vagas?comprar=${encodeURIComponent(target.id)}`)} />)}
+              {vacancies.slice(0, 4).map((item) => <VacancyCard key={item.id} item={item} onPreview={setVacancyPreview} onBuy={(target) => window.location.assign(`/campeonatos/${encodeURIComponent(target.id)}?comprar=1`)} />)}
             </div>
           ) : (
             <div className="vacancies-empty"><Ticket size={32}/><strong>Nenhuma vaga disponível agora</strong><span>Novos campeonatos aparecerão aqui quando abrirem inscrições.</span></div>
