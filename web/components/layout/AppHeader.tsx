@@ -136,20 +136,20 @@ export function AppHeader({
   const quickActions = activeProfileType === 'produtora'
     ? [
         { label: 'Criar campeonato', detail: 'Começar uma nova competição', href: '/?painel=1&acao=criar-campeonato', icon: Trophy },
-        { label: 'Meus campeonatos', detail: 'Continuar uma organização', href: '/campeonatos', icon: LayoutDashboard },
+        { label: 'Meus campeonatos', detail: 'Continuar uma organização', href: '/?painel=1&section=campeonatos', icon: LayoutDashboard },
         { label: 'Agenda', detail: 'Jogos e compromissos', href: '/agenda', icon: CalendarDays },
       ]
     : activeProfileType === 'equipe'
       ? [
           { label: 'Encontrar campeonato', detail: 'Ver vagas abertas', href: '/campeonatos?vagas=1', icon: Trophy },
-          { label: 'Minha equipe', detail: 'Elenco, lines e gestão', href: '/?painel=1', icon: UsersRound },
+          { label: 'Minha equipe', detail: 'Elenco, lines e gestão', href: '/?painel=1&section=campeonatos', icon: UsersRound },
           { label: 'Agenda', detail: 'Próximos jogos', href: '/agenda', icon: CalendarDays },
         ]
       : activeProfileType === 'jogador'
         ? [
+            { label: 'Minhas competições', detail: 'Inscrições, agenda e resultados', href: '/?painel=1&section=competicoes', icon: Trophy },
             { label: 'Minha agenda', detail: 'Jogos e escalações', href: '/agenda', icon: CalendarDays },
             { label: 'Encontrar campeonato', detail: 'Explorar competições', href: '/campeonatos', icon: Trophy },
-            { label: 'Comunidade', detail: 'Equipes e jogadores', href: '/comunidade', icon: UsersRound },
           ]
         : activeProfileType === 'manager'
           ? [

@@ -103,7 +103,8 @@ export function AppShell({
       const cached = (JSON.parse(localStorage.getItem('dropzone_recent_profiles') || '[]') as DropZoneRow[])
         .filter((item) => isWebProfileType(item.profile_type))
       const preferred = localStorage.getItem('dropzone_active_profile_type') || ''
-      const recent = cached.find((item) => item.profile_type === preferred) || cached[0]
+      const preferredId = localStorage.getItem('dropzone_active_profile_id') || ''
+      const recent = cached.find((item) => item.id === preferredId) || cached.find((item) => item.profile_type === preferred) || cached[0]
       if (recent) {
         setSessionAccount(recent)
         setSessionAccounts(cached)
@@ -128,11 +129,13 @@ export function AppShell({
       }
 
       const preferred = localStorage.getItem('dropzone_active_profile_type') || ''
+      const preferredId = localStorage.getItem('dropzone_active_profile_id') || ''
       const response = await fetch('/api/me', {
         cache: 'no-store',
         headers: {
           Authorization: `Bearer ${token}`,
           ...(preferred ? { 'X-Profile-Type': preferred } : {}),
+          ...(preferredId ? { 'X-Profile-Id': preferredId } : {}),
         },
       })
       if (!response.ok) return
@@ -148,14 +151,19 @@ export function AppShell({
       const webAccounts = (Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : [])
         .filter((item: DropZoneRow) => isWebProfileType(item.profile_type))
       const preferredWeb = isWebProfileType(preferred) ? preferred : null
-      const webAccount = webAccounts.find((item: DropZoneRow) => item.profile_type === preferredWeb) || webAccounts[0] || null
+      const webAccount = webAccounts.find((item: DropZoneRow) => item.id === preferredId)
+        || webAccounts.find((item: DropZoneRow) => item.profile_type === preferredWeb)
+        || webAccounts[0]
+        || null
       setSessionAccount(webAccount)
       setSessionAccounts(webAccounts)
       if (webAccount) {
         localStorage.setItem('dropzone_active_profile_type', String(webAccount.profile_type || ''))
+        localStorage.setItem('dropzone_active_profile_id', webAccount.id)
         localStorage.setItem('dropzone_recent_profiles', JSON.stringify(webAccounts))
       } else {
         localStorage.removeItem('dropzone_active_profile_type')
+        localStorage.removeItem('dropzone_active_profile_id')
         localStorage.setItem('dropzone_recent_profiles', '[]')
       }
     }
@@ -186,6 +194,7 @@ export function AppShell({
 
   function defaultSwitch(next: DropZoneRow) {
     localStorage.setItem('dropzone_active_profile_type', String(next.profile_type || ''))
+    localStorage.setItem('dropzone_active_profile_id', next.id)
     setSessionAccount(next)
     // Volta ao painel para carregar o contexto do perfil
     if (pathname !== '/') window.location.href = '/'
@@ -203,8 +212,11 @@ export function AppShell({
     return parts.filter(Boolean).join(' ')
   }, [mainClassName, showHeader, withAuthOffset])
 
+  const resolvedMainId = mainId || 'main-content'
+
   return (
     <>
+      <a className="app-skip-link" href={`#${resolvedMainId}`}>Pular para o conteúdo</a>
       {showHeader ? (
         <AppHeader
           navItems={navItems}
@@ -231,7 +243,7 @@ export function AppShell({
           }
         />
       ) : null}
-      <main className={mainClasses} id={mainId}>
+      <main className={mainClasses} id={resolvedMainId} tabIndex={-1}>
         {children}
       </main>
     </>

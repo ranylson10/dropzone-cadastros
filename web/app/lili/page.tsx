@@ -150,11 +150,13 @@ export default function LiliPage() {
     ;(async () => {
       try {
         const preferred = localStorage.getItem('dropzone_active_profile_type') || ''
+        const preferredId = localStorage.getItem('dropzone_active_profile_id') || ''
         const response = await fetch('/api/me', {
           cache: 'no-store',
           headers: {
             Authorization: `Bearer ${session.access_token}`,
             ...(preferred ? { 'X-Profile-Type': preferred } : {}),
+            ...(preferredId ? { 'X-Profile-Id': preferredId } : {}),
           },
         })
         const payload = await response.json().catch(() => ({}))
@@ -163,11 +165,15 @@ export default function LiliPage() {
         const webAccounts = (Array.isArray(payload.accounts) ? payload.accounts : payload.account ? [payload.account] : [])
           .filter((item: DropZoneRow) => isWebProfileType(item.profile_type))
         const preferredWeb = isWebProfileType(preferred) ? preferred : null
-        const webAccount = webAccounts.find((item: DropZoneRow) => item.profile_type === preferredWeb) || webAccounts[0] || null
+        const webAccount = webAccounts.find((item: DropZoneRow) => item.id === preferredId)
+          || webAccounts.find((item: DropZoneRow) => item.profile_type === preferredWeb)
+          || webAccounts[0]
+          || null
         setAccount(webAccount)
         setAccounts(webAccounts)
         if (webAccount) {
           localStorage.setItem('dropzone_active_profile_type', String(webAccount.profile_type || ''))
+          localStorage.setItem('dropzone_active_profile_id', webAccount.id)
           localStorage.setItem('dropzone_recent_profiles', JSON.stringify(webAccounts))
         }
       } catch {
@@ -519,6 +525,7 @@ export default function LiliPage() {
     busyRef.current = false
     setTyping(false)
     localStorage.setItem('dropzone_active_profile_type', String(next.profile_type || ''))
+    localStorage.setItem('dropzone_active_profile_id', next.id)
     try {
       sessionStorage.removeItem(STORAGE_KEY)
       sessionStorage.removeItem(PENDING_KEY)

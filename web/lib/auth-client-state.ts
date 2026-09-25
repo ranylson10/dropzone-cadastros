@@ -5,6 +5,7 @@ import type { Session } from '@supabase/supabase-js'
 
 const EXACT_LOCAL_KEYS = new Set([
   'dropzone_active_profile_type',
+  'dropzone_active_profile_id',
   'dropzone_recent_profiles',
   'dropzone_panel_snapshot_last',
 ])

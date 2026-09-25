@@ -528,14 +528,13 @@ export async function POST(req: NextRequest) {
         const nextContext = { locale, currentFlow: 'guided_setup' }
         response = {
           reply: user
-            ? 'Boa. Me fala qual perfil voc? quer criar agora. Eu abro o cadastro certo e, quando terminar, voc? volta para c? para continuar o fluxo.'
+            ? 'Boa. Você pode criar perfil de jogador ou equipe por aqui. Workspaces de produtora são privados e só são liberados por convite da administração.'
             : 'Boa. Primeiro eu preciso confirmar sua conta; depois te levo direto para o cadastro certo e volto para continuar daqui.',
           intent: match.intent,
           requiresAuth: !user,
           actions: user ? [
             { id: 'setup-player', label: 'Criar perfil de jogador', href: `/?cadastro=jogador&vincular=1&returnTo=${encodeURIComponent('/lili')}`, variant: 'primary', context: nextContext },
             { id: 'setup-team', label: 'Criar perfil de equipe', href: `/?cadastro=equipe&vincular=1&returnTo=${encodeURIComponent('/lili')}`, variant: 'primary', context: nextContext },
-            { id: 'setup-producer', label: 'Criar perfil de produtora', href: `/?cadastro=produtora&vincular=1&returnTo=${encodeURIComponent('/lili')}`, variant: 'secondary', context: nextContext },
             { id: 'setup-use-token', label: 'Tenho um convite/token', message: 'Tenho um token', intent: 'usar_convite_token', variant: 'secondary', context: { locale } },
             backToMainMenu(locale),
           ] : [backToMainMenu(locale)],

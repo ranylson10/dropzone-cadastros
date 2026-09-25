@@ -48,7 +48,7 @@ function familyOf(route, routeNames) {
 }
 
 function isTokenWorkflowRoute(route) {
-  return /\/(?:convites?\/(?:equipe|grupo)|vendedores\/convite|equipes\/reivindicacao|vendas)\/\[[^/]+\]$/i.test(route);
+  return /\/(?:convites?\/(?:equipe|grupo)|produtora\/convites|vendedores\/convite|equipes\/reivindicacao|vendas)\/\[[^/]+\]$/i.test(route);
 }
 
 function classifyFamily(item) {

@@ -184,15 +184,30 @@ export function ProdutoraPanel(props: {
     const championshipId = params.get('campeonato')
     const rawSection = params.get('section')
     const section = (rawSection === 'estrutura' || rawSection === 'estrutura_avancada' ? 'grupos' : rawSection) as ProducerTab | null
-    if (championshipId && props.championships.some((item) => item.id === championshipId)) {
+    const topLevelSections: ProducerSection[] = ['visao', 'campeonatos', 'financeiro', 'equipe', 'configuracoes']
+    const hasSelectedChampionship = Boolean(championshipId && props.championships.some((item) => item.id === championshipId))
+    if (hasSelectedChampionship && championshipId) {
       props.setSelectedChampId(championshipId)
       setProducerSection('campeonatos')
     }
-    if (section && producerTabs.some((item) => item.id === section)) {
+    if (hasSelectedChampionship && section && producerTabs.some((item) => item.id === section)) {
+      setTab(section)
+      setProducerSection('campeonatos')
+      return
+    }
+    if (rawSection && topLevelSections.includes(rawSection as ProducerSection)) {
+      const nextSection = rawSection as ProducerSection
+      if (nextSection === 'financeiro' && !(canFinanceWorkspace || canCommercialWorkspace)) return
+      if (nextSection === 'equipe' && !(canManageMembers || canOperateWorkspace)) return
+      if (nextSection === 'configuracoes' && !canAdminWorkspace) return
+      setProducerSection(nextSection)
+      if (nextSection === 'financeiro' && !canFinanceWorkspace) setProducerFinanceView('vendedores')
+      if (nextSection === 'equipe' && !canManageMembers) setProducerTeamView('provisorias')
+    } else if (section && producerTabs.some((item) => item.id === section)) {
       setTab(section)
       setProducerSection('campeonatos')
     }
-  }, [props.championships])
+  }, [props.championships, canFinanceWorkspace, canCommercialWorkspace, canManageMembers, canOperateWorkspace, canAdminWorkspace])
   // Convite por pesquisa (correio) — por campeonato
   const [mgrQuery, setMgrQuery] = useState('')
   const [mgrSearch, setMgrSearch] = useState<any[]>([])
@@ -1868,7 +1883,7 @@ ${params.url}`
                       <span>
                         {ap === 'rejeitado'
                           ? 'Rejeitado pela administração. Ajuste e aguarde nova análise se aplicável.'
-                          : 'Aguardando aprovação do admin para ir ao ar (diretório público e chave Stream bloqueados).'}
+                          : 'Aguardando aprovação do admin para ir ao ar. A página pública e as integrações técnicas permanecem bloqueadas até a liberação.'}
                       </span>
                       {ap === 'pendente' ? (
                         <button

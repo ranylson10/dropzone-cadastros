@@ -1,3 +1,23 @@
+
+.app-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 14px;
+  border: 2px solid #111;
+  background: #fff;
+  color: #111;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+
+.app-skip-link:focus {
+  transform: translateY(0);
+}
+
 /* Rodada 2 — shell global. Estrutura escura, limpa e sem decoração gratuita. */
 .app-header {
   position: sticky;

@@ -217,18 +217,25 @@ export default function LoginPage() {
   function continueToWorkspace(userAccounts: DropZoneRow[]) {
     const { returnTo, profileType: requestedType } = pendingAuthContext()
     let storedType: ProfileType | null = null
+    let storedId = ''
+    let requestedId = ''
     try {
       storedType = parseProfileType(localStorage.getItem('dropzone_active_profile_type'))
+      storedId = String(localStorage.getItem('dropzone_active_profile_id') || '')
+      requestedId = String(new URL(returnTo, window.location.origin).searchParams.get('perfil_id') || '')
     } catch {
       // Em navegação privada, apenas abre a primeira área disponível.
     }
 
-    const account = userAccounts.find((item) => item.profile_type === requestedType)
+    const account = (requestedId ? userAccounts.find((item) => item.id === requestedId) : null)
+      || userAccounts.find((item) => item.profile_type === requestedType)
+      || (storedId ? userAccounts.find((item) => item.id === storedId) : null)
       || userAccounts.find((item) => item.profile_type === storedType)
       || userAccounts[0]
     if (account?.profile_type) {
       try {
         localStorage.setItem('dropzone_active_profile_type', account.profile_type)
+        localStorage.setItem('dropzone_active_profile_id', account.id)
         localStorage.setItem('dropzone_recent_profiles', JSON.stringify(userAccounts))
       } catch {
         // O redirecionamento não depende do cache local.
