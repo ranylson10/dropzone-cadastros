@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, CalendarDays, ChevronDown, ChevronRight, Copy, Link2, Loader2, LockKeyhole, Pencil, Plus, Search, Send, Shield, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
+import { Activity, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, Link2, Loader2, LockKeyhole, Pencil, Plus, Search, Send, Shield, Ticket, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { SystemModal } from '@/components/layout/SystemModal'
 import type { DropZoneRow } from '@/lib/types'
@@ -909,6 +909,22 @@ type Lineup = {
   jogadores: Array<any>
 }
 
+type CompetitionJourneyPurchase = {
+  id: string
+  campeonato_id: string
+  campeonato_nome: string
+  campeonato_logo_url?: string | null
+  equipe_id?: string | null
+  status: string
+  quantidade: number
+  claim_url?: string | null
+}
+
+type CompetitionJourneyPayload = {
+  team: Array<{ campeonato_id: string; equipe_id: string; campeonato_equipe_id: string }>
+  purchases: CompetitionJourneyPurchase[]
+}
+
 export function EquipePanel(props: {
   accountType: string | null
   activeTeamId: string
@@ -938,6 +954,8 @@ export function EquipePanel(props: {
   const [expanded, setExpanded] = useState<string>('')
   const [lineupLoading, setLineupLoading] = useState(false)
   const [lineupError, setLineupError] = useState('')
+  const [competitionJourney, setCompetitionJourney] = useState<CompetitionJourneyPayload>({ team: [], purchases: [] })
+  const [journeyLoading, setJourneyLoading] = useState(false)
   const [generatedInvite, setGeneratedInvite] = useState<{ token: string; link: string; texto: string } | null>(null)
   const [editingInvite, setEditingInvite] = useState<Lineup | null>(null)
   const [inviteLimit, setInviteLimit] = useState('')
@@ -1004,12 +1022,21 @@ export function EquipePanel(props: {
     }
   }, [lineups, teamLines.length, teamPlayers.length])
 
+  const pendingPurchasedVacancies = useMemo(() => {
+    const activeChampionships = new Set(lineups.map((lineup) => String(lineup.campeonato_id || '')).filter(Boolean))
+    return competitionJourney.purchases.filter((purchase) => {
+      if (!purchase.claim_url || activeChampionships.has(String(purchase.campeonato_id))) return false
+      return !purchase.equipe_id || String(purchase.equipe_id) === String(props.activeTeamId)
+    })
+  }, [competitionJourney.purchases, lineups, props.activeTeamId])
+
   useEffect(() => {
     setLineups([])
     setTrainings([])
     setExpanded('')
     setTrainingExpanded('')
     void loadLineups()
+    void loadCompetitionJourney()
   }, [props.activeTeamId])
 
   useEffect(() => {
@@ -1307,6 +1334,21 @@ export function EquipePanel(props: {
     }
   }
 
+  async function loadCompetitionJourney() {
+    setJourneyLoading(true)
+    try {
+      const token = await authToken()
+      const response = await fetch('/api/me/competicoes', { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
+      const json = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(json.error || 'Não foi possível carregar a jornada competitiva.')
+      setCompetitionJourney({ team: json.team || [], purchases: json.purchases || [] })
+    } catch {
+      setCompetitionJourney({ team: [], purchases: [] })
+    } finally {
+      setJourneyLoading(false)
+    }
+  }
+
   async function loadLineups() {
     setLineupLoading(true)
     setLineupError('')
@@ -1524,7 +1566,8 @@ Acesse: ${url}`
         {lineupError ? <div className="message error">{lineupError}</div> : null}
 
         {tab === 'campeonatos' ? <div className="panel-tab-body">
-          <div className="team-section-title"><div><p className="eyebrow">Participações</p><h3>Meus campeonatos</h3></div><button className="button secondary compact" onClick={() => void loadLineups()} disabled={lineupLoading}>Atualizar</button></div>
+          <div className="team-section-title"><div><p className="eyebrow">Jornada competitiva</p><h3>Minhas competições</h3><small>Vaga, escalação, agenda e resultados no mesmo lugar.</small></div><div className="button-row"><a className="button compact" href="/campeonatos?vagas=1"><Search size={14}/> Encontrar campeonato</a><button className="button secondary compact" onClick={() => { void loadLineups(); void loadCompetitionJourney() }} disabled={lineupLoading || journeyLoading}>Atualizar</button></div></div>
+          {pendingPurchasedVacancies.length ? <section className="team-purchased-vacancies"><header><CreditCard size={17}/><div><strong>Vagas compradas para concluir</strong><small>O pagamento já existe; falta escolher a equipe/slot e finalizar a entrada.</small></div></header><div>{pendingPurchasedVacancies.map((purchase) => <article key={purchase.id}><span>{purchase.campeonato_logo_url ? <img src={purchase.campeonato_logo_url} alt=""/> : <Ticket size={17}/>}</span><div><strong>{purchase.campeonato_nome}</strong><small>{purchase.quantidade} vaga{purchase.quantidade === 1 ? '' : 's'} · {purchase.status}</small></div><a href={purchase.claim_url || '/campeonatos'}>Concluir entrada <ChevronRight size={14}/></a></article>)}</div></section> : null}
           {lineupLoading && lineups.length === 0 ? <p className="empty">Carregando campeonatos...</p> : null}
           {lineups.length === 0 && !lineupLoading ? <p className="empty">Esta equipe ainda não possui line inscrita em campeonato.</p> : null}
           <div className="team-championship-list">
@@ -1540,6 +1583,12 @@ Acesse: ${url}`
                   <div className="team-championship-status"><b>{lineup.jogadores_confirmados}/{lineup.limite_jogadores}</b><span>escalação</span></div>
                   <ChevronDown className={isOpen ? 'rotated' : ''} />
                 </button>
+                <div className="team-competition-journey" aria-label={`Jornada em ${lineup.campeonato_nome}`}>
+                  <span className="done"><CheckCircle2 size={13}/><b>Vaga</b><small>confirmada</small></span>
+                  <span className={lineup.jogadores_confirmados >= lineup.limite_jogadores ? 'done' : 'active'}><Users size={13}/><b>Escalação</b><small>{lineup.jogadores_confirmados}/{lineup.limite_jogadores}</small></span>
+                  <span className={lineup.data_jogo ? 'active' : ''}><CalendarDays size={13}/><b>Agenda</b><small>{lineup.data_jogo ? new Date(`${lineup.data_jogo}T00:00:00`).toLocaleDateString('pt-BR') : 'a definir'}</small></span>
+                  <a href={`/campeonatos/${lineup.campeonato_id}?aba=estatisticas`}><Trophy size={13}/><b>Resultados</b><small>classificação e MVP</small></a>
+                </div>
                 <div className="team-championship-quick-actions">
                   <button type="button" onClick={() => setExpanded(isOpen ? '' : lineup.campeonato_equipe_id)}>
                     <Users size={14} /> Escalar elenco
@@ -1558,6 +1607,7 @@ Acesse: ${url}`
                       <Link2 size={14} /> Gerar link
                     </button>
                   )}
+                  <a href={`/agenda?scope=campeonato&id=${encodeURIComponent(lineup.campeonato_id)}`}>Agenda <CalendarDays size={14}/></a>
                   <a href={`/campeonatos/${lineup.campeonato_id}`}>Ver campeonato <ChevronRight size={14} /></a>
                 </div>
                 {isOpen ? <div className="team-championship-body">

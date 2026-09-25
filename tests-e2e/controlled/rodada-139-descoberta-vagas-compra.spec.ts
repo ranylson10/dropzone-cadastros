@@ -47,7 +47,7 @@ test.describe('Rodada 139 — descoberta de campeonatos, vagas e compra', () => 
     expect(client).toContain('<small>por vaga</small>')
     expect(client).toContain('Inscrições até')
     expect(client).toContain('Próximo jogo')
-    expect(client).toContain('Sua equipe participa')
+    expect(client).toContain('Você já participa')
     expect(client).toContain("price > 0 ? 'Comprar vaga' : 'Ver inscrição'")
   })
 

@@ -16,8 +16,9 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
       <div className="directory-page-body directory-page-body-with-banner directory-immersive-shell">
         {kind === 'campeonatos' ? (
           <section className="champ-directory-heading">
+            <small>MARKETPLACE DROPZONE</small>
             <h1>Campeonatos</h1>
-            <p>Encontre a competição certa e garanta sua vaga.</p>
+            <p>Compare vagas, preço, premiação e próxima data. Depois acompanhe tudo pela sua equipe.</p>
           </section>
         ) : (
           <section className={`directory-hero directory-hero-banner directory-immersive-hero theme-${kind}`} data-theme={kind}>

@@ -305,6 +305,16 @@ export function ChampionshipPublicView({
             <div className="champ-public-info-summary" aria-label="Resumo do campeonato">
               {highlightedDetails.map((item) => <div key={item.label}><small>{item.label}</small><strong>{item.value}</strong></div>)}
             </div>
+            <section className="champ-public-journey" aria-label="Jornada para participar">
+              <header><strong>Da vaga ao resultado</strong><small>O DropZone mantém cada etapa no mesmo fluxo.</small></header>
+              <div>
+                <span><b>01</b><strong>Escolha</strong><small>Compare preço, premiação e data.</small></span>
+                <span><b>02</b><strong>Garanta a vaga</strong><small>Compre ou use a inscrição disponível.</small></span>
+                <span><b>03</b><strong>Monte a escalação</strong><small>A equipe confirma quem vai jogar.</small></span>
+                <span><b>04</b><strong>Acompanhe a agenda</strong><small>Jogo, grupo, horário e compromissos.</small></span>
+                <span><b>05</b><strong>Veja resultados</strong><small>Classificação, MVP e estatísticas.</small></span>
+              </div>
+            </section>
             <div className="champ-public-info-groups">
               {detailGroups.map((group) => (
                 <section key={group.title}>

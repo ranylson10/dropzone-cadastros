@@ -9119,3 +9119,69 @@ body .player-team-request-title span{line-height:1.45}
 @media(max-width:520px){
   .producer-finance-kpis{grid-template-columns:1fr 1fr}.producer-finance-kpis article{grid-template-columns:1fr;min-height:116px;padding:13px}.producer-finance-kpis article>span{grid-row:auto;width:30px;height:30px}.producer-finance-kpis strong{font-size:22px}.producer-finance-secondary-kpis{grid-template-columns:1fr 1fr}.producer-finance-secondary-kpis>span{min-height:64px;padding:10px}.producer-finance-goal-form,.producer-finance-entry-form{grid-template-columns:1fr}.producer-finance-entry-form label.wide{grid-column:auto}.producer-finance-form-actions{grid-column:auto;display:grid}.producer-finance-champ-list>article{grid-template-columns:1fr}.producer-finance-champ-name{grid-column:auto}.producer-finance-champ-list>article>div:nth-child(n){border-top:0}.producer-finance-seller-list>div{grid-template-columns:28px 1fr auto}.producer-finance-seller-list small{grid-column:2}.producer-finance-seller-list b{grid-row:1;grid-column:3}.producer-finance-entry-list>article{grid-template-columns:32px minmax(0,1fr) auto auto}.producer-finance-entry-list>article>b{grid-column:2/-1}.producer-finance-entry-list>article>button{grid-row:1}.producer-finance-entry-list>article>button:last-child{grid-column:4}
 }
+
+/* Rodada 149 — jornada de competições de equipe e jogador. */
+body .team-purchased-vacancies{margin:0 0 12px;border:1px solid var(--ui-line);background:var(--ui-surface)}
+body .team-purchased-vacancies>header{display:flex;align-items:center;gap:9px;padding:10px 12px;border-bottom:1px solid var(--ui-line)}
+body .team-purchased-vacancies>header>svg{color:var(--ui-accent)}
+body .team-purchased-vacancies>header>div{display:grid;gap:2px}
+body .team-purchased-vacancies>header strong{font-size:11px;color:var(--ui-text)}
+body .team-purchased-vacancies>header small{font-size:9px;color:var(--ui-text-muted)}
+body .team-purchased-vacancies>div{display:grid}
+body .team-purchased-vacancies article{display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:58px;padding:8px 11px;border-bottom:1px solid var(--ui-line);background:var(--ui-surface-raised)}
+body .team-purchased-vacancies article:last-child{border-bottom:0}
+body .team-purchased-vacancies article>span{display:grid;width:34px;height:34px;place-items:center;overflow:hidden;background:var(--ui-surface);color:var(--ui-accent)}
+body .team-purchased-vacancies article img{width:100%;height:100%;object-fit:cover}
+body .team-purchased-vacancies article>div{display:grid;gap:2px;min-width:0}
+body .team-purchased-vacancies article strong{overflow:hidden;color:var(--ui-text);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+body .team-purchased-vacancies article small{color:var(--ui-text-muted);font-size:9px;text-transform:capitalize}
+body .team-purchased-vacancies article>a{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 10px;background:var(--ui-accent);color:#fff;font-size:9px;font-weight:900;text-decoration:none;text-transform:uppercase}
+body .team-competition-journey{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0 12px;border:1px solid var(--ui-line);background:var(--ui-surface)}
+body .team-competition-journey>span,body .team-competition-journey>a{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:6px;align-items:center;min-width:0;min-height:48px;padding:7px 8px;border-right:1px solid var(--ui-line);color:var(--ui-text-muted);text-decoration:none}
+body .team-competition-journey>:last-child{border-right:0}
+body .team-competition-journey svg{grid-row:1/3;color:var(--ui-text-muted)}
+body .team-competition-journey b{font-size:9px;color:var(--ui-text)}
+body .team-competition-journey small{overflow:hidden;font-size:8px;color:var(--ui-text-muted);text-overflow:ellipsis;white-space:nowrap}
+body .team-competition-journey .done svg{color:#53b98d}
+body .team-competition-journey .active svg,body .team-competition-journey>a svg{color:var(--ui-accent)}
+body .player-primary-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible}
+body .player-primary-nav>button{width:100%;justify-content:center;text-align:center}
+body .player-competitions-workspace{display:grid;gap:12px}
+body .player-competition-list{display:grid;gap:8px}
+body .player-competition-list>article{display:grid;gap:0;overflow:hidden;border:1px solid var(--ui-line);background:var(--ui-surface-raised)}
+body .player-competition-main{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:10px;padding:11px 12px}
+body .player-competition-main>span{display:grid;width:40px;height:40px;place-items:center;overflow:hidden;background:var(--ui-surface);color:var(--ui-accent)}
+body .player-competition-main img{width:100%;height:100%;object-fit:cover}
+body .player-competition-main>div{display:grid;gap:2px;min-width:0}
+body .player-competition-main small{color:var(--ui-accent);font-size:8px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+body .player-competition-main strong{overflow:hidden;color:var(--ui-text);font-size:13px;text-overflow:ellipsis;white-space:nowrap}
+body .player-competition-main p{margin:0;color:var(--ui-text-muted);font-size:9px}
+body .player-competition-journey{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line)}
+body .player-competition-journey>span,body .player-competition-journey>a{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:6px;align-items:center;min-height:48px;padding:7px 9px;border-right:1px solid var(--ui-line);color:var(--ui-text-muted);text-decoration:none}
+body .player-competition-journey>:last-child{border-right:0}
+body .player-competition-journey svg{grid-row:1/3;color:var(--ui-text-muted)}
+body .player-competition-journey .done svg{color:#53b98d}
+body .player-competition-journey .active svg,body .player-competition-journey>a svg{color:var(--ui-accent)}
+body .player-competition-journey b{font-size:9px;color:var(--ui-text)}
+body .player-competition-journey small{overflow:hidden;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+body .player-competition-actions{display:flex;justify-content:flex-end;gap:7px;padding:8px 10px}
+body .player-competition-actions a{display:inline-flex;align-items:center;gap:4px;min-height:31px;padding:0 9px;border:1px solid var(--ui-line);color:var(--ui-text);font-size:8px;font-weight:900;text-decoration:none;text-transform:uppercase}
+body .player-competition-actions a:last-child{border-color:var(--ui-accent);background:var(--ui-accent);color:#fff}
+body .player-competition-empty{display:grid;justify-items:center;gap:6px;padding:26px 14px;border:1px solid var(--ui-line);background:var(--ui-surface);text-align:center}
+body .player-competition-empty>svg{color:var(--ui-accent)}
+body .player-competition-empty strong{color:var(--ui-text);font-size:12px}
+body .player-competition-empty small{max-width:460px;color:var(--ui-text-muted);font-size:9px}
+body .player-competition-empty a{margin-top:5px;padding:9px 12px;background:var(--ui-accent);color:#fff;font-size:9px;font-weight:900;text-decoration:none;text-transform:uppercase}
+@media(max-width:720px){
+  body .player-primary-nav{display:flex;grid-template-columns:none;overflow-x:auto}
+  body .player-primary-nav>button{min-width:84px;width:auto;flex:1 0 auto;padding-inline:9px;font-size:8px}
+  body .team-purchased-vacancies article{grid-template-columns:34px minmax(0,1fr)}
+  body .team-purchased-vacancies article>a{grid-column:1/-1;justify-content:center}
+  body .team-competition-journey{display:flex;overflow-x:auto;margin:0 9px}
+  body .team-competition-journey>span,body .team-competition-journey>a{min-width:120px}
+  body .player-competition-journey{display:flex;overflow-x:auto}
+  body .player-competition-journey>span,body .player-competition-journey>a{min-width:130px}
+  body .player-competition-actions{display:grid;grid-template-columns:1fr 1fr}
+  body .player-competition-actions a{justify-content:center}
+  body .player-competition-actions a:last-child{grid-column:1/-1}
+}

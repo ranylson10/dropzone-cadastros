@@ -618,3 +618,51 @@
   .directory-market-page .directory-champ-actions>a,
   .directory-market-page .directory-champ-actions>span{min-height:38px;font-size:8px}
 }
+
+/* Rodada 149 — marketplace orientado à jornada da equipe. */
+.champ-directory-heading small{
+  display:block;
+  margin-bottom:6px;
+  color:var(--champ-accent-strong);
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.14em;
+}
+.directory-market-filters{
+  align-items:center;
+}
+.directory-market-sort{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:36px;
+  margin-left:auto;
+  padding:0 10px;
+  border-radius:8px;
+  background:var(--champ-surface);
+  color:var(--champ-muted);
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.directory-market-sort select{
+  max-width:150px;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--champ-text);
+  font:inherit;
+  font-size:10px;
+  font-weight:900;
+  text-transform:none;
+}
+.directory-market-sort option{background:var(--champ-surface);color:var(--champ-text)}
+.directory-market-page .directory-champ-participating.is-purchased{
+  background:rgba(111,67,255,.2);
+  color:#c8baff;
+}
+@media(max-width:760px){
+  .directory-market-filters{align-items:stretch}
+  .directory-market-sort{width:100%;justify-content:space-between;margin-left:0}
+  .directory-market-sort select{max-width:none;text-align:right}
+}

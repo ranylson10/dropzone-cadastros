@@ -117,6 +117,14 @@ function isToday(value: unknown) {
     && date.getDate() === now.getDate()
 }
 
+type UserCompetitionPurchase = {
+  campeonato_id: string
+  status: string
+  claim_url?: string | null
+}
+
+type MarketSort = 'soon' | 'prize' | 'price' | 'vacancies'
+
 type ChampFilters = {
   openVacancies: boolean
   today: boolean
@@ -168,6 +176,9 @@ function filterChampionships(items: DirectoryItem[], filters: ChampFilters, myCh
 function ChampionshipCards({
   items,
   myChampionshipIds,
+  participatingChampionshipIds,
+  followHrefByChampionship,
+  purchaseByChampionship,
   wishlistIds,
   cartIds,
   pendingWishlistIds,
@@ -177,6 +188,9 @@ function ChampionshipCards({
 }: {
   items: DirectoryItem[]
   myChampionshipIds: Set<string>
+  participatingChampionshipIds: Set<string>
+  followHrefByChampionship: Map<string, string>
+  purchaseByChampionship: Map<string, UserCompetitionPurchase>
   wishlistIds: Set<string>
   cartIds: Set<string>
   pendingWishlistIds: Set<string>
@@ -191,6 +205,9 @@ function ChampionshipCards({
         const price = moneyNumber(item.commercial?.valor_inscricao)
         const hasPrize = Number(item.commercial?.premiacao || 0) > 0
         const isMine = myChampionshipIds.has(item.id)
+        const isParticipating = participatingChampionshipIds.has(item.id)
+        const purchase = purchaseByChampionship.get(item.id)
+        const followHref = followHrefByChampionship.get(item.id) || '/?painel=1'
         const isInCart = cartIds.has(item.id)
         const coverUrl = cachedStorageMediaUrl(item.banner || item.image || '')
         const championshipHref = `/${item.kind}/${item.id}`
@@ -260,7 +277,7 @@ function ChampionshipCards({
                   </button>
                 </span>
               </div>
-              {isMine ? <span className="directory-champ-participating"><Users size={12} /> Sua equipe participa</span> : null}
+              {isParticipating ? <span className="directory-champ-participating"><Users size={12} /> Você já participa</span> : purchase ? <span className="directory-champ-participating is-purchased"><Ticket size={12} /> Vaga comprada · falta concluir entrada</span> : null}
               <div className="directory-champ-facts">
                 <span><b>{registrationPriceLabel(item.commercial?.valor_inscricao)}</b><small>por vaga</small></span>
                 <span><b>{free}</b><small>livres</small></span>
@@ -275,9 +292,13 @@ function ChampionshipCards({
               </div>
               <div className="directory-champ-actions">
                 <a className="directory-champ-details-link" href={championshipHref}>Detalhes <ChevronRight size={14} /></a>
-                {free > 0
-                  ? <a className="directory-champ-cart-action" href={price > 0 ? buyHref : championshipHref}>{price > 0 ? 'Comprar vaga' : 'Ver inscrição'} <ChevronRight size={14} /></a>
-                  : <span className="directory-champ-cart-action is-disabled">Sem vagas</span>}
+                {isParticipating
+                  ? <a className="directory-champ-cart-action" href={followHref}>Acompanhar <ChevronRight size={14} /></a>
+                  : purchase?.claim_url
+                    ? <a className="directory-champ-cart-action" href={purchase.claim_url}>Concluir entrada <ChevronRight size={14} /></a>
+                    : free > 0
+                      ? <a className="directory-champ-cart-action" href={price > 0 ? buyHref : championshipHref}>{price > 0 ? 'Comprar vaga' : 'Ver inscrição'} <ChevronRight size={14} /></a>
+                      : <span className="directory-champ-cart-action is-disabled">Sem vagas</span>}
               </div>
             </div>
           </article>
@@ -291,6 +312,10 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
   const [query, setQuery] = useState('')
   const [champFilters, setChampFilters] = useState<ChampFilters>(emptyChampFilters)
   const [myChampionshipIds, setMyChampionshipIds] = useState<Set<string>>(new Set())
+  const [participatingChampionshipIds, setParticipatingChampionshipIds] = useState<Set<string>>(new Set())
+  const [followHrefByChampionship, setFollowHrefByChampionship] = useState<Map<string, string>>(new Map())
+  const [purchaseByChampionship, setPurchaseByChampionship] = useState<Map<string, UserCompetitionPurchase>>(new Map())
+  const [sortMode, setSortMode] = useState<MarketSort>('soon')
   const [cartItems, setCartItems] = useState<LocalCommerceItem[]>([])
   const [wishlistItems, setWishlistItems] = useState<LocalCommerceItem[]>([])
   const [accessToken, setAccessToken] = useState<string | null>(null)
@@ -332,9 +357,12 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
   useEffect(() => {
     if (!isChampionshipDirectory) return
     const params = new URLSearchParams(window.location.search)
-    if (params.get('vagas') === '1') {
-      setChampFilters((current) => ({ ...current, openVacancies: true }))
-    }
+    if (params.get('vagas') === '1') setChampFilters((current) => ({ ...current, openVacancies: true }))
+    if (params.get('meus') === '1') setChampFilters((current) => ({ ...current, mine: true }))
+    const order = params.get('ordem')
+    if (order === 'premio') setSortMode('prize')
+    if (order === 'preco') setSortMode('price')
+    if (order === 'vagas') setSortMode('vacancies')
   }, [isChampionshipDirectory])
 
   useEffect(() => {
@@ -346,7 +374,7 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
       if (!accessToken) return
       setAccessToken(accessToken)
       const localCart = getCartItems()
-      const [cartResponse, wishlistResponse, meResponse] = await Promise.all([
+      const [cartResponse, wishlistResponse, meResponse, journeyResponse] = await Promise.all([
         fetch('/api/me/commerce/cart', {
           cache: 'no-store',
           headers: { Authorization: `Bearer ${accessToken}` },
@@ -359,10 +387,15 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
           cache: 'no-store',
           headers: { Authorization: `Bearer ${accessToken}` },
         }).catch(() => null),
+        fetch('/api/me/competicoes', {
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).catch(() => null),
       ])
       const cartPayload = cartResponse?.ok ? await cartResponse.json().catch(() => null) : null
       const wishlistPayload = wishlistResponse?.ok ? await wishlistResponse.json().catch(() => null) : null
       const mePayload = meResponse?.ok ? await meResponse.json().catch(() => null) : null
+      const journeyPayload = journeyResponse?.ok ? await journeyResponse.json().catch(() => null) : null
       const remoteCartIds = new Set((cartPayload?.items || []).map((item: any) => String(item?.campeonato_id || '')))
       const localItemsToSync = localCart.filter((item) => !remoteCartIds.has(item.id))
       if (localItemsToSync.length) {
@@ -378,13 +411,34 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
         setCanCreateChampionship((mePayload?.accounts || []).some((account: any) => account?.profile_type === 'produtora'))
       }
       if (wishlistPayload?.items && alive) setWishlistItems(wishlistPayload.items.map(commerceItemFromApi).filter((item: LocalCommerceItem) => item.id))
-      const response = await fetch('/api/equipe/escalacoes', {
-        cache: 'no-store',
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }).catch(() => null)
-      const payload = response?.ok ? await response.json().catch(() => ({})) : {}
       if (!alive) return
-      setMyChampionshipIds(new Set<string>((payload.escalacoes || []).map((row: any) => String(row.campeonato_id || '')).filter(Boolean)))
+      const teamJourney = journeyPayload?.team || []
+      const playerJourney = journeyPayload?.player || []
+      const participating = new Set<string>([...teamJourney, ...playerJourney].map((row: any) => String(row.campeonato_id || '')).filter(Boolean))
+      const followHrefs = new Map<string, string>()
+      for (const row of teamJourney) {
+        const championshipId = String(row.campeonato_id || '')
+        const teamId = String(row.equipe_id || '')
+        if (championshipId && teamId && !followHrefs.has(championshipId)) {
+          followHrefs.set(championshipId, `/?painel=1&perfil=equipe&perfil_id=${encodeURIComponent(teamId)}&section=campeonatos`)
+        }
+      }
+      for (const row of playerJourney) {
+        const championshipId = String(row.campeonato_id || '')
+        const playerId = String(row.jogador_id || '')
+        if (championshipId && playerId && !followHrefs.has(championshipId)) {
+          followHrefs.set(championshipId, `/?painel=1&perfil=jogador&perfil_id=${encodeURIComponent(playerId)}&section=competicoes`)
+        }
+      }
+      const purchases = new Map<string, UserCompetitionPurchase>()
+      for (const row of journeyPayload?.purchases || []) {
+        const championshipId = String(row.campeonato_id || '')
+        if (championshipId && !purchases.has(championshipId)) purchases.set(championshipId, row)
+      }
+      setParticipatingChampionshipIds(participating)
+      setFollowHrefByChampionship(followHrefs)
+      setPurchaseByChampionship(purchases)
+      setMyChampionshipIds(new Set<string>([...participating, ...purchases.keys()]))
     })
     return () => { alive = false }
   }, [isChampionshipDirectory, refreshRemoteCart])
@@ -396,6 +450,9 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
 
     return filterChampionships(queryItems, champFilters, myChampionshipIds)
       .sort((a, b) => {
+        if (sortMode === 'prize') return moneyNumber(b.commercial?.premiacao) - moneyNumber(a.commercial?.premiacao) || a.name.localeCompare(b.name, 'pt-BR')
+        if (sortMode === 'price') return moneyNumber(a.commercial?.valor_inscricao) - moneyNumber(b.commercial?.valor_inscricao) || a.name.localeCompare(b.name, 'pt-BR')
+        if (sortMode === 'vacancies') return Number(b.commercial?.vagas_livres || 0) - Number(a.commercial?.vagas_livres || 0) || a.name.localeCompare(b.name, 'pt-BR')
         const aFree = Number(a.commercial?.vagas_livres || 0)
         const bFree = Number(b.commercial?.vagas_livres || 0)
         if (Boolean(aFree) !== Boolean(bFree)) return bFree > 0 ? 1 : -1
@@ -403,7 +460,7 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
         const bDate = String(b.commercial?.data_jogo || '9999-12-31')
         return aDate.localeCompare(bDate) || a.name.localeCompare(b.name, 'pt-BR')
       })
-  }, [champFilters, isChampionshipDirectory, items, myChampionshipIds, query])
+  }, [champFilters, isChampionshipDirectory, items, myChampionshipIds, query, sortMode])
 
   const metaLabels = useMemo(() => getMetaLabels(items), [items])
   const wishlistIds = useMemo(() => new Set(wishlistItems.map((item) => item.id)), [wishlistItems])
@@ -520,6 +577,7 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
               <button type="button" className={champFilters.lastVacancies ? 'active' : ''} onClick={() => toggleChampFilter('lastVacancies')}>Últimas vagas</button>
               {authenticated ? <button type="button" className={champFilters.mine ? 'active' : ''} onClick={() => toggleChampFilter('mine')}>Meus</button> : null}
             </div>
+            <label className="directory-market-sort"><span>Ordenar</span><select value={sortMode} onChange={(event) => setSortMode(event.target.value as MarketSort)}><option value="soon">Próximos jogos</option><option value="vacancies">Mais vagas</option><option value="prize">Maior premiação</option><option value="price">Menor preço</option></select></label>
             <details className="directory-market-more">
               <summary><SlidersHorizontal size={15} /> Filtros</summary>
               <div className="directory-market-filter-fields">
@@ -556,6 +614,9 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
         <ChampionshipCards
           items={filtered}
           myChampionshipIds={myChampionshipIds}
+          participatingChampionshipIds={participatingChampionshipIds}
+          followHrefByChampionship={followHrefByChampionship}
+          purchaseByChampionship={purchaseByChampionship}
           wishlistIds={wishlistIds}
           cartIds={cartIds}
           pendingWishlistIds={pendingWishlistIds}

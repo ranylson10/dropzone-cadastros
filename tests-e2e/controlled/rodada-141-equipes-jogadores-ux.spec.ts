@@ -41,7 +41,7 @@ test.describe('Rodada 141 — Equipes e Jogadores com hierarquia simples', () =>
   })
 
   test('jogador passa a ter área própria de equipe', () => {
-    expect(player).toContain("'resumo' | 'equipe' | 'desempenho' | 'perfil'")
+    expect(player).toContain("'resumo' | 'competicoes' | 'equipe' | 'desempenho' | 'perfil'")
     expect(player).toContain('aria-label="Áreas do jogador"')
     expect(player).toContain("onClick={() => setTab('equipe')}>Equipe</button>")
   })
@@ -49,7 +49,7 @@ test.describe('Rodada 141 — Equipes e Jogadores com hierarquia simples', () =>
   test('início do jogador mostra só ações prioritárias e próximo passo', () => {
     expect(player).toContain('aria-label="Acesso rápido do jogador"')
     expect(player).toContain('Minha agenda')
-    expect(player).toContain('Encontrar campeonatos')
+    expect(player).toContain('Minhas competições')
     expect(player).toContain('Próximo passo: entre em uma equipe')
   })
 

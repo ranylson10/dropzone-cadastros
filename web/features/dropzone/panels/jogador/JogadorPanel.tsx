@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, BarChart3, CalendarDays, ChevronRight, Gamepad2, KeyRound, Loader2, Shield, Swords, Target, Trophy, Users } from 'lucide-react'
+import { Activity, BarChart3, CalendarDays, CheckCircle2, ChevronRight, Gamepad2, KeyRound, Loader2, Search, Shield, Swords, Target, Trophy, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { dataText, rowTitle } from '../../utils'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
@@ -52,6 +52,26 @@ type PlayerPerformance = {
   statistics: { partidas: number; abates: number; dano: number; assistencias: number; revives: number; booyahs: number }
   statisticsByChampionship: Array<any>
   matchHistory: PlayerMatch[]
+}
+
+type PlayerCompetitionJourney = {
+  campeonato_jogador_id: string
+  campeonato_id: string
+  campeonato_equipe_id?: string | null
+  campeonato_nome: string
+  campeonato_tipo?: string | null
+  campeonato_logo_url?: string | null
+  equipe_nome?: string | null
+  equipe_tag?: string | null
+  line_nome?: string | null
+  fase_nome?: string | null
+  grupo_nome?: string | null
+  data_jogo?: string | null
+  horario?: string | null
+  status: string
+  agenda_href: string
+  resultados_href: string
+  campeonato_href: string
 }
 
 type TrendPoint = { label: string; value: number | null }
@@ -173,7 +193,7 @@ export function JogadorPanel(props: {
   const teamIds = new Set(memberships.map((row) => String(row.ref_id || row.data?.team_id || '')))
   const myTeams = props.teams.filter((team) => teamIds.has(team.id))
   const myLines = props.teamLines.filter((line) => teamIds.has(String(line.ref_id || line.data?.team_id || '')))
-  const [tab, setTab] = useState<'resumo' | 'equipe' | 'desempenho' | 'perfil'>('resumo')
+  const [tab, setTab] = useState<'resumo' | 'competicoes' | 'equipe' | 'desempenho' | 'perfil'>('resumo')
   const [performance, setPerformance] = useState<PlayerPerformance | null>(null)
   const [performanceLoading, setPerformanceLoading] = useState(false)
   const [performanceError, setPerformanceError] = useState('')
@@ -181,6 +201,8 @@ export function JogadorPanel(props: {
   const [performancePeriod, setPerformancePeriod] = useState<PerformancePeriod>('all')
   const [lineupToken, setLineupToken] = useState('')
   const [lineupTokenError, setLineupTokenError] = useState('')
+  const [competitionJourney, setCompetitionJourney] = useState<PlayerCompetitionJourney[]>([])
+  const [competitionJourneyLoading, setCompetitionJourneyLoading] = useState(false)
 
   const enrolledChampionships = useMemo(() => {
     const byRegistration = new Map<string, DropZoneRow>()
@@ -221,8 +243,30 @@ export function JogadorPanel(props: {
   }
 
   useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section')
+    if (section === 'competicoes' || section === 'equipe' || section === 'desempenho' || section === 'perfil' || section === 'resumo') setTab(section)
+    void loadCompetitionJourney()
+  }, [props.account.id])
+
+  useEffect(() => {
     if (tab === 'desempenho' && !performance && !performanceLoading) void loadPerformance()
   }, [tab])
+
+  async function loadCompetitionJourney() {
+    setCompetitionJourneyLoading(true)
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) return
+      const response = await fetch('/api/me/competicoes', { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
+      const json = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(json.error || 'Não foi possível carregar suas competições.')
+      setCompetitionJourney((json.player || []).filter((row: any) => String(row.jogador_id || '') === String(props.account.id)))
+    } catch {
+      setCompetitionJourney([])
+    } finally {
+      setCompetitionJourneyLoading(false)
+    }
+  }
 
   async function loadPerformance() {
     setPerformanceLoading(true)
@@ -459,6 +503,7 @@ export function JogadorPanel(props: {
         </div>
         <div className="producer-tabs manager-champ-tabs player-primary-nav" style={{ marginBottom: 12 }} aria-label="Áreas do jogador">
           <button type="button" className={tab === 'resumo' ? 'active' : ''} onClick={() => setTab('resumo')}>Início</button>
+          <button type="button" className={tab === 'competicoes' ? 'active' : ''} onClick={() => setTab('competicoes')}>Competições</button>
           <button type="button" className={tab === 'equipe' ? 'active' : ''} onClick={() => setTab('equipe')}>Equipe</button>
           <button type="button" className={tab === 'desempenho' ? 'active' : ''} onClick={() => setTab('desempenho')}>Desempenho</button>
           <button type="button" className={tab === 'perfil' ? 'active' : ''} onClick={() => setTab('perfil')}>Perfil</button>
@@ -482,10 +527,25 @@ export function JogadorPanel(props: {
             <div className="player-start-actions" aria-label="Acesso rápido do jogador">
               <a href="/agenda"><CalendarDays size={18}/><span><strong>Minha agenda</strong><small>Jogos e compromissos</small></span><ChevronRight size={16}/></a>
               <button type="button" onClick={() => setTab('equipe')}><Users size={18}/><span><strong>{myTeams.length ? 'Minha equipe' : 'Encontrar equipe'}</strong><small>{myTeams.length ? 'Elenco, lines e escalação' : 'Procure uma equipe para entrar'}</small></span><ChevronRight size={16}/></button>
-              <a href="/campeonatos?vagas=1"><Trophy size={18}/><span><strong>Encontrar campeonatos</strong><small>Veja competições com vagas</small></span><ChevronRight size={16}/></a>
+              <button type="button" onClick={() => setTab('competicoes')}><Trophy size={18}/><span><strong>Minhas competições</strong><small>Agenda, equipe e resultados</small></span><ChevronRight size={16}/></button>
             </div>
             {!myTeams.length ? <div className="player-next-step"><Users size={18}/><span><strong>Próximo passo: entre em uma equipe</strong><small>Você pode pesquisar pelo nome, tag ou @ da equipe e enviar um pedido.</small></span><button type="button" onClick={() => setTab('equipe')}>Encontrar equipe</button></div> : null}
           </>
+        ) : null}
+
+        {tab === 'competicoes' ? (
+          <div className="player-competitions-workspace">
+            <div className="team-section-title"><div><p className="eyebrow">Jornada competitiva</p><h3>Minhas competições</h3><small>Da escalação aos resultados, sem precisar procurar cada ferramenta.</small></div><div className="button-row"><a className="button compact" href="/campeonatos?vagas=1"><Search size={14}/> Encontrar campeonato</a><button type="button" className="button secondary compact" onClick={() => void loadCompetitionJourney()} disabled={competitionJourneyLoading}>Atualizar</button></div></div>
+            {competitionJourneyLoading && !competitionJourney.length ? <p className="empty"><Loader2 className="spin" size={15}/> Carregando competições...</p> : null}
+            {!competitionJourneyLoading && !competitionJourney.length ? <div className="player-competition-empty"><Trophy size={24}/><strong>Você ainda não está escalado em campeonato.</strong><small>Quando sua equipe confirmar sua escalação, a competição aparece aqui automaticamente.</small><a href="/campeonatos?vagas=1">Explorar campeonatos</a></div> : null}
+            <div className="player-competition-list">
+              {competitionJourney.map((entry) => <article key={entry.campeonato_jogador_id}>
+                <div className="player-competition-main"><span>{entry.campeonato_logo_url ? <img src={entry.campeonato_logo_url} alt=""/> : <Trophy size={18}/>}</span><div><small>{entry.campeonato_tipo || 'Campeonato'}</small><strong>{entry.campeonato_nome}</strong><p>{entry.equipe_tag ? `${entry.equipe_tag} · ` : ''}{entry.equipe_nome || 'Equipe'}{entry.line_nome ? ` · ${entry.line_nome}` : ''}</p></div></div>
+                <div className="player-competition-journey"><span className="done"><CheckCircle2 size={13}/><b>Escalado</b><small>{entry.grupo_nome || entry.fase_nome || 'confirmado'}</small></span><span className={entry.data_jogo ? 'active' : ''}><CalendarDays size={13}/><b>Agenda</b><small>{entry.data_jogo ? `${new Date(`${entry.data_jogo}T00:00:00`).toLocaleDateString('pt-BR')}${entry.horario ? ` · ${String(entry.horario).slice(0,5)}` : ''}` : 'a definir'}</small></span><a href={entry.resultados_href}><BarChart3 size={13}/><b>Resultados</b><small>classificação e MVP</small></a></div>
+                <div className="player-competition-actions"><a href={entry.agenda_href}>Agenda</a><a href={entry.resultados_href}>Resultados</a><a href={entry.campeonato_href}>Ver campeonato <ChevronRight size={13}/></a></div>
+              </article>)}
+            </div>
+          </div>
         ) : null}
 
         {tab === 'desempenho' ? (
@@ -588,10 +648,6 @@ export function JogadorPanel(props: {
           </div>
         ) : null}
       </section>
-
-      {tab === 'resumo' ? <>
-        <section className="panel span-3"><div className="team-section-title"><div><p className="eyebrow">Participações</p><h2>Meus campeonatos</h2></div><a className="button secondary compact" href="/campeonatos?vagas=1">Encontrar campeonatos</a></div><div className="player-championship-list">{enrolledChampionships.length === 0 ? <p className="empty">Você ainda não está inscrito em campeonato.</p> : null}{enrolledChampionships.map(({ registration, championshipName, championshipType, teamName, teamTag }) => <article key={registration.id}><span>{championshipType || 'Campeonato'}</span><strong>{championshipName}</strong><small>{teamTag ? `${teamTag} · ` : ''}{teamName}</small></article>)}</div></section>
-      </> : null}
 
       {tab === 'equipe' ? <>
         <section className="panel span-2 player-team-workspace"><div className="team-section-title"><div><p className="eyebrow">Vínculos</p><h2>Minha equipe</h2></div><span className="count-pill"><Users size={14}/>{myTeams.length}</span></div>{myTeams.length === 0 ? <p className="empty">Você ainda não faz parte de uma equipe.</p> : null}<div className="team-line-grid">{myTeams.map((team) => <article className="team-line-card" key={team.id}><img src={dataText(team, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'Sem tag'}</span></div></article>)}</div><div className="player-lines-inline"><strong>Minhas lines</strong>{myLines.length === 0 ? <p className="empty">Nenhuma line vinculada ao seu elenco.</p> : null}<div className="team-line-grid">{myLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span></div></article>)}</div></div></section>
