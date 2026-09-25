@@ -20,9 +20,9 @@ const headerCss = read('web/app/header.css')
 
 test.describe('Rodada 151 — marketplace visual', () => {
   test('home passa a abrir como marketplace com busca antes das ferramentas de gestão', () => {
-    expect(home).toContain('MARKETPLACE DROPZONE')
-    expect(home).toContain('Encontre seu próximo campeonato.')
-    expect(home).toContain('Buscar campeonato, produtora ou formato...')
+    expect(home).toContain('DROPZONE FREE FIRE')
+    expect(home).toContain('Encontre seu próximo campeonato de Free Fire.')
+    expect(home).toContain('Buscar copa, sala, liga, produtora ou formato...')
     expect(home).toContain('market-home-search-zone')
     expect(home.indexOf('market-home-search-zone')).toBeLessThan(home.indexOf('market-home-account-strip'))
   })
@@ -109,8 +109,10 @@ test.describe('Rodada 151 — marketplace visual', () => {
 
   test('marketplace prioriza conteúdo comercial e reduz grandes vazios do dashboard', () => {
     expect(homeCss).toContain('.market-home{')
-    expect(homeCss).toContain('.market-home-hero{display:grid')
-    expect(homeCss).toContain('.market-home-prize-list{display:grid')
+    expect(homeCss).toMatch(/\.market-home-hero\s*\{[\s\S]*?display:grid/)
+    expect(homeCss).toMatch(/\.market-home-prize-list\s*\{[\s\S]*?display:grid/)
+    expect(homeCss).toContain('--market-accent:#ff6a1f')
+    expect(homeCss).toContain('--market-accent-strong:#ff3d5a')
     expect(directoryCss).toContain('.directory-market-page .directory-champ-card-grid{display:grid!important')
   })
 

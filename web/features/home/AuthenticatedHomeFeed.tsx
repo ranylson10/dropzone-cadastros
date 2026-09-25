@@ -16,7 +16,6 @@ import {
   Loader2,
   Search,
   ShieldCheck,
-  Sparkles,
   Store,
   Ticket,
   Trophy,
@@ -243,17 +242,17 @@ export function AuthenticatedHomeFeed({ account, accounts, onOpenPanel }: Props)
     <div className="market-home">
       <section className="market-home-search-zone" aria-label="Buscar campeonatos">
         <div className="market-home-search-copy">
-          <span><Sparkles size={14} /> MARKETPLACE DROPZONE</span>
-          <h1>Encontre seu próximo campeonato.</h1>
-          <p>Compare vagas, preço, premiação e data. Entre pela sua equipe e acompanhe tudo no mesmo lugar.</p>
+          <span><Flame size={14} /> DROPZONE FREE FIRE</span>
+          <h1>Encontre seu próximo campeonato de Free Fire.</h1>
+          <p>Descubra salas, copas, ligas e X1 com vagas abertas, premiação real e data confirmada em um só marketplace.</p>
         </div>
         <form className="market-home-search" onSubmit={submitMarketSearch}>
           <Search size={20} aria-hidden />
           <input
             value={marketQuery}
             onChange={(event) => setMarketQuery(event.target.value)}
-            placeholder="Buscar campeonato, produtora ou formato..."
-            aria-label="Buscar campeonato, produtora ou formato"
+            placeholder="Buscar copa, sala, liga, produtora ou formato..."
+            aria-label="Buscar copa, sala, liga, produtora ou formato"
           />
           <button type="submit">Buscar</button>
         </form>
