@@ -109,7 +109,8 @@ function commerceItemFromApi(row: any): LocalCommerceItem {
 
 function isToday(value: unknown) {
   if (!value) return false
-  const date = new Date(String(value))
+  const raw = String(value)
+  const date = new Date(raw.length === 10 ? `${raw}T12:00:00` : raw)
   if (Number.isNaN(date.getTime())) return false
   const now = new Date()
   return date.getFullYear() === now.getFullYear()
@@ -175,7 +176,6 @@ function filterChampionships(items: DirectoryItem[], filters: ChampFilters, myCh
 
 function ChampionshipCards({
   items,
-  myChampionshipIds,
   participatingChampionshipIds,
   followHrefByChampionship,
   purchaseByChampionship,
@@ -187,7 +187,6 @@ function ChampionshipCards({
   onWishlistToggle,
 }: {
   items: DirectoryItem[]
-  myChampionshipIds: Set<string>
   participatingChampionshipIds: Set<string>
   followHrefByChampionship: Map<string, string>
   purchaseByChampionship: Map<string, UserCompetitionPurchase>
@@ -204,7 +203,6 @@ function ChampionshipCards({
         const free = Number(item.commercial?.vagas_livres ?? 0)
         const price = moneyNumber(item.commercial?.valor_inscricao)
         const hasPrize = Number(item.commercial?.premiacao || 0) > 0
-        const isMine = myChampionshipIds.has(item.id)
         const isParticipating = participatingChampionshipIds.has(item.id)
         const purchase = purchaseByChampionship.get(item.id)
         const followHref = followHrefByChampionship.get(item.id) || '/?painel=1'
@@ -249,6 +247,7 @@ function ChampionshipCards({
                 <a className="directory-champ-title" href={championshipHref}>
                   <small>{formatLabel}</small>
                   <strong>{item.name}</strong>
+                  {item.producerName ? <em>por {item.producerName}</em> : null}
                 </a>
                 <span className="directory-champ-quick-actions">
                   <button
@@ -357,8 +356,13 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
   useEffect(() => {
     if (!isChampionshipDirectory) return
     const params = new URLSearchParams(window.location.search)
+    const initialQuery = String(params.get('q') || '').trim()
+    if (initialQuery) setQuery(initialQuery)
     if (params.get('vagas') === '1') setChampFilters((current) => ({ ...current, openVacancies: true }))
     if (params.get('meus') === '1') setChampFilters((current) => ({ ...current, mine: true }))
+    if (params.get('gratis') === '1') setChampFilters((current) => ({ ...current, free: true }))
+    if (params.get('hoje') === '1') setChampFilters((current) => ({ ...current, today: true }))
+    if (params.get('ultimas') === '1') setChampFilters((current) => ({ ...current, lastVacancies: true }))
     const order = params.get('ordem')
     if (order === 'premio') setSortMode('prize')
     if (order === 'preco') setSortMode('price')
@@ -553,7 +557,7 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar campeonato"
+                placeholder="Buscar campeonato, produtora ou formato"
               />
             </label>
             <span className="directory-result-count"><strong>{filtered.length}</strong> campeonato{filtered.length === 1 ? '' : 's'}</span>
@@ -613,7 +617,6 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
       {isChampionshipDirectory ? (
         <ChampionshipCards
           items={filtered}
-          myChampionshipIds={myChampionshipIds}
           participatingChampionshipIds={participatingChampionshipIds}
           followHrefByChampionship={followHrefByChampionship}
           purchaseByChampionship={purchaseByChampionship}

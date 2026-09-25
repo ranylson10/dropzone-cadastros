@@ -1,26 +1,29 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   CalendarDays,
   Check,
   ChevronRight,
   CirclePlus,
+  Clock3,
+  Flame,
   Gamepad2,
+  Gift,
   KeyRound,
   LayoutDashboard,
   Loader2,
+  Search,
+  ShieldCheck,
+  Sparkles,
   Store,
   Ticket,
   Trophy,
   Users,
-  ShieldCheck,
-  X,
 } from 'lucide-react'
-import type { DropZoneRow } from '@/lib/types'
-import type { ProfileType } from '@/lib/types'
-import { VacancyCard, VacancyPreview, type VacancyCatalogItem } from '@/features/vacancies/VacancyCard'
+import type { DropZoneRow, ProfileType } from '@/lib/types'
+import { VacancyCard, VacancyPreview, vacancyDateLabel, vacancyMoney, type VacancyCatalogItem } from '@/features/vacancies/VacancyCard'
 import './authenticated-home.css'
 
 type Vacancy = VacancyCatalogItem
@@ -30,8 +33,6 @@ type Props = {
   accounts: DropZoneRow[]
   onOpenPanel: (target?: DropZoneRow) => void | Promise<void>
 }
-
-type GateKind = 'equipe' | null
 
 type HomeNotification = {
   id: string
@@ -55,39 +56,46 @@ type AgendaItem = {
 type LineupSummary = {
   campeonato_equipe_id: string
   campeonato_nome?: string | null
-  equipe_nome?: string | null
   jogadores_confirmados?: number | null
   limite_jogadores?: number | null
   link_expira_em?: string | null
 }
 
-type HomeTask = { id: string; title: string; detail: string; href?: string; action?: () => void; urgent?: boolean }
+type HomeTask = { id: string; title: string; detail: string; href?: string; urgent?: boolean }
 
+function prizeNumber(item: Vacancy) {
+  const value = Number(item.premiacao || 0)
+  return Number.isFinite(value) ? value : 0
+}
 
+function priceNumber(item: Vacancy) {
+  const value = Number(item.valor_inscricao || 0)
+  return Number.isFinite(value) ? value : 0
+}
 
+function marketHref(params: Record<string, string>) {
+  const search = new URLSearchParams(params)
+  return `/campeonatos?${search.toString()}`
+}
 
-export function AuthenticatedHomeFeed({
-  account,
-  accounts,
-  onOpenPanel,
-}: Props) {
+export function AuthenticatedHomeFeed({ account, accounts, onOpenPanel }: Props) {
   const [vacancies, setVacancies] = useState<Vacancy[]>([])
   const [loadingVacancies, setLoadingVacancies] = useState(true)
-  const [gate, setGate] = useState<GateKind>(null)
   const [notifications, setNotifications] = useState<HomeNotification[]>([])
   const [agenda, setAgenda] = useState<AgendaItem[]>([])
-  const [priorityLoading, setPriorityLoading] = useState(true)
-  const [respondingNotification, setRespondingNotification] = useState('')
+  const [priorityLoading, setPriorityLoading] = useState(Boolean(account))
   const [lineups, setLineups] = useState<LineupSummary[]>([])
   const [tokenValue, setTokenValue] = useState('')
   const [tokenBusy, setTokenBusy] = useState(false)
   const [tokenError, setTokenError] = useState('')
+  const [marketQuery, setMarketQuery] = useState('')
   const [vacancyPreview, setVacancyPreview] = useState<VacancyCatalogItem | null>(null)
 
   const producer = accounts.find((item) => item.profile_type === 'produtora')
   const isPlayer = account?.profile_type === 'jogador'
   const isTeam = account?.profile_type === 'equipe'
   const isProducer = account?.profile_type === 'produtora'
+  const isManager = account?.profile_type === 'manager'
 
   useEffect(() => {
     let active = true
@@ -96,7 +104,7 @@ export function AuthenticatedHomeFeed({
       .then((data) => {
         if (!active) return
         const items = Array.isArray(data.announcements) ? data.announcements : []
-        setVacancies(items.filter((item: Vacancy) => Number(item.vagas_livres || 0) > 0).slice(0, 8))
+        setVacancies(items.filter((item: Vacancy) => Number(item.vagas_livres || 0) > 0).slice(0, 24))
       })
       .catch(() => { if (active) setVacancies([]) })
       .finally(() => { if (active) setLoadingVacancies(false) })
@@ -104,6 +112,10 @@ export function AuthenticatedHomeFeed({
   }, [])
 
   useEffect(() => {
+    if (!account) {
+      setPriorityLoading(false)
+      return
+    }
     let active = true
     ;(async () => {
       try {
@@ -129,24 +141,7 @@ export function AuthenticatedHomeFeed({
       }
     })()
     return () => { active = false }
-  }, [])
-
-  const createChampionship = () => {
-    if (!producer) return
-    const url = new URL(window.location.href)
-    url.searchParams.set('acao', 'criar-campeonato')
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-    void onOpenPanel(producer)
-  }
-
-  const openPanelAt = (target: DropZoneRow, section?: string) => {
-    if (section) {
-      const url = new URL(window.location.href)
-      url.searchParams.set('section', section)
-      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-    }
-    void onOpenPanel(target)
-  }
+  }, [account])
 
   const nextAgendaItem = useMemo(() => {
     const now = new Date()
@@ -154,10 +149,6 @@ export function AuthenticatedHomeFeed({
       .filter((item) => new Date(`${item.data}T${item.horario_inicio || '00:00'}:00`) >= now)
       .sort((a, b) => `${a.data} ${a.horario_inicio}`.localeCompare(`${b.data} ${b.horario_inicio}`))[0] || null
   }, [agenda])
-
-  const playerInvite = notifications.find((item) => item.status === 'nao_lida' && (
-    item.tipo === 'convite_jogador_equipe_direto' || item.tipo === 'pedido_jogador_equipe' || item.tipo === 'convite_escalacao_jogador'
-  ))
 
   const homeTasks = useMemo<HomeTask[]>(() => {
     const now = Date.now()
@@ -173,211 +164,236 @@ export function AuthenticatedHomeFeed({
         id: `lineup-${lineup.campeonato_equipe_id}`,
         title: `Completar escalação · ${lineup.campeonato_nome || 'campeonato'}`,
         detail: hours == null ? `${confirmed}/${required} jogadores confirmados.` : `${confirmed}/${required} jogadores · prazo em ${Math.max(1, hours)}h.`,
-        href: '/?painel=1&section=jogadores', urgent: hours != null && hours <= 24,
+        href: '/?painel=1&section=jogadores',
+        urgent: hours != null && hours <= 24,
       })
     }
-    for (const notification of notifications.filter((item) => item.status === 'nao_lida').slice(0, 4)) {
-      tasks.push({ id: `notification-${notification.id}`, title: notification.titulo, detail: notification.corpo || 'Há uma ação aguardando você.', href: notification.acao_url || notification.payload?.public_url || '/agenda', urgent: /prazo|escala|convite/i.test(`${notification.titulo} ${notification.corpo || ''}`) })
+    for (const notification of notifications.filter((item) => item.status === 'nao_lida').slice(0, 3)) {
+      tasks.push({
+        id: `notification-${notification.id}`,
+        title: notification.titulo,
+        detail: notification.corpo || 'Há uma ação aguardando você.',
+        href: notification.acao_url || notification.payload?.public_url || '/agenda',
+        urgent: /prazo|escala|convite/i.test(`${notification.titulo} ${notification.corpo || ''}`),
+      })
     }
-    if (nextAgendaItem) tasks.push({ id: `agenda-${nextAgendaItem.id}`, title: nextAgendaItem.titulo, detail: `Hoje/próximo: ${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}`, href: nextAgendaItem.meta?.href || '/agenda' })
-    return tasks.slice(0, 5)
-  }, [lineups, notifications, nextAgendaItem])
+    return tasks.slice(0, 4)
+  }, [lineups, notifications])
+
+  const featured = useMemo(() => {
+    const withBanner = vacancies.filter((item) => item.banner_url)
+    return [...(withBanner.length ? withBanner : vacancies)]
+      .sort((a, b) => prizeNumber(b) - prizeNumber(a) || Number(a.vagas_livres || 0) - Number(b.vagas_livres || 0))[0] || null
+  }, [vacancies])
+
+  const showcase = useMemo(() => vacancies.filter((item) => item.id !== featured?.id).slice(0, 8), [featured?.id, vacancies])
+  const lastVacancies = useMemo(() => vacancies.filter((item) => Number(item.vagas_livres || 0) > 0 && Number(item.vagas_livres || 0) <= 4).slice(0, 4), [vacancies])
+  const biggestPrizes = useMemo(() => [...vacancies].sort((a, b) => prizeNumber(b) - prizeNumber(a)).filter((item) => prizeNumber(item) > 0).slice(0, 4), [vacancies])
+
+  const createChampionship = () => {
+    if (!producer) return
+    const url = new URL(window.location.href)
+    url.searchParams.set('acao', 'criar-campeonato')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+    void onOpenPanel(producer)
+  }
+
+  const submitMarketSearch = (event: FormEvent) => {
+    event.preventDefault()
+    const clean = marketQuery.trim()
+    window.location.assign(clean ? `/campeonatos?q=${encodeURIComponent(clean)}` : '/campeonatos')
+  }
 
   const submitToken = async () => {
     const raw = tokenValue.trim()
     if (!raw) return
     const urlMatch = raw.match(/\/(convite\/equipe|convite\/grupo|equipe\/entrar|escala|i|vagas\/compra)\/([^/?#]+)/i)
-    if (urlMatch) { window.location.assign(`/${urlMatch[1].toLowerCase()}/${encodeURIComponent(decodeURIComponent(urlMatch[2]))}`); return }
-    setTokenBusy(true); setTokenError('')
+    if (urlMatch) {
+      window.location.assign(`/${urlMatch[1].toLowerCase()}/${encodeURIComponent(decodeURIComponent(urlMatch[2]))}`)
+      return
+    }
+    setTokenBusy(true)
+    setTokenError('')
     try {
       const response = await fetch(`/api/convites/resolver/${encodeURIComponent(raw.replace(/\s/g, ''))}`, { cache: 'no-store' })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok || !payload.href) throw new Error(payload.error || 'Token não reconhecido.')
       window.location.assign(String(payload.href))
-    } catch (error: any) { setTokenError(error?.message || 'Confira o token ou cole o link completo.') } finally { setTokenBusy(false) }
-  }
-
-  const acceptPriorityNotification = async () => {
-    if (!playerInvite) return
-    setRespondingNotification(playerInvite.id)
-    try {
-      const { supabase } = await import('@/lib/supabase-browser')
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
-      if (!token) throw new Error('Sessão expirada.')
-      const response = await fetch(`/api/notificacoes/${playerInvite.id}/aceitar`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
-      if (!response.ok) throw new Error('Não foi possível aceitar o convite.')
-      setNotifications((current) => current.filter((item) => item.id !== playerInvite.id))
+    } catch (error: any) {
+      setTokenError(error?.message || 'Confira o token ou cole o link completo.')
     } finally {
-      setRespondingNotification('')
+      setTokenBusy(false)
     }
   }
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
-  const profileLabel = isProducer ? 'Produtora' : isTeam ? 'Equipe' : isPlayer ? 'Jogador' : account?.profile_type === 'manager' ? 'Afiliado' : 'Conta'
-  const primaryTask = homeTasks[0] || null
-  const visibleTasks = homeTasks.slice(0, 3)
-  const showOpportunities = !account || isPlayer || isTeam
+  const accountAction = account
+    ? isProducer
+      ? { label: 'Painel da produtora', detail: 'Campeonatos, financeiro e equipe', icon: LayoutDashboard, action: () => void onOpenPanel(account) }
+      : isTeam
+        ? { label: 'Minha equipe', detail: 'Elenco, inscrições e competições', icon: Users, action: () => void onOpenPanel(account) }
+        : isPlayer
+          ? { label: 'Minhas competições', detail: 'Agenda, histórico e resultados', icon: Gamepad2, action: () => void onOpenPanel(account) }
+          : { label: 'Central de afiliados', detail: 'Campanhas, vendas e comissões', icon: Store, action: () => void onOpenPanel(account) }
+    : null
 
-  const createProfileHref = (type: 'jogador' | 'equipe' | 'manager', returnTo = '/?painel=1') =>
-    `/?cadastro=${type}&returnTo=${encodeURIComponent(returnTo)}`
+  const profileLabel = isProducer ? 'Produtora' : isTeam ? 'Equipe' : isPlayer ? 'Jogador' : isManager ? 'Afiliado' : 'Conta'
+  const AccountIcon = accountAction?.icon || LayoutDashboard
 
   return (
-    <div className="authenticated-home">
-      <section className={`authenticated-home-focus ${account ? '' : 'authenticated-home-focus-onboarding'}`} aria-label="Resumo da conta">
-        <div className="authenticated-home-focus-copy">
-          <span className="authenticated-home-kicker">INÍCIO</span>
-          <div className="authenticated-home-focus-title">
-            <div>
-              <h1>{account ? `${greeting}, ${account.name || account.username}` : 'Sua conta está pronta'}</h1>
-              <p>{account ? (primaryTask ? 'Você tem algo que merece atenção agora.' : 'Tudo certo por aqui. Escolha o que deseja fazer.') : 'Agora escolha apenas a área que você realmente precisa. Você pode criar outras depois.'}</p>
-            </div>
-            {account ? <span className="authenticated-home-profile-chip">{profileLabel}</span> : null}
-          </div>
+    <div className="market-home">
+      <section className="market-home-search-zone" aria-label="Buscar campeonatos">
+        <div className="market-home-search-copy">
+          <span><Sparkles size={14} /> MARKETPLACE DROPZONE</span>
+          <h1>Encontre seu próximo campeonato.</h1>
+          <p>Compare vagas, preço, premiação e data. Entre pela sua equipe e acompanhe tudo no mesmo lugar.</p>
         </div>
-
-        {account ? <div className="authenticated-home-focus-status">
-          <span className={`authenticated-home-focus-count ${homeTasks.length ? 'has-items' : 'is-clear'}`}>
-            <strong>{priorityLoading ? '…' : homeTasks.length}</strong>
-            <small>{homeTasks.length === 1 ? 'ação pendente' : 'ações pendentes'}</small>
-          </span>
-          {primaryTask ? (
-            <a className="authenticated-home-focus-next" href={primaryTask.href || '/agenda'}>
-              <span><small>PRÓXIMA AÇÃO</small><strong>{primaryTask.title}</strong></span>
-              <ChevronRight size={18} />
-            </a>
-          ) : (
-            <a className="authenticated-home-focus-next" href="/agenda">
-              <span><small>PRÓXIMO PASSO</small><strong>Ver minha agenda</strong></span>
-              <ChevronRight size={18} />
-            </a>
-          )}
-        </div> : <a className="authenticated-home-focus-explore" href="/campeonatos?vagas=1"><span><small>AINDA NÃO QUERO CADASTRAR PERFIL</small><strong>Explorar campeonatos</strong></span><ChevronRight size={18}/></a>}
+        <form className="market-home-search" onSubmit={submitMarketSearch}>
+          <Search size={20} aria-hidden />
+          <input
+            value={marketQuery}
+            onChange={(event) => setMarketQuery(event.target.value)}
+            placeholder="Buscar campeonato, produtora ou formato..."
+            aria-label="Buscar campeonato, produtora ou formato"
+          />
+          <button type="submit">Buscar</button>
+        </form>
+        <nav className="market-home-shortcuts" aria-label="Atalhos do marketplace">
+          <a href={marketHref({ vagas: '1' })}><Flame size={14} /> Vagas abertas</a>
+          <a href={marketHref({ gratis: '1' })}><Gift size={14} /> Grátis</a>
+          <a href={marketHref({ ordem: 'premio' })}><Trophy size={14} /> Maior premiação</a>
+          <a href={marketHref({ ultimas: '1' })}><Ticket size={14} /> Vagas acabando</a>
+          <a href={marketHref({ hoje: '1' })}><Clock3 size={14} /> Começa hoje</a>
+          {account ? <a href={marketHref({ meus: '1' })}><Check size={14} /> Meus campeonatos</a> : null}
+        </nav>
       </section>
 
-      {!account ? <section className="authenticated-home-section authenticated-home-onboarding">
-        <div className="authenticated-home-section-head compact">
-          <div><span>COMECE POR AQUI</span><h2>O que você quer fazer?</h2></div>
-        </div>
-        <div className="authenticated-home-onboarding-grid">
-          <a className="authenticated-home-onboarding-card primary" href={createProfileHref('jogador')}>
-            <Gamepad2 size={22}/><span><strong>Sou jogador</strong><small>Crie seu perfil, entre em equipes e acompanhe sua agenda.</small></span><ChevronRight size={17}/>
-          </a>
-          <a className="authenticated-home-onboarding-card" href={createProfileHref('equipe')}>
-            <Users size={22}/><span><strong>Tenho uma equipe</strong><small>Monte elenco, crie lines e inscreva a equipe em campeonatos.</small></span><ChevronRight size={17}/>
-          </a>
-        </div>
-        <div className="authenticated-home-private-producer" role="note">
-          <ShieldCheck size={18}/>
-          <span><strong>Produtoras são privadas</strong><small>Workspaces de organização são liberados somente pela administração para contas convidadas.</small></span>
-        </div>
-        <details className="authenticated-home-onboarding-more">
-          <summary>Outras opções</summary>
-          <a href={createProfileHref('manager')}><Store size={16}/><span><strong>Sou afiliado</strong><small>Divulgue campeonatos e acompanhe vendas.</small></span><ChevronRight size={15}/></a>
-        </details>
-      </section> : <section className="authenticated-home-section authenticated-home-quick-section">
-        <div className="authenticated-home-section-head compact">
-          <div><span>ACESSO RÁPIDO</span><h2>O que você quer fazer?</h2></div>
-        </div>
-        <div className="authenticated-home-quick-grid">
-          {isProducer ? <>
-            <button type="button" className="authenticated-home-quick primary" onClick={createChampionship}><CirclePlus size={20}/><span><strong>Criar campeonato</strong><small>Novo evento</small></span><ChevronRight size={16}/></button>
-            {account ? <button type="button" className="authenticated-home-quick" onClick={() => void onOpenPanel(account)}><LayoutDashboard size={20}/><span><strong>Meu painel</strong><small>Gerenciar produtora</small></span><ChevronRight size={16}/></button> : null}
-            <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Datas e jogos</small></span><ChevronRight size={16}/></a>
-          </> : isTeam ? <>
-            {account ? <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><Users size={20}/><span><strong>Minha equipe</strong><small>Elenco e inscrições</small></span><ChevronRight size={16}/></button> : null}
-            <a className="authenticated-home-quick" href="/campeonatos?vagas=1"><Ticket size={20}/><span><strong>Encontrar campeonato</strong><small>Vagas abertas</small></span><ChevronRight size={16}/></a>
-            <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Próximos jogos</small></span><ChevronRight size={16}/></a>
-          </> : isPlayer ? <>
-            {playerInvite ? <button type="button" className="authenticated-home-quick primary" onClick={() => void acceptPriorityNotification()} disabled={respondingNotification === playerInvite.id}>{respondingNotification === playerInvite.id ? <Loader2 className="spin" size={20}/> : <Check size={20}/>}<span><strong>Aceitar convite</strong><small>{playerInvite.titulo}</small></span><ChevronRight size={16}/></button> : <a className="authenticated-home-quick primary" href="/agenda"><CalendarDays size={20}/><span><strong>Minha agenda</strong><small>Jogos e escalações</small></span><ChevronRight size={16}/></a>}
-            {account ? <button type="button" className="authenticated-home-quick" onClick={() => void onOpenPanel(account)}><LayoutDashboard size={20}/><span><strong>Meu perfil</strong><small>Dados competitivos</small></span><ChevronRight size={16}/></button> : null}
-            <a className="authenticated-home-quick" href="/campeonatos?vagas=1"><Trophy size={20}/><span><strong>Campeonatos</strong><small>Encontrar oportunidades</small></span><ChevronRight size={16}/></a>
-          </> : account?.profile_type === 'manager' ? <>
-            <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><Store size={20}/><span><strong>Meus afiliados</strong><small>Vendas e campeonatos</small></span><ChevronRight size={16}/></button>
-            <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Compromissos</small></span><ChevronRight size={16}/></a>
-            <a className="authenticated-home-quick" href="/campeonatos"><Trophy size={20}/><span><strong>Competições</strong><small>Ver campeonatos</small></span><ChevronRight size={16}/></a>
-          </> : account ? <>
-            <button type="button" className="authenticated-home-quick primary" onClick={() => void onOpenPanel(account)}><LayoutDashboard size={20}/><span><strong>Meu painel</strong><small>Abrir área principal</small></span><ChevronRight size={16}/></button>
-            <a className="authenticated-home-quick" href="/agenda"><CalendarDays size={20}/><span><strong>Agenda</strong><small>Compromissos</small></span><ChevronRight size={16}/></a>
-            <a className="authenticated-home-quick" href="/campeonatos"><Trophy size={20}/><span><strong>Competições</strong><small>Ver campeonatos</small></span><ChevronRight size={16}/></a>
-          </> : null}
-        </div>
-      </section>}
-
-      {account ? <section className="authenticated-home-section authenticated-home-command-center">
-        <div className="authenticated-home-section-head compact">
-          <div><span>AGORA</span><h2>{visibleTasks.length ? 'Precisa da sua atenção' : 'Sem pendências'}</h2></div>
-          <a href="/agenda">Ver tudo <ArrowRight size={15}/></a>
-        </div>
-        <div className="authenticated-home-now-grid">
-          <div className="authenticated-home-tasks" aria-busy={priorityLoading}>
-            {priorityLoading ? <div className="authenticated-home-tasks-empty"><Loader2 className="spin" size={17}/><span><strong>Carregando</strong><small>Buscando suas próximas ações.</small></span></div> : visibleTasks.length ? visibleTasks.map((task) => <a className={task.urgent ? 'is-urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={16}/></a>) : <div className="authenticated-home-tasks-empty"><Check size={17}/><span><strong>Nada pendente agora</strong><small>Quando surgir algo importante, aparece aqui.</small></span></div>}
-          </div>
-          <div className="authenticated-home-next-event">
-            <span>PRÓXIMO COMPROMISSO</span>
-            <div><CalendarDays size={18}/><p><strong>{nextAgendaItem ? nextAgendaItem.titulo : 'Nenhum compromisso agendado'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}${nextAgendaItem.horario_fim ? `–${nextAgendaItem.horario_fim}` : ''}` : 'Sua agenda está livre no momento.'}</small></p></div>
-            <a href={nextAgendaItem?.meta?.href || '/agenda'}>Abrir agenda <ChevronRight size={15}/></a>
-          </div>
-        </div>
-      </section> : null}
-
-      <details className="authenticated-home-more">
-        <summary><KeyRound size={17}/><span><strong>Tenho um token ou link</strong><small>Inscrição, grupo, escalação ou convite</small></span><ChevronRight size={16}/></summary>
-        <form className="authenticated-home-token" onSubmit={(event) => { event.preventDefault(); void submitToken() }}>
-          <input value={tokenValue} onChange={(event) => { setTokenValue(event.target.value); setTokenError('') }} placeholder="Cole o token ou link aqui" aria-label="Token ou link de inscrição" />
-          <button type="submit" disabled={tokenBusy}>{tokenBusy ? 'Verificando…' : 'Continuar'}</button>
-          {tokenError ? <small className="authenticated-home-token-error" role="alert">{tokenError}</small> : null}
-        </form>
-      </details>
-
-      {showOpportunities ? <section className="authenticated-home-section authenticated-home-catalog">
-        <div className="authenticated-home-section-head compact">
-          <div><span>OPORTUNIDADES</span><h2>Campeonatos com vagas</h2></div>
-          <a href="/campeonatos?vagas=1">Ver todos <ArrowRight size={15}/></a>
-        </div>
-        <div className="vacancies-page authenticated-home-vacancies-surface">
-          {loadingVacancies ? (
-            <div className="vacancies-grid authenticated-home-vacancies-loading" aria-label="Carregando campeonatos">
-              {Array.from({ length: 2 }).map((_, index) => <div className="authenticated-home-vacancy-skeleton" key={index} />)}
+      <section className="market-home-hero" aria-label="Campeonato em destaque">
+        {loadingVacancies ? (
+          <div className="market-home-hero-skeleton"><Loader2 className="spin" size={24} /> Carregando destaques...</div>
+        ) : featured ? (
+          <>
+            <a className="market-home-hero-main" href={`/campeonatos/${encodeURIComponent(featured.id)}`}>
+              <span className="market-home-hero-media">
+                {featured.banner_url ? <img src={featured.banner_url} alt="" /> : <span className="market-home-hero-fallback"><Trophy size={54} /></span>}
+              </span>
+              <span className="market-home-hero-overlay" />
+              <span className="market-home-hero-content">
+                <small>{featured.tipo || 'CAMPEONATO'} · EM DESTAQUE</small>
+                <strong>{featured.nome}</strong>
+                {featured.produtora_nome ? <em>por {featured.produtora_nome}</em> : null}
+                <span className="market-home-hero-facts">
+                  <b>{vacancyMoney(featured.valor_inscricao)}<i>por vaga</i></b>
+                  <b>{Number(featured.vagas_livres || 0)}<i>vagas livres</i></b>
+                  {featured.premiacao ? <b>{vacancyMoney(featured.premiacao)}<i>premiação</i></b> : null}
+                  <b>{vacancyDateLabel(featured.proxima_data)}<i>próximo jogo</i></b>
+                </span>
+                <span className="market-home-hero-cta">Ver campeonato <ArrowRight size={17} /></span>
+              </span>
+            </a>
+            <div className="market-home-hero-side">
+              {showcase.slice(0, 2).map((item) => (
+                <a href={`/campeonatos/${encodeURIComponent(item.id)}`} key={item.id}>
+                  <span>{item.banner_url ? <img src={item.banner_url} alt="" /> : <Trophy size={30} />}</span>
+                  <div><small>{Number(item.vagas_livres || 0)} vagas livres</small><strong>{item.nome}</strong><b>{priceNumber(item) > 0 ? `${vacancyMoney(item.valor_inscricao)} / vaga` : 'Inscrição grátis'}</b></div>
+                  <ChevronRight size={18} />
+                </a>
+              ))}
+              <a className="market-home-see-all" href="/campeonatos"><span><small>EXPLORE MAIS</small><strong>Todos os campeonatos</strong></span><ArrowRight size={19} /></a>
             </div>
-          ) : vacancies.length ? (
+          </>
+        ) : (
+          <div className="market-home-hero-empty"><Trophy size={42} /><strong>Novos campeonatos aparecerão aqui.</strong><a href="/campeonatos">Explorar marketplace</a></div>
+        )}
+      </section>
+
+      {account ? (
+        <section className="market-home-account-strip" aria-label="Sua conta">
+          <div className="market-home-account-identity">
+            <span>{profileLabel}</span>
+            <strong>{account.name || account.username}</strong>
+            <small>{priorityLoading ? 'Atualizando sua conta...' : homeTasks.length ? `${homeTasks.length} ${homeTasks.length === 1 ? 'ação pendente' : 'ações pendentes'}` : 'Tudo em dia'}</small>
+          </div>
+          {accountAction ? <button type="button" onClick={accountAction.action}><AccountIcon size={18} /><span><strong>{accountAction.label}</strong><small>{accountAction.detail}</small></span><ChevronRight size={17} /></button> : null}
+          <a href="/agenda"><CalendarDays size={18} /><span><strong>{nextAgendaItem ? 'Próximo compromisso' : 'Minha agenda'}</strong><small>{nextAgendaItem ? `${nextAgendaItem.data} · ${nextAgendaItem.horario_inicio}` : 'Ver datas e jogos'}</small></span><ChevronRight size={17} /></a>
+          {isProducer ? <button type="button" onClick={createChampionship}><CirclePlus size={18} /><span><strong>Criar campeonato</strong><small>Publicar uma nova competição</small></span><ChevronRight size={17} /></button> : null}
+        </section>
+      ) : (
+        <section className="market-home-onboarding-strip">
+          <div><small>QUER COMPETIR?</small><strong>Crie seu perfil quando precisar entrar em uma competição.</strong></div>
+          <a href="/?cadastro=equipe&returnTo=%2Fcampeonatos"><Users size={17} /> Cadastrar equipe</a>
+          <a href="/?cadastro=jogador&returnTo=%2Fcampeonatos"><Gamepad2 size={17} /> Sou jogador</a>
+          <span><ShieldCheck size={16} /> Produtoras somente por convite da administração</span>
+        </section>
+      )}
+
+      <section className="market-home-section" id="destaques">
+        <div className="market-home-section-head">
+          <div><small>VITRINE</small><h2>Campeonatos em destaque</h2><p>Vagas abertas para entrar agora.</p></div>
+          <a href="/campeonatos?vagas=1">Ver todos <ArrowRight size={16} /></a>
+        </div>
+        <div className="vacancies-page market-home-card-surface">
+          {loadingVacancies ? (
+            <div className="vacancies-grid vacancy-catalog-grid market-home-loading">
+              {Array.from({ length: 4 }).map((_, index) => <div className="market-home-card-skeleton" key={index} />)}
+            </div>
+          ) : showcase.length ? (
             <div className="vacancies-grid vacancy-catalog-grid">
-              {vacancies.slice(0, 4).map((item) => <VacancyCard key={item.id} item={item} onPreview={setVacancyPreview} onBuy={(target) => window.location.assign(`/campeonatos/${encodeURIComponent(target.id)}?comprar=1`)} />)}
+              {showcase.slice(0, 8).map((item) => <VacancyCard key={item.id} item={item} onPreview={setVacancyPreview} onBuy={(target) => window.location.assign(`/campeonatos/${encodeURIComponent(target.id)}?comprar=1`)} />)}
             </div>
           ) : (
-            <div className="vacancies-empty"><Ticket size={32}/><strong>Nenhuma vaga disponível agora</strong><span>Novos campeonatos aparecerão aqui quando abrirem inscrições.</span></div>
+            <div className="market-home-empty"><Ticket size={30} /><strong>Nenhuma vaga disponível agora</strong><span>Assim que uma produtora abrir inscrições, o campeonato aparece aqui.</span></div>
           )}
         </div>
-      </section> : null}
+      </section>
 
-      {accounts.length > 1 ? <section className="authenticated-home-section authenticated-home-areas" id="meus-cadastros">
-        <div className="authenticated-home-section-head compact"><div><span>CONTA</span><h2>Trocar área</h2></div></div>
-        <div className="authenticated-home-areas-grid">
-          {accounts.map((item) => {
-            const type = item.profile_type as ProfileType
-            const label = type === 'equipe' ? 'Minha equipe' : type === 'jogador' ? 'Perfil competitivo' : type === 'produtora' ? 'Minha produtora' : type === 'manager' ? 'Afiliados' : 'Área da conta'
-            const Icon = type === 'manager' ? Store : type === 'produtora' ? Trophy : type === 'equipe' ? Users : LayoutDashboard
-            return <button key={item.id} type="button" className="authenticated-home-area-card" onClick={() => void onOpenPanel(item)}><Icon size={19}/><span><strong>{label}</strong><small>{item.name || item.username}</small></span><ChevronRight size={16}/></button>
-          })}
-        </div>
-      </section> : null}
-
-      {gate ? (
-        <div className="authenticated-home-gate-backdrop" role="presentation" onMouseDown={() => setGate(null)}>
-          <section className="authenticated-home-gate" role="dialog" aria-modal="true" aria-labelledby="authenticated-home-gate-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button type="button" className="authenticated-home-gate-close" onClick={() => setGate(null)} aria-label="Fechar"><X size={18}/></button>
-            <span className="authenticated-home-gate-icon"><Users size={25}/></span>
-            <small>ANTES DE CONTINUAR</small>
-            <h2 id="authenticated-home-gate-title">Cadastre sua equipe</h2>
-            <p>Para gerenciar elenco, lines e inscrições, precisamos primeiro dos dados da sua equipe.</p>
-            <div className="authenticated-home-gate-actions">
-              <button type="button" className="primary" onClick={() => { const returnTo = '/?painel=1'; window.location.assign(`/?cadastro=equipe&returnTo=${encodeURIComponent(returnTo)}`) }}>Cadastrar equipe <ArrowRight size={16}/></button>
-              <button type="button" onClick={() => setGate(null)}>Agora não</button>
-            </div>
-          </section>
-        </div>
+      {lastVacancies.length ? (
+        <section className="market-home-section market-home-section-urgent">
+          <div className="market-home-section-head">
+            <div><small>ÚLTIMA CHANCE</small><h2>Vagas acabando</h2><p>Competições com poucas vagas restantes.</p></div>
+            <a href="/campeonatos?ultimas=1">Ver todas <ArrowRight size={16} /></a>
+          </div>
+          <div className="vacancies-page market-home-card-surface"><div className="vacancies-grid vacancy-catalog-grid">{lastVacancies.map((item) => <VacancyCard key={item.id} item={item} onPreview={setVacancyPreview} onBuy={(target) => window.location.assign(`/campeonatos/${encodeURIComponent(target.id)}?comprar=1`)} buyLabel="Garantir vaga" />)}</div></div>
+        </section>
       ) : null}
+
+      {biggestPrizes.length ? (
+        <section className="market-home-section">
+          <div className="market-home-section-head">
+            <div><small>PREMIAÇÃO</small><h2>Maiores premiações</h2><p>Campeonatos com os maiores prêmios publicados.</p></div>
+            <a href="/campeonatos?ordem=premio">Ver ranking <ArrowRight size={16} /></a>
+          </div>
+          <div className="market-home-prize-list">
+            {biggestPrizes.map((item, index) => <a href={`/campeonatos/${encodeURIComponent(item.id)}`} key={item.id}><b>{String(index + 1).padStart(2, '0')}</b><span>{item.logo_url ? <img src={item.logo_url} alt="" /> : <Trophy size={20} />}</span><div><strong>{item.nome}</strong><small>{item.produtora_nome || item.tipo || 'Campeonato'}</small></div><em>{vacancyMoney(item.premiacao)}</em><ChevronRight size={17} /></a>)}
+          </div>
+        </section>
+      ) : null}
+
+      {account && homeTasks.length ? (
+        <section className="market-home-section market-home-attention">
+          <div className="market-home-section-head"><div><small>SUA CONTA</small><h2>Precisa da sua atenção</h2></div><a href="/agenda">Abrir agenda <ArrowRight size={16} /></a></div>
+          <div className="market-home-task-grid">
+            {homeTasks.map((task) => <a className={task.urgent ? 'urgent' : ''} href={task.href || '/agenda'} key={task.id}><span><strong>{task.title}</strong><small>{task.detail}</small></span><ChevronRight size={17} /></a>)}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="market-home-utility-row">
+        <details className="market-home-token-box">
+          <summary><KeyRound size={17} /><span><strong>Tenho um token ou link</strong><small>Inscrição, grupo, escalação ou convite</small></span><ChevronRight size={16} /></summary>
+          <form onSubmit={(event) => { event.preventDefault(); void submitToken() }}>
+            <input value={tokenValue} onChange={(event) => { setTokenValue(event.target.value); setTokenError('') }} placeholder="Cole o token ou link aqui" aria-label="Token ou link de inscrição" />
+            <button type="submit" disabled={tokenBusy}>{tokenBusy ? 'Verificando…' : 'Continuar'}</button>
+            {tokenError ? <small role="alert">{tokenError}</small> : null}
+          </form>
+        </details>
+
+        {accounts.length > 1 ? <div className="market-home-areas"><span>Trocar área</span>{accounts.map((item) => {
+          const type = item.profile_type as ProfileType
+          const label = type === 'equipe' ? 'Equipe' : type === 'jogador' ? 'Jogador' : type === 'produtora' ? 'Produtora' : 'Afiliado'
+          return <button key={item.id} type="button" onClick={() => void onOpenPanel(item)}><strong>{label}</strong><small>{item.name || item.username}</small></button>
+        })}</div> : null}
+      </section>
+
       <VacancyPreview item={vacancyPreview} onClose={() => setVacancyPreview(null)} />
     </div>
   )

@@ -1617,8 +1617,9 @@ export function DropZoneHome() {
         identity={authIdentity}
         onSignOut={authIdentity ? signOut : undefined}
         loginHref="/login?returnTo=%2F"
-        mainClassName="page page-authenticated"
+        mainClassName="page marketplace-shell-page"
         mainId="painel-inicio"
+        withAuthOffset={false}
       >
         <div className="shell panel-workspace-shell">
           <AuthenticatedHomeFeed account={null} accounts={[]} onOpenPanel={openProfilePanel} />
@@ -1639,9 +1640,9 @@ export function DropZoneHome() {
       switchingAccountId={switchingAccountId || undefined}
       onSwitchAccount={switchLinkedAccount}
       onSignOut={signOut}
-      mainClassName={`page ${authIdentity || (account && !linkingProfile) ? 'page-authenticated' : ''}`}
+      mainClassName={`page ${workspaceMode === 'home' ? 'marketplace-shell-page' : authIdentity || (account && !linkingProfile) ? 'page-authenticated' : ''}`}
       mainId="painel-inicio"
-      withAuthOffset={Boolean(authIdentity || (account && !linkingProfile))}
+      withAuthOffset={workspaceMode !== 'home' && Boolean(authIdentity || (account && !linkingProfile))}
     >
         <div className="shell panel-workspace-shell">
         {!account || linkingProfile ? (

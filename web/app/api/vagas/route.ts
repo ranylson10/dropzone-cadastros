@@ -40,6 +40,12 @@ export async function GET(req: NextRequest) {
         if (result.error) throw result.error
       }
 
+      const producerIds = [...new Set((championsResult.data || []).map((row:any) => String(row.produtora_id || '')).filter(Boolean))]
+      const producersResult = producerIds.length
+        ? await supabaseAdmin.from('produtoras').select('id,nome,username,logo_url').in('id', producerIds)
+        : { data: [], error: null } as any
+      if (producersResult.error) throw producersResult.error
+      const producerById = new Map((producersResult.data || []).map((row:any) => [String(row.id), row]))
       const configByChamp = new Map((configsResult.data || []).map((row:any) => [String(row.campeonato_id), row]))
       const occupiedByChamp = new Map<string, number>()
       for (const row of participationsResult.data || []) {
@@ -70,12 +76,16 @@ export async function GET(req: NextRequest) {
         const next = (gamesByChamp.get(String(champ.id)) || [])
           .filter((game:any) => !game.data_jogo || game.data_jogo >= today)
           .sort((a:any,b:any) => `${a.data_jogo || '9999'} ${a.horario || ''}`.localeCompare(`${b.data_jogo || '9999'} ${b.horario || ''}`))[0] || null
+        const producer:any = producerById.get(String(champ.produtora_id || '')) || {}
         return {
           id: champ.id,
           nome: champ.nome,
           tipo: champ.tipo,
           logo_url: champ.logo_url,
           banner_url: champ.banner_url,
+          produtora_id: champ.produtora_id || null,
+          produtora_nome: producer.nome || producer.username || null,
+          produtora_logo_url: producer.logo_url || null,
           valor_inscricao: config.valor_inscricao ?? null,
           premiacao: config.premiacao ?? null,
           descricao_premiacao: config.descricao_premiacao ?? null,
@@ -136,6 +146,12 @@ export async function GET(req: NextRequest) {
     ])
     for (const result of [championsResult, configsResult, phasesResult, groupsResult, slotsResult, gamesResult, gameGroupsResult, purchasesResult]) if (result.error) throw result.error
     if (sellersResult.error && !['42P01', '42703', 'PGRST205', 'PGRST204'].includes(sellersResult.error.code || '')) throw sellersResult.error
+    const producerIds = [...new Set((championsResult.data || []).map((row:any) => String(row.produtora_id || '')).filter(Boolean))]
+    const producersResult = producerIds.length
+      ? await supabaseAdmin.from('produtoras').select('id,nome,username,logo_url').in('id', producerIds)
+      : { data: [], error: null } as any
+    if (producersResult.error) throw producersResult.error
+    const producerById = new Map((producersResult.data || []).map((row:any) => [String(row.id), row]))
 
     // As consultas globais do catálogo podem atingir o limite de linhas do PostgREST.
     // Para catálogo de vendedor e diagnóstico, recarrega diretamente os campeonatos-alvo,
@@ -261,7 +277,8 @@ export async function GET(req: NextRequest) {
       const dated = openGroups.filter((group:any) => group.proximo_jogo).sort((a:any,b:any) => `${a.proximo_jogo.data_jogo} ${a.proximo_jogo.horario||''}`.localeCompare(`${b.proximo_jogo.data_jogo} ${b.proximo_jogo.horario||''}`)); const next = dated[0] || openGroups[0]
       const sellers = (sellersByChampionship.get(champ.id) || []).map((seller:any) => ({ id:seller.manager_id, nome:seller.nome_publico || 'Vendedor', contato:{ id:`manager-${seller.manager_id}`, manager_id:seller.manager_id, nome:seller.nome_publico || 'Vendedor', url:seller.whatsapp_url } }))
       const sellerContacts = vendedorId ? sellers.map((seller:any) => seller.contato).filter((contact:any) => contact.url) : config.contatos_whatsapp || []
-      return [{ id:champ.id, nome:champ.nome, tipo:champ.tipo, logo_url:champ.logo_url, banner_url:champ.banner_url, valor_inscricao:config.valor_inscricao, premiacao:config.premiacao, descricao_premiacao:config.descricao_premiacao, tipo_premiacao:config.tipo_premiacao, tem_live:Boolean(config.tem_live), plataforma:config.plataforma, servidor:config.servidor, data_limite_inscricao:config.data_limite_inscricao, contatos_whatsapp:sellerContacts, vendedores:sellers, grupos:openGroups, vagas_livres:officialFree, total_vagas:officialTotal, vagas_estruturadas_livres:openGroups.reduce((sum:number, group:any)=>sum+group.vagas_livres,0), vagas_em_compra:commercialReservations, proxima_data:next.proximo_jogo?.data_jogo || null, proximo_horario:next.proximo_jogo?.horario || null, proximo_grupo:next.nome, ja_tem_vaga:enrolledIds.has(champ.id) }]
+      const producer:any = producerById.get(String(champ.produtora_id || '')) || {}
+      return [{ id:champ.id, nome:champ.nome, tipo:champ.tipo, logo_url:champ.logo_url, banner_url:champ.banner_url, produtora_id:champ.produtora_id || null, produtora_nome:producer.nome || producer.username || null, produtora_logo_url:producer.logo_url || null, valor_inscricao:config.valor_inscricao, premiacao:config.premiacao, descricao_premiacao:config.descricao_premiacao, tipo_premiacao:config.tipo_premiacao, tem_live:Boolean(config.tem_live), plataforma:config.plataforma, servidor:config.servidor, data_limite_inscricao:config.data_limite_inscricao, contatos_whatsapp:sellerContacts, vendedores:sellers, grupos:openGroups, vagas_livres:officialFree, total_vagas:officialTotal, vagas_estruturadas_livres:openGroups.reduce((sum:number, group:any)=>sum+group.vagas_livres,0), vagas_em_compra:commercialReservations, proxima_data:next.proximo_jogo?.data_jogo || null, proximo_horario:next.proximo_jogo?.horario || null, proximo_grupo:next.nome, ja_tem_vaga:enrolledIds.has(champ.id) }]
     }).sort((a:any,b:any) => (a.proxima_data ? 0 : 1) - (b.proxima_data ? 0 : 1) || String(a.proxima_data||'9999').localeCompare(String(b.proxima_data||'9999')))
     let scope: any = null
     if (produtoraId) {

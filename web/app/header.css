@@ -1153,3 +1153,74 @@
   .app-mobile-quick-action-icon { border-radius: 2px; background: #f0edf7; color: #6f43ff; }
   .app-shell-main.page-authenticated { background: #f1efe9; }
 }
+
+/* R151 — o marketplace usa header horizontal; sidebar fica reservada ao workspace de gestão. */
+.app-header:has(+ .app-shell-main.marketplace-shell-page){
+  position:sticky;
+  inset:auto;
+  top:0;
+  width:100%;
+  height:72px;
+  border-right:0;
+  border-bottom:1px solid #ddd8cf;
+  background:rgba(255,255,255,.98);
+  color:#171619;
+  backdrop-filter:blur(14px);
+}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-header-inner{width:min(1440px,calc(100% - 40px));height:100%;padding:0;gap:16px}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand{color:#171619}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy strong,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy strong span:last-child{color:#171619}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy strong span:first-child{color:#6f43ff}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy small{color:#8b8780}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent{min-height:72px;color:#5d5954;font-size:10px}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a:hover,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent:hover{background:#f3f0ff;color:#171619}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a.active,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent.active{color:#6f43ff}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a::after,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent::after{bottom:7px;background:#6f43ff}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-nav-submenu,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-global-language-menu,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu{border:1px solid #ddd8cf;background:#fff;color:#171619;box-shadow:0 18px 50px rgba(24,20,32,.14)}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-nav-submenu a,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu a,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu button,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu-action,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu .linked-account-option{color:#57534e}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-nav-submenu a:hover,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu a:hover,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu button:hover,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu .linked-account-option.active{background:#f3f0ff;color:#171619}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu-head strong{color:#171619}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-menu-head span{color:#827d76}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-global-language-trigger,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-wallet-chip,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-trigger,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile .notif-bell-trigger{color:#57534e}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-global-language-trigger:hover,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-wallet-chip:hover,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-trigger:hover,
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile .notif-bell-trigger:hover{background:#f3f0ff;color:#171619}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-copy strong{color:#171619}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-copy small{color:#827d76!important}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-admin-chip{background:#6f43ff;color:#fff}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-header-login{background:#171619;color:#fff}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) + .app-shell-main.marketplace-shell-page{min-height:calc(100dvh - 72px);margin-left:0;background:#f6f5f2}
+
+@media(max-width:900px){
+  .app-header:has(+ .app-shell-main.marketplace-shell-page){height:58px;background:#fff;color:#171619}
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-header-inner{width:calc(100% - 18px)}
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy strong,
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy strong span:last-child{color:#171619}
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy strong span:first-child{color:#6f43ff}
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-mobile-toggle,
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile .notif-bell-trigger{color:#171619}
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav{top:58px;background:#fff;border-right:1px solid #ddd8cf}
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a,
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent{color:#57534e}
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a.active,
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent.active{color:#6f43ff}
+  .app-header:has(+ .app-shell-main.marketplace-shell-page) + .app-shell-main.marketplace-shell-page{min-height:calc(100dvh - 58px)}
+}

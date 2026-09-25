@@ -7,6 +7,9 @@ export type DirectoryItem = {
   username?: string
   image?: string
   banner?: string
+  producerId?: string
+  producerName?: string
+  producerImage?: string
   eyebrow?: string
   description?: string
   commercial?: {

@@ -219,7 +219,7 @@ async function rows(table: string) {
   })
 }
 
-const PUBLIC_CHAMPIONSHIP_COLUMNS = 'id,nome,tipo,logo_url,banner_url,status,created_at,aprovacao_status,deleted_at'
+const PUBLIC_CHAMPIONSHIP_COLUMNS = 'id,nome,tipo,logo_url,banner_url,status,created_at,aprovacao_status,deleted_at,produtora_id'
 const PUBLIC_CHAMPIONSHIP_RELATED_COLUMNS = {
   campeonato_configuracoes: 'campeonato_id,formato,numero_vagas,valor_inscricao,premiacao,tem_live,plataforma,servidor,data_limite_inscricao',
   campeonato_fases: 'id,campeonato_id,ordem,status',
@@ -294,8 +294,12 @@ const listPublicChampionships = unstable_cache(
         selectedRows(table, columns, championshipIds),
       ),
     )).map((relatedRows) => relatedRows.filter(isPublicDirectoryRow))
+    const producerIds = Array.from(new Set(championships.map((row:any) => String(row.produtora_id || '')).filter(Boolean)))
+    const producers = producerIds.length
+      ? (await selectedRows('produtoras', 'id,nome,username,logo_url,status', producerIds, 'id')).filter(isPublicDirectoryRow)
+      : []
 
-    return buildChampionshipDirectoryItems({ championships, configs, phases, slots, games })
+    return buildChampionshipDirectoryItems({ championships, configs, phases, slots, games, producers })
   },
   ['public-championship-directory-v2'],
   { revalidate: 30, tags: ['directory:campeonatos'] },

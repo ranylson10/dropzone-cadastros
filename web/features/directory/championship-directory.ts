@@ -8,6 +8,7 @@ export type ChampionshipDirectoryData = {
   phases: Row[]
   slots: Row[]
   games: Row[]
+  producers?: Row[]
 }
 
 function text(value: unknown, fallback = '') {
@@ -57,6 +58,7 @@ export function buildChampionshipDirectoryItems(
   const phasesByChampionship = groupByChampionship(data.phases)
   const slotsByChampionship = groupByChampionship(data.slots)
   const gamesByChampionship = groupByChampionship(data.games)
+  const producerById = new Map((data.producers || []).map((row) => [String(row.id), row]))
 
   return data.championships.map((row) => {
     const championshipId = String(row.id)
@@ -88,6 +90,7 @@ export function buildChampionshipDirectoryItems(
     const nextGame = (gamesByChampionship.get(championshipId) || [])
       .filter((game) => normalized(game.status || 'ativo') === 'ativo' && String(game.data_jogo || '') >= today)
       .sort((a, b) => `${a.data_jogo || '9999'} ${a.horario || ''}`.localeCompare(`${b.data_jogo || '9999'} ${b.horario || ''}`))[0]
+    const producer = producerById.get(String(row.produtora_id || '')) || {}
 
     return {
       id: championshipId,
@@ -95,6 +98,9 @@ export function buildChampionshipDirectoryItems(
       name,
       image: first(row.logo_url),
       banner: first(row.banner_url),
+      producerId: first(row.produtora_id),
+      producerName: first(producer.nome, producer.username),
+      producerImage: first(producer.logo_url),
       eyebrow: tipo,
       description: first(config.formato, `${tipo} competitivo`),
       commercial: {
@@ -113,7 +119,7 @@ export function buildChampionshipDirectoryItems(
         { label: 'Premiação', value: directoryMoney(config.premiacao) },
         { label: 'Vagas livres', value: freeVacancies == null ? '-' : String(freeVacancies) },
       ],
-      searchText: [name, tipo, config.formato, config.plataforma, config.servidor].join(' ').toLowerCase(),
+      searchText: [name, tipo, config.formato, config.plataforma, config.servidor, producer.nome, producer.username].join(' ').toLowerCase(),
     }
   })
 }
