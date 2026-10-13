@@ -12,6 +12,15 @@ export type AppNavItem = {
   children?: AppNavItem[]
 }
 
+/** Routes served by the public discovery navigation. */
+export function hasPublicDiscoveryNavigation(pathname: string) {
+  if (['/', '/rank', '/agenda', '/carrinho', '/carteira',
+    '/lili', '/afiliados', '/termos-de-servico', '/politica-de-privacidade',
+    '/exclusao-de-dados'].includes(pathname)) return true
+  if (/^\/campeonatos\/[^/]+\/regulamento\/?$/.test(pathname)) return true
+  return /^\/(?:campeonatos|equipes|jogadores|produtoras|managers)(?:\/[^/]+)?\/?$/.test(pathname)
+}
+
 export const APP_NAV: AppNavItem[] = [
   { label: 'Início', href: '/' },
   {

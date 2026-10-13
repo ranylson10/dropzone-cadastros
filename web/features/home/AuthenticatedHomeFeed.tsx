@@ -8,6 +8,7 @@ import { SystemLogo } from '@/components/brand/SystemLogo'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
+  ChevronDown,
   Gift,
   Search,
   Shield,
@@ -50,6 +51,7 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
   const [homeConfig, setHomeConfig] = useState<HomeConfig>(DEFAULT_HOME_CONFIG)
   const [heroIndex, setHeroIndex] = useState(0)
   const [searchValue, setSearchValue] = useState('')
+  const [footerOpen, setFooterOpen] = useState(false)
   const { cartIds, wishlistIds, pendingCartIds, pendingWishlistIds, toggleCart, toggleWishlist } = useCommerce()
 
   useEffect(() => {
@@ -150,8 +152,8 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
           </form>
           <section className="store-home-section">
             <header className="store-home-section-head">
-              <h2>EXPLORE POR <em>CATEGORIA</em></h2>
-              <Link href="/campeonatos">VER TODOS <ArrowRight size={14} /></Link>
+              <h2><span className="store-home-desktop-heading">EXPLORE POR <em>CATEGORIA</em></span><span className="store-home-mobile-heading">Categorias</span></h2>
+              <Link href="/campeonatos">Ver todos <ArrowRight size={14} /></Link>
             </header>
             <div className="store-home-categories">
               {homeConfig.categories.map((category, index) => {
@@ -170,8 +172,8 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
 
           <section className="store-home-section">
             <header className="store-home-section-head">
-              <h2>CAMPEONATOS <em>EM DESTAQUE</em></h2>
-              <Link href="/campeonatos?vagas=1">VER TODOS <ArrowRight size={14} /></Link>
+              <h2><span className="store-home-desktop-heading">CAMPEONATOS <em>EM DESTAQUE</em></span><span className="store-home-mobile-heading">Campeonatos em destaque</span></h2>
+              <Link href="/campeonatos?vagas=1">Ver todos <ArrowRight size={14} /></Link>
             </header>
             <div className="store-home-products">
               {loadingVacancies ? Array.from({ length: 6 }).map((_, index) => <div className="store-home-product-skeleton" key={index} />) : null}
@@ -237,7 +239,11 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
       </div>
 
       <footer className="store-home-footer">
-        <div className="store-home-width store-home-footer-grid">
+        <button type="button" className="store-home-footer-toggle" aria-expanded={footerOpen}
+          aria-controls="store-home-footer-links" onClick={() => setFooterOpen(value => !value)}>
+          Ajuda e informações <ChevronDown size={16} aria-hidden="true" />
+        </button>
+        <div id="store-home-footer-links" className={`store-home-width store-home-footer-grid ${footerOpen ? 'is-open' : ''}`}>
           <div className="store-home-footer-brand">
             <Link className="store-home-brand light" href="/">
               <SystemLogo size={44} alt="" variant="light" />

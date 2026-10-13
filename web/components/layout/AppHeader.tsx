@@ -4,7 +4,10 @@ import Link from 'next/link'
 
 import { Input as UiInput } from '@/components/ui/Field'
 import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Search, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
+import { Dialog } from '@/components/ui/Dialog'
+import { useDisclosureFocus } from '@/components/ui/useDisclosureFocus'
+import { usePathname } from 'next/navigation'
 import { isWebProfileType, type DropZoneRow, type WebProfileType } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SystemLogo } from '@/components/brand/SystemLogo'
@@ -129,8 +132,11 @@ export function AppHeader({
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
   const avatarInputRef = useRef<HTMLInputElement>(null)
-  const profileRef = useRef<HTMLDivElement>(null)
-  const languageRef = useRef<HTMLDivElement>(null)
+  const menuId = useId().replace(/:/g, '')
+  const profilePopup = useDisclosureFocus(profileOpen, () => setProfileOpen(false))
+  const languagePopup = useDisclosureFocus(languageOpen, () => setLanguageOpen(false))
+  const mobilePopup = useDisclosureFocus<HTMLElement>(mobileOpen, () => setMobileOpen(false))
+  const pathname = usePathname()
   const isAuthenticated = Boolean(profileName && onSignOut)
   const visibleAccounts = accounts.filter((item) => isWebProfileType(item.profile_type))
   const activeAccount = visibleAccounts.find((item) => item.id === activeAccountId) || visibleAccounts[0] || null
@@ -201,15 +207,11 @@ export function AppHeader({
   }
 
   useEffect(() => {
-    function closeOutside(event: MouseEvent) {
-      const target = event.target as HTMLElement | null
-      const mobileProfileTrigger = target?.closest('.app-mobile-profile-switcher')
-      if (profileRef.current && !profileRef.current.contains(event.target as Node) && !mobileProfileTrigger) setProfileOpen(false)
-      if (languageRef.current && !languageRef.current.contains(event.target as Node)) setLanguageOpen(false)
-    }
-    document.addEventListener('mousedown', closeOutside)
-    return () => document.removeEventListener('mousedown', closeOutside)
-  }, [])
+    setProfileOpen(false)
+    setLanguageOpen(false)
+    setMobileOpen(false)
+    setQuickOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -272,14 +274,16 @@ export function AppHeader({
         <button
           className="app-mobile-toggle"
           type="button"
-          onClick={() => {
+          onClick={(event) => {
+            event.currentTarget.focus({ preventScroll: true })
             setProfileOpen(false)
             setLanguageOpen(false)
             setQuickOpen(false)
             setMobileOpen((value) => !value)
           }}
           aria-expanded={mobileOpen}
-          aria-label="Abrir menu"
+          aria-controls={`${menuId}-navigation`}
+          aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
         >
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -293,7 +297,7 @@ export function AppHeader({
           />
         ) : null}
 
-        <nav className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegação principal">
+        <nav ref={mobilePopup.panelRef} id={`${menuId}-navigation`} className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegação principal">
           {navItems.map((item) => {
             const hasChildren = Boolean(item.children?.length)
             if (!hasChildren) {
@@ -321,12 +325,11 @@ export function AppHeader({
                   {item.label}
                   <ChevronDown size={14} className="app-nav-caret" aria-hidden />
                 </Link>
-                <div className="app-nav-submenu" role="menu">
+                <div className="app-nav-submenu">
                   {item.children!.map((child) => (
                     <Link
                       key={child.href}
                       href={child.href}
-                      role="menuitem"
                       onClick={() => setMobileOpen(false)}
                     >
                       {child.label}
@@ -380,7 +383,9 @@ export function AppHeader({
             className={`app-mobile-quick-trigger ${quickOpen ? 'active' : ''}`}
             aria-label="Abrir ações rápidas"
             aria-expanded={quickOpen}
-            onClick={() => {
+            aria-haspopup="dialog"
+            onClick={(event) => {
+              event.currentTarget.focus({ preventScroll: true })
               setMobileOpen(false)
               setProfileOpen(false)
               setLanguageOpen(false)
@@ -398,13 +403,15 @@ export function AppHeader({
             <button
               type="button"
               className={`app-mobile-profile-switcher ${profileOpen ? 'active' : ''}`}
-              onClick={() => {
+              onClick={(event) => {
+                event.currentTarget.focus({ preventScroll: true })
                 setMobileOpen(false)
                 setQuickOpen(false)
                 setLanguageOpen(false)
                 setProfileOpen((value) => !value)
               }}
               aria-expanded={profileOpen}
+              aria-controls={profileOpen ? `${menuId}-account` : undefined}
               aria-label="Abrir minha conta"
             >
               <LockedAvatar
@@ -422,14 +429,8 @@ export function AppHeader({
           )}
         </nav>
 
-        {quickOpen ? (
-          <>
-            <button type="button" className="app-mobile-quick-backdrop" aria-label="Fechar ações rápidas" onClick={() => setQuickOpen(false)} />
-            <section className="app-mobile-quick-sheet" aria-label="Ações rápidas">
-              <div className="app-mobile-quick-head">
-                <div><small>ACESSO RÁPIDO</small><strong>O que você quer fazer?</strong></div>
-                <button type="button" onClick={() => setQuickOpen(false)} aria-label="Fechar"><X size={18} /></button>
-              </div>
+        <Dialog open={quickOpen} title="Ações rápidas" description="O que você quer fazer?"
+          onClose={() => setQuickOpen(false)} size="medium" closeLabel="Fechar ações rápidas" className="app-quick-dialog">
               <div className="app-mobile-quick-list">
                 {quickActions.map((action) => {
                   const Icon = action.icon
@@ -442,32 +443,33 @@ export function AppHeader({
                   )
                 })}
               </div>
-            </section>
-          </>
-        ) : null}
+        </Dialog>
 
-        <div className="app-global-language" data-no-translate aria-label="Language" ref={languageRef}>
+        <div className="app-global-language" data-no-translate aria-label="Idioma">
           <button
             type="button"
             className="app-global-language-trigger"
             aria-expanded={languageOpen}
+            aria-controls={languageOpen ? `${menuId}-language` : undefined}
             aria-label="Alterar idioma"
-            onClick={() => setLanguageOpen((value) => !value)}
+            onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setLanguageOpen((value) => !value) }}
           >
             <Globe2 size={14} />
             <span>{globalLocale === 'pt-BR' ? 'PT' : globalLocale.toUpperCase()}</span>
             <ChevronDown size={14} className={languageOpen ? 'rotated' : ''} />
           </button>
           {languageOpen ? (
-            <div className="app-global-language-menu" role="menu">
+            <div ref={languagePopup.panelRef} id={`${menuId}-language`} className="app-global-language-menu" role="group" aria-label="Idiomas do site">
               {(['pt-BR', 'es', 'en'] as const).map((item) => (
                 <button
                   type="button"
                   key={item}
                   className={globalLocale === item ? 'active' : ''}
+                  aria-label={item === 'pt-BR' ? 'Português' : item === 'es' ? 'Español' : 'English'}
+                  aria-pressed={globalLocale === item}
                   onClick={() => {
                     changeGlobalLocale(item)
-                    setLanguageOpen(false)
+                    languagePopup.close(true)
                   }}
                 >
                   <span>{item === 'pt-BR' ? 'PT' : item.toUpperCase()}</span>
@@ -478,7 +480,7 @@ export function AppHeader({
         </div>
 
         {isAuthenticated ? (
-          <div className="app-profile" ref={profileRef}>
+          <div className="app-profile">
             {showWallet ? (
               <Link
                 href="/carteira"
@@ -511,8 +513,10 @@ export function AppHeader({
             <button
               type="button"
               className="app-profile-trigger"
-              onClick={() => setProfileOpen((value) => !value)}
+              onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setProfileOpen((value) => !value) }}
               aria-expanded={profileOpen}
+              aria-label="Abrir minha conta"
+              aria-controls={profileOpen ? `${menuId}-account` : undefined}
             >
               <LockedAvatar
                 src={accountAvatar || undefined}
@@ -532,6 +536,10 @@ export function AppHeader({
 
             {profileOpen ? (
               <div
+                ref={profilePopup.panelRef}
+                id={`${menuId}-account`}
+                role="region"
+                aria-label="Minha conta"
                 className="app-profile-menu linked-account-menu"
                 style={{
                   position: 'absolute',

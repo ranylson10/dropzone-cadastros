@@ -1,7 +1,13 @@
 /* Mobile browser presentation. Desktop geometry stays in its feature styles.
    Loaded after the legacy density sheets so their card/grid rules cannot win. */
 .dz-market-mobile-title,
-.dz-champ-list-row__mobile-status { display: none; }
+.dz-champ-list-row__mobile-status,
+.dz-entity-mobile-summary,
+.dz-entity-mobile-handle,
+.dz-entity-mobile-tag,
+.dz-champ-card-mobile-format,
+.store-home-mobile-heading { display: none; }
+.store-home-footer-toggle { display: none; }
 
 @media (max-width: 767px) {
   :root {
@@ -13,6 +19,10 @@
   .store-home-header,
   .dz-public-bottom-nav,
   main.dz-unified-public-page { --font-body: Arial, Helvetica, sans-serif; --font-heading: Arial, Helvetica, sans-serif; font-family: Arial, Helvetica, sans-serif; }
+  html body .store-home.home-platform-v15,
+  html body main.dz-unified-public-page { font-family: system-ui, sans-serif; }
+  html body .store-home.home-platform-v15 :is(h1,h2),
+  html body main.dz-unified-public-page :is(h1,h2) { font-family: inherit !important; }
   .store-home-header .store-home-brand { gap: 6px; min-height: 44px; }
   .store-home-header .store-home-brand .system-logo {
     width: 32px !important; height: 32px !important;
@@ -107,25 +117,30 @@
   }
   html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table,
   html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table:nth-child(even) {
-    grid-template-columns: repeat(3,minmax(0,1fr)) 18px !important;
-    grid-template-areas: 'identity identity identity open' 'details details details open' 'meta1 meta2 meta3 open' !important;
-    gap: 4px 8px !important; min-height: 0 !important;
-    padding: 10px 0 !important; background: transparent !important;
+    grid-template-columns: minmax(0,1fr) 18px !important;
+    grid-template-areas: 'identity open' !important;
+    gap: 8px !important; min-height: 64px !important;
+    padding: 12px 0 !important; background: transparent !important;
     border-bottom: 1px solid #304c61 !important; overflow: visible !important;
   }
   html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-identity {
-    grid-template-columns: 40px minmax(0,1fr) !important; gap: 8px !important;
+    grid-template-columns: 40px minmax(0,1fr) !important; gap: 10px !important;
   }
+  html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main { gap: 2px !important; }
   html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main > strong {
-    white-space: normal !important; overflow-wrap: anywhere;
+    order: -1; font-size: 14px !important; font-weight: 600 !important;
+    display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    white-space: normal !important; overflow-wrap: anywhere; overflow: hidden;
   }
+  html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main > small { color: #b1c1cf !important; font-size: 12px !important; }
+  html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main > small:not(.dz-entity-mobile-handle),
+  html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-details { display: none !important; }
+  html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-mobile-tag { display: inline; margin-left: 6px; color: #b1c1cf; font-size: 11px; font-weight: 400; }
+  html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-mobile-handle { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-mobile-summary { display: flex; flex-wrap: wrap; gap: 2px 6px; color: #b1c1cf; font-size: 12px; line-height: 1.4; }
+  .dz-entity-mobile-summary > span:not(:last-child)::after { content: ' ·'; padding-left: 6px; }
   html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat {
-    flex-direction: row !important; justify-content: flex-start !important;
-    flex-wrap: wrap; min-height: 0 !important; gap: 3px !important; padding: 0 !important;
-    border: 0 !important; background: transparent !important; text-align: left !important;
-  }
-  html body main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat > small {
-    font-weight: 400 !important; text-transform: none !important; letter-spacing: 0 !important;
+    display: none !important;
   }
 
   /* Championships: thumbnail + summary, compact metrics, unchanged actions. */
@@ -149,20 +164,20 @@
     grid-template-columns: 1fr !important; gap: 0 !important;
   }
   html body main.directory-market-page .championship-directory-list > .dz-champ-list-row {
-    display: grid !important; grid-template-columns: 56px minmax(0,1fr);
-    align-items: start; gap: 0 10px !important;
+    display: grid !important; grid-template-columns: 48px minmax(0,1fr) 44px;
+    align-items: center; gap: 0 10px !important;
     padding: 12px 0 !important; border: 0 !important;
     border-bottom: 1px solid var(--market-line) !important;
     border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
   }
   html body main.directory-market-page .dz-champ-list-row__media {
-    width: 56px !important; height: 56px !important; aspect-ratio: 1 !important;
+    width: 48px !important; height: 48px !important; aspect-ratio: 1 !important;
     border-radius: 7px !important;
   }
   html body main.directory-market-page .dz-champ-list-row__badges { display: none; }
   html body main.directory-market-page .dz-champ-list-row__body { gap: 4px; padding: 0 !important; }
   html body main.directory-market-page .dz-champ-list-row__identity strong {
-    font-size: 14px !important; white-space: normal; overflow-wrap: anywhere;
+    font-size: 14px !important; font-weight: 600; white-space: normal; overflow-wrap: anywhere;
   }
   html body main.directory-market-page .dz-champ-list-row__mobile-status {
     display: flex; flex-wrap: wrap; gap: 4px 8px; color: #f1cc25;
@@ -172,12 +187,16 @@
     gap: 4px 8px !important; margin: 4px 0 0 !important; padding: 0 !important; border: 0 !important;
   }
   html body main.directory-market-page .dz-champ-list-row__metrics > div {
-    flex-direction: row !important; flex-wrap: wrap; align-items: baseline; gap: 3px !important;
+    flex-direction: column !important; align-items: flex-start; gap: 1px !important;
   }
   html body main.directory-market-page .dz-champ-list-row__actions {
-    grid-column: 2; gap: 4px !important; margin-top: 4px;
+    grid-column: 3; grid-row: 1; flex-direction: column; gap: 0 !important; margin-top: 0;
     padding: 0 !important; border: 0 !important; background: transparent !important;
   }
+  html body main.directory-market-page .dz-champ-list-row__actions .dz-ui-icon-button {
+    flex-basis: 44px; border: 0 !important; background: transparent !important;
+  }
+  html body main.directory-market-page .dz-champ-list-row__open { display: none !important; }
   main.directory-market-page .championship-directory-filter-fields {
     left: 12px; right: 12px; width: auto; max-width: none;
   }
@@ -185,7 +204,7 @@
 
   /* Home: short welcome, shortcut strip and content in rows. */
   html body .store-home.home-platform-v15 .store-home-hero {
-    min-height: 0; margin-top: 12px; border: 0; border-radius: 0;
+    display: none; min-height: 0; margin-top: 12px; border: 0; border-radius: 0;
     background: transparent; box-shadow: none;
   }
   html body .store-home.home-platform-v15 .store-home-hero-inner { min-height: 0; padding: 0; }
@@ -203,21 +222,25 @@
   html body .store-home.home-platform-v15 .store-home-hero-copy h1 { max-width: none; font-size: 20px; }
   html body .store-home.home-platform-v15 .store-home-hero-copy h1 em { display: inline; margin-left: 5px; }
   html body .store-home.home-platform-v15 .store-home-content { padding: 12px 0 20px; }
-  html body .store-home.home-platform-v15 .store-home-content-search { margin-bottom: 16px; }
+  html body .store-home.home-platform-v15 .store-home-content-search { margin-bottom: 8px; }
   html body .store-home.home-platform-v15 .store-home-content-search input.dz-ui-input {
     font-size: 16px; border: 0 !important; background: transparent !important;
     color: #f4f8fc !important; box-shadow: none; padding: 0 !important;
   }
   html body .store-home.home-platform-v15 .store-home-content-search button { min-width: 44px; min-height: 44px; }
-  html body .store-home.home-platform-v15 .store-home-section { margin-bottom: 16px; }
-  html body .store-home.home-platform-v15 .store-home-section-head h2 { font-size: 14px; }
+  html body .store-home.home-platform-v15 .store-home-section { margin-bottom: 12px; }
+  html body .store-home.home-platform-v15 .store-home-section-head { margin-bottom: 4px; gap: 8px; }
+  html body .store-home.home-platform-v15 .store-home-section-head h2 { font-size: 13px; font-weight: 600; }
+  .store-home-desktop-heading { display: none; }
+  .store-home-mobile-heading { display: inline; }
   html body .store-home.home-platform-v15 .store-home-section-head a { min-height: 44px; }
   html body .store-home.home-platform-v15 .store-home-categories {
-    display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain;
+    display: flex; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
   }
+  .store-home-categories::-webkit-scrollbar { display: none; }
   html body .store-home.home-platform-v15 .store-home-categories > a {
-    flex: none; flex-direction: row; min-height: 44px; padding: 0 10px;
-    border: 0; border-radius: 6px; gap: 6px;
+    flex: none; flex-direction: row; min-height: 44px; padding: 0 8px;
+    border: 0; border-radius: 0; gap: 6px; background: transparent;
   }
   html body .store-home.home-platform-v15 .store-home-category-media { width: 22px; height: 22px; flex-basis: 22px; border: 0; background: transparent; }
   html body .store-home.home-platform-v15 .store-home-products { grid-template-columns: 1fr; gap: 0; }
@@ -225,25 +248,56 @@
     border: 0; border-bottom: 1px solid #304c61; border-radius: 0; background: transparent;
   }
   html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-media {
-    display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 4px 10px;
-    padding: 10px 0; background: transparent;
+    display: grid; grid-template-columns: 48px minmax(0,1fr) 44px; align-items: center; gap: 4px 10px;
+    padding: 8px 0; background: transparent;
   }
-  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-art { grid-column: 1; grid-row: 1; height: 56px; aspect-ratio: 1; border-radius: 6px; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-art { grid-column: 1; grid-row: 1; height: 48px; aspect-ratio: 1; border-radius: 6px; }
   html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-caption {
-    grid-column: 2; grid-row: 1; display: grid !important; align-content: start;
+    position: static !important; inset: auto !important; width: auto !important; max-width: 100%;
+    grid-column: 2; grid-row: 1; display: grid !important; align-content: center; gap: 4px !important;
     min-height: 0; padding: 0 !important; border: 0 !important; background: transparent !important;
   }
-  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-copy strong { white-space: normal; overflow-wrap: anywhere; font-size: 14px; }
-  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-commerce { display: flex; gap: 8px; text-align: left; }
-  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-badges { position: static; grid-column: 2; max-width: none; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-copy strong { order: -1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow-wrap: anywhere; font-size: 14px; font-weight: 600; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-copy em { display: none; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-mobile-format { display: inline; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-commerce { display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 2px 8px; text-align: left; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-badges { position: static; grid-column: 2; grid-row: 2; max-width: none; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-badges:has(> .is-open:only-child) { display: none; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-badges > .is-open { display: none; }
   html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-badges > span { padding: 0; border: 0; background: transparent; backdrop-filter: none; }
-  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-actions { position: static; grid-column: 2; justify-content: flex-start; }
-  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-actions :is(button,a) { border-radius: 6px; background: #213d50; color: #f4f8fc; border-color: #38536a; box-shadow: none; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-actions { position: static; grid-column: 3; grid-row: 1 / span 2; flex-direction: column; align-self: center; justify-content: center; gap: 0; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-actions :is(button,a) { border-radius: 6px; background: transparent; color: #b1c1cf; border: 0; box-shadow: none; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-actions > .is-active { color: #f1cc25; }
+  html body .store-home.home-platform-v15 .store-home-products .dz-champ-card-info { display: none; }
   html body .store-home.home-platform-v15 .store-home-product-skeleton { min-height: 100px; border: 0; border-bottom: 1px solid #304c61; border-radius: 0; }
   html body .store-home.home-platform-v15 .store-home-products-empty { min-height: 64px; padding: 12px 0; border: 0; border-radius: 0; background: transparent; }
-  html body .store-home.home-platform-v15 .store-home-footer-grid { grid-template-columns: repeat(3,minmax(0,1fr)); padding-block: 12px; gap: 8px; }
+  html body .store-home.home-platform-v15 .store-home-footer-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    min-height: 44px; padding: 0 12px; border: 0; background: transparent;
+    color: #b1c1cf; font-size: 12px; cursor: pointer;
+  }
+  html body .store-home.home-platform-v15 .store-home-footer-grid { display: none; grid-template-columns: repeat(3,minmax(0,1fr)); padding-block: 12px; gap: 8px; }
+  html body .store-home.home-platform-v15 .store-home-footer-grid.is-open { display: grid; }
   html body .store-home.home-platform-v15 .store-home-footer-brand { display: none; }
   html body .store-home.home-platform-v15 .store-home-footer-grid :is(a,button) { display: flex; align-items: center; min-height: 44px; }
+  .lili-global-launcher.lili-mobile-in-menu { display: none !important; }
+
+  .system-modal.app-quick-dialog {
+    position: fixed !important; top: auto !important; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px;
+    width: auto !important; max-width: none !important;
+    height: auto !important; min-height: 0 !important;
+    max-height: calc(100dvh - 80px - env(safe-area-inset-bottom)) !important; margin: 0;
+    background: #1c3446 !important; color: #f4f8fc;
+  }
+  .system-modal.app-quick-dialog .system-modal-header { padding: 12px !important; background: #1c3446 !important; border-color: #304c61 !important; }
+  .system-modal.app-quick-dialog .system-modal-header h2 { font-size: 18px !important; color: #f4f8fc !important; }
+  .system-modal.app-quick-dialog .system-modal-header p { font-size: 12px; color: #b1c1cf !important; }
+  .system-modal.app-quick-dialog .system-modal-close { color: #f4f8fc !important; }
+  .system-modal.app-quick-dialog .system-modal-content { padding: 12px !important; }
+  .system-modal.app-quick-dialog .app-mobile-quick-list > a { border: 0; border-bottom: 1px solid #304c61; background: transparent; border-radius: 0; }
+  .system-modal.app-quick-dialog .app-mobile-quick-list strong { color: #f4f8fc; }
+  .system-modal.app-quick-dialog .app-mobile-quick-list small { color: #b1c1cf; }
+  .system-modal.app-quick-dialog .app-mobile-quick-action-icon { background: transparent; color: #f1cc25; }
 
   /* Access opens directly on its form rather than a marketing screen. */
   html body .login-portal .login-portal-copy { display: none; }

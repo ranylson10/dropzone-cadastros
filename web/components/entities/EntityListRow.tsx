@@ -9,6 +9,14 @@ export type EntityMetaItem = {
   value: string
 }
 
+function mobileMetaText(item: EntityMetaItem) {
+  const label = item.label.toLocaleLowerCase('pt-BR')
+  if (label === 'status') return item.value
+  if (!/^\d+$/.test(item.value)) return `${item.label}: ${item.value}`
+  const unit = item.value === '1' ? label.replace(/s$/, '') : label
+  return `${item.value} ${unit}`
+}
+
 export type EntityListRowProps = {
   kind: EntityKind
   href: string
@@ -41,6 +49,7 @@ export function EntityListRow({
   ].filter(Boolean).join(' ')
 
   const isTableView = className.includes('dz-entity-row--table')
+  const repeatedEyebrow = eyebrow?.trim().toLocaleLowerCase('pt-BR') === name.trim().toLocaleLowerCase('pt-BR')
 
   if (isTableView) {
     const metaItems = meta.slice(0, 3)
@@ -66,7 +75,15 @@ export function EntityListRow({
           />
           <span className="dz-entity-table-main">
             {eyebrow ? <small>{eyebrow}</small> : null}
-            <strong>{name}</strong>
+            <strong>{name}{eyebrow && !repeatedEyebrow && !username ? <span className="dz-entity-mobile-tag">{eyebrow}</span> : null}</strong>
+            {username ? <small className="dz-entity-mobile-handle">@{username}</small> : null}
+            <span className="dz-entity-mobile-summary">
+              {meta.filter(item => item.value && !['—', '-'].includes(item.value)).map(item => (
+                <span key={`${item.label}:${item.value}`}>
+                  {mobileMetaText(item)}
+                </span>
+              ))}
+            </span>
           </span>
         </span>
 

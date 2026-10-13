@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { MessageCircle, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import styles from './LiliGlobalLauncher.module.css'
+import { hasPublicDiscoveryNavigation } from '@/components/layout/nav'
 
 function entityFromPath(pathname: string) {
   const parts = pathname.split('/').filter(Boolean)
@@ -53,7 +54,7 @@ export function LiliGlobalLauncher() {
 
       <button
         type="button"
-        className={`lili-global-launcher ${styles.launcher}`}
+        className={`lili-global-launcher ${styles.launcher} ${hasPublicDiscoveryNavigation(pathname) ? 'lili-mobile-in-menu' : ''}`}
         onClick={() => setOpen((value) => !value)}
         aria-label={open ? 'Fechar Lili' : 'Abrir Lili para esta página'}
         title="Pedir ajuda à Lili nesta página"

@@ -64,7 +64,7 @@ export function ChampionshipCard({
         </Link>
 
         <div className="dz-champ-card-badges" aria-label="Situação do campeonato">
-          <span className={freeSlots <= 0 ? 'is-closed' : freeSlots <= 3 ? 'is-urgent' : ''}>{statusLabel}</span>
+          <span className={freeSlots <= 0 ? 'is-closed' : freeSlots <= 3 ? 'is-urgent' : !championship.statusLabel || statusLabel === 'Vagas abertas' ? 'is-open' : ''}>{statusLabel}</span>
           {championship.secondaryBadge ? <span>{championship.secondaryBadge}</span> : null}
           {championship.participationLabel ? <span className="is-participating">{championship.participationLabel}</span> : null}
         </div>
@@ -95,7 +95,7 @@ export function ChampionshipCard({
 
         <Link className="dz-champ-card-caption" href={championship.href}>
           <span className="dz-champ-card-copy">
-            <small>{producerLabel}</small>
+            <small>{producerLabel}{championship.formatLabel && championship.formatLabel !== producerLabel ? <span className="dz-champ-card-mobile-format"> · {championship.formatLabel}</span> : null}</small>
             <strong>{championship.name}</strong>
             {championship.formatLabel && championship.formatLabel !== producerLabel ? <em>{championship.formatLabel}</em> : null}
           </span>

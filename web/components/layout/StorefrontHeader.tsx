@@ -5,8 +5,10 @@ import Form from 'next/form'
 
 import { Input as UiInput } from '@/components/ui/Field'
 import { SystemLogo } from '@/components/brand/SystemLogo'
+import { useDisclosureFocus } from '@/components/ui/useDisclosureFocus'
+import { hasPublicDiscoveryNavigation } from './nav'
 import {
-  CalendarDays, ChevronLeft, ChevronRight, Heart, Home, Menu,
+  CalendarDays, ChevronLeft, ChevronRight, Heart, Home, Menu, MessageCircle,
   Search, ShoppingBag, Trophy, UserRound, UsersRound, X,
   type LucideIcon,
 } from 'lucide-react'
@@ -32,22 +34,13 @@ const SECONDARY_NAV: StoreNavItem[] = [
   { label: 'Agenda', href: '/agenda', icon: CalendarDays },
   { label: 'Favoritos', href: '/campeonatos?favoritos=1', icon: Heart },
   { label: 'Carrinho', href: '/carrinho', icon: ShoppingBag },
+  { label: 'Lili', href: '/lili', icon: MessageCircle },
 ]
 
 function isActive(pathname: string, href: string) {
   const path = href.split('?')[0]
   if (path === '/') return pathname === '/'
   return pathname === path || pathname.startsWith(`${path}/`)
-}
-
-/** Only the catalog, community and public profiles receive the discovery sidebar.
- * Checkout, token flows, live/OBS and workspace screens remain unchanged. */
-function isDiscoveryPage(pathname: string) {
-  if (['/', '/rank', '/agenda', '/carrinho', '/carteira',
-    '/lili', '/afiliados', '/termos-de-servico', '/politica-de-privacidade',
-    '/exclusao-de-dados'].includes(pathname)) return true
-  if (/^\/campeonatos\/[^/]+\/regulamento\/?$/.test(pathname)) return true
-  return /^\/(?:campeonatos|equipes|jogadores|produtoras|managers)(?:\/[^/]+)?\/?$/.test(pathname)
 }
 
 function StoreNavLink({ item, pathname, onNavigate }: {
@@ -68,8 +61,9 @@ export function StorefrontHeader({ authenticated = false, onAccountClick }: Prop
   const pathname = usePathname() || '/'
   const returnTo = encodeURIComponent(pathname)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const mobilePopup = useDisclosureFocus(mobileOpen, () => setMobileOpen(false), false)
   const [collapsed, setCollapsed] = useState(false)
-  const discovery = isDiscoveryPage(pathname)
+  const discovery = hasPublicDiscoveryNavigation(pathname)
   const profileHref = authenticated ? '/?painel=1' : `/login?returnTo=${returnTo}`
 
   useEffect(() => {
@@ -108,7 +102,7 @@ export function StorefrontHeader({ authenticated = false, onAccountClick }: Prop
               <Link href={profileHref} aria-label={authenticated ? 'Minha área' : 'Entrar'} title={authenticated ? 'Minha área' : 'Entrar'}><UserRound size={20} /></Link>
             )}
             <button className="store-home-mobile-toggle" type="button"
-              onClick={() => setMobileOpen((value) => !value)}
+              onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setMobileOpen((value) => !value) }}
               aria-expanded={mobileOpen} aria-controls="dz-public-mobile-menu"
               aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}>
               {mobileOpen ? <X size={21} /> : <Menu size={21} />}
@@ -116,7 +110,7 @@ export function StorefrontHeader({ authenticated = false, onAccountClick }: Prop
           </div>
         </div>
         {mobileOpen ? (
-          <div id="dz-public-mobile-menu" className="store-home-mobile-menu">
+          <div ref={mobilePopup.panelRef} id="dz-public-mobile-menu" className="store-home-mobile-menu">
             <Form action="/campeonatos" role="search" onSubmit={() => setMobileOpen(false)}>
               <Search size={17} /><UiInput name="q" placeholder="Buscar campeonatos" aria-label="Buscar campeonatos" />
               <button type="submit">Buscar</button>
