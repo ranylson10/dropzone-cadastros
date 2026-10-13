@@ -46,7 +46,7 @@ const run=()=>preview(champ,ruleId)
 const invoke=(action='preview_progression')=>route.POST(new Request('https://fixture.invalid/api',{method:'POST',headers:{Authorization:'Bearer fixture','Content-Type':'application/json'},body:JSON.stringify({action,rule_id:ruleId})}),{params:Promise.resolve({id:champ})})
 let cases=0
 // Preserve a concrete failure of the previous function, using its actual extracted source when available.
-const before='relatorios-testes/banco-atual-2026-10-12/preview-before.ts'
+const before='scripts/testes/fixtures/progression-preview-before.ts'
 if(fs.existsSync(before)){
   const code=ts.transpileModule('export '+fs.readFileSync(before,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,module={exports:{}}
   new Function('exports','supabaseAdmin','listarEstatisticasEquipes',code)(module.exports,admin,statistics.listarEstatisticasEquipes)

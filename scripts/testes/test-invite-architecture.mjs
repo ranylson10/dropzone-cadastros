@@ -9,7 +9,7 @@ import { match } from './lib/postgrest-fixture.mjs'
 import { backendServiceEvidence } from './lib/backend-service-evidence.mjs'
 
 const routeFile = 'web/app/api/campeonatos/[id]/managers/convites/route.ts'
-const snapshot = 'relatorios-testes/lote-duplo-2026-10-12/convites/legacy-route.snapshot.ts'
+const snapshot = 'scripts/testes/fixtures/manager-invite-legacy-route.ts'
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const actor = id(1), champ = id(20), otherChamp = id(21), manager = id(30), invitation = id(40), notification = id(50)
 let tables, calls, auth, bodyReads, fail

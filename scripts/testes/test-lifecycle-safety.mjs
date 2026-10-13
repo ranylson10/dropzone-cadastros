@@ -43,7 +43,7 @@ const overrides = {
  '@backend/campeonatos/advanced-structure-read': { loadAdvancedStructure: async () => { if (failReload) throw Error('PRIVATE_RELOAD'); return { edition: structuredClone(tables.campeonato_edicoes[0]), stages: [] } } },
  '@/lib/supabase-browser': { supabase: { auth: { getSession: async () => ({ data: { session: sessionActor ? { user: { id: sessionActor }, access_token: 'fixture-token' } : null } }) } } },
 }
-const snapshot = 'relatorios-testes/lifecycle-2026-10-12/legacy-route.snapshot.ts'
+const snapshot = 'scripts/testes/fixtures/lifecycle-legacy-route.ts'
 const legacy = fixtureLoader(overrides)(snapshot), route = fixtureLoader(overrides)('web/app/api/campeonatos/[id]/estrutura-avancada/route.ts')
 const params = { params: Promise.resolve({ id: champ }) }
 const request = (action, token = 'fixture-token', body = { action }) => new NextRequest('https://fixture.invalid/api', { method: 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json', 'Idempotency-Key': id(999) }, body: JSON.stringify(body) })
