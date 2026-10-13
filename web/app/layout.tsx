@@ -28,6 +28,7 @@ import '@/styles/auth-invites-density-r08.css'
 import '@/styles/admin-broadcast-density-r09.css'
 import '@/styles/unified-platform-r14.css'
 import '@/styles/mobile-app.css'
+import '@/styles/mobile-ui.css'
 import { ApplicationRuntime } from '@/components/layout/ApplicationRuntime'
 
 
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body><ApplicationRuntime>{children}</ApplicationRuntime></body>
+      <body id="dropzone-app"><ApplicationRuntime>{children}</ApplicationRuntime></body>
     </html>
   )
 }

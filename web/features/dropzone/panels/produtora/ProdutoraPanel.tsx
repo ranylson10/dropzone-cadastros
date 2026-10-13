@@ -114,6 +114,7 @@ export function ProdutoraPanel(props: {
 }) {
   const creationScope=useAccountResourceScope(props.account?.id||'')
   const [showCreateChamp, setShowCreateChamp] = useState(false)
+  const [flowHelpOpen, setFlowHelpOpen] = useState(false)
   const workspacePermissions = (props.account?.data?.workspace_permissions || {}) as Record<string, boolean>
   const workspaceRole = String(props.account?.data?.workspace_role || 'proprietario')
   const legacyOwnerFallback = !props.account?.data?.workspace_role
@@ -1539,7 +1540,12 @@ ${params.url}`
             <article><small>Jogos</small><strong>{producerGamesCount}</strong><span>Programados no sistema</span></article>
           </div>
 
-          <section className="producer-dashboard-flow-card">
+          {producerPendingChampionships > 0 ? <p className="producer-dashboard-mobile-pending">{producerPendingChampionships} campeonato{producerPendingChampionships === 1 ? '' : 's'} aguardando liberação.</p> : null}
+          <button type="button" className="producer-dashboard-help-toggle" aria-expanded={flowHelpOpen}
+            aria-controls="producer-dashboard-flow-help" onClick={() => setFlowHelpOpen(value => !value)}>
+            Como organizar campeonatos <ChevronDown size={16} aria-hidden="true" />
+          </button>
+          <section id="producer-dashboard-flow-help" className={`producer-dashboard-flow-card ${flowHelpOpen ? 'is-open' : ''}`}>
             <div className="producer-dashboard-section-head">
               <div><p className="eyebrow">Fluxo operacional</p><h3>Do cadastro ao resultado</h3></div>
               {producerPendingChampionships > 0 ? <span>{producerPendingChampionships} aguardando liberação</span> : <span>Workspace em dia</span>}

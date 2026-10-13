@@ -1,0 +1,240 @@
+/* Mobile UI roles. The real application root gives this final layer precedence
+   over historical feature selectors. Desktop and authored broadcast content
+   retain their own typography. */
+.producer-dashboard-help-toggle,
+.producer-dashboard-mobile-pending { display: none; }
+body#dropzone-app .producer-action.primary { color: #201c0d !important; }
+body#dropzone-app .producer-action.primary > span { color: inherit !important; }
+body#dropzone-app .app-profile-copy small { color: #a7b5c1 !important; }
+@media (max-width: 767px) {
+  :root {
+    --dz-mobile-bg: #101b24;
+    --dz-mobile-surface: #182630;
+    --dz-mobile-raised: #21323f;
+    --dz-mobile-line: #30414e;
+    --dz-mobile-text: #e8edf2;
+    --dz-mobile-secondary: #a7b5c1;
+    --dz-mobile-accent: #e7c64a;
+    --dz-unified-bg: var(--dz-mobile-bg);
+    --dz-unified-panel: var(--dz-mobile-surface);
+    --dz-unified-border: var(--dz-mobile-line);
+    --dz-unified-text: var(--dz-mobile-text);
+    --dz-unified-muted: var(--dz-mobile-secondary);
+    --dz-unified-accent: var(--dz-mobile-accent);
+  }
+
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .store-home-header, .app-header, .dz-public-bottom-nav, .system-modal) {
+    --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-heading: var(--font-body);
+    font-family: var(--font-body) !important;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+  /* Reset display-font and heavy-weight inheritance; assign emphasis by role
+     below. Rich text and user-authored overlays are deliberately excluded. */
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .store-home-header, .app-header, .dz-public-bottom-nav, .system-modal)
+    *:not(:where(.ql-editor, .ql-editor *, .stream-package-render-root, .stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) {
+    font-family: inherit !important;
+    font-weight: inherit !important;
+    letter-spacing: normal !important;
+    text-shadow: none !important;
+    text-transform: none !important;
+  }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) :is(h1,h2,h3,h4):not(:where(.ql-editor *, .stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) {
+    font-weight: 600 !important;
+    font-style: normal !important;
+    text-transform: none !important;
+    line-height: 1.3 !important;
+    overflow-wrap: anywhere;
+  }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) h1:not(:where(.ql-editor *, .stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { font-size: 20px !important; }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) h2:not(:where(.ql-editor *, .stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { font-size: 16px !important; }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) :is(h3,h4):not(:where(.ql-editor *, .stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { font-size: 14px !important; }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) :is(h1,h2,h3,h4) em { color: inherit !important; font-style: normal !important; }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) :is(strong,b):not(:where(.ql-editor *, .stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { font-weight: 500 !important; }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) :is(small,dt,label,th):not(:where(.ql-editor *, .stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) {
+    font-weight: 400 !important;
+    text-transform: none !important;
+    line-height: 1.4 !important;
+  }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) small:not(:where(.ql-editor *, .stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { font-size: 12px !important; }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal, .app-header, .store-home-header) :is(button, .button, .dz-ui-button, .tab, .dz-workspace-nav__item) {
+    font-weight: 500 !important;
+    text-transform: none !important;
+    font-style: normal !important;
+  }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size: 16px !important; font-weight: 400 !important; }
+  body#dropzone-app :is(main:not(.broadcast-obs-root), .system-modal) :is(dd,td,.metric) { font-variant-numeric: tabular-nums; }
+
+  /* One quiet surface, readable secondary copy, and a single accent for action. */
+  body#dropzone-app main.dz-unified-public-page,
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page),
+  body#dropzone-app .store-home.home-platform-v15 {
+    background: var(--dz-mobile-bg) !important;
+    background-image: none !important;
+    color: var(--dz-mobile-text) !important;
+  }
+  body#dropzone-app .store-home.home-platform-v15 { --dz-home-bg: var(--dz-mobile-bg); --dz-home-card: var(--dz-mobile-surface); --dz-home-line: var(--dz-mobile-line); --dz-home-muted: var(--dz-mobile-secondary); --dz-home-text: var(--dz-mobile-text); --dz-home-accent: var(--dz-mobile-accent); }
+  body#dropzone-app :is(.directory-hero-banner,.directory-rank-hero,.profile-command-hero)::before,
+  body#dropzone-app :is(.directory-hero-banner,.directory-rank-hero,.profile-command-hero)::after { display: none !important; }
+  body#dropzone-app :is(.store-home-header,.app-header,.dz-public-bottom-nav) { background: var(--dz-mobile-surface) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app .store-home-brand strong { font-size: 15px !important; font-weight: 600 !important; }
+  body#dropzone-app .store-home-header-inner--unified,
+  body#dropzone-app .store-home.home-platform-v15 .store-home-width,
+  body#dropzone-app main.dz-unified-public-page > .directory-page-body { width: calc(100% - 32px) !important; }
+  body#dropzone-app .dz-public-bottom-nav a { font-size: 11px !important; font-weight: 400 !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-public-bottom-nav a.active { color: var(--dz-mobile-accent) !important; font-weight: 500 !important; }
+  body#dropzone-app .dz-public-bottom-nav a.active svg { background: #e7c64a15; border-radius: 8px; }
+  body#dropzone-app .store-home-section-head h2 { font-size: 15px !important; }
+  body#dropzone-app .store-home-section-head a { color: var(--dz-mobile-secondary) !important; font-weight: 400 !important; }
+  body#dropzone-app .store-home-category-copy strong { font-size: 13px !important; font-weight: 500 !important; text-transform: none !important; }
+  body#dropzone-app .store-home-category-media svg { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .store-home-products .dz-champ-card-copy strong,
+  body#dropzone-app main.directory-page .dz-entity-table-main > strong,
+  body#dropzone-app .dz-champ-list-row__identity strong { font-size: 14px !important; font-weight: 500 !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .store-home-products .dz-champ-card-copy small,
+  body#dropzone-app .store-home-products .dz-champ-card-commerce :is(span,strong),
+  body#dropzone-app main.directory-page :is(.directory-hero-banner p,.directory-rank-hero p,.dz-entity-mobile-summary,.dz-entity-mobile-handle,.dz-entity-mobile-tag,.dz-entity-table-open),
+  body#dropzone-app .dz-champ-list-row__identity span { font-weight: 400 !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .store-home-products .dz-champ-card-commerce b { color: var(--dz-mobile-text) !important; font-weight: 500 !important; }
+  body#dropzone-app .dz-champ-list-row__metrics dt { color: var(--dz-mobile-secondary) !important; font-size: 12px !important; }
+  body#dropzone-app .dz-champ-list-row__metrics dd { color: var(--dz-mobile-text) !important; font-size: 13px !important; font-weight: 500 !important; }
+  body#dropzone-app .dz-champ-list-row__mobile-status { color: var(--dz-mobile-secondary) !important; font-weight: 400 !important; }
+
+  /* Profiles: sections and compact data rows rather than nested decorated cards. */
+  body#dropzone-app main.directory-v1-profile .profile-command-page { padding: 0 0 16px !important; }
+  body#dropzone-app main.directory-v1-profile :is(.competitive-profile-panel,.directory-profile-tabs-shell,.directory-profile-tab-panel,.champ-public-panel,.champ-public-info,.champ-public-section,.champ-public-info-agenda) {
+    padding: 12px 0 !important; border: 0 !important; border-radius: 0 !important;
+    background: transparent !important; box-shadow: none !important;
+  }
+  body#dropzone-app main.directory-v1-profile :is(.profile-command-facts small,.profile-command-copy > p,.profile-command-copy > small,.competitive-profile-head small,.competitive-kpi-grid small,.competitive-average-grid small,.competitive-loadout dt) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main.directory-v1-profile .competitive-profile-head { min-height: 40px; }
+  body#dropzone-app main.directory-v1-profile .competitive-kpi-grid { margin-top: 12px !important; gap: 0 16px !important; }
+  body#dropzone-app main.directory-v1-profile .competitive-kpi-grid article { padding: 10px 0 !important; min-height: 0 !important; gap: 3px !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app main.directory-v1-profile .competitive-kpi-grid article > svg { display: none; }
+  body#dropzone-app main.directory-v1-profile .competitive-kpi-grid strong { font-size: 20px !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app main.directory-v1-profile .competitive-loadout dl > div { padding: 10px 0 !important; }
+  body#dropzone-app main.directory-v1-profile .competitive-loadout dd { margin: 0; font-size: 13px !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app main.directory-v1-profile .dz-champ-simple-header { padding: 12px 0 !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; }
+  body#dropzone-app main.directory-v1-profile :is(.profile-command-hero,.directory-profile-banner,.directory-immersive-shell) { background-image: none !important; }
+  body#dropzone-app main.directory-v1-profile :is(.directory-profile-banner,.directory-immersive-shell)::before,
+  body#dropzone-app main.directory-v1-profile :is(.directory-profile-banner,.directory-immersive-shell)::after { display: none !important; }
+  body#dropzone-app main.directory-v1-profile .dz-champ-simple-identity > small { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main.directory-v1-profile .champ-public-info-summary { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 16px !important; }
+  body#dropzone-app main.directory-v1-profile .champ-public-info-summary > div { min-height: 0 !important; padding: 10px 0 !important; background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; }
+  body#dropzone-app main.directory-v1-profile .champ-public-info-summary small { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main.directory-v1-profile .champ-public-info-groups { gap: 16px !important; }
+  body#dropzone-app main.directory-v1-profile .champ-public-info-groups > section { padding: 0 !important; border: 0 !important; background: transparent !important; }
+  body#dropzone-app main.directory-v1-profile .champ-public-info-groups dt { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main.directory-v1-profile .champ-public-info-groups dd { font-weight: 500 !important; }
+  body#dropzone-app :is(.champ-public-nav,.directory-profile-tabs,.dz-workspace-nav) { padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
+  body#dropzone-app :is(.champ-public-nav-btn,.directory-profile-tabs button,.dz-workspace-nav__item) { min-height: 44px !important; font-size: 13px !important; color: var(--dz-mobile-secondary) !important; border-radius: 0 !important; }
+  body#dropzone-app :is(.champ-public-nav-btn.active,.directory-profile-tabs button.active,.dz-workspace-nav__item.is-active) { color: var(--dz-mobile-text) !important; background: transparent !important; box-shadow: inset 0 -2px var(--dz-mobile-accent) !important; }
+  body#dropzone-app .champ-public-nav-count { font-size: 11px !important; background: var(--dz-mobile-raised) !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main.directory-v1-profile :is(.champ-list-filters label > span,.champ-stats-loading) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-workspace-header { background: transparent !important; padding: 12px 0 !important; }
+  body#dropzone-app .dz-workspace-header__eyebrow { color: var(--dz-mobile-secondary) !important; text-transform: none !important; }
+  body#dropzone-app .dz-workspace-header__title-row h2 { font-size: 20px !important; }
+
+  /* Authenticated workspaces: use the same surface/text roles as discovery.
+     Financial receipts and authored overlay canvases retain their own styling. */
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) {
+    --dz-paper: var(--dz-mobile-bg); --dz-text: var(--dz-mobile-text); --dz-muted: var(--dz-mobile-secondary);
+    --surface: var(--dz-mobile-surface); --surface-soft: var(--dz-mobile-raised); --text: var(--dz-mobile-text); --muted: var(--dz-mobile-secondary); --line: var(--dz-mobile-line);
+    --dz-ui-surface: var(--dz-mobile-surface); --dz-ui-surface-soft: var(--dz-mobile-raised); --dz-ui-text: var(--dz-mobile-text); --dz-ui-muted: var(--dz-mobile-secondary); --dz-ui-line: var(--dz-mobile-line);
+  }
+  /* Historical subpanels hard-code light backgrounds and dark copy. Resolve
+     both together inside workspace UI; never recolor receipt/artwork content. */
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page)
+    *:not(:where(.pix-receipt,.pix-receipt *,.ql-editor,.ql-editor *,.stream-package-render-root,.stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { color: inherit !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page)
+    :is(div,section,article,form,header,nav,dl,table,tr,td,th,span,p,label,a):not(:where(.pix-receipt,.pix-receipt *,.ql-editor,.ql-editor *,.stream-package-render-root,.stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { background-color: transparent !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page)
+    :is(label,small,dt,th,.eyebrow,.empty,.vagas-empty-filter,.dz-ui-field__hint,.dz-ui-field__error,.pill):not(:where(.pix-receipt *,.ql-editor *,.stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) button:not(:where(.pix-receipt *,.ql-editor *,.stream-package-render-root *, .home-editor-preview, .home-editor-preview *)) { background-color: var(--dz-mobile-raised) !important; color: var(--dz-mobile-text) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.button:not(.secondary),.dz-ui-button--primary,.championship-create-btn,.producer-create-button,.producer-action.primary,.player-competition-empty a) { background-color: var(--dz-mobile-accent) !important; color: #201c0d !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .button:not(.secondary) > :is(span,strong,small) { color: inherit !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.message.error,.dz-form-message--error,.dz-ui-field__error,.pill.error,.pill.danger) { color: #f3b0b8 !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.message.success,.dz-form-message--success,.pill.success) { color: #8cdcb3 !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.message.warning,.dz-form-message--warning,.pill.warning) { color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.message.error,.dz-form-message--error) { background-color: #341e28 !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.message.success,.dz-form-message--success) { background-color: #18382e !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.message.warning,.dz-form-message--warning) { background-color: #34301d !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .champ-registration-status { color: var(--dz-mobile-secondary) !important; background-color: var(--dz-mobile-raised) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .champ-registration-status.is-ocupada { color: #8cdcb3 !important; background-color: #18382e !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .champ-registration-status.is-reservada { color: var(--dz-mobile-accent) !important; background-color: #34301d !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .panel-workspace-shell { width: calc(100% - 32px) !important; padding: 16px 0 24px !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page).page-authenticated { padding-top: 0 !important; padding-bottom: calc(var(--dz-v1-bottom-nav-h,58px) + 16px + env(safe-area-inset-bottom)) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.dz-workspace-header h2,.producer-dashboard-section-head h3,.producer-hub-section h2) { color: var(--dz-mobile-text) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .dz-workspace-header__description { display: none; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .account-workspace-hero {
+    display: grid !important; grid-template-columns: minmax(0,1fr) 44px !important; gap: 8px !important;
+    min-height: 0 !important; margin: 0 0 12px !important; padding: 12px 0 !important;
+    border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important;
+    background: transparent !important; box-shadow: none !important;
+  }
+  body#dropzone-app .account-workspace-hero::after { display: none !important; }
+  body#dropzone-app .account-workspace-hero::before,
+  body#dropzone-app .app-header::before,
+  body#dropzone-app .app-header::after { display: none !important; }
+  body#dropzone-app .account-workspace-hero .account-workspace-identity { min-width: 0; gap: 10px !important; }
+  body#dropzone-app .account-workspace-hero .account-workspace-avatar { width: 40px !important; height: 40px !important; flex-basis: 40px !important; border: 0 !important; }
+  body#dropzone-app .account-workspace-hero .account-strip-head { min-width: 0; }
+  body#dropzone-app .account-workspace-hero .account-strip-head .eyebrow { display: none; }
+  body#dropzone-app .account-workspace-hero .account-strip-head > strong { display: block; font-size: 16px !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .account-workspace-hero .account-strip-head > strong > span { display: block; font-size: 12px !important; color: var(--dz-mobile-secondary) !important; overflow-wrap: anywhere; }
+  body#dropzone-app .account-workspace-hero .account-strip-action { grid-column: 2; grid-row: 1; min-width: 44px; min-height: 44px !important; padding: 0 !important; background: transparent !important; color: var(--dz-mobile-secondary) !important; border: 0 !important; }
+  body#dropzone-app .account-workspace-hero .account-strip-metrics { grid-column: 1 / -1; display: flex !important; padding: 0 !important; }
+  body#dropzone-app .account-workspace-hero .account-strip-metrics .metric { min-width: 0 !important; min-height: 0 !important; padding: 0 12px 0 0 !important; border: 0 !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .account-workspace-hero .account-strip-metrics .metric :is(b,svg) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .producer-dashboard-hero { padding: 0 !important; min-height: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .producer-dashboard-hero > div:first-child { display: none; }
+  body#dropzone-app .producer-dashboard-actions { display: flex !important; flex-direction: row !important; gap: 8px !important; }
+  body#dropzone-app .producer-dashboard-actions > button { min-width: 0; min-height: 44px !important; flex: 1; }
+  body#dropzone-app .producer-dashboard-kpis { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 0 16px !important; background: transparent !important; }
+  body#dropzone-app .producer-dashboard-kpis article { min-height: 0 !important; padding: 12px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; background: transparent !important; }
+  body#dropzone-app .producer-dashboard-kpis article strong { color: var(--dz-mobile-text) !important; font-size: 24px !important; }
+  body#dropzone-app .producer-dashboard-kpis article small { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .producer-dashboard-kpis article > span { display: none; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.panel,.producer-dashboard-flow-card,.producer-hub-section,.champ-overview-card) {
+    background: var(--dz-mobile-surface) !important; color: var(--dz-mobile-text) !important;
+    border-color: var(--dz-mobile-line) !important; box-shadow: none !important;
+  }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.producer-dashboard-section-head .eyebrow,.producer-dashboard-section-head > span,.producer-hub-section .eyebrow) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .producer-dashboard-flow { border: 0 !important; }
+  body#dropzone-app .producer-dashboard-flow button { min-height: 64px !important; padding: 12px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; background: transparent !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .producer-dashboard-flow button :is(b,small) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .producer-dashboard-flow button strong { color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .producer-dashboard-flow-card { display: none; }
+  body#dropzone-app .producer-dashboard-flow-card.is-open { display: block; }
+  body#dropzone-app main.dz-unified-workspace-page .producer-dashboard-help-toggle { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 8px 0; border: 0; background: transparent !important; color: var(--dz-mobile-secondary) !important; text-align: left; }
+  body#dropzone-app .producer-dashboard-mobile-pending { display: block; margin: 0; color: var(--dz-mobile-accent); font-size: 13px; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.champ-workspace-nav,.champ-context-nav) { background: transparent !important; border: 0 !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.champ-workspace-nav,.champ-context-nav) button { min-height: 44px !important; background: transparent !important; border: 0 !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.champ-workspace-nav,.champ-context-nav) button.active { color: var(--dz-mobile-text) !important; box-shadow: inset 0 -2px var(--dz-mobile-accent) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.detail-header,.champ-list-item,.championship-type-filter,.producer-filter-popover,.championship-list) { background: var(--dz-mobile-surface) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.detail-header,.champ-list-item) :is(strong,h2,h3) { color: var(--dz-mobile-text) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.detail-header,.champ-list-item) :is(small,.eyebrow) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(.button.secondary,.dz-ui-button--secondary,.panel-workspace-return button,.dz-workspace-header__actions > span) { background: var(--dz-mobile-raised) !important; color: var(--dz-mobile-text) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { background: var(--dz-mobile-surface) !important; color: var(--dz-mobile-text) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app .app-mobile-dock { background: var(--dz-mobile-surface) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app .app-mobile-dock :is(a,button) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .app-mobile-dock :is(a,button).active { color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app .app-mobile-dock .app-mobile-quick-trigger { background: var(--dz-mobile-raised) !important; }
+  body#dropzone-app .app-profile-avatar { background: var(--dz-mobile-raised) !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .app-profile-avatar > b { color: inherit !important; }
+  body#dropzone-app .app-wallet-chip { background: var(--dz-mobile-raised) !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .app-wallet-chip :is(span,small) { color: inherit !important; }
+  body#dropzone-app main.system-admin-page .admin-metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 0 16px !important; }
+  body#dropzone-app main.system-admin-page .admin-metric-grid > article { min-height: 0 !important; padding: 12px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; }
+  body#dropzone-app main.system-admin-page .system-admin-tabs button.active { color: var(--dz-mobile-text) !important; background: transparent !important; box-shadow: inset 0 -2px var(--dz-mobile-accent) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) :is(button.danger,.dz-ui-button--danger) { background-color: #341e28 !important; color: #f3b0b8 !important; }
+  body#dropzone-app main.system-admin-page .admin-status.aprovado { color: #8cdcb3 !important; }
+  body#dropzone-app main.system-admin-page .admin-status.pendente { color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app main.system-admin-page .admin-status.rejeitado { color: #f3b0b8 !important; }
+  body#dropzone-app main.system-admin-page .home-editor-preview > span { color: #5e6a75 !important; }
+  body#dropzone-app main.system-admin-page .system-admin-tabs button b { color: var(--dz-mobile-secondary) !important; background: var(--dz-mobile-raised) !important; }
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .dz-workspace-nav__item { background-color: transparent !important; }
+  body#dropzone-app .system-modal .championship-type-format { color: #626a75 !important; }
+}
