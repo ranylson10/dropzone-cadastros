@@ -501,13 +501,13 @@ export default function PontuadorJogoPage() {
   }
 
   if (loading && !data) return <DropzoneLoader label="Carregando pontuador" />
-  if (error && !data) return <main className="fullscreen-scorer-state error"><strong>{error}</strong><button className="button secondary" onClick={() => void load()}>Tentar novamente</button></main>
+  if (error && !data) return <main className="fullscreen-scorer-state error dz-mobile-utility"><strong>{error}</strong><button className="button secondary" onClick={() => void load()}>Tentar novamente</button></main>
   if (!data) return null
 
   const maps = Array.from(new Map(data.partidas.map(drop => [drop.mapa_codigo, drop.mapa_nome || drop.mapa])).entries()).filter(([code]) => code)
   const isLocked = selectedDrop?.status === 'finalizada'
 
-  return <main className={`scorer-workspace scorer-sheet-workspace${isLocked ? ' is-drop-locked' : ''}`}>
+  return <main className={`scorer-workspace scorer-sheet-workspace dz-mobile-utility${isLocked ? ' is-drop-locked' : ''}`}>
     <header className="scorer-workspace-header">
       <div className="scorer-brand"><button className="icon-button" onClick={() => router.back()} aria-label="Voltar"><ArrowLeft size={18}/></button>{data.campeonato.logo_url ? <img src={data.campeonato.logo_url} alt=""/> : null}<div><p>{data.fase?.nome || 'Fase'}</p><h1>{data.jogo.nome}</h1><small>{data.campeonato.nome} · {data.slots.length} slots{isLocked ? ' · Q' + selectedDrop?.numero_partida + ' travada' : ''}</small></div></div>
       <div className="scorer-header-actions">
@@ -626,8 +626,8 @@ export default function PontuadorJogoPage() {
               )
               return (
                 <DataTableRow key={`${slot.grupo_id}:${slot.slot_numero}`} className={slot.slot_vazio ? 'is-empty' : ''}>
-                  <DataTableCell className="rank-cell">{slot.slot_vazio ? slot.slot_numero : stats?.colocacao || '—'}</DataTableCell>
-                  <DataTableCell>
+                  <DataTableCell data-label="Posição geral" className="rank-cell">{slot.slot_vazio ? slot.slot_numero : stats?.colocacao || '—'}</DataTableCell>
+                  <DataTableCell data-label="Equipe">
                     <div className="scorer-team">
                       {slot.equipe_logo_url ? <img src={slot.equipe_logo_url} alt="" /> : <span />}
                       <div>
@@ -636,12 +636,12 @@ export default function PontuadorJogoPage() {
                       </div>
                     </div>
                   </DataTableCell>
-                  <DataTableCell>{slot.grupo_nome}</DataTableCell>
-                  <DataTableCell>{stats?.quedas || stats?.quedas_jogadas || 0}</DataTableCell>
-                  <DataTableCell>{stats?.booyahs || 0}</DataTableCell>
-                  <DataTableCell>{stats?.abates || 0}</DataTableCell>
-                  <DataTableCell className="score-total">{stats?.pontos_total || 0}</DataTableCell>
-                  <DataTableCell className={`vinculo-cell tone-${vState.tone}`}>
+                  <DataTableCell data-label="Grupo">{slot.grupo_nome}</DataTableCell>
+                  <DataTableCell data-label="Quedas">{stats?.quedas || stats?.quedas_jogadas || 0}</DataTableCell>
+                  <DataTableCell data-label="Booyahs">{stats?.booyahs || 0}</DataTableCell>
+                  <DataTableCell data-label="Abates">{stats?.abates || 0}</DataTableCell>
+                  <DataTableCell data-label="Pontos gerais" className="score-total">{stats?.pontos_total || 0}</DataTableCell>
+                  <DataTableCell data-label="Vínculo" className={`vinculo-cell tone-${vState.tone}`}>
                     {slot.slot_vazio ? (
                       '—'
                     ) : isLocked ? (
@@ -692,7 +692,7 @@ export default function PontuadorJogoPage() {
                       <span className="vinculo-empty">—</span>
                     )}
                   </DataTableCell>
-                  <DataTableCell>
+                  <DataTableCell data-label="Colocação da queda">
                     {slot.slot_vazio ? '—' : (
                       <UiInput
                         type="number"
@@ -703,7 +703,7 @@ export default function PontuadorJogoPage() {
                       />
                     )}
                   </DataTableCell>
-                  <DataTableCell>
+                  <DataTableCell data-label="Abates da queda">
                     {slot.slot_vazio ? '—' : (
                       <UiInput
                         type="number"
@@ -714,8 +714,8 @@ export default function PontuadorJogoPage() {
                       />
                     )}
                   </DataTableCell>
-                  <DataTableCell className="drop-points-cell">{dropPoints(edit)}</DataTableCell>
-                  <DataTableCell>
+                  <DataTableCell data-label="Pontos da queda" className="drop-points-cell">{dropPoints(edit)}</DataTableCell>
+                  <DataTableCell data-label="Punição">
                     {slot.slot_vazio ? '—' : (
                       <div className="penalty-cell">
                         <UiInput
@@ -747,6 +747,6 @@ export default function PontuadorJogoPage() {
       </div>
     ) : null}
 
-    {view === 'mvp' ? <>{preview ? <section className="match-player-review">{preview.equipes.map((team: Row) => <article key={team.nome_normalizado}><header><strong>{team.nome}</strong><span>{team.posicao}º · KillScore {team.abates} · {team.jogadores_contagem ?? team.jogadores.length} jogador{(team.jogadores_contagem ?? team.jogadores.length) === 1 ? '' : 'es'}</span><small className={`match-kill-audit ${team.abates_conferem === false ? 'is-warning' : 'is-ok'}`}>KILL jogadores: {team.abates_jogadores ?? team.jogadores.reduce((sum: number, player: Row) => sum + number(player.abates), 0)}{team.abates_conferem === false ? ` · divergência ${number(team.diferenca_abates) > 0 ? '+' : ''}${team.diferenca_abates}` : ' · confere'}</small></header>{team.jogadores.map((player: Row) => { const editable = player.status_vinculo !== 'oficial'; return <div key={player.ordem}><span className={`player-link-state ${player.status_vinculo}`}>{player.status_vinculo === 'oficial' ? 'Oficial' : player.status_vinculo === 'temporario' ? 'Temporário' : 'Novo temporário'}</span><UiInput value={player.nick} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { nick: event.target.value })}/><UiInput value={player.id_jogo} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { id_jogo: event.target.value })}/><UiInput className="player-kills-input" type="number" min="0" value={player.abates} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { abates: number(event.target.value) })}/></div>})}</article>)}</section> : null}<div className="scorer-edit-table-wrap"><DataTable className="scorer-edit-table"><DataTableHead><DataTableRow><DataTableHeaderCell>Equipe</DataTableHeaderCell><DataTableHeaderCell>Jogador</DataTableHeaderCell><DataTableHeaderCell>ID</DataTableHeaderCell><DataTableHeaderCell>Abates Q{selectedDrop?.numero_partida}</DataTableHeaderCell><DataTableHeaderCell>Abates jogo</DataTableHeaderCell><DataTableHeaderCell>Abates geral</DataTableHeaderCell></DataTableRow></DataTableHead><DataTableBody>{data.slots.filter(slot => !slot.slot_vazio).flatMap(slot => (playersByTeam.get(slot.campeonato_equipe_id) || []).map(player => { const id = playerId(player); const game = data.mvp_jogo.find(row => row.campeonato_jogador_id === id); const general = data.mvp_geral.find(row => row.campeonato_jogador_id === id); return <DataTableRow key={`${slot.campeonato_equipe_id}:${id}`}><DataTableCell><strong>{slot.equipe_nome}</strong></DataTableCell><DataTableCell><strong>{player.nick || 'Jogador'}</strong></DataTableCell><DataTableCell>{player.id_jogo || '—'}</DataTableCell><DataTableCell><UiInput type="number" min="0" value={edits[slot.campeonato_equipe_id]?.jogadores[id] || ''} onChange={event => patchPlayer(slot.campeonato_equipe_id, id, event.target.value)}/></DataTableCell><DataTableCell>{game?.abates || 0}</DataTableCell><DataTableCell className="score-total">{general?.abates || 0}</DataTableCell></DataTableRow> }))}{!data.jogadores.length ? <DataTableRow><DataTableCell colSpan={6} className="empty">Nenhum jogador escalado. O Match Result pode criar jogadores temporários.</DataTableCell></DataTableRow> : null}</DataTableBody></DataTable></div></> : null}
+    {view === 'mvp' ? <>{preview ? <section className="match-player-review">{preview.equipes.map((team: Row) => <article key={team.nome_normalizado}><header><strong>{team.nome}</strong><span>{team.posicao}º · KillScore {team.abates} · {team.jogadores_contagem ?? team.jogadores.length} jogador{(team.jogadores_contagem ?? team.jogadores.length) === 1 ? '' : 'es'}</span><small className={`match-kill-audit ${team.abates_conferem === false ? 'is-warning' : 'is-ok'}`}>KILL jogadores: {team.abates_jogadores ?? team.jogadores.reduce((sum: number, player: Row) => sum + number(player.abates), 0)}{team.abates_conferem === false ? ` · divergência ${number(team.diferenca_abates) > 0 ? '+' : ''}${team.diferenca_abates}` : ' · confere'}</small></header>{team.jogadores.map((player: Row) => { const editable = player.status_vinculo !== 'oficial'; return <div key={player.ordem}><span className={`player-link-state ${player.status_vinculo}`}>{player.status_vinculo === 'oficial' ? 'Oficial' : player.status_vinculo === 'temporario' ? 'Temporário' : 'Novo temporário'}</span><UiInput value={player.nick} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { nick: event.target.value })}/><UiInput value={player.id_jogo} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { id_jogo: event.target.value })}/><UiInput className="player-kills-input" type="number" min="0" value={player.abates} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { abates: number(event.target.value) })}/></div>})}</article>)}</section> : null}<div className="scorer-edit-table-wrap"><DataTable className="scorer-edit-table"><DataTableHead><DataTableRow><DataTableHeaderCell>Equipe</DataTableHeaderCell><DataTableHeaderCell>Jogador</DataTableHeaderCell><DataTableHeaderCell>ID</DataTableHeaderCell><DataTableHeaderCell>Abates Q{selectedDrop?.numero_partida}</DataTableHeaderCell><DataTableHeaderCell>Abates jogo</DataTableHeaderCell><DataTableHeaderCell>Abates geral</DataTableHeaderCell></DataTableRow></DataTableHead><DataTableBody>{data.slots.filter(slot => !slot.slot_vazio).flatMap(slot => (playersByTeam.get(slot.campeonato_equipe_id) || []).map(player => { const id = playerId(player); const game = data.mvp_jogo.find(row => row.campeonato_jogador_id === id); const general = data.mvp_geral.find(row => row.campeonato_jogador_id === id); return <DataTableRow key={`${slot.campeonato_equipe_id}:${id}`}><DataTableCell data-label="Equipe"><strong>{slot.equipe_nome}</strong></DataTableCell><DataTableCell data-label="Jogador"><strong>{player.nick || 'Jogador'}</strong></DataTableCell><DataTableCell data-label="ID">{player.id_jogo || '—'}</DataTableCell><DataTableCell data-label="Abates da queda"><UiInput type="number" min="0" value={edits[slot.campeonato_equipe_id]?.jogadores[id] || ''} onChange={event => patchPlayer(slot.campeonato_equipe_id, id, event.target.value)}/></DataTableCell><DataTableCell data-label="Abates do jogo">{game?.abates || 0}</DataTableCell><DataTableCell data-label="Abates gerais" className="score-total">{general?.abates || 0}</DataTableCell></DataTableRow> }))}{!data.jogadores.length ? <DataTableRow><DataTableCell colSpan={6} className="empty">Nenhum jogador escalado. O Match Result pode criar jogadores temporários.</DataTableCell></DataTableRow> : null}</DataTableBody></DataTable></div></> : null}
   </main>
 }

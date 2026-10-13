@@ -1,5 +1,7 @@
 'use client'
 
+import { Dialog } from '@/components/ui/Dialog'
+
 import { confirmAction } from '@/components/feedback'
 import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -470,7 +472,7 @@ export default function CarteiraPage() {
       </div>
 
       {comprovante ? (
-        <div className="pix-receipt-backdrop" role="dialog" aria-modal="true">
+        <Dialog open title="Comprovante" className="pix-receipt-dialog" onClose={() => setComprovante(null)}>
           <div className="pix-receipt-sheet">
             <button
               type="button"
@@ -568,7 +570,7 @@ export default function CarteiraPage() {
               </button>
             </div>
           </div>
-        </div>
+        </Dialog>
       ) : null}
     </AppShell>
   )

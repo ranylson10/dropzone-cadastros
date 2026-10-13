@@ -445,7 +445,7 @@ export function UploadField({
           {value ? <img src={value} alt="" /> : <Upload size={24} />}
         </label>
         <div className="upload-hint-row">
-          <small>{target.kindLabel.toUpperCase()} · WEBP OTIMIZADO · {target.width}x{target.height}</small>
+          <small>{target.kindLabel} · {target.width} × {target.height} px</small>
           {value ? <button type="button" className="inline-icon-button" onClick={() => { discardPendingImageUpload(value); onChange('') }}><Trash2 size={15} /> Remover</button> : null}
         </div>
 

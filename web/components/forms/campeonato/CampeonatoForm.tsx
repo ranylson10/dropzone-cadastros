@@ -1222,7 +1222,7 @@ export function CampeonatoForm({
             { id: 'review', label: 'Revisão' },
           ]
   const currentPageIndex = Math.max(0, wizardPages.findIndex((page) => page.id === formPage))
-  const pageVisible = (page: typeof formPage) => mode === 'edit' || formPage === page
+  const pageVisible = (page: typeof formPage) => formPage === page
   function goNext() {
     setWizardError('')
     if (formPage === 'origin') {
@@ -1364,20 +1364,18 @@ export function CampeonatoForm({
         ) : null}
       </div>
 
-      {mode === 'create' ? (
-        <div className="championship-wizard-steps" aria-label="Etapas da criação">
+      <div className="championship-wizard-steps" aria-label={mode === 'edit' ? 'Seções da edição' : 'Etapas da criação'}>
           {wizardPages.map((page, index) => (
             <button
               type="button"
               key={page.id}
               className={`${formPage === page.id ? 'active' : ''} ${index < currentPageIndex ? 'done' : ''}`}
-              onClick={() => index <= currentPageIndex && setFormPage(page.id)}
+              onClick={() => (mode === 'edit' || index <= currentPageIndex) && setFormPage(page.id)}
             >
               <span>{String(index + 1).padStart(2, '0')}</span>{page.label}
             </button>
           ))}
         </div>
-      ) : null}
 
       {mode === 'create' ? (
         <section className="form-section-card championship-origin-card" hidden={!pageVisible('origin')}>

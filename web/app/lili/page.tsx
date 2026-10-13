@@ -3,7 +3,8 @@
 import { Input as UiInput } from '@/components/ui/Field'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot } from 'lucide-react'
+import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_RETURN_KEY } from '@/features/auth/SocialLogin'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
@@ -593,8 +594,9 @@ export default function LiliPage() {
   }, [automaticPaymentCheck?.messageId, automaticPaymentCheck?.expiresAt, session?.access_token])
 
   return (
-    <main className={`lili-hub-page ${styles.scope}`}>
+    <main className={`lili-hub-page dz-mobile-utility ${styles.scope}`}>
       <header className="lili-hub-header">
+        <Link href="/" className="lili-mobile-back" aria-label="Voltar ao início"><ArrowLeft size={20} /></Link>
         <div className="lili-hub-identity">
           <div className="lili-hub-avatar" aria-hidden="true"><Bot size={22} strokeWidth={2.4} /></div>
           <div><strong>Lili</strong><span>Assistente DropZone</span></div>

@@ -1,5 +1,7 @@
 'use client'
 
+import { Dialog } from '@/components/ui/Dialog'
+
 import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
 import { Input as UiInput } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -725,7 +727,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
       </div>
 
       {editingGame ? (
-        <section className="agenda-game-editor" role="dialog" aria-modal="true" aria-label="Reorganizar jogo">
+        <Dialog open title="Reorganizar jogo" description={editingGame.titulo} onClose={() => { if (!saving) setEditingGame(null) }}>
           <div>
             <p className="eyebrow">Organizar jogo</p>
             <h3>{editingGame.titulo}</h3>
@@ -737,7 +739,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
             <button type="button" className="button secondary" onClick={() => setEditingGame(null)} disabled={saving}>Cancelar</button>
             <button type="button" className="button" onClick={() => void saveGameSchedule()} disabled={saving || !gameDate || !gameTime}>{saving ? 'Salvando...' : 'Salvar jogo'}</button>
           </div>
-        </section>
+        </Dialog>
       ) : null}
 
       <AgendaEventModal

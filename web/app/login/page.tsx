@@ -661,14 +661,14 @@ export default function LoginPage() {
   }
 
   const authTitle = emailMode === 'criar'
-    ? 'CRIE SUA CONTA'
+    ? 'Crie sua conta'
     : emailMode === 'confirmar-cadastro'
-      ? 'CONFIRME SEU CÓDIGO'
+      ? 'Confirme seu código'
       : emailMode === 'completar-conta'
-        ? 'COMPLETE SUA CONTA'
+        ? 'Complete sua conta'
       : emailMode === 'recuperar' || emailMode === 'confirmar-recuperacao' || emailMode === 'nova-senha'
-        ? 'RECUPERE SUA SENHA'
-        : 'ENTRE COM SUA CONTA'
+        ? 'Recupere sua senha'
+        : 'Entre com sua conta'
 
   return (
     <AppShell header="never" withAuthOffset={false} mainClassName="login-portal" activeLabel="Início">
@@ -969,7 +969,7 @@ export default function LoginPage() {
                     <button type="button" onClick={() => changeEmailMode('recuperar')}>Recuperar senha</button>
                   </div>
                 ) : null}
-                <div className="login-security-note"><ShieldCheck size={16} /><span>Autenticação segura pelo Supabase. Códigos de confirmação e recuperação são enviados pelo e-mail oficial do DropZone.</span></div>
+                <div className="login-security-note"><ShieldCheck size={16} /><span>Os códigos de confirmação e recuperação são enviados para o e-mail da sua conta.</span></div>
               </div>
             ) : null}
 

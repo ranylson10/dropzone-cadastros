@@ -1787,7 +1787,7 @@ export function DropZoneHome() {
                 </div>
                 <div className="account-strip-head">
                   <p className="eyebrow">Conta ativa</p>
-                  <strong>
+                  <strong role="heading" aria-level={1}>
                     {account.name}{' '}
                     <span>
                       @{account.username}

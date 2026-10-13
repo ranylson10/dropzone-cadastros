@@ -1,5 +1,7 @@
 'use client'
 
+import { Dialog } from '@/components/ui/Dialog'
+
 import { Input as UiInput } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -11,7 +13,6 @@ import {
   Shield,
   Trophy,
   Users,
-  X,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import type { DropZoneRow } from '@/lib/types'
@@ -385,17 +386,9 @@ export function ManagerCampeonatosView(props: {
       </aside>
 
       {showAdd ? (
-        <div className="manager-add-champ-overlay" role="dialog" aria-modal="true">
+        <Dialog open title="Adicionar campeonato" onClose={() => setShowAdd(false)}>
           <div className="manager-add-champ-modal panel">
-            <div className="section-head compact-head">
-              <div>
-                <p className="eyebrow">Pedido de acesso</p>
-                <h2>Adicionar campeonato</h2>
-              </div>
-              <button type="button" className="button secondary small" onClick={() => setShowAdd(false)} aria-label="Fechar">
-                <X size={14} />
-              </button>
-            </div>
+
             {addError ? <div className="message error">{addError}</div> : null}
             {addOk ? <div className="message success">{addOk}</div> : null}
             <label className="field">
@@ -449,7 +442,7 @@ export function ManagerCampeonatosView(props: {
               </button>
             </div>
           </div>
-        </div>
+        </Dialog>
       ) : null}
 
       <section className="championship-detail-card panel manager-detail-panel manager-champ-panel">

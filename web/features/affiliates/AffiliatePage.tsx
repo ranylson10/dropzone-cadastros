@@ -97,7 +97,7 @@ export function AffiliatePage() {
       <div className="affiliate-landing">
         <section className="affiliate-hero">
           <div className="affiliate-hero-copy">
-            <p className="eyebrow">PROGRAMA DE AFILIADOS DROPZONE</p>
+            <p className="eyebrow">Afiliados DropZone</p>
             <h1>Divulgue campeonatos.<br /><span>Ganhe por cada venda.</span></h1>
             <p className="affiliate-lead">
               Escolha campeonatos com vagas, compartilhe seu link e acompanhe suas vendas em uma central feita para afiliados.

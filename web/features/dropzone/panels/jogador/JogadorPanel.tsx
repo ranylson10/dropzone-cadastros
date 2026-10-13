@@ -572,6 +572,7 @@ export function JogadorPanel(props: {
                   </div>
                 </div>
 
+                {totals.partidas > 0 ? <>
                 <div className="player-performance-metrics">
                   <span><b>{totals.partidas}</b><small>partidas</small></span>
                   <span><b>{totals.abates}</b><small>kills</small></span>
@@ -653,6 +654,11 @@ export function JogadorPanel(props: {
 
                   <section><div className="player-performance-section-head"><Gamepad2 size={16} /><span><strong>Habilidades</strong><small>uso no histórico filtrado</small></span></div><div className="player-performance-list">{analytics.skills.length ? analytics.skills.map((skill) => <div key={`${skill.personagem}:${skill.habilidade}`}><strong>{skill.habilidade}</strong><span>{skill.personagem || 'Personagem'}</span><b>{skill.partidas}</b><small>partidas · {skill.usos} usos registrados</small></div>) : <p className="empty">Sem telemetria de habilidades ainda.</p>}</div></section>
                 </div>
+                </> : <div className="player-performance-empty">
+                  <Activity size={20} aria-hidden="true" />
+                  <strong>Nenhuma partida neste período</strong>
+                  <p>Seu desempenho aparece aqui quando houver resultados registrados. Você pode escolher outro campeonato ou período nos filtros.</p>
+                </div>}
               </>
             ) : null}
           </div>
@@ -660,7 +666,7 @@ export function JogadorPanel(props: {
       </section>
 
       {tab === 'equipe' ? <>
-        <section className="panel span-2 player-team-workspace"><div className="team-section-title"><div><p className="eyebrow">Vínculos</p><h2>Minha equipe</h2></div><span className="count-pill"><Users size={14}/>{myTeams.length}</span></div>{myTeams.length === 0 ? <p className="empty">Você ainda não faz parte de uma equipe.</p> : null}<div className="team-line-grid">{myTeams.map((team) => <article className="team-line-card" key={team.id}><img src={dataText(team, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'Sem tag'}</span></div></article>)}</div><div className="player-lines-inline"><strong>Minhas lines</strong>{myLines.length === 0 ? <p className="empty">Nenhuma line vinculada ao seu elenco.</p> : null}<div className="team-line-grid">{myLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span></div></article>)}</div></div></section>
+        <section className="panel span-2 player-team-workspace"><div className="team-section-title"><div><p className="eyebrow">Vínculos</p><h2>Minha equipe</h2></div><span className="count-pill"><Users size={14}/>{myTeams.length}</span></div>{myTeams.length === 0 ? <p className="empty">Você ainda não faz parte de uma equipe.</p> : null}<div className="team-line-grid">{myTeams.map((team) => <article className="team-line-card" key={team.id}><img src={dataText(team, 'logo_url') || '/dropzone-icon.png'} alt="" /><div><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'Sem tag'}</span></div></article>)}</div><div className="player-lines-inline"><strong>Minhas lines</strong>{myLines.length === 0 ? <p className="empty">Nenhuma line vinculada ao seu elenco.</p> : null}<div className="team-line-grid">{myLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/dropzone-icon.png'} alt="" /><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span></div></article>)}</div></div></section>
         <section className="panel"><h2>{myTeams.length ? 'Pedir entrada em outra equipe' : 'Encontrar equipe'}</h2><PlayerTeamRequest mode="request_join"/></section>
         <section className="panel span-3"><div className="team-section-title"><div><p className="eyebrow">Escalação</p><h2>Entrar por convite</h2></div></div><div className="player-lineup-token"><div><KeyRound size={18}/><span><strong>Usar token de escalação</strong><small>Cole o token ou link enviado pela equipe.</small></span></div><div className="player-lineup-token-form"><UiInput value={lineupToken} onChange={(event) => { setLineupToken(event.target.value); setLineupTokenError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openLineupToken() }} placeholder="Token ou link de escalação"/><button type="button" onClick={openLineupToken}>Abrir</button></div>{lineupTokenError ? <small className="player-lineup-token-error">{lineupTokenError}</small> : null}</div></section>
       </> : null}

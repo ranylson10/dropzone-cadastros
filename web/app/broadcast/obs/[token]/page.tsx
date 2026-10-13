@@ -125,7 +125,7 @@ export default function BroadcastObsPage() {
 
   if (error && !payload) {
     return (
-      <main className="broadcast-obs-root">
+      <main className="broadcast-obs-root has-error">
         <p className="broadcast-obs-waiting">{error}</p>
       </main>
     )

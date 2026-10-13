@@ -25,7 +25,7 @@ export default function TeamRosterInvitePage() {
     if (!token) return
     fetch(`/api/equipes/convites-elenco/${encodeURIComponent(token)}`)
       .then(async (res) => { const json = await res.json(); if (!res.ok) throw new Error(json.error); setInvite(json) })
-      .catch((err) => setError(err.message))
+      .catch(() => setError('Não foi possível carregar este convite. Confira o link ou peça um novo convite à equipe.'))
       .finally(() => setLoading(false))
   }, [token])
 
@@ -46,6 +46,12 @@ export default function TeamRosterInvitePage() {
   }
 
   if (loading) return <DropzoneLoader label="Carregando convite" />
+  if (!invite) return <TokenFlowPage><TokenFlowCard>
+    <ShieldCheck size={38} />
+    <h1>Convite indisponível</h1>
+    <TokenFlowStatus tone="error">{error || 'Este convite não está disponível.'}</TokenFlowStatus>
+    <a className="button secondary" href="/">Ir para o início</a>
+  </TokenFlowCard></TokenFlowPage>
   const team = invite?.equipe
   return (
     <TokenFlowPage>

@@ -513,7 +513,7 @@ export default function EscalaPublicaPage() {
                 <b>{index + 1}</b>
                 {player ? (
                   <>
-                    <img src={player.foto_url || '/favicon.ico'} alt="" />
+                    {player.foto_url ? <img src={player.foto_url} alt="" /> : <span className="lineup-player-avatar" aria-hidden="true"><UserRound size={18} /></span>}
                     <div><strong>{player.nick}</strong><span>{player.funcao}{player.capitao ? ' · Capitão' : ''}</span></div>
                   </>
                 ) : <span>Disponível</span>}

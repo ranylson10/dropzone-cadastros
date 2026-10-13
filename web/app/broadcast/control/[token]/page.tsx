@@ -190,7 +190,7 @@ export default function BroadcastControlPage() {
   }, [activeChampId, busy, liveMenuOpen, overlays])
 
   return (
-    <div className="broadcast-control" aria-busy={busy}>
+    <div className="broadcast-control dz-mobile-utility" aria-busy={busy}>
       <header className="broadcast-control-head">
         <div className="broadcast-control-head-text">
           <p className="broadcast-control-kicker">STREAM · CONTROLADOR</p>

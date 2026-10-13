@@ -3,6 +3,46 @@
    retain their own typography. */
 .producer-dashboard-help-toggle,
 .producer-dashboard-mobile-pending { display: none; }
+.lili-mobile-back { display: none; }
+.mobile-section-toggle { display: none; }
+.mobile-section-body { display: contents; }
+@media (max-width: 767px) {
+  /* Details need an explicit surface reset as well as their child rows. */
+  body#dropzone-app .championship-central-page :is(.championship-central-overview,.championship-central-alerts,.championship-central-alert-history,.championship-central-logs,.championship-choice-panel) { background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; padding: 12px 0 !important; }
+  body#dropzone-app .championship-central-page :is(details,summary,.operational-log,.operational-log-marker,.championship-central-grid article) { background: transparent !important; border-color: var(--dz-mobile-line) !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .championship-central-page :is(.championship-central-alert-history,.championship-central-logs) { border-top: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .championship-central-page :is(summary,.championship-central-alert-filters button,.championship-central-log-filters button) { min-height: 44px; }
+  body#dropzone-app .championship-central-page :is(.operational-log-copy p,.operational-log-copy small,.operational-log-copy > div > span) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .championship-central-page :is(.championship-central-alert-filters,.championship-central-log-filters) { display: flex; flex-wrap: nowrap; overflow-x: auto; }
+  body#dropzone-app .championship-central-page :is(.championship-central-alert-filters,.championship-central-log-filters) button { flex: 0 0 auto; }
+  body#dropzone-app .app-profile-menu-head { background: transparent !important; border-color: var(--dz-mobile-line) !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .app-profile-menu-head > span { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .app-global-language-trigger { background: transparent !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main :is(.player-performance,.player-performance-head,.player-performance-filters,.team-trainings-tab,.team-section-title,.team-training-empty,.performance-long-evolution,.performance-objective-columns) { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; padding: 12px 0 !important; background: transparent !important; }
+  body#dropzone-app .player-performance-metrics { display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)) !important; gap: 0 12px !important; }
+  body#dropzone-app .player-performance-metrics > span { border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; padding: 12px 0 !important; min-height: 0 !important; }
+  body#dropzone-app .player-performance-metrics b { font-size: 22px !important; }
+  body#dropzone-app .player-performance-empty { display: grid; gap: 8px; padding: 24px 0; border-top: 1px solid var(--dz-mobile-line); }
+  body#dropzone-app .player-performance-empty p { margin: 0; color: var(--dz-mobile-secondary) !important; font-size: 13px; }
+  body#dropzone-app main .player-performance :is(.performance-goals,.performance-objective-reading,.player-performance-technical-grid > section) { padding: 16px 0 !important; border: 0 !important; border-top: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; box-shadow: none !important; }
+  body#dropzone-app main :is(.team-training-chart,.performance-long-evolution-group,.player-performance-section-head,.team-training-privacy) { border-color: var(--dz-mobile-line) !important; border-radius: 0 !important; }
+  body#dropzone-app :is(.broadcast-control-hint,.broadcast-control-error) { border: 0 !important; border-radius: 0 !important; padding: 8px 0 !important; }
+  body#dropzone-app main :is(.vacancies-toolbar,.vacancies-filter,.vacancies-empty,.rulebook-public-hero) { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; padding: 12px 0 !important; }
+  body#dropzone-app .vacancies-filter button.active { background: transparent !important; }
+  body#dropzone-app main :is(.directory-header,.vacancies-hero,.cart-hero,.rulebook-public-hero)::before,
+  body#dropzone-app main :is(.directory-header,.vacancies-hero,.cart-hero,.rulebook-public-hero)::after { display: none !important; }
+}
+.pix-receipt-dialog .pix-receipt-close { display: none; }
+@media print {
+  body:has(.pix-receipt-dialog) > :not(.system-modal-backdrop) { display: none !important; }
+  body:has(.pix-receipt-dialog) .system-modal-backdrop { position: absolute !important; inset: 0 !important; padding: 0 !important; display: block !important; background: white !important; }
+  body .pix-receipt-dialog { display: block !important; position: static !important; width: 100% !important; height: auto !important; max-height: none !important; background: white !important; padding: 0 !important; }
+  body .pix-receipt-dialog .system-modal-header { display: none !important; }
+  body .pix-receipt-dialog .system-modal-content { overflow: visible !important; padding: 0 !important; }
+  body .pix-receipt-dialog .pix-receipt-sheet,
+  body .pix-receipt-dialog .pix-receipt-sheet * { visibility: visible; }
+  body .pix-receipt-dialog .no-print { display: none !important; }
+}
 body#dropzone-app .producer-action.primary { color: #201c0d !important; }
 body#dropzone-app .producer-action.primary > span { color: inherit !important; }
 body#dropzone-app .app-profile-copy small { color: #a7b5c1 !important; }
@@ -237,4 +277,381 @@ body#dropzone-app .app-profile-copy small { color: #a7b5c1 !important; }
   body#dropzone-app main.system-admin-page .system-admin-tabs button b { color: var(--dz-mobile-secondary) !important; background: var(--dz-mobile-raised) !important; }
   body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) .dz-workspace-nav__item { background-color: transparent !important; }
   body#dropzone-app .system-modal .championship-type-format { color: #626a75 !important; }
+}
+
+@media (max-width: 767px) {
+  /* Utility screens use the same application surfaces as the main workspaces.
+     The marker is on the real shell, token flow, and standalone utility roots. */
+  body#dropzone-app .dz-mobile-utility {
+    --surface: var(--dz-mobile-surface); --surface-soft: var(--dz-mobile-raised);
+    --text: var(--dz-mobile-text); --muted: var(--dz-mobile-secondary); --line: var(--dz-mobile-line);
+    --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-heading: var(--font-body);
+    width: 100% !important; max-width: none !important; margin: 0 !important;
+    padding: 16px !important; box-sizing: border-box;
+    background: var(--dz-mobile-bg) !important; color: var(--dz-mobile-text) !important;
+    font-family: var(--font-body) !important; font-weight: 400 !important;
+    font-size: 14px; line-height: 1.5;
+  }
+  body#dropzone-app .dz-mobile-utility *:not(:where(.pix-receipt,.pix-receipt *, .ql-editor,.ql-editor *, .stream-package-render-root,.stream-package-render-root *, .broadcast-output-preview-frame,.broadcast-output-preview-frame *)) {
+    font-family: inherit !important; letter-spacing: normal !important; text-transform: none !important; text-shadow: none !important;
+  }
+  body#dropzone-app .dz-mobile-utility :is(div,section,article,form,header,nav,aside,dl,table,tr,td,th,span,p,label,a):not(:where(.pix-receipt,.pix-receipt *, .ql-editor,.ql-editor *, .stream-package-render-root,.stream-package-render-root *, .broadcast-output-preview-frame,.broadcast-output-preview-frame *)) {
+    background-color: transparent !important; color: inherit !important;
+  }
+  body#dropzone-app .dz-mobile-utility :is(p,span,small,label,dt,td,li,time) { font-weight: 400 !important; }
+  body#dropzone-app .dz-mobile-utility .system-logo { background-color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app .dz-mobile-utility :is(h1,h2,h3,h4,strong,b) { color: inherit !important; }
+  body#dropzone-app .dz-mobile-utility :is(strong,b) { font-weight: 500 !important; }
+  body#dropzone-app .dz-mobile-utility :is(small,label,dt,.eyebrow) { color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-mobile-utility .eyebrow { font-size: 12px !important; margin: 0 0 4px !important; }
+  body#dropzone-app .dz-mobile-utility :is(button,.button,.dz-ui-button,.mobile-callback-action) {
+    min-height: 44px !important; font-size: 13px !important; font-weight: 500 !important;
+    background-color: var(--dz-mobile-raised) !important; color: var(--dz-mobile-text) !important;
+    border-color: var(--dz-mobile-line) !important; border-radius: 8px !important; box-shadow: none !important;
+  }
+  body#dropzone-app .dz-mobile-utility :is(.button:not(.secondary),.button.primary,.login-email-primary,.cart-checkout,.mobile-callback-action) { background: var(--dz-mobile-accent) !important; color: #201c0d !important; border-color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app .dz-mobile-utility :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { background: var(--dz-mobile-surface) !important; color: var(--dz-mobile-text) !important; border-color: var(--dz-mobile-line) !important; font-size: 16px !important; }
+  body#dropzone-app .dz-mobile-utility :is(.message.error,.cart-error,.sale-error,.agenda-error,.broadcast-control-error,[data-dz-token-status=error]) { color: #f3b0b8 !important; background: #341e28 !important; border-color: #63313f !important; font-size: 13px; }
+  body#dropzone-app .dz-mobile-utility :is(.message.success,[data-dz-token-status=success]) { color: #8cdcb3 !important; background: #193329 !important; }
+  body#dropzone-app .dz-mobile-utility :is(.social-login-button,.social-button) { background: var(--dz-mobile-raised) !important; color: var(--dz-mobile-text) !important; }
+
+  /* Access is a form screen, with no promotional stage around the controls. */
+  body#dropzone-app main.login-portal { padding: 0 !important; }
+  body#dropzone-app .login-portal-stage { display: block !important; min-height: 100dvh !important; padding: max(24px,env(safe-area-inset-top)) 20px 24px !important; background: var(--dz-mobile-bg) !important; }
+  body#dropzone-app :is(.login-portal-overlay,.login-portal-media,.lealt-motion-login,.login-portal-copy,.login-panel-step,.login-create-fast-track) { display: none !important; }
+  body#dropzone-app :is(.login-portal-stage,.login-portal-intro,.login-portal-panel)::before,
+  body#dropzone-app :is(.login-portal-stage,.login-portal-intro,.login-portal-panel)::after { display: none !important; }
+  body#dropzone-app .login-portal-content { display: flex !important; flex-direction: column !important; gap: 28px !important; width: 100% !important; min-height: 0 !important; padding: 0 !important; }
+  body#dropzone-app .login-portal-intro { padding: 0 !important; margin: 0 !important; min-height: 0 !important; }
+  body#dropzone-app .login-portal-brand { gap: 10px !important; }
+  body#dropzone-app .login-portal-brand .system-logo { width: 32px !important; height: 32px !important; min-width: 32px !important; }
+  body#dropzone-app .login-portal-brand strong { color: var(--dz-mobile-text) !important; font-size: 16px !important; font-weight: 600 !important; }
+  body#dropzone-app .login-portal-brand > div > span { display: none; }
+  body#dropzone-app .login-portal-brand .system-logo { display: block !important; flex: 0 0 32px !important; min-height: 32px !important; max-width: 32px !important; max-height: 32px !important; background-color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app .login-portal-panel { width: 100% !important; padding: 0 !important; margin: 0 !important; min-height: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .login-auth-step h2 { margin: 0 0 8px !important; font-size: 22px !important; }
+  body#dropzone-app .login-auth-step > p { margin: 0 0 20px !important; font-size: 13px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .login-email-form { gap: 16px !important; }
+  body#dropzone-app .login-email-field { gap: 6px !important; }
+  body#dropzone-app .login-password-control { background: var(--dz-mobile-surface) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app .login-password-control input { background: transparent !important; border: 0 !important; }
+  body#dropzone-app .login-password-toggle { min-width: 44px; background: transparent !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .login-email-actions { display: flex !important; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  body#dropzone-app .login-account-action.recovery { min-width: 0; width: auto !important; padding: 8px 0 !important; border: 0 !important; background: transparent !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .login-create-account { font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .login-create-account button { padding: 8px !important; border: 0 !important; background: transparent !important; color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app .login-security-note { margin-top: 20px !important; padding: 0 !important; border: 0 !important; font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .login-security-note svg { flex: 0 0 16px; color: var(--dz-mobile-secondary) !important; }
+
+  /* Checkout: the order is a list, followed by one payment summary. */
+  body#dropzone-app .cart-page :is(.cart-hero,.cart-items,.cart-summary,.cart-login,.cart-purchases,.cart-recommendations) { padding: 12px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .cart-hero { min-height: 0 !important; margin: 0 !important; }
+  body#dropzone-app .cart-hero :is(p,svg) { display: none; }
+  body#dropzone-app .cart-hero span { font-size: 13px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .cart-layout { display: flex !important; flex-direction: column !important; gap: 16px !important; }
+  body#dropzone-app .cart-section-head { padding: 0 0 12px !important; }
+  body#dropzone-app .cart-section-head p { display: none; }
+  body#dropzone-app .cart-section-head h2 { font-size: 14px !important; }
+  body#dropzone-app .cart-empty { min-height: 140px !important; padding: 24px 0 !important; border: 0 !important; background: transparent !important; gap: 12px !important; }
+  body#dropzone-app .cart-empty a { color: var(--dz-mobile-accent) !important; min-height: 44px; display: inline-flex; align-items: center; }
+  body#dropzone-app .cart-item { display: grid !important; grid-template-columns: 48px minmax(0,1fr) 44px !important; gap: 8px 12px !important; padding: 12px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .cart-item-image { width: 48px !important; height: 48px !important; grid-column: 1; grid-row: 1 / 3; }
+  body#dropzone-app .cart-item-info { grid-column: 2; grid-row: 1; min-width: 0; }
+  body#dropzone-app .cart-item-info > a { font-size: 14px !important; font-weight: 500 !important; }
+  body#dropzone-app .cart-item-price { grid-column: 2; grid-row: 2; text-align: left !important; }
+  body#dropzone-app .cart-item-price strong { font-size: 14px !important; }
+  body#dropzone-app .cart-remove { grid-column: 3; grid-row: 1; width: 44px !important; background: transparent !important; }
+  body#dropzone-app .cart-quantity { margin-top: 8px; }
+  body#dropzone-app .cart-quantity button { min-width: 44px; }
+  body#dropzone-app .cart-summary { position: static !important; border-top: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .cart-summary > h2 { font-size: 24px !important; }
+  body#dropzone-app .cart-summary-total strong { font-size: 20px !important; }
+  body#dropzone-app .cart-secure { font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .cart-recommendations > div:last-child { display: grid !important; grid-template-columns: 1fr !important; gap: 0 !important; }
+  body#dropzone-app .cart-recommendations a { display: grid !important; grid-template-columns: 44px minmax(0,1fr) !important; gap: 4px 12px !important; padding: 12px 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .cart-recommendations a img { width: 44px !important; height: 44px !important; grid-row: 1 / 3; }
+  body#dropzone-app .cart-recommendations a small { grid-column: 2; }
+
+  /* Wallet and agenda have compact headers and direct access to their data. */
+  body#dropzone-app :is(.bank-wallet-shell,.agenda-page-body,.affiliate-dashboard-shell,.championship-central-shell) { width: 100% !important; padding: 0 !important; gap: 16px !important; }
+  body#dropzone-app :is(.bank-wallet-hero,.bank-balance-card,.bank-section,.bank-form-card,.agenda-toolbar,.agenda-guest-card,.agenda-sheet,.agenda-event-list,.championship-central-header) { min-height: 0 !important; padding: 12px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .bank-wallet-hero { display: flex !important; align-items: center; justify-content: space-between; }
+  body#dropzone-app .bank-wallet-eyebrow { display: none; }
+  body#dropzone-app .bank-wallet-refresh { width: 44px; background: transparent !important; }
+  body#dropzone-app .bank-balance-card { border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .bank-balance-card > strong { font-size: 28px !important; font-weight: 500 !important; }
+  body#dropzone-app .bank-balance-actions { display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px !important; overflow: visible !important; }
+  body#dropzone-app .bank-balance-actions button { min-width: 0; padding: 8px !important; gap: 4px; }
+  body#dropzone-app .bank-wallet-tabs { display: flex !important; overflow-x: auto; gap: 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .bank-wallet-tabs button { flex: 1; min-width: 0; padding: 8px 10px !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .bank-wallet-tabs button.active { color: var(--dz-mobile-text) !important; box-shadow: inset 0 -2px var(--dz-mobile-accent) !important; }
+  body#dropzone-app .bank-tx-list > li { padding: 12px 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .bank-form-card { gap: 16px !important; }
+  body#dropzone-app .agenda-toolbar { display: flex !important; flex-wrap: wrap; align-items: center; gap: 12px !important; }
+  body#dropzone-app .agenda-toolbar .eyebrow { display: none; }
+  body#dropzone-app .agenda-toolbar h2 { font-size: 20px !important; }
+  body#dropzone-app .agenda-toolbar-actions { flex-wrap: wrap; overflow: visible !important; gap: 8px !important; }
+  body#dropzone-app .agenda-guest-card { display: flex !important; flex-direction: column; gap: 16px !important; }
+  body#dropzone-app .agenda-guest-icon { display: none; }
+  body#dropzone-app .agenda-guest-copy .eyebrow { display: none; }
+  body#dropzone-app .agenda-guest-copy p { font-size: 13px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .agenda-guest-actions { width: 100%; display: grid !important; grid-template-columns: 1fr !important; gap: 8px; }
+  body#dropzone-app .agenda-guest > .agenda-error { display: none; }
+  body#dropzone-app .agenda-next { padding: 12px 0 !important; border: 0 !important; border-radius: 0 !important; }
+  body#dropzone-app .agenda-content-grid { gap: 16px !important; }
+  body#dropzone-app .agenda-day-strip button { min-width: 40px; }
+  body#dropzone-app .agenda-sequence-day { padding: 12px 0 !important; }
+
+  /* Information pages read as sections, not landing-page panels. */
+  body#dropzone-app .legal-page-shell { background: var(--dz-mobile-bg) !important; }
+  body#dropzone-app :is(.legal-hero,.legal-document,.affiliate-hero,.affiliate-benefits,.affiliate-cta) { padding: 12px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app :is(.legal-hero,.affiliate-hero)::before,
+  body#dropzone-app :is(.legal-hero,.affiliate-hero)::after { display: none !important; }
+  body#dropzone-app .legal-hero .legal-eyebrow { display: none; }
+  body#dropzone-app .legal-hero :is(p,small) { color: var(--dz-mobile-secondary) !important; font-size: 12px !important; }
+  body#dropzone-app .legal-document { margin-top: 12px !important; }
+  body#dropzone-app .legal-section { padding: 16px 0 !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app .legal-section :is(p,li) { color: var(--dz-mobile-secondary) !important; font-size: 14px !important; line-height: 1.65 !important; }
+  body#dropzone-app .legal-section a { color: var(--dz-mobile-accent) !important; overflow-wrap: anywhere; }
+  body#dropzone-app .legal-footer { padding: 16px !important; background: var(--dz-mobile-bg) !important; color: var(--dz-mobile-secondary) !important; border-color: var(--dz-mobile-line) !important; font-size: 12px; }
+  body#dropzone-app .affiliate-landing { width: 100% !important; padding: 0 !important; gap: 20px !important; }
+  body#dropzone-app .affiliate-hero { display: block !important; }
+  body#dropzone-app .affiliate-hero h1 span { color: inherit !important; }
+  body#dropzone-app .affiliate-lead { margin: 12px 0 !important; font-size: 13px !important; color: var(--dz-mobile-secondary) !important; line-height: 1.5 !important; }
+  body#dropzone-app .affiliate-hero-card { display: none; }
+  body#dropzone-app .affiliate-benefit-grid { display: grid !important; grid-template-columns: 1fr !important; gap: 0 !important; }
+  body#dropzone-app .affiliate-benefit-grid article { display: grid !important; grid-template-columns: 28px minmax(0,1fr); gap: 4px 12px !important; min-height: 0 !important; padding: 16px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; }
+  body#dropzone-app .affiliate-benefit-grid article > svg { display: none; }
+  body#dropzone-app .affiliate-benefit-grid article > b { grid-column: 1; grid-row: 1 / 3; position: static !important; font-size: 16px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .affiliate-benefit-grid article :is(h3,p) { grid-column: 2; margin: 0 !important; }
+  body#dropzone-app .affiliate-benefit-grid article p { font-size: 13px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .affiliate-cta { display: flex !important; flex-direction: column; align-items: stretch; gap: 12px !important; }
+
+  /* Token screens use the whole viewport; the form is not a tall white card. */
+  body#dropzone-app main.dz-token-flow-page { display: block !important; min-height: 100dvh !important; padding: max(20px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom)) !important; }
+  body#dropzone-app .dz-token-flow-page :is(.invite-card,.producer-invite-card,.dz-token-flow-card,.scale-mode-card,.sale-checkout-card) { min-height: 0 !important; height: auto !important; width: 100% !important; max-width: none !important; padding: 16px 0 !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .dz-token-flow-page :is(.invite-card,.producer-invite-card,.scale-mode-card) { text-align: left !important; }
+  body#dropzone-app .dz-token-flow-page :is(.invite-card,.producer-invite-card) > svg { width: 32px; height: 32px; margin-bottom: 16px; color: var(--dz-mobile-secondary); }
+  body#dropzone-app .dz-token-flow-page :is(.invite-card,.producer-invite-card,.scale-mode-card) > p { font-size: 13px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page :is(.invite-card,.producer-invite-card,.scale-mode-card) > .button { display: flex; align-items: center; justify-content: center; width: 100%; margin-top: 8px; }
+  body#dropzone-app .dz-token-flow-page :is(.invite-actions,.scale-mode-options) { display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; }
+  body#dropzone-app main.mobile-callback-page { display: flex !important; align-items: center; min-height: 100dvh !important; }
+  body#dropzone-app .mobile-callback-card { padding: 16px 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; text-align: left !important; }
+
+  /* Chat keeps its composer in view and presents choices as secondary actions. */
+  body#dropzone-app main.lili-hub-page { display: flex !important; flex-direction: column; height: 100dvh !important; min-height: 0 !important; padding: 0 !important; overflow: hidden !important; }
+  body#dropzone-app .lili-hub-header { display: grid !important; grid-template-columns: 44px minmax(0,1fr) auto; gap: 4px !important; min-height: 56px !important; padding: env(safe-area-inset-top) 8px 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; background: var(--dz-mobile-surface) !important; }
+  body#dropzone-app .lili-mobile-back { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .lili-hub-identity { min-width: 0; gap: 0 !important; }
+  body#dropzone-app .lili-hub-identity :is(small,.lili-hub-avatar) { display: none; }
+  body#dropzone-app .lili-hub-toolbar { display: flex !important; align-items: center; width: auto !important; gap: 4px !important; padding: 0 !important; border: 0 !important; }
+  body#dropzone-app .lili-language-switch { gap: 0 !important; }
+  body#dropzone-app .lili-language-switch button { min-width: 32px !important; width: 32px !important; padding: 4px !important; background: transparent !important; border: 0 !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .lili-language-switch button.is-active { color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app .lili-hub-toolbar :is(.lili-reset-button,.lili-profile-trigger) { width: 44px !important; padding: 0 !important; border: 0 !important; background: transparent !important; }
+  body#dropzone-app .lili-profile-copy { display: none; }
+  body#dropzone-app .lili-hub-feed { flex: 1; min-height: 0 !important; padding: 16px !important; overflow-y: auto !important; background: var(--dz-mobile-bg) !important; }
+  body#dropzone-app .lili-hub-spacer { display: none; }
+  body#dropzone-app .lili-hub-message.assistant { gap: 0 !important; }
+  body#dropzone-app .lili-hub-mini-avatar { display: none; }
+  body#dropzone-app .lili-hub-message-content { min-width: 0; width: 100% !important; max-width: 100% !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; }
+  body#dropzone-app .lili-hub-bubble { padding: 12px 0 !important; border: 0 !important; font-size: 14px !important; line-height: 1.5 !important; }
+  body#dropzone-app .lili-hub-message.user .lili-hub-message-content { max-width: 86% !important; margin-left: auto; padding: 0 12px !important; border-radius: 12px !important; background: var(--dz-mobile-raised) !important; }
+  body#dropzone-app .lili-hub-actions { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px !important; }
+  body#dropzone-app .lili-hub-actions button { width: 100% !important; padding: 8px !important; background: var(--dz-mobile-raised) !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .lili-hub-composer { flex: 0 0 auto; position: static !important; padding: 12px 16px max(12px,env(safe-area-inset-bottom)) !important; background: var(--dz-mobile-surface) !important; border-top: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .lili-hub-composer button { background: var(--dz-mobile-accent) !important; color: #201c0d !important; min-width: 44px; }
+
+  /* Small dialogs are sheets; wide editors are full mobile screens. */
+  body#dropzone-app .system-modal-backdrop { padding: 0 !important; align-items: flex-end !important; }
+  body#dropzone-app :is(.system-modal,.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) {
+    --surface: var(--dz-mobile-surface); --surface-soft: var(--dz-mobile-raised); --text: var(--dz-mobile-text); --muted: var(--dz-mobile-secondary); --line: var(--dz-mobile-line);
+    width: 100% !important; max-width: none !important; max-height: 92dvh !important;
+    margin: 0 !important; border: 0 !important; border-radius: 16px 16px 0 0 !important;
+    background: var(--dz-mobile-bg) !important; color: var(--dz-mobile-text) !important;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    font-weight: 400 !important; font-size: 14px !important;
+  }
+  body#dropzone-app .system-modal { display: flex !important; flex-direction: column; padding: 0 !important; overflow: hidden !important; }
+  body#dropzone-app .system-modal-wide { height: 100dvh !important; max-height: 100dvh !important; border-radius: 0 !important; }
+  body#dropzone-app :is(.system-modal,.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor)
+    :is(div,section,article,form,header,footer,nav,fieldset,table,tr,td,th,span,p,label,a):not(:where(.pix-receipt,.pix-receipt *, .ql-editor,.ql-editor *, .stream-package-render-root,.stream-package-render-root *, .cropper-preview,.cropper-preview *)) { background-color: transparent !important; color: inherit !important; font-family: inherit !important; }
+  body#dropzone-app :is(.system-modal,.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) :is(small,label,dt,.stream-hint,.hint,.championship-type-format) { color: var(--dz-mobile-secondary) !important; font-size: 12px !important; font-weight: 400 !important; }
+  body#dropzone-app .system-modal-header { flex: 0 0 auto; min-height: 56px; padding: max(12px,env(safe-area-inset-top)) 16px 12px !important; background: var(--dz-mobile-surface) !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .system-modal-header h2 { color: var(--dz-mobile-text) !important; font-size: 16px !important; font-weight: 600 !important; }
+  body#dropzone-app .system-modal-header p { font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .system-modal-close { width: 44px !important; height: 44px !important; background: transparent !important; color: var(--dz-mobile-text) !important; border: 0 !important; }
+  body#dropzone-app .system-modal-content { flex: 1 1 auto; min-height: 0 !important; padding: 16px max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)) !important; overflow: auto !important; }
+  body#dropzone-app .dz-dialog-footer { flex: 0 0 auto; padding: 12px 16px max(12px,env(safe-area-inset-bottom)) !important; background: var(--dz-mobile-surface) !important; border-top: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app :is(.system-modal,.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { min-height: 44px; font-size: 16px !important; background: var(--dz-mobile-surface) !important; color: var(--dz-mobile-text) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app :is(.system-modal,.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) :is(button,.button,.dz-ui-button) { min-height: 44px !important; font-size: 13px !important; font-weight: 500 !important; background-color: var(--dz-mobile-raised) !important; color: var(--dz-mobile-text) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app :is(.system-modal,.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) :is(.button:not(.secondary):not(.danger),.dz-ui-button--primary) { background: var(--dz-mobile-accent) !important; color: #201c0d !important; }
+  body#dropzone-app :is(.dz-mobile-utility,.system-modal,.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) :is(.button.danger,.dz-ui-button--danger) { background: #341e28 !important; color: #f3b0b8 !important; border-color: #63313f !important; }
+  body#dropzone-app .system-modal-close { background: transparent !important; }
+  body#dropzone-app .system-modal :is(.inline-action-panel,.championship-guided-copy,.championship-step-copy,.championship-banner-upload) { padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+  body#dropzone-app .system-modal :is(.championship-type-card,.championship-option-card) { padding: 12px !important; border: 1px solid var(--dz-mobile-line) !important; border-radius: 8px !important; }
+  body#dropzone-app .system-modal :is(.championship-type-card,.championship-option-card).is-selected { border-color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app .system-modal .championship-type-card-copy { min-width: 0; }
+  body#dropzone-app .system-modal :is(.mini-grid.two,.mini-grid.three,.mini-grid.four,.agenda-form-grid,.agenda-form-grid.three) { grid-template-columns: minmax(0,1fr) !important; }
+  body#dropzone-app .system-modal :is(.modal-actions,.modal-form-actions,.agenda-form-actions) { display: flex !important; flex-wrap: wrap; gap: 8px !important; margin-top: 16px !important; }
+  body#dropzone-app .system-modal :is(h1,h2,h3,h4,strong,b) { color: inherit !important; }
+  body#dropzone-app .system-modal .form-section-card { padding: 16px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; box-shadow: none !important; }
+  body#dropzone-app .system-modal .championship-wizard-steps { display: flex !important; overflow-x: auto; gap: 0 !important; border-bottom: 1px solid var(--dz-mobile-line); }
+  body#dropzone-app .system-modal .championship-wizard-steps button { min-width: max-content; padding: 10px 12px !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; }
+  body#dropzone-app .system-modal .championship-wizard-steps button.active { box-shadow: inset 0 -2px var(--dz-mobile-accent) !important; }
+  body#dropzone-app .system-modal .championship-wizard-steps button > span { display: none; }
+  body#dropzone-app .dz-mobile-utility .agenda-day-strip button :is(strong,span,small) { color: inherit !important; }
+  body#dropzone-app .dz-mobile-utility .agenda-day-strip button:is(.is-active,.active) { border-color: var(--dz-mobile-accent) !important; background: var(--dz-mobile-raised) !important; }
+  body#dropzone-app .dz-mobile-utility :is(.local-studio-handoff-page,.local-studio-handoff-card) { padding: 12px 0 !important; min-height: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .dz-mobile-utility .local-studio-handoff-grid { grid-template-columns: 1fr !important; }
+  body#dropzone-app .dz-mobile-utility .local-studio-handoff-grid > div { display: grid !important; grid-template-columns: 24px minmax(0,1fr); gap: 4px 12px; padding: 12px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .dz-mobile-utility .local-studio-handoff-grid > div small { grid-column: 2; }
+  body#dropzone-app .dz-mobile-utility :is(.vacancies-hero,.sale-checkout-card,.vacancy-claim-card) { padding: 12px 0 !important; min-height: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .dz-mobile-utility .vacancies-hero-count { display: none; }
+  body#dropzone-app .dz-mobile-utility :is(.vacancy-claim-grid,.vacancies-grid) { grid-template-columns: 1fr !important; }
+  body#dropzone-app .dz-mobile-utility .vacancy-claim-steps { display: flex !important; overflow-x: auto; gap: 12px; padding: 12px 0 !important; font-size: 12px; }
+  body#dropzone-app .dz-mobile-utility .vacancy-claim-steps span { min-width: max-content; }
+  body#dropzone-app main.directory-page .dz-entity-avatar > b { color: var(--dz-mobile-text) !important; font-weight: 500 !important; }
+  body#dropzone-app .dz-mobile-utility .bank-tx-right b.in { color: #8cdcb3 !important; }
+  body#dropzone-app .dz-mobile-utility .bank-tx-right b.out { color: #f3b0b8 !important; }
+  body#dropzone-app .broadcast-obs-root.has-error { display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--dz-mobile-bg); color: var(--dz-mobile-secondary); }
+  body#dropzone-app .broadcast-obs-root.has-error .broadcast-obs-waiting { color: inherit; font-family: system-ui,sans-serif; font-size: 14px; font-weight: 400; text-align: center; }
+  body#dropzone-app :is(.app-profile-menu,.app-global-language-menu,.notif-inbox-panel) { background: var(--dz-mobile-surface) !important; color: var(--dz-mobile-text) !important; border-color: var(--dz-mobile-line) !important; font-family: system-ui,sans-serif !important; }
+  body#dropzone-app :is(.app-profile-menu,.app-global-language-menu,.notif-inbox-panel) :is(p,span,strong,small,time,h3,a,button) { font-family: inherit !important; font-weight: 400 !important; text-transform: none !important; color: inherit !important; }
+  body#dropzone-app :is(.app-profile-menu,.notif-inbox-panel) :is(small,time) { font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app :is(.app-profile-menu,.notif-inbox-panel) :is(button,a) { min-height: 44px; background: transparent !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app .notif-inbox-panel { position: fixed !important; top: 56px !important; left: 0 !important; right: 0 !important; width: 100% !important; max-height: calc(100dvh - 120px) !important; border: 0 !important; border-radius: 0 !important; padding: 16px !important; overflow-y: auto; }
+  body#dropzone-app .notif-inbox-item { background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; padding: 12px 0 !important; }
+  body#dropzone-app .notif-inbox-head { background: transparent !important; gap: 8px !important; }
+  body#dropzone-app .notif-inbox-head-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  body#dropzone-app .system-modal.app-quick-dialog { left: 0 !important; right: 0 !important; bottom: 0 !important; }
+  body#dropzone-app .system-modal .app-mobile-quick-list > a { min-height: 56px; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .dz-mobile-utility.broadcast-control { min-height: 100dvh; }
+  body#dropzone-app .broadcast-control :is(.broadcast-control-head,.broadcast-onair-bar,.broadcast-output-preview,.broadcast-scenes-section) { padding: 12px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .broadcast-control-head { min-height: 0 !important; gap: 12px !important; }
+  body#dropzone-app .broadcast-control-head::after { display: none !important; }
+  body#dropzone-app .broadcast-control-hint { font-size: 13px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .broadcast-control .broadcast-live-select { padding: 0 !important; border: 0 !important; }
+  body#dropzone-app .broadcast-control .broadcast-live-select-trigger { width: 100%; min-height: 56px !important; }
+  body#dropzone-app .broadcast-control :is(.broadcast-shortcuts,.broadcast-control-kicker) { display: none; }
+  body#dropzone-app .broadcast-control .broadcast-scene-list > li { padding: 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .broadcast-control .broadcast-scene-list button { min-height: 64px !important; background: transparent !important; border: 0 !important; }
+  body#dropzone-app .broadcast-control .broadcast-scene-list button.is-active { background: var(--dz-mobile-raised) !important; }
+  body#dropzone-app .dz-mobile-utility.scorer-workspace { min-height: 100dvh !important; height: auto !important; overflow: visible !important; }
+  body#dropzone-app .scorer-workspace-header { position: static !important; display: flex !important; flex-direction: column; align-items: stretch !important; gap: 12px !important; padding: 0 0 12px !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .scorer-header-actions { display: flex !important; flex-wrap: wrap; justify-content: flex-start; gap: 8px !important; }
+  body#dropzone-app .scorer-public-delay { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  body#dropzone-app .scorer-public-delay input { width: 64px !important; }
+  body#dropzone-app .scorer-public-delay button { min-width: 44px; }
+  body#dropzone-app .scorer-brand h1 { font-size: 18px !important; }
+  body#dropzone-app .scorer-workspace :is(.scorer-edit-table-wrap,.scorer-table-wrap) { max-width: 100%; overflow-x: auto !important; }
+  body#dropzone-app .scorer-workspace :is(.scorer-edit-table,.scorer-table) { font-size: 12px !important; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table input { min-width: 56px; width: 64px !important; }
+  body#dropzone-app main.dz-unified-workspace-page .xt-call-tools section { background: var(--dz-mobile-surface) !important; padding: 12px !important; border-radius: 8px !important; }
+  body#dropzone-app .xt-calls-head { padding: 12px 0 !important; }
+  body#dropzone-app .xt-call-tools button { min-height: 44px !important; }
+  body#dropzone-app .xt-call-list > div { grid-template-columns: minmax(0,1fr) 44px 44px !important; }
+  body#dropzone-app .mobile-section { padding: 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; box-shadow: none !important; }
+  body#dropzone-app .mobile-section-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 56px !important; padding: 12px 0 !important; background: transparent !important; border: 0 !important; text-align: left; font-size: 14px !important; }
+  body#dropzone-app .mobile-section:not(.is-open) > .mobile-section-body { display: none; }
+  body#dropzone-app .mobile-section.is-open > .mobile-section-body { display: block; padding: 4px 0 16px; }
+  body#dropzone-app .mobile-section.is-open > .mobile-section-toggle svg { transform: rotate(180deg); }
+  body#dropzone-app .mobile-section-body > h4 { display: none; }
+  body#dropzone-app main.dz-unified-workspace-page :is(.advanced-three-columns,.advanced-two-columns,.advanced-grid,.advanced-card .mini-grid,.advanced-choice-admin-grid) { grid-template-columns: minmax(0,1fr) !important; }
+  body#dropzone-app .advanced-structure-header { display: flex !important; align-items: center !important; gap: 12px; padding: 12px 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
+  body#dropzone-app .advanced-structure-header p { display: none; }
+  body#dropzone-app .advanced-structure-header h3 { font-size: 16px !important; }
+  body#dropzone-app .advanced-card :is(label,input,select,textarea) { min-width: 0; max-width: 100%; }
+  body#dropzone-app .advanced-card label { overflow-wrap: anywhere; }
+  body#dropzone-app main.dz-unified-workspace-page .profile-edit-form { padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+  body#dropzone-app main.dz-unified-workspace-page .profile-edit-form :is(.dz-form-grid,.mini-grid) { grid-template-columns: minmax(0,1fr) !important; gap: 16px; }
+  body#dropzone-app main.dz-token-flow-page :is(.shell,.public-shell) { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  body#dropzone-app .dz-token-flow-page :is(.scale-invite-card,.invite-section,.invite-chat-shell,.invite-entry-choice,.invite-current-team) { padding: 12px 0 !important; min-height: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; }
+  body#dropzone-app .dz-token-flow-page .invite-card > header { display: grid !important; grid-template-columns: 40px minmax(0,1fr); gap: 2px 12px; text-align: left !important; }
+  body#dropzone-app .dz-token-flow-page .invite-card > header > :is(img,svg) { grid-column: 1; grid-row: 1 / 4; width: 40px !important; height: 40px !important; }
+  body#dropzone-app .dz-token-flow-page .invite-card > header > :is(h1,p) { grid-column: 2; margin: 0 !important; }
+  body#dropzone-app .dz-token-flow-page .invite-card > header > h1 { font-size: 18px !important; }
+  body#dropzone-app .dz-token-flow-page .invite-card > header > p { font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page :is(.invite-mini-stats,.lineup-public-meta) { display: flex !important; flex-wrap: wrap; gap: 8px 16px !important; margin: 12px 0 !important; padding: 0 !important; border: 0 !important; font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page :is(.invite-mini-stats,.lineup-public-meta) > span { min-height: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; }
+  body#dropzone-app .dz-token-flow-page .invite-mode-switch { padding: 0 !important; border: 0 !important; background: transparent !important; gap: 0 !important; }
+  body#dropzone-app .dz-token-flow-page .invite-mode-switch button { background: transparent !important; border: 0 !important; border-radius: 0 !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page .invite-mode-switch button.active { color: var(--dz-mobile-text) !important; box-shadow: inset 0 -2px var(--dz-mobile-accent) !important; }
+  body#dropzone-app .dz-token-flow-page .invite-details { display: grid !important; grid-template-columns: 1fr !important; gap: 0 !important; border: 0 !important; border-radius: 0 !important; margin: 12px 0 !important; }
+  body#dropzone-app .dz-token-flow-page .invite-details > span { display: flex !important; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; padding: 8px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .dz-token-flow-page .invite-details > span strong { min-width: 88px; font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page .lineup-slots { display: grid !important; grid-template-columns: minmax(0,1fr) !important; gap: 0 !important; }
+  body#dropzone-app .dz-token-flow-page .lineup-slot { display: grid !important; grid-template-columns: 24px 36px minmax(0,1fr) !important; align-items: center; gap: 10px !important; min-height: 64px !important; padding: 12px 0 !important; border: 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; border-radius: 0 !important; background: transparent !important; }
+  body#dropzone-app .dz-token-flow-page .lineup-slot > b { grid-column: 1; position: static !important; width: auto !important; height: auto !important; padding: 0 !important; background: transparent !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page .lineup-slot > img { grid-column: 2; width: 36px !important; height: 36px !important; }
+  body#dropzone-app .dz-token-flow-page .lineup-slot > div { grid-column: 3; min-width: 0; }
+  body#dropzone-app .dz-token-flow-page .lineup-slot > span { grid-column: 2 / -1; font-size: 13px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page .lineup-slot strong { font-size: 14px !important; overflow-wrap: anywhere; }
+  body#dropzone-app .dz-token-flow-page .lineup-slot div span { font-size: 12px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page .scale-invite-card > .section-head { display: flex !important; align-items: flex-start; gap: 12px; }
+  body#dropzone-app .dz-token-flow-page .scale-invite-card > .section-head h2 { font-size: 18px !important; }
+  body#dropzone-app .dz-token-flow-page .scale-invite-card > .section-head > button { flex: 0 0 auto; }
+  body#dropzone-app .dz-token-flow-page .scale-normal-actions { display: grid !important; grid-template-columns: 1fr !important; gap: 8px; margin-top: 16px; }
+  body#dropzone-app .dz-token-flow-page .invite-section-copy { text-align: left !important; font-size: 13px !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .dz-token-flow-page .invite-chat-bubble { padding: 12px !important; background: var(--dz-mobile-surface) !important; border: 0 !important; border-radius: 12px !important; }
+  body#dropzone-app .dz-token-flow-page .invite-chat-bubble strong { color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .system-modal .championship-wizard-actions { position: static !important; inset: auto !important; width: 100% !important; padding: 16px 0 0 !important; border-top: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .system-modal .championship-wizard-actions button { position: static !important; width: auto !important; flex: 1; }
+  body#dropzone-app :is(.report-modal-backdrop,.invite-modal-backdrop,.line-transfer-modal-backdrop,.manager-add-champ-overlay) { padding: 0 !important; align-items: flex-end !important; }
+  body#dropzone-app :is(.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) { padding: 16px !important; overflow-y: auto !important; }
+  body#dropzone-app :is(.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) :is(h1,h2,h3,h4,strong,b) { color: inherit !important; font-weight: 500 !important; }
+  body#dropzone-app :is(.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal,.agenda-game-editor) :is(.mini-grid,.form-grid,.dz-form-grid) { grid-template-columns: minmax(0,1fr) !important; }
+  body#dropzone-app .lili-global-launcher { display: none !important; }
+  body#dropzone-app .app-main-nav { background: var(--dz-mobile-surface) !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .app-mobile-nav-account :is(a,span,strong) { background: transparent !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .app-profile-menu { position: fixed !important; inset: auto 0 calc(58px + env(safe-area-inset-bottom)) 0 !important; width: 100% !important; min-width: 0 !important; max-width: 100% !important; max-height: calc(100dvh - 140px) !important; padding: 16px !important; box-sizing: border-box; overflow: auto !important; border-radius: 16px 16px 0 0 !important; }
+  body#dropzone-app .app-profile-menu :is(.app-profile-menu-head,.linked-account-profile-row,.linked-account-profile-copy,.linked-account-menu-list) { min-width: 0 !important; max-width: 100% !important; overflow-wrap: anywhere; }
+  body#dropzone-app .app-global-language-menu button.active { background: var(--dz-mobile-raised) !important; color: var(--dz-mobile-accent) !important; }
+  body#dropzone-app .app-global-language-menu button.active span { color: inherit !important; }
+  body#dropzone-app main.dz-unified-workspace-page .mobile-section-toggle { background: transparent !important; }
+  body#dropzone-app .system-modal .report-form { display: grid; gap: 16px; }
+  body#dropzone-app .system-modal .report-form label { display: grid; gap: 6px; }
+  body#dropzone-app .system-modal .report-form textarea { min-height: 120px; }
+  body#dropzone-app .system-modal :is(.report-modal,.invite-modal,.line-transfer-modal,.manager-add-champ-modal) { width: 100% !important; padding: 0 !important; margin: 0 !important; max-height: none !important; border: 0 !important; border-radius: 0 !important; overflow: visible !important; box-shadow: none !important; background: transparent !important; }
+  body#dropzone-app .dz-token-flow-page .lineup-slot > .lineup-player-avatar { grid-column: 2 !important; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; background: var(--dz-mobile-raised) !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main.dz-unified-workspace-page .xt-map-svg { background: var(--dz-mobile-bg) !important; }
+  body#dropzone-app .system-modal .championship-league-entry-plan > summary { min-height: 44px; padding: 12px 0 !important; border-color: var(--dz-mobile-line) !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .system-modal .championship-league-entry-plan > summary :is(span,strong) { color: inherit !important; }
+  body#dropzone-app main.dz-unified-workspace-page :is(.performance-long-evolution-group,.performance-objective-columns > div) { background: var(--dz-mobile-surface) !important; border-color: var(--dz-mobile-line) !important; }
+  body#dropzone-app main.dz-unified-workspace-page :is(.performance-objective-columns,.performance-long-evolution-groups) { grid-template-columns: minmax(0,1fr) !important; gap: 12px !important; }
+  body#dropzone-app .dz-mobile-utility .bank-tx-list > li { background: transparent !important; color: var(--dz-mobile-text) !important; }
+  body#dropzone-app .dz-mobile-utility .bank-balance-card > small { color: var(--dz-mobile-secondary) !important; opacity: 1 !important; }
+  body#dropzone-app .system-modal.pix-receipt-dialog .pix-receipt :is(p,span,small,dt) { color: #596775 !important; opacity: 1 !important; }
+  body#dropzone-app .pix-receipt { background: #fff !important; color: #20252d !important; }
+  body#dropzone-app .pix-receipt :is(h1,h2,h3,h4,strong,b,dd) { color: #20252d !important; }
+  body#dropzone-app .pix-receipt :is(p,span,small,dt) { color: #596775 !important; }
+  body#dropzone-app .dz-mobile-utility.scorer-workspace { display: block !important; padding: 16px !important; }
+  body#dropzone-app .scorer-workspace :is(.scorer-workspace-header,.scorer-sheet-toolbar) { margin: 0 0 16px !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; background: transparent !important; box-shadow: none !important; }
+  body#dropzone-app .scorer-workspace .scorer-sheet-toolbar { position: static !important; display: flex !important; flex-direction: column; align-items: stretch; gap: 12px !important; }
+  body#dropzone-app .scorer-workspace :is(.scorer-view-switch,.scorer-scope-switch,.scorer-drop-tabs) { display: flex !important; flex-wrap: wrap; gap: 0 !important; padding: 0 !important; border: 0 !important; }
+  body#dropzone-app .scorer-workspace :is(.scorer-view-switch,.scorer-scope-switch) button { flex: 1; background: transparent !important; border: 0 !important; border-radius: 0 !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app .scorer-workspace :is(.scorer-view-switch,.scorer-scope-switch) button.active { color: var(--dz-mobile-text) !important; box-shadow: inset 0 -2px var(--dz-mobile-accent) !important; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table-wrap { overflow: visible !important; max-height: none !important; height: auto !important; min-height: 0 !important; border: 0 !important; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table { display: block !important; width: 100% !important; min-width: 0 !important; table-layout: auto !important; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table thead { position: absolute !important; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table tbody { display: block !important; width: 100%; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table tbody tr { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 16px 0 !important; border-bottom: 1px solid var(--dz-mobile-line) !important; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table tbody td { display: block !important; position: static !important; min-width: 0 !important; width: auto !important; min-height: 0 !important; height: auto !important; padding: 0 !important; border: 0 !important; white-space: normal !important; overflow-wrap: anywhere; text-align: left !important; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table tbody td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 4px; font-size: 11px; color: var(--dz-mobile-secondary); font-weight: 400; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table tbody td:nth-child(2) { grid-column: 1 / -1; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table tbody td[colspan] { grid-column: 1 / -1; }
+  body#dropzone-app .scorer-workspace .scorer-edit-table input { width: 100% !important; min-width: 0 !important; max-width: none !important; }
+  body#dropzone-app .scorer-workspace .scorer-team { min-width: 0 !important; }
+  body#dropzone-app .scorer-workspace .scorer-team img { width: 32px !important; height: 32px !important; }
+  body#dropzone-app .login-account-identity-fields,
+  body#dropzone-app .login-account-name-fields { grid-template-columns: minmax(0,1fr) !important; gap: 16px !important; }
+  body#dropzone-app .login-profile-head { display: flex !important; flex-wrap: wrap; gap: 12px; }
+  body#dropzone-app .local-studio-handoff-card .local-studio-handoff-grid { display: none !important; }
+  body#dropzone-app :is(.performance-long-evolution-group,.performance-objective-columns) .empty { background: transparent !important; color: var(--dz-mobile-secondary) !important; }
+  body#dropzone-app main:has(.account-workspace-hero) .panel-workspace-return { display: none; }
+  body#dropzone-app main:has(.account-workspace-hero) .dz-workspace-header__copy { display: none; }
+  body#dropzone-app main:has(.account-workspace-hero) .dz-workspace-header { padding: 0 0 8px !important; min-height: 0 !important; }
+  body#dropzone-app main:has(.account-workspace-hero) .dz-workspace-header:not(:has(.dz-workspace-header__actions)) { display: none; }
+  body#dropzone-app main:has(.account-workspace-hero) .dz-workspace-header__actions > span { min-height: 0 !important; padding: 4px 8px !important; font-size: 12px !important; }
 }

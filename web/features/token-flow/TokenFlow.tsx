@@ -27,7 +27,7 @@ export function TokenFlowPage({ children, className, themeStyle, framed = true, 
     <main
       {...props}
       data-dz-token-flow="page"
-      className={classes(framed && 'invite-page', 'dz-token-flow-page', className)}
+      className={classes(framed && 'invite-page', 'dz-token-flow-page', 'dz-mobile-utility', className)}
       style={themeStyle || props.style}
     >
       {children}

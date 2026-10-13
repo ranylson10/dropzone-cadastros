@@ -1,8 +1,10 @@
 'use client'
 
+import { Dialog } from '@/components/ui/Dialog'
+
 import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Copy, Link2, Loader2, Lock, RefreshCw, Save, Search, Send, Trash2, UserMinus, UserPlus, Users, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, ChevronRight, Copy, Link2, Loader2, Lock, RefreshCw, Save, Search, Send, Trash2, UserMinus, UserPlus, Users } from 'lucide-react'
 import { usePagedSearch } from '@/hooks/usePagedSearch'
 
 type Props = {
@@ -254,7 +256,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
             <button type="button" className="line-event-summary" onClick={() => setOpenEvent(open ? null : String(event.id))}>
               <span className="line-event-logo">{event.campeonato?.logo_url ? <img src={event.campeonato.logo_url} alt=""/> : 'C'}</span>
               <div><strong>{event.campeonato?.nome || 'Campeonato'}</strong><small>{event.grupo?.nome || 'Sem grupo'} · {draft.length}/{event.limite_jogadores} jogadores</small></div>
-              {!event.pode_alterar ? <Lock size={15}/> : open ? <ChevronDown size={17}/> : <ChevronRight size={17}/>} 
+              {!event.pode_alterar ? <Lock size={15}/> : open ? <ChevronDown size={17}/> : <ChevronRight size={17}/>}
             </button>
             {open ? <div className="line-event-editor">
               {!event.pode_alterar ? <div className="line-event-lock"><Lock size={15}/><span>{event.bloqueio_motivo || 'Formação bloqueada.'}</span></div> : null}
@@ -280,12 +282,9 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
       {!data.events?.length ? <div className="line-roster-empty"><span>Esta line ainda não está inscrita em campeonato ativo.</span></div> : null}
     </section>
 
-    {transferOpen ? <div className="line-transfer-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setTransferOpen(false) }}>
-      <div className="line-transfer-modal" role="dialog" aria-modal="true" aria-label="Transferir line para equipe real">
-        <header>
-          <div><strong>Transferir {line.nome}</strong><span>Selecione a equipe real que receberá esta line.</span></div>
-          <button type="button" className="icon-action" disabled={Boolean(busy)} onClick={() => setTransferOpen(false)}><X size={17}/></button>
-        </header>
+    {transferOpen ? <Dialog open title={`Transferir ${line.nome}`} description="Selecione a equipe real que receberá esta line." onClose={() => { if (!busy) setTransferOpen(false) }}>
+      <div className="line-transfer-modal"   >
+
         <div className="line-transfer-search">
           <UiInput value={transferQuery} onChange={(event) => { transferDirectory.clear(); setTransferTarget(null); setTransferQuery(event.target.value) }} onKeyDown={(event) => { if (event.key === 'Enter') void searchTransferTeams() }} placeholder="Nome, tag ou ID da equipe" />
           <button type="button" disabled={transferSearching || transferQuery.trim().length < 2} onClick={() => void searchTransferTeams()}>{transferSearching ? <Loader2 className="spin" size={16}/> : <Search size={16}/>} Buscar</button>
@@ -294,7 +293,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
           {transferTeams.map((team: any) => <button key={team.id} type="button" className={String(transferTarget?.id) === String(team.id) ? 'selected' : ''} onClick={() => setTransferTarget(team)}>
             <span>{team.logo_url ? <img src={team.logo_url} alt=""/> : String(team.tag || team.nome || 'E').slice(0, 2)}</span>
             <div><strong>{team.nome}</strong><small>{team.tag || team.username || `ID ${team.public_id || ''}`}</small></div>
-            {String(transferTarget?.id) === String(team.id) ? <Check size={17}/> : <ChevronRight size={17}/>} 
+            {String(transferTarget?.id) === String(team.id) ? <Check size={17}/> : <ChevronRight size={17}/>}
           </button>)}
           {transferDirectory.error ? <p role="alert">{transferDirectory.error}</p> : null}
           {transferDirectory.nextCursor ? <button type="button" disabled={transferSearching} onClick={() => void transferDirectory.more()}>Carregar mais equipes</button> : null}
@@ -306,7 +305,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
           <button type="button" disabled={Boolean(busy)} onClick={() => void transferLine()}>{busy === 'transfer' ? <Loader2 className="spin" size={16}/> : <Send size={16}/>} Confirmar transferência</button>
         </div> : null}
       </div>
-    </div> : null}
+    </Dialog> : null}
 
   </div>
 }

@@ -368,7 +368,7 @@ export function TeamAnalyticsDashboard({
               <div className="team-analytics-event-table">
                 <div className="head"><span>Evento</span><span>Q</span><span>PTS/Q</span><span>K</span><span>POS.</span><span>Prêmio</span></div>
                 {data.eventos.slice(0, 8).map((item) => <div className="row" key={item.id}>
-                  <span className="event"><img src={item.logo_url || '/favicon.ico'} alt="" /><i><strong>{item.nome}</strong><small>{item.tipo || item.status || 'Campeonato'}</small></i></span>
+                  <span className="event"><img src={item.logo_url || '/dropzone-icon.png'} alt="" /><i><strong>{item.nome}</strong><small>{item.tipo || item.status || 'Campeonato'}</small></i></span>
                   <b>{item.quedas}</b>
                   <b>{numberText(item.pontos_media, 1)}</b>
                   <b>{item.abates}</b>

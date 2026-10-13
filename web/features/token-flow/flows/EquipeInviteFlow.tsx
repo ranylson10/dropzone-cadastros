@@ -1,5 +1,7 @@
 'use client'
 
+import { Dialog } from '@/components/ui/Dialog'
+
 import { TokenFlowPage } from '@/features/token-flow'
 import styles from './EquipeInviteFlow.module.css'
 
@@ -8,7 +10,7 @@ import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { championshipThemeStyle } from '@/lib/championship-theme'
-import { Bot, CheckCircle2, LogIn, Shield, Users, UserPlus, X } from 'lucide-react'
+import { Bot, CheckCircle2, LogIn, Shield, Users, UserPlus } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
 import { getTokenFlowSession, tokenFlowAuthHeaders, tokenFlowPath } from '@/features/token-flow'
@@ -760,18 +762,9 @@ function ConviteEquipeContent() {
       </TokenFlowPage>
 
       {detailVaga ? (
-        <div className="invite-modal-backdrop" onClick={() => setDetailVaga(null)}>
-          <section className="invite-modal" onClick={(e) => e.stopPropagation()}>
-            <header>
-              <div>
-                <p className="eyebrow">Slot {detailVaga.slot_letra}</p>
-                <h2>{detailVaga.line_nome || detailVaga.equipe_nome || 'Equipe'}</h2>
-                <span>{detailVaga.equipe_nome || 'Equipe'}</span>
-              </div>
-              <button type="button" onClick={() => setDetailVaga(null)} aria-label="Fechar">
-                <X size={18} />
-              </button>
-            </header>
+        <Dialog open title={detailVaga.line_nome || detailVaga.equipe_nome || "Equipe"} description={`Slot ${detailVaga.slot_letra || ""}`} onClose={() => setDetailVaga(null)}>
+          <section className="invite-modal" >
+
             {(detailVaga.jogadores || []).length === 0 ? (
               <p className="invite-empty">Nenhum jogador escalado ainda.</p>
             ) : (
@@ -796,7 +789,7 @@ function ConviteEquipeContent() {
               Fechar
             </button>
           </section>
-        </div>
+        </Dialog>
       ) : null}
     </>
   )

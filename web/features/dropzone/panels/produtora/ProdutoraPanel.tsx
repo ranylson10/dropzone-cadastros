@@ -1842,7 +1842,7 @@ ${params.url}`
                       line_id: String(entry.data?.line_id || ''),
                     })}
                   >
-                    <img className="line-picker-logo" src={lineAvatar(entry) || '/favicon.ico'} alt="" />
+                    <img className="line-picker-logo" src={lineAvatar(entry) || '/dropzone-icon.png'} alt="" />
                     <span className="line-picker-copy">
                       <strong>{rowTitle(entry)}</strong>
                       <small>{dataText(entry, 'team_name') || 'Sem organização'}</small>

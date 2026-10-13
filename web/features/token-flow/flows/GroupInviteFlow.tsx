@@ -1,5 +1,7 @@
 'use client'
 
+import { Dialog } from '@/components/ui/Dialog'
+
 import { TokenFlowPage } from '@/features/token-flow'
 import styles from './GroupInviteFlow.module.css'
 
@@ -16,7 +18,6 @@ import {
   Shield,
   Users,
   UserPlus,
-  X,
 } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { buildProfileCreationHref } from '@/features/auth/auth-return'
@@ -2031,18 +2032,9 @@ function ConviteGrupoContent() {
 
       {/* Detalhe público da line ao clicar no slot */}
       {detailVaga && !assistantMode ? (
-        <div className="invite-modal-backdrop" onClick={() => setDetailVaga(null)}>
-          <section className="invite-modal" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <div>
-                <p className="eyebrow">Slot {detailVaga.slot_letra}</p>
-                <h2>{detailVaga.line_nome || detailVaga.equipe_nome || 'Equipe'}</h2>
-                <span>{detailVaga.equipe_nome || 'Equipe'}</span>
-              </div>
-              <button type="button" onClick={() => setDetailVaga(null)} aria-label="Fechar">
-                <X size={18} />
-              </button>
-            </header>
+        <Dialog open title={detailVaga.line_nome || detailVaga.equipe_nome || "Equipe"} description={`Slot ${detailVaga.slot_letra || ""}`} onClose={() => setDetailVaga(null)}>
+          <section className="invite-modal" >
+
             {(detailVaga.jogadores || []).length === 0 ? (
               <p className="invite-empty">Nenhum jogador escalado ainda.</p>
             ) : (
@@ -2067,7 +2059,7 @@ function ConviteGrupoContent() {
               Fechar
             </button>
           </section>
-        </div>
+        </Dialog>
       ) : null}
     </>
   )

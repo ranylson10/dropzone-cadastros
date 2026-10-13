@@ -20,7 +20,7 @@ export default function MobileAuthCallbackPage() {
   }, [appUrl])
 
   return (
-    <main className="mobile-callback-page">
+    <main className="mobile-callback-page dz-mobile-utility">
       <section className="mobile-callback-card">
         <p className="mobile-callback-kicker">DropZone Mobile</p>
         <h1>Voltando para o app</h1>

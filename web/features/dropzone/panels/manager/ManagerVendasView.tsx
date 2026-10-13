@@ -1,5 +1,7 @@
 'use client'
 
+import { Dialog } from '@/components/ui/Dialog'
+
 import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useState } from 'react'
 import { Copy, CreditCard, ExternalLink, MessageCircle, RefreshCw, ShieldCheck, Trash2, Trophy, Users } from 'lucide-react'
@@ -454,17 +456,9 @@ export function ManagerVendasView(props: {
       </section>
 
       {saleChamp ? (
-        <div className="report-modal-backdrop" role="presentation" onClick={() => setSaleChamp(null)}>
-          <section className="report-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="section-head compact-head">
-              <div>
-                <p className="eyebrow">Gerar venda</p>
-                <h2>{saleChamp.campeonatos?.nome || 'Campeonato'}</h2>
-              </div>
-              <button className="button secondary small" type="button" onClick={() => setSaleChamp(null)}>
-                Fechar
-              </button>
-            </div>
+        <Dialog open title={saleChamp.campeonatos?.nome || "Gerar venda"} onClose={() => setSaleChamp(null)}>
+          <section className="report-modal" >
+
 
             <p className="empty" style={{ marginTop: 0 }}>
               Você gera um link rastreado para o comprador. Ele entra na própria conta, paga pela DropZone e só então a vaga é liberada.
@@ -527,7 +521,7 @@ export function ManagerVendasView(props: {
               </button>
             </div>
           </section>
-        </div>
+        </Dialog>
       ) : null}
     </>
   )

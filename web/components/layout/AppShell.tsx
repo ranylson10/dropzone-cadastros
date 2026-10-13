@@ -223,6 +223,7 @@ export function AppShell({
 
   const mainClasses = useMemo(() => {
     const parts = ['app-shell-main', mainClassName]
+    if (mainClassName.split(/\s+/).some(name => ['login-portal', 'cart-page', 'bank-wallet-page', 'agenda-page', 'affiliate-page', 'affiliate-dashboard-page', 'championship-central-page', 'vacancies-page', 'sale-checkout-page', 'legal-page', 'rulebook-public-layout', 'championship-stream-page'].includes(name))) parts.push('dz-mobile-utility')
     if (showHeader && withAuthOffset && resolvedHeaderVariant !== 'storefront') parts.push('page-authenticated')
     if (showHeader && resolvedHeaderVariant === 'storefront') parts.push('storefront-public-main', 'dz-unified-public-page')
     if (showHeader && resolvedHeaderVariant === 'system' && mainClassName.includes('page-authenticated')) parts.push('dz-unified-workspace-page')

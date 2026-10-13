@@ -1605,7 +1605,7 @@ Acesse: ${url}`
                 <button className="team-championship-head" onClick={() => {
                   setExpanded(isOpen ? '' : lineup.campeonato_equipe_id)
                 }}>
-                  <img src={lineup.line_logo_url || '/favicon.ico'} alt="" />
+                  <img src={lineup.line_logo_url || '/dropzone-icon.png'} alt="" />
                   <div><strong>{lineup.campeonato_nome}</strong><span>{lineup.line_nome} · {lineup.fase_nome || 'Sem fase'} · {lineup.grupo_nome || 'Sem grupo'} · Slot {lineup.slot_equipe || '-'}</span></div>
                   <div className="team-championship-status"><b>{lineup.jogadores_confirmados}/{lineup.limite_jogadores}</b><span>escalação</span></div>
                   <ChevronDown className={isOpen ? 'rotated' : ''} />
@@ -1644,7 +1644,7 @@ Acesse: ${url}`
                   </div>
                   <div className="lineup-slots">{slots.map((player, index) => <div className={`lineup-slot ${player ? 'occupied' : ''}`} key={index}>
                     <b>{index + 1}</b>
-                    {player ? <><img src={player.foto_url || '/favicon.ico'} alt=""/><div><strong>{player.nick}</strong><span>{player.funcao}{player.capitao ? ' · Capitão' : ''}</span></div><button className="icon-button danger" title="Remover jogador" onClick={() => void removePlayer(player.id)}><Trash2 size={15}/></button></> : <span>Slot disponível</span>}
+                    {player ? <><img src={player.foto_url || '/dropzone-icon.png'} alt=""/><div><strong>{player.nick}</strong><span>{player.funcao}{player.capitao ? ' · Capitão' : ''}</span></div><button className="icon-button danger" title="Remover jogador" onClick={() => void removePlayer(player.id)}><Trash2 size={15}/></button></> : <span>Slot disponível</span>}
                   </div>)}</div>
                   <div className="button-row lineup-actions">
                     {lineup.link_token ? <>
@@ -1760,7 +1760,7 @@ Acesse: ${url}`
                       onClick={() => setTrainingExpanded(isOpen ? '' : training.campeonato_equipe_id)}
                       aria-expanded={isOpen}
                     >
-                      <img src={training.logo_url || '/favicon.ico'} alt="" />
+                      <img src={training.logo_url || '/dropzone-icon.png'} alt="" />
                       <span className="team-training-identity">
                         <strong>{training.nome}</strong>
                         <small>{[training.line_nome, training.fase_nome, training.grupo_nome].filter(Boolean).join(' · ') || 'Xtreino'}</small>
@@ -2251,7 +2251,7 @@ Acesse: ${url}`
                           {training.jogadores.length === 0 ? <p className="empty">Ainda não há estatísticas individuais processadas.</p> : null}
                           {training.jogadores.map((player) => (
                             <div className="team-training-player" key={player.campeonato_jogador_id}>
-                              <img src={player.foto_url || '/favicon.ico'} alt="" />
+                              <img src={player.foto_url || '/dropzone-icon.png'} alt="" />
                               <span><strong>{player.nick}</strong><small>{player.id_jogo ? `ID ${player.id_jogo}` : `${player.quedas} queda(s)`}</small></span>
                               <span><b>{player.abates}</b><small>Kills</small></span>
                               <span><b>{Math.round(player.dano).toLocaleString('pt-BR')}</b><small>Dano</small></span>
@@ -2281,7 +2281,7 @@ Acesse: ${url}`
           />
         ) : null}
 
-        {tab === 'jogadores' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Elenco</p><h3>Jogadores da equipe</h3></div><span className="count-pill"><Users size={14}/>{teamPlayers.length}</span></div>{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador vinculado ao elenco.</p> : null}<div className="team-player-grid">{teamPlayers.map((row) => <article className="team-player-card" key={row.id}><img src={dataText(row, 'foto_url') || '/favicon.ico'} alt=""/><div><strong>{dataText(row, 'nick') || rowTitle(row)}</strong><span>ID {dataText(row, 'id_jogo') || '-'}</span><small>{dataText(row, 'funcao') || 'Função não informada'}</small></div></article>)}</div></div> : null}
+        {tab === 'jogadores' ? <div className="panel-tab-body"><div className="team-section-title"><div><p className="eyebrow">Elenco</p><h3>Jogadores da equipe</h3></div><span className="count-pill"><Users size={14}/>{teamPlayers.length}</span></div>{teamPlayers.length === 0 ? <p className="empty">Nenhum jogador vinculado ao elenco.</p> : null}<div className="team-player-grid">{teamPlayers.map((row) => <article className="team-player-card" key={row.id}><img src={dataText(row, 'foto_url') || '/dropzone-icon.png'} alt=""/><div><strong>{dataText(row, 'nick') || rowTitle(row)}</strong><span>ID {dataText(row, 'id_jogo') || '-'}</span><small>{dataText(row, 'funcao') || 'Função não informada'}</small></div></article>)}</div></div> : null}
 
         {tab === 'convites' ? <div className="panel-tab-body"><div className="panel-soft"><h3>Convidar jogador para a equipe</h3><p>Envie diretamente pelo correio ou gere um link compartilhável. O jogador pode aceitar ou recusar.</p>{activeManagedTeams.map((team) => <PlayerTeamRequest key={team.id} mode="invite_player" equipeId={team.id}/>)}<div className="token-list">{activeManagedTeams.map((team) => <button key={team.id} className="token-card" onClick={() => void createRosterInvite(team)} disabled={lineupLoading}><span>{rowTitle(team)}</span><strong>Criar link de convite</strong><Link2 size={15}/></button>)}</div></div><div className="panel-soft"><h3>Links ativos de escalação</h3>{lineups.filter((lineup) => lineup.link_token).length === 0 ? <p className="empty">Nenhum link gerado.</p> : null}<div className="lineup-token-list">{lineups.filter((lineup) => lineup.link_token).map((lineup) => <article className="lineup-token-card" key={lineup.campeonato_equipe_id}><div><span>{lineup.campeonato_nome}</span><strong>{lineup.line_nome}</strong><small>Link ativo e protegido.</small></div><div className="button-row"><button className={`button compact ${copiedLineupId === lineup.campeonato_equipe_id ? 'copied' : ''}`} onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}><Copy size={15}/>{copiedLineupId === lineup.campeonato_equipe_id ? 'Convite copiado' : 'Copiar convite'}</button><button className={`button secondary compact ${copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'copied' : ''}`} onClick={() => void copyLink(String(lineup.link_token), `token:${lineup.campeonato_equipe_id}`)}><Copy size={15}/>{copiedLineupId === `token:${lineup.campeonato_equipe_id}` ? 'Token copiado' : 'Copiar só token'}</button></div></article>)}</div></div></div> : null}
 
@@ -2861,7 +2861,7 @@ function EquipeLinesEditor(props: {
               <span className="vaga-row-number">{String(index + 1).padStart(2, '0')}</span>
               <span className="vaga-row-avatar status-ocupada">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={line.logo_url || teamLogo || '/favicon.ico'} alt="" />
+                <img src={line.logo_url || teamLogo || '/dropzone-icon.png'} alt="" />
               </span>
               <span className="vaga-row-identity">
                 <strong>{line.nome}</strong>

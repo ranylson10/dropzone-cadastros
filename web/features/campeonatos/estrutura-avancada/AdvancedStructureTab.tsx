@@ -14,6 +14,7 @@ import {EditionPanel} from './EditionPanel'
 import type {EditionReadContract} from '@backend/campeonatos/edition-contract'
 import { Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
+import { MobileSection } from '@/components/layout/MobileSection'
 
 type Row = Record<string, any>
 type Structure = ProgressionReadContract & DailyGroupReadContract & EditionReadContract & {
@@ -325,20 +326,20 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
       </header>
       {message ? <div className="message">{message}</div> : null}
 
-      <section className="advanced-card">
+      <MobileSection title="Campeonato histórico e edição" className="advanced-card">
         <h4>Campeonato histórico e edição</h4>
         <EditionPanel championshipId={campeonatoId} contract={data} edition={data.edition} franchise={data.franchise} canManage={canManage&&!busy} onRefresh={async()=>{try{setData(await request('GET'));return true}catch{return false}}} />
-      </section>
+      </MobileSection>
 
       {data.edition ? <>
-        <section className="advanced-card">
+        <MobileSection title="Séries ou divisões" className="advanced-card">
           <h4>Séries ou divisões</h4>
           <div className="mini-grid three"><label><span>Nome</span><UiInput value={division.name} onChange={(e) => setDivision({ ...division, name: e.target.value })} placeholder="Série C" /></label><label><span>Código</span><UiInput value={division.code} onChange={(e) => setDivision({ ...division, code: e.target.value })} placeholder="C" /></label><label><span>Ordem</span><UiInput type="number" min="1" value={division.order} onChange={(e) => setDivision({ ...division, order: e.target.value })} /></label></div>
           <button className="button" disabled={!canManage || busy || !division.name.trim()} onClick={() => void act({ action: 'create_division', edition_id: data.edition?.id, ...division })}><Plus size={15} /> Adicionar série</button>
           <div className="advanced-chip-row">{data.divisions.map((row) => <span className="advanced-chip" key={row.id}>{row.codigo || row.nome} · {row.nome}<button title="Excluir" onClick={() => void act({ action: 'delete', table: 'campeonato_divisoes', row_id: row.id })}><Trash2 size={13} /></button></span>)}</div>
-        </section>
+        </MobileSection>
 
-        <section className="advanced-card">
+        <MobileSection title="Etapas operacionais" className="advanced-card">
           <h4>Etapas operacionais</h4>
           <div className="mini-grid four">
             <label><span>Série</span><UiSelect value={stage.division_id} onChange={(e) => setStage({ ...stage, division_id: e.target.value })}><option value="">Sem série</option>{data.divisions.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label>
@@ -357,16 +358,16 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
             if (!rows.length) return null
             return <div key={divisionRow.id}><strong>{divisionRow.nome}</strong>{rows.map((row) => <article key={row.id}><div><b>{row.nome}</b><small>{row.tipo === 'final' ? 'Grande Final' : row.tipo} · {row.formato} · {row.capacidade_total || 0} vagas · {row.vagas_venda_direta || 0} vendidas</small></div><button className="icon-action-button danger" onClick={() => void act({ action: 'delete', table: 'campeonato_etapas', row_id: row.id })}><Trash2 size={14} /></button></article>)}</div>
           })}</div>
-        </section>
+        </MobileSection>
 
-        {data.stages.length ? <section className="advanced-card advanced-three-columns">
+        {data.stages.length ? <MobileSection title="Composição de vagas / Progressão / Premiação" className="advanced-card advanced-three-columns">
           <div><h4>Composição de vagas</h4><label><span>Etapa destino</span><UiSelect value={source.stage_id} onChange={(e) => setSource({ ...source, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><label><span>Origem</span><UiSelect value={source.source_type} onChange={(e) => setSource({ ...source, source_type: e.target.value })}><option value="venda_direta">Venda direta</option><option value="qualificatoria">Qualificatória</option><option value="promocao">Promoção</option><option value="convite">Convite</option><option value="manual">Manual</option><option value="outra_etapa">Outra etapa</option></UiSelect></label><label><span>Etapa origem</span><UiSelect value={source.source_stage_id} onChange={(e) => setSource({ ...source, source_stage_id: e.target.value })}><option value="">Nenhuma</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><label><span>Quantidade</span><UiInput type="number" min="1" value={source.quantity} onChange={(e) => setSource({ ...source, quantity: e.target.value })} /></label><button className="button" disabled={!source.stage_id || !source.quantity || busy} onClick={() => void act({ action: 'create_source', ...source })}>Adicionar origem</button></div>
           <div><h4>Progressão</h4><label><span>Etapa origem</span><UiSelect value={progression.stage_id} onChange={(e) => setProgression({ ...progression, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><label><span>Destino</span><UiSelect value={progression.progression_type} onChange={(e) => setProgression({ ...progression, progression_type: e.target.value })}><option value="promocao">Promoção</option><option value="avanco">Avanço</option><option value="eliminacao">Eliminação</option><option value="premiacao">Premiação</option><option value="permanencia">Permanência</option><option value="rebaixamento">Rebaixamento</option></UiSelect></label><label><span>Etapa destino</span><UiSelect value={progression.destination_stage_id} onChange={(e) => setProgression({ ...progression, destination_stage_id: e.target.value })}><option value="">Nenhuma</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><div className="mini-grid two"><label><span>Posição inicial</span><UiInput type="number" min="1" value={progression.position_start} onChange={(e) => setProgression({ ...progression, position_start: e.target.value })} /></label><label><span>Posição final</span><UiInput type="number" min="1" value={progression.position_end} onChange={(e) => setProgression({ ...progression, position_end: e.target.value })} /></label></div><button className="button" disabled={!progression.stage_id || busy} onClick={() => void act({ action: 'create_progression', ...progression })}>Adicionar regra</button></div>
           <div><h4>Premiação</h4><label><span>Etapa</span><UiSelect value={prize.stage_id} onChange={(e) => setPrize({ ...prize, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><label><span>Tipo</span><UiSelect value={prize.prize_type} onChange={(e) => setPrize({ ...prize, prize_type: e.target.value })}><option value="colocacao">Colocação</option><option value="mvp">MVP</option><option value="outro">Outro</option></UiSelect></label><label><span>Posição</span><UiInput type="number" min="1" value={prize.position} onChange={(e) => setPrize({ ...prize, position: e.target.value })} /></label><label><span>Título</span><UiInput value={prize.title} onChange={(e) => setPrize({ ...prize, title: e.target.value })} placeholder="Campeão" /></label><label><span>Valor</span><UiInput type="number" min="0" step="0.01" value={prize.value} onChange={(e) => setPrize({ ...prize, value: e.target.value })} /></label><button className="button" disabled={!prize.stage_id || busy} onClick={() => void act({ action: 'create_prize', ...prize })}>Adicionar prêmio</button></div>
-        </section> : null}
+        </MobileSection> : null}
       </> : <div className="message">Cadastre primeiro o campeonato histórico e sua edição para liberar séries e etapas.</div>}
 
-      {data.edition && data.stages.length ? <section className="advanced-card">
+      {data.edition && data.stages.length ? <MobileSection title="Operação por etapa" className="advanced-card">
         <h4>Operação por etapa</h4>
         <p className="advanced-help">Distribua as participações reais entre as etapas. A capacidade é bloqueada no servidor e cada vínculo registra a origem da vaga.</p>
         <div className="mini-grid four">
@@ -382,9 +383,9 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           return <article key={row.id} className="advanced-operation-stage"><div className="advanced-operation-stage-head"><div><b>{row.nome}</b><small>{linked.length}/{capacity || '∞'} ocupadas · {Math.max(0, capacity - linked.length) || (capacity ? 0 : '∞')} disponíveis</small></div></div><div className="advanced-assignment-list">{linked.length ? linked.map((link) => { const team = data.teams.find((item) => item.id === link.campeonato_equipe_id); return <span key={link.id}>{team ? teamName(team) : 'Equipe'}<small>{link.tipo_origem}</small><button title="Retirar da etapa" onClick={() => void act({ action: 'remove_team', stage_team_id: link.id })}><Trash2 size={12} /></button></span> }) : <small>Nenhuma equipe vinculada.</small>}</div></article>
         })}</div>
         {data.phases.length ? <div className="advanced-link-list"><h5>Vincular fases existentes</h5>{data.phases.map((phase) => <label key={phase.id}><span>{phase.nome}</span><UiSelect value={phase.etapa_id || ''} onChange={(e) => void act({ action: 'link_phase', phase_id: phase.id, stage_id: e.target.value })}><option value="">Sem etapa</option>{data.stages.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</UiSelect></label>)}</div> : null}
-      </section> : null}
+      </MobileSection> : null}
 
-      {data.phases.length && data.groups.length ? <section className="advanced-card">
+      {data.phases.length && data.groups.length ? <MobileSection title="Grupos: escolha manual ou pela equipe" className="advanced-card">
         <h4>Grupos: escolha manual ou pela equipe</h4>
         <p className="advanced-help">Nenhum grupo é distribuído automaticamente. O administrador pode escolher manualmente ou liberar a escolha para as equipes.</p>
         <div className="advanced-group-choice-grid">
@@ -432,9 +433,9 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           </div>
           <div className="advanced-choice-timeline">{filteredGroupChoiceHistory.length ? filteredGroupChoiceHistory.map((item) => <article key={item.row.id} className={`is-${item.action}`}><span className="advanced-choice-timeline-dot" /><div className="advanced-choice-timeline-main"><div><b>{item.team ? teamName(item.team) : 'Equipe removida'}</b><strong>{choiceActionLabel(item.action)}</strong></div><small>{new Date(item.row.created_at).toLocaleString('pt-BR')} · {item.phase?.nome || 'Fase não informada'} · {item.row.origem === 'administrador' ? 'Administração' : item.row.origem === 'equipe' ? 'Equipe' : item.row.origem || 'Sistema'}</small><p><span>Anterior: {choicePosition(item.previousGroup, item.previousSlot)}</span><span>Novo: {choicePosition(item.nextGroup, item.nextSlot)}</span></p>{item.row.observacao ? <em>Motivo/observação: {item.row.observacao}</em> : null}<small>Responsável: {item.row.alterado_por_nome || item.row.alterado_por || 'Sistema'}</small></div></article>) : <div className="message">Nenhum registro encontrado com esses filtros.</div>}</div>
         </div> : null}
-      </section> : null}
+      </MobileSection> : null}
 
-      {data.progressions.length ? <section className="advanced-card">
+      {data.progressions.length ? <MobileSection title="Progressão automática" className="advanced-card">
         <h4>Progressão automática</h4>
         <p className="advanced-help">Gere a lista de classificadas usando o ranking da etapa de origem. O grupo de destino permanece sem distribuição automática.</p>
         <div className="mini-grid two">
@@ -448,14 +449,14 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           <div className="advanced-progression-list">{(progressionPreview.candidates || []).map((row: Row) => <article key={row.campeonato_equipe_id} className={row.conflict ? 'has-conflict' : ''}><b>{row.colocacao}º · {row.tag ? `${row.tag} — ` : ''}{row.nome}</b><small>{row.pontos_total || 0} pontos · {row.booyahs || 0} booyah(s) · {row.abates || 0} abates</small><span>{row.alreadyApplied ? 'Já aplicada por esta regra' : row.conflict ? 'Conflito com outra origem' : 'Pronta para aplicar'}</span></article>)}</div>
         </div> : null}
         {data.progressionExecutions.length ? <div className="advanced-progression-history"><h5>Histórico de execuções</h5>{data.progressionExecutions.map((execution) => { const rule = data.progressions.find((row) => row.id === execution.regra_id); const sourceStage = data.stages.find((row) => row.id === rule?.etapa_origem_id); const destinationStage = data.stages.find((row) => row.id === rule?.etapa_destino_id); const items = data.progressionExecutionItems.filter((row) => row.execucao_id === execution.id); return <article key={execution.id}><div><b>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'}</b><small>{new Date(execution.aplicada_em || execution.created_at).toLocaleString('pt-BR')} · {items.length} equipe(s) · {execution.status}</small>{execution.motivo_reversao ? <small>Motivo: {execution.motivo_reversao}</small> : null}</div>{execution.status === 'aplicada' ? <button className="button secondary" disabled={!canManage || !progressionMutation.ready || progressionMutation.pending!=null || busy} onClick={() => void reverseProgression(execution.id)}>Reverter</button> : null}</article> })}</div> : null}
-      </section> : null}
+      </MobileSection> : null}
 
-      {championshipType === 'diario' ? <section className="advanced-card">
+      {championshipType === 'diario' ? <MobileSection title="Horários independentes do Diário" className="advanced-card">
         <h4>Horários independentes do Diário</h4>
         <div className="mini-grid four"><label><span>Horário</span><UiInput type="time" value={daily.hour} onChange={(e) => setDaily({ ...daily, hour: e.target.value })} /></label><label><span>Nome exibido</span><UiInput value={daily.display_name} onChange={(e) => setDaily({ ...daily, display_name: e.target.value })} placeholder="19:00" /></label><label><span>Capacidade</span><UiInput type="number" min="1" value={daily.capacity} onChange={(e) => setDaily({ ...daily, capacity: e.target.value })} /></label><label><span>Valor da vaga</span><UiInput type="number" min="0" step="0.01" value={daily.vacancy_value} onChange={(e) => setDaily({ ...daily, vacancy_value: e.target.value })} /></label><label><span>Premiação</span><UiInput value={daily.prize_description} onChange={(e) => setDaily({ ...daily, prize_description: e.target.value })} /></label><label><span>Valor da premiação</span><UiInput type="number" min="0" step="0.01" value={daily.prize_value} onChange={(e) => setDaily({ ...daily, prize_value: e.target.value })} /></label><label><span>Mapa</span><UiInput value={daily.map} onChange={(e) => setDaily({ ...daily, map: e.target.value })} /></label><label><span>Quedas</span><UiInput type="number" min="1" value={daily.drops} onChange={(e) => setDaily({ ...daily, drops: e.target.value })} /></label></div>
         <button className="button" disabled={!daily.hour || busy} onClick={() => void act({ action: 'create_daily_hour', ...daily })}><Plus size={15} /> Adicionar horário</button>
         <DailyGroupPanel championshipId={campeonatoId} contract={data} hours={data.dailyHours} groups={data.groups} canManage={canManage&&!busy} onRefresh={async()=>{try{setData(await request('GET'));return true}catch{return false}}} onDelete={hour=>void act({action:'delete',table:'campeonato_diario_horarios',row_id:hour})} />
-      </section> : null}
+      </MobileSection> : null}
     </div>
   )
 }

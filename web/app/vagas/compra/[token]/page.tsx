@@ -275,7 +275,7 @@ export default function CompraVagaPage() {
 
   if (error && !data) {
     return (
-      <main className="invite-page">
+      <TokenFlowPage>
         <div className="invite-card">
           <Ticket size={38} />
           <h1>Compra não encontrada</h1>
@@ -284,7 +284,7 @@ export default function CompraVagaPage() {
             Voltar às vagas
           </a>
         </div>
-      </main>
+      </TokenFlowPage>
     )
   }
 
