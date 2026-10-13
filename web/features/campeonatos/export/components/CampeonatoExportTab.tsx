@@ -1,5 +1,7 @@
 'use client'
 
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
@@ -513,7 +515,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
         <div className="export-toolbar">
           <label className="export-inline-field">
             <span>Escopo</span>
-            <select
+            <UiSelect
               value={escopo}
               onChange={(e) => {
                 const v = e.target.value as EscopoUi
@@ -528,13 +530,13 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
               <option value="campeonato">Campeonato</option>
               <option value="fase">Fase</option>
               <option value="grupo">Grupo(s)</option>
-            </select>
+            </UiSelect>
           </label>
 
           {(escopo === 'fase' || escopo === 'grupo') ? (
             <label className="export-inline-field">
               <span>Fase</span>
-              <select
+              <UiSelect
                 value={faseId}
                 onChange={(e) => {
                   setFaseId(e.target.value)
@@ -545,7 +547,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
                 {fases.map((f) => (
                   <option key={f.id} value={f.id}>{f.nome}</option>
                 ))}
-              </select>
+              </UiSelect>
             </label>
           ) : null}
 
@@ -609,37 +611,37 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
             <small>edite nome/tag · baixe CSV · salve no campeonato</small>
           </div>
           <div className="export-table-wrap">
-            <table className="export-table export-table-edit">
-              <thead>
-                <tr>
-                  <th>Nome da line</th>
-                  <th>Tag</th>
-                </tr>
-              </thead>
-              <tbody>
+            <DataTable className="export-table export-table-edit">
+              <DataTableHead>
+                <DataTableRow>
+                  <DataTableHeaderCell>Nome da line</DataTableHeaderCell>
+                  <DataTableHeaderCell>Tag</DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
                 {equipesEdit.map((eq) => (
-                  <tr key={eq.id}>
-                    <td>
-                      <input
+                  <DataTableRow key={eq.id}>
+                    <DataTableCell>
+                      <UiInput
                         className="export-cell-input"
                         value={eq.nome}
                         onChange={(e) => patchLine(eq.id, 'nome', e.target.value)}
                       />
-                    </td>
-                    <td>
-                      <input
+                    </DataTableCell>
+                    <DataTableCell>
+                      <UiInput
                         className="export-cell-input export-cell-input-sm"
                         value={eq.tag}
                         onChange={(e) => patchLine(eq.id, 'tag', e.target.value)}
                       />
-                    </td>
-                  </tr>
+                    </DataTableCell>
+                  </DataTableRow>
                 ))}
                 {!equipesEdit.length ? (
-                  <tr><td colSpan={2}>Nenhuma line no escopo.</td></tr>
+                  <DataTableRow><DataTableCell colSpan={2}>Nenhuma line no escopo.</DataTableCell></DataTableRow>
                 ) : null}
-              </tbody>
-            </table>
+              </DataTableBody>
+            </DataTable>
           </div>
           <div className="export-actions-row export-actions-wrap" style={{ marginTop: 8 }}>
             <button
@@ -689,62 +691,62 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
               <small>edite e baixe CSV · não altera perfil global</small>
             </div>
             <div className="export-table-wrap">
-              <table className="export-table export-table-edit">
-                <thead>
-                  <tr>
-                    <th>Tag</th>
-                    <th>Nick</th>
-                    <th>Id de jogo</th>
-                    <th>Função</th>
-                    <th>Localidade (cidade)</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <DataTable className="export-table export-table-edit">
+                <DataTableHead>
+                  <DataTableRow>
+                    <DataTableHeaderCell>Tag</DataTableHeaderCell>
+                    <DataTableHeaderCell>Nick</DataTableHeaderCell>
+                    <DataTableHeaderCell>Id de jogo</DataTableHeaderCell>
+                    <DataTableHeaderCell>Função</DataTableHeaderCell>
+                    <DataTableHeaderCell>Localidade (cidade)</DataTableHeaderCell>
+                  </DataTableRow>
+                </DataTableHead>
+                <DataTableBody>
                   {jogadoresEdit.map((j) => (
-                    <tr key={j.key}>
-                      <td>
-                        <input
+                    <DataTableRow key={j.key}>
+                      <DataTableCell>
+                        <UiInput
                           className="export-cell-input export-cell-input-sm"
                           value={j.tag_equipe}
                           onChange={(e) => patchJogador(j.key, 'tag_equipe', e.target.value)}
                         />
-                      </td>
-                      <td>
-                        <input
+                      </DataTableCell>
+                      <DataTableCell>
+                        <UiInput
                           className="export-cell-input"
                           value={j.nick}
                           onChange={(e) => patchJogador(j.key, 'nick', e.target.value)}
                         />
-                      </td>
-                      <td>
-                        <input
+                      </DataTableCell>
+                      <DataTableCell>
+                        <UiInput
                           className="export-cell-input export-cell-input-md"
                           value={j.id_jogo}
                           onChange={(e) => patchJogador(j.key, 'id_jogo', e.target.value)}
                         />
-                      </td>
-                      <td>
-                        <input
+                      </DataTableCell>
+                      <DataTableCell>
+                        <UiInput
                           className="export-cell-input export-cell-input-sm"
                           value={j.funcao}
                           onChange={(e) => patchJogador(j.key, 'funcao', e.target.value)}
                         />
-                      </td>
-                      <td>
-                        <input
+                      </DataTableCell>
+                      <DataTableCell>
+                        <UiInput
                           className="export-cell-input"
                           value={j.localidade}
                           onChange={(e) => patchJogador(j.key, 'localidade', e.target.value)}
                           placeholder="Cidade"
                         />
-                      </td>
-                    </tr>
+                      </DataTableCell>
+                    </DataTableRow>
                   ))}
                   {!jogadoresEdit.length ? (
-                    <tr><td colSpan={5}>Nenhum jogador no escopo.</td></tr>
+                    <DataTableRow><DataTableCell colSpan={5}>Nenhum jogador no escopo.</DataTableCell></DataTableRow>
                   ) : null}
-                </tbody>
-              </table>
+                </DataTableBody>
+              </DataTable>
             </div>
             <div className="export-actions-row export-actions-wrap" style={{ marginTop: 8 }}>
               <button
@@ -776,28 +778,28 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
             <div className="export-toolbar" style={{ marginBottom: 8 }}>
               <label className="export-inline-field">
                 <span>No arquivo, campo da função usa</span>
-                <select
+                <UiSelect
                   value={nationSource}
                   onChange={(e) => setNationSource(e.target.value as FfNationSource)}
                 >
                   <option value="funcao">Função (SNIPER / RUSHER / …)</option>
                   <option value="localidade">Localidade (só cidade)</option>
-                </select>
+                </UiSelect>
               </label>
             </div>
 
             <div className="export-color-row">
               <label className="export-color-field">
                 <span>{nationSource === 'localidade' ? 'Cor cidade' : 'Cor função'}</span>
-                <input type="color" value={roleColor} onChange={(e) => setRoleColor(e.target.value)} />
+                <UiInput type="color" value={roleColor} onChange={(e) => setRoleColor(e.target.value)} />
               </label>
               <label className="export-color-field">
                 <span>Cor da line</span>
-                <input type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} />
+                <UiInput type="color" value={teamColor} onChange={(e) => setTeamColor(e.target.value)} />
               </label>
               <label className="export-color-field">
                 <span>Nome jogador</span>
-                <input
+                <UiInput
                   type="color"
                   value={textColors.TeamPlayer1}
                   onChange={(e) => {
@@ -814,7 +816,7 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
               </label>
               <label className="export-color-field">
                 <span>Número</span>
-                <input
+                <UiInput
                   type="color"
                   value={textColors.TeamPlayer1Num}
                   onChange={(e) => {
@@ -831,15 +833,15 @@ export function CampeonatoExportTab({ campeonatoId }: { campeonatoId: string }) 
               </label>
               <label className="export-color-field">
                 <span>Vivo</span>
-                <input type="color" value={textColors.Alive} onChange={(e) => setTc('Alive', e.target.value)} />
+                <UiInput type="color" value={textColors.Alive} onChange={(e) => setTc('Alive', e.target.value)} />
               </label>
               <label className="export-color-field">
                 <span>Knock</span>
-                <input type="color" value={textColors.Knockdown} onChange={(e) => setTc('Knockdown', e.target.value)} />
+                <UiInput type="color" value={textColors.Knockdown} onChange={(e) => setTc('Knockdown', e.target.value)} />
               </label>
               <label className="export-color-field">
                 <span>Eliminado</span>
-                <input type="color" value={textColors.Eliminated} onChange={(e) => setTc('Eliminated', e.target.value)} />
+                <UiInput type="color" value={textColors.Eliminated} onChange={(e) => setTc('Eliminated', e.target.value)} />
               </label>
             </div>
 

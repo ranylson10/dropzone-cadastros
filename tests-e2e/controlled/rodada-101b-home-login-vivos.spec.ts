@@ -34,7 +34,7 @@ test.describe('Rodada 101B — Home e Login vivos',()=>{
     expect(effect).not.toContain('lealt-motion-beam')
     expect(effect).not.toContain('lealt-motion-scan')
     expect(css).toContain('@keyframes dropTracerOne')
-    expect(home).toContain('Encontre seu próximo campeonato')
+    expect(home).toContain('store-home-hero')
     expect(home).not.toContain('drop-sequence-live-status')
   })
 

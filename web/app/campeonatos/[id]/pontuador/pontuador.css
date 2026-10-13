@@ -8,7 +8,7 @@
   display: inline-block;
   margin-left: 4px;
   padding: 1px 5px;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.06em;
   background: #dfbf4a;
@@ -19,7 +19,7 @@
 .scorer-sheet-workspace .scorer-set-current {
   min-height: 30px;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 12px;
   align-self: center;
 }
 
@@ -33,7 +33,7 @@
   border-radius: var(--ui-radius-sm, 6px);
   background: var(--ui-surface-raised, #1a1b1f);
   color: var(--ui-text-soft, #c7c2b8);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -98,7 +98,7 @@
   padding: 2px 6px;
   border-bottom: 1px solid var(--ui-line, #2a2c32);
   color: var(--ui-muted, #9c9a94);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .06em;
   cursor: pointer;
@@ -149,7 +149,7 @@
   height: 28px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: rgba(255, 255, 255, 0.9);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 0 4px;
 }
@@ -172,7 +172,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   padding: 2px 6px;
   background: rgba(255, 255, 255, 0.55);
@@ -263,7 +263,7 @@
 .scorer-sheet-workspace .vinculo-empty { color: var(--ui-muted, #9c9a94); }
 
 /* Rodada 30 — auditoria KillScore x soma dos KILL. */
-.match-kill-audit { display: block; margin-top: 3px; font-size: 10px; font-weight: 700; line-height: 1.35; }
+.match-kill-audit { display: block; margin-top: 3px; font-size: 12px; font-weight: 700; line-height: 1.35; }
 .match-kill-audit.is-ok { color: #8fc7a3; }
 .match-kill-audit.is-warning { color: #e6bd6f; }
 .match-player-review article > header { align-items: flex-start; }

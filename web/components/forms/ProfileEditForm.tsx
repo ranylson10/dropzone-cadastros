@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Field, UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
+import { UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
+import { Button, Field, FormActions, FormGrid, FormMessage, Input, Textarea } from '@/components/ui'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile } from '@/lib/upload-public'
 import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
@@ -114,30 +115,30 @@ export function ProfileEditForm(props: {
 
   return (
     <div className="inline-action-panel profile-edit-form">
-      {error ? <div className="message error">{error}</div> : null}
-      {ok ? <div className="message success">{ok}</div> : null}
-      <div className="mini-grid two">
+      {error ? <FormMessage tone="error">{error}</FormMessage> : null}
+      {ok ? <FormMessage tone="success">{ok}</FormMessage> : null}
+      <FormGrid columns={2}>
         <Field label="Nome">
-          <input value={nome} onChange={(e) => setNome(e.target.value)} maxLength={80} />
+          <Input value={nome} onChange={(e) => setNome(e.target.value)} maxLength={80} />
         </Field>
         {props.profileType === 'equipe' ? (
           <Field label="Tag">
-            <input value={tag} onChange={(e) => setTag(e.target.value)} maxLength={12} />
+            <Input value={tag} onChange={(e) => setTag(e.target.value)} maxLength={12} />
           </Field>
         ) : null}
         {props.profileType === 'jogador' ? (
           <Field label="ID do jogo">
-            <input value={idJogo} onChange={(e) => setIdJogo(e.target.value)} />
+            <Input value={idJogo} onChange={(e) => setIdJogo(e.target.value)} />
           </Field>
         ) : null}
         {props.profileType === 'jogador' ? (
           <Field label="Função">
-            <input value={funcao} onChange={(e) => setFuncao(e.target.value)} placeholder="IGL, entry..." />
+            <Input value={funcao} onChange={(e) => setFuncao(e.target.value)} placeholder="IGL, entry..." />
           </Field>
         ) : null}
         {props.profileType === 'manager' ? (
           <Field label="Nome público (vendas)">
-            <input value={nomePublico} onChange={(e) => setNomePublico(e.target.value)} />
+            <Input value={nomePublico} onChange={(e) => setNomePublico(e.target.value)} />
           </Field>
         ) : null}
         {props.profileType === 'manager' ? (
@@ -145,7 +146,7 @@ export function ProfileEditForm(props: {
             <WhatsappPhoneField value={whatsapp} onChange={setWhatsapp} />
           </Field>
         ) : null}
-      </div>
+      </FormGrid>
       <UploadField
         label={props.profileType === 'jogador' || props.profileType === 'manager' ? 'Foto / avatar' : 'Logo'}
         value={logo}
@@ -154,7 +155,7 @@ export function ProfileEditForm(props: {
         onUpload={async (file, b) => uploadPublicFile(file, b, props.profileType)}
       />
       <Field label="Bio curta (até 280 caracteres)">
-        <textarea
+        <Textarea
           rows={3}
           value={bio}
           maxLength={280}
@@ -162,11 +163,11 @@ export function ProfileEditForm(props: {
           placeholder="Uma frase sobre o perfil..."
         />
       </Field>
-      <div className="button-row" style={{ marginTop: 8 }}>
-        <button type="button" className="button" disabled={busy} onClick={() => void save()}>
+      <FormActions>
+        <Button type="button" disabled={busy} onClick={() => void save()}>
           {busy ? 'Salvando...' : 'Salvar perfil'}
-        </button>
-      </div>
+        </Button>
+      </FormActions>
     </div>
   )
 }

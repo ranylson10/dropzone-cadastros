@@ -1,38 +1,38 @@
 .champ-registration{display:grid;gap:14px;color:var(--ui-text,#f5f3ed)}
 .champ-registration-head{display:flex;align-items:end;justify-content:space-between;gap:12px}
 .champ-registration-head p,.champ-registration-head h2,.champ-registration-group h3{margin:0}
-.champ-registration-head p{margin-bottom:4px;color:var(--ui-primary,#c9b766);font-size:9px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+.champ-registration-head p{margin-bottom:4px;color:var(--ui-primary,#c9b766);font-size:12px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
 .champ-registration-head h2{font-size:22px;line-height:1}
 .champ-registration-refresh{width:36px;height:36px;display:grid;place-items:center;border:0;border-radius:8px;background:var(--ui-surface-elevated,#1a1b1f);color:var(--ui-text,#f5f3ed);cursor:pointer}
 .champ-registration-summary{display:flex;gap:22px;align-items:center;min-height:52px;padding-block:8px;border-bottom:1px solid rgba(245,243,237,.08)}
 .champ-registration-summary span{display:grid;gap:1px}
 .champ-registration-summary strong{font-size:18px;line-height:1}
-.champ-registration-summary small{color:#8d8f94;font-size:9px;font-weight:800;text-transform:uppercase}
+.champ-registration-summary small{color:#8d8f94;font-size:12px;font-weight:800;text-transform:uppercase}
 .champ-registration-filters{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none}
 .champ-registration-filters::-webkit-scrollbar{display:none}
-.champ-registration-filters button{flex:0 0 auto;min-height:34px;display:inline-flex;align-items:center;gap:6px;border:0;border-bottom:2px solid transparent;background:transparent;color:#8d8f94;padding:0;font:inherit;font-size:10px;font-weight:850;text-transform:uppercase;cursor:pointer}
+.champ-registration-filters button{flex:0 0 auto;min-height:34px;display:inline-flex;align-items:center;gap:6px;border:0;border-bottom:2px solid transparent;background:transparent;color:#8d8f94;padding:0;font:inherit;font-size:12px;font-weight:850;text-transform:uppercase;cursor:pointer}
 .champ-registration-filters button.active{border-bottom-color:var(--ui-primary,#c9b766);color:var(--ui-text,#f5f3ed)}
-.champ-registration-filters button span{color:var(--ui-primary,#c9b766);font-size:9px}
-.champ-registration-feedback{padding:8px 10px;border-radius:7px;background:rgba(201,183,102,.1);color:#dfcf85;font-size:11px;font-weight:750}
+.champ-registration-filters button span{color:var(--ui-primary,#c9b766);font-size:12px}
+.champ-registration-feedback{padding:8px 10px;border-radius:7px;background:rgba(201,183,102,.1);color:#dfcf85;font-size:12px;font-weight:750}
 .champ-registration-group-invites,.champ-registration-group{background:var(--ui-surface,#141518);border-radius:9px}
-.champ-registration-group-invites>summary{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;padding:0 12px;color:#b9bbc0;font-size:10px;font-weight:850;text-transform:uppercase;cursor:pointer}
+.champ-registration-group-invites>summary{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;padding:0 12px;color:#b9bbc0;font-size:12px;font-weight:850;text-transform:uppercase;cursor:pointer}
 .champ-registration-group-invites>summary::-webkit-details-marker{display:none}
 .champ-registration-group-invites>summary strong{color:var(--ui-primary,#c9b766)}
 .champ-registration-invite-list{display:grid;padding:0 12px 10px}
 .champ-registration-invite-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(245,243,237,.07)}
 .champ-registration-invite-list article>div:first-child{display:grid;gap:1px;min-width:0}
 .champ-registration-invite-list article>div:first-child>strong{font-size:12px}
-.champ-registration-invite-list span{color:#a6a8ad;font-size:10px}
-.champ-registration-invite-list small{color:#777a80;font-size:9px}
+.champ-registration-invite-list span{color:#a6a8ad;font-size:12px}
+.champ-registration-invite-list small{color:#777a80;font-size:12px}
 .champ-registration-invite-actions{display:flex;gap:4px}
 .champ-registration-invite-actions button{width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);color:#b9bbc0;cursor:pointer}
 .champ-registration-invite-actions button.danger{color:#e68181}
 .champ-registration-groups{display:grid;gap:14px}
 .champ-registration-group{overflow:hidden}
 .champ-registration-group>header{min-height:54px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;background:var(--ui-surface-elevated,#1a1b1f)}
-.champ-registration-group>header small{display:block;margin-bottom:2px;color:#777a80;font-size:8px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
+.champ-registration-group>header small{display:block;margin-bottom:2px;color:#777a80;font-size:12px;font-weight:850;letter-spacing:.09em;text-transform:uppercase}
 .champ-registration-group h3{overflow:hidden;color:var(--ui-text,#f5f3ed);font-size:15px;text-overflow:ellipsis;white-space:nowrap}
-.champ-registration-group>header>span{flex:0 0 auto;color:#8d8f94;font-size:9px;font-weight:750;text-transform:uppercase}
+.champ-registration-group>header>span{flex:0 0 auto;color:#8d8f94;font-size:12px;font-weight:750;text-transform:uppercase}
 .champ-registration-group>header>span strong{color:var(--ui-primary,#c9b766)}
 .champ-registration-slots{display:grid}
 .champ-registration-slot{border-bottom:1px solid rgba(245,243,237,.065)}
@@ -46,55 +46,55 @@
 .champ-registration-slot-copy{min-width:0;display:grid;gap:2px}
 .champ-registration-slot-copy strong,.champ-registration-slot-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .champ-registration-slot-copy strong{font-size:12px}
-.champ-registration-slot-copy small{color:#777a80;font-size:9px}
-.champ-registration-status{font-size:8px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
+.champ-registration-slot-copy small{color:#777a80;font-size:12px}
+.champ-registration-status{font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
 .champ-registration-status.is-ocupada{color:var(--ui-primary,#c9b766)}
 .champ-registration-status.is-reservada{color:#d1a865}
 .champ-registration-status.is-livre{color:#71747a}
 .champ-registration-chevron{display:grid;place-items:center;color:#62656b}
 .champ-registration-slot-details{display:grid;gap:9px;padding:2px 11px 11px 88px}
-.champ-registration-slot-details>p{margin:0;color:#96999f;font-size:10px;line-height:1.4}
+.champ-registration-slot-details>p{margin:0;color:#96999f;font-size:12px;line-height:1.4}
 .champ-registration-detail-data{display:flex;flex-wrap:wrap;gap:14px}
 .champ-registration-detail-data span{display:grid;gap:1px}
-.champ-registration-detail-data small{color:#666970;font-size:8px;font-weight:800;text-transform:uppercase}
-.champ-registration-detail-data strong{font-size:10px}
+.champ-registration-detail-data small{color:#666970;font-size:12px;font-weight:800;text-transform:uppercase}
+.champ-registration-detail-data strong{font-size:12px}
 .champ-registration-actions{display:flex;flex-wrap:wrap;gap:6px}
-.champ-registration-actions button{min-height:30px;display:inline-flex;align-items:center;gap:5px;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 9px;color:#c6c7cb;font:inherit;font-size:9px;font-weight:800;cursor:pointer}
+.champ-registration-actions button{min-height:30px;display:inline-flex;align-items:center;gap:5px;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 9px;color:#c6c7cb;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .champ-registration-actions button:first-child{color:var(--ui-primary-light,#dfcf85)}
 .champ-registration-actions button.danger{color:#e68181}
-.champ-registration-empty{padding:32px 12px;color:#777a80;text-align:center;font-size:11px}
+.champ-registration-empty{padding:32px 12px;color:#777a80;text-align:center;font-size:12px}
 @media(max-width:760px){
 .champ-registration{gap:11px}
 .champ-registration-head h2{font-size:19px}
 .champ-registration-summary{gap:0;justify-content:space-between;min-height:46px;padding-inline:2px}
 .champ-registration-summary strong{font-size:15px}
-.champ-registration-summary small{font-size:7px}
+.champ-registration-summary small{font-size:12px}
 .champ-registration-filters{gap:15px}
 .champ-registration-group>header{min-height:48px;padding:7px 9px}
 .champ-registration-group h3{font-size:13px}
 .champ-registration-slot-main{min-height:51px;grid-template-columns:29px 30px minmax(0,1fr) auto 17px;gap:7px;padding:6px 8px}
-.champ-registration-slot-number{font-size:11px}
+.champ-registration-slot-number{font-size:12px}
 .champ-registration-slot-avatar{width:29px;height:29px;border-radius:6px}
-.champ-registration-slot-copy strong{font-size:11px}
-.champ-registration-slot-copy small{font-size:8px}
-.champ-registration-status{font-size:7px}
+.champ-registration-slot-copy strong{font-size:12px}
+.champ-registration-slot-copy small{font-size:12px}
+.champ-registration-status{font-size:12px}
 .champ-registration-slot-details{padding:2px 8px 9px 74px}
 .champ-registration-detail-data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 10px}
 .champ-registration-actions{gap:5px}
-.champ-registration-actions button{min-height:29px;padding-inline:8px;font-size:8px}
+.champ-registration-actions button{min-height:29px;padding-inline:8px;font-size:12px}
 .champ-registration-invite-list article{grid-template-columns:minmax(0,1fr)}
 .champ-registration-invite-actions{justify-content:flex-start}
 }
 .champ-league-setup{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border-radius:9px;background:var(--ui-surface,#141518)}
 .champ-league-setup>div{display:grid;gap:3px;min-width:0}
-.champ-league-setup small{color:var(--ui-primary,#c9b766);font-size:8px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.champ-league-setup small{color:var(--ui-primary,#c9b766);font-size:12px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
 .champ-league-setup strong{font-size:13px}
-.champ-league-setup span{overflow:hidden;color:#85888e;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.champ-league-setup span{overflow:hidden;color:#85888e;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
 .champ-league-entry-progress{display:flex;gap:14px;overflow-x:auto;padding:7px 12px;border-bottom:1px solid rgba(245,243,237,.055);scrollbar-width:none}
 .champ-league-entry-progress::-webkit-scrollbar{display:none}
 .champ-league-entry-progress span{flex:0 0 auto;display:flex;align-items:center;gap:5px}
-.champ-league-entry-progress small{color:#777a80;font-size:8px;font-weight:750}
-.champ-league-entry-progress strong{color:var(--ui-primary,#c9b766);font-size:9px}
+.champ-league-entry-progress small{color:#777a80;font-size:12px;font-weight:750}
+.champ-league-entry-progress strong{color:var(--ui-primary,#c9b766);font-size:12px}
 .champ-league-origin-field{margin-bottom:4px}
 @media(max-width:760px){
 .champ-league-setup{align-items:stretch;display:grid;padding:10px}
@@ -105,45 +105,45 @@
 .champ-league-season-preview>summary{min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;list-style:none;cursor:pointer}
 .champ-league-season-preview>summary::-webkit-details-marker{display:none}
 .champ-league-season-preview>summary>span{display:grid;gap:2px;min-width:0}
-.champ-league-season-preview>summary small{color:var(--ui-primary,#c9b766);font-size:8px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.champ-league-season-preview>summary small{color:var(--ui-primary,#c9b766);font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
 .champ-league-season-preview>summary strong{font-size:12px}
-.champ-league-season-preview>summary em{color:#8d8f94;font-size:9px;font-style:normal;font-weight:800;white-space:nowrap}
+.champ-league-season-preview>summary em{color:#8d8f94;font-size:12px;font-style:normal;font-weight:800;white-space:nowrap}
 .champ-league-season-body{display:grid;gap:10px;padding:0 12px 12px}
-.champ-league-season-body>p,.champ-league-season-actions>span{margin:0;color:#8d8f94;font-size:9px;line-height:1.45}
-.champ-league-season-warning{padding:7px 9px;border-radius:7px;background:rgba(209,168,101,.09);color:#d7b679;font-size:9px;font-weight:750}
+.champ-league-season-body>p,.champ-league-season-actions>span{margin:0;color:#8d8f94;font-size:12px;line-height:1.45}
+.champ-league-season-warning{padding:7px 9px;border-radius:7px;background:rgba(209,168,101,.09);color:#d7b679;font-size:12px;font-weight:750}
 .champ-league-season-suggestions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .champ-league-season-suggestions article{min-width:0;padding:9px;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f)}
 .champ-league-season-suggestions article>header{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.champ-league-season-suggestions article>header span{font-size:10px;font-weight:850}
-.champ-league-season-suggestions article>header strong{color:var(--ui-primary,#c9b766);font-size:9px}
-.champ-league-season-suggestions article>small,.champ-league-season-suggestions article>em{display:block;margin-top:2px;color:#777a80;font-size:8px;font-style:normal}
+.champ-league-season-suggestions article>header span{font-size:12px;font-weight:850}
+.champ-league-season-suggestions article>header strong{color:var(--ui-primary,#c9b766);font-size:12px}
+.champ-league-season-suggestions article>small,.champ-league-season-suggestions article>em{display:block;margin-top:2px;color:#777a80;font-size:12px;font-style:normal}
 .champ-league-season-suggestions ul{display:grid;gap:4px;margin:8px 0 0;padding:0;list-style:none}
 .champ-league-season-suggestions li{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
-.champ-league-season-suggestions li>span{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
-.champ-league-season-suggestions li b{color:var(--ui-primary,#c9b766);font-size:8px}
-.champ-league-season-suggestions li small{flex:0 0 auto;color:#666970;font-size:8px}
+.champ-league-season-suggestions li>span{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.champ-league-season-suggestions li b{color:var(--ui-primary,#c9b766);font-size:12px}
+.champ-league-season-suggestions li small{flex:0 0 auto;color:#666970;font-size:12px}
 .champ-league-season-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:2px}
 .champ-league-season-actions .button{flex:0 0 auto}
 @media(max-width:760px){
 .champ-league-season-preview>summary{min-height:48px;padding:8px 9px}
-.champ-league-season-preview>summary strong{font-size:11px}
+.champ-league-season-preview>summary strong{font-size:12px}
 .champ-league-season-body{padding:0 9px 9px}
 .champ-league-season-suggestions{grid-template-columns:1fr}
 .champ-league-season-actions{align-items:stretch;display:grid}
 .champ-league-season-actions .button{width:100%}
 }
 .champ-registration-head-actions{display:flex;align-items:center;gap:7px}
-.champ-registration-bulk{min-height:32px;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 10px;color:var(--ui-primary-light,#dfcf85);font:inherit;font-size:9px;font-weight:850;cursor:pointer}
+.champ-registration-bulk{min-height:32px;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:7px;background:var(--ui-surface-elevated,#1a1b1f);padding:0 10px;color:var(--ui-primary-light,#dfcf85);font:inherit;font-size:12px;font-weight:850;cursor:pointer}
 .historical-team-bulk{display:grid;gap:14px}
 .historical-team-bulk label{display:grid;gap:7px}
-.historical-team-bulk label>span{font-size:11px;font-weight:850}
+.historical-team-bulk label>span{font-size:12px;font-weight:850}
 .historical-team-bulk textarea{width:100%;min-height:210px;resize:vertical}
-.historical-team-bulk label>small{color:var(--ui-text-muted,#8d9097);font-size:10px;line-height:1.5}
+.historical-team-bulk label>small{color:var(--ui-text-muted,#8d9097);font-size:12px;line-height:1.5}
 .historical-team-bulk-actions{display:flex;justify-content:flex-end}
 .historical-team-bulk-results{display:grid;gap:5px;max-height:310px;overflow:auto}
 .historical-team-bulk-results article{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0}
 .historical-team-bulk-results article>div{display:grid;gap:2px;min-width:0}
 .historical-team-bulk-results article strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .historical-team-bulk-results article small{color:var(--ui-text-muted,#8d9097)}
-.historical-team-bulk-results article button{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--ui-primary-light,#dfcf85);font:inherit;font-size:9px;font-weight:850;cursor:pointer;white-space:nowrap}
+.historical-team-bulk-results article button{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--ui-primary-light,#dfcf85);font:inherit;font-size:12px;font-weight:850;cursor:pointer;white-space:nowrap}
 @media(max-width:640px){.champ-registration-head{align-items:flex-start}.champ-registration-head-actions{align-items:flex-end;flex-direction:column}.champ-registration-bulk{min-height:30px;padding-inline:8px}.historical-team-bulk-results article{align-items:flex-start}}

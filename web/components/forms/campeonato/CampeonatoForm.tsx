@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput, Select as UiSelect, Textarea as UiTextarea } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, Dumbbell, Loader2, Medal, MessageCircle, Plus, QrCode, Swords, Trash2, Trophy, WalletCards } from 'lucide-react'
 import { CHAMPIONSHIP_TYPE_LABELS, type ChampionshipType } from '@/lib/dropzone-constants'
@@ -1314,7 +1315,7 @@ export function CampeonatoForm({
         </div>
         <div className="mini-grid two championship-guided-identity-grid">
           <Field label="Nome do campeonato">
-            <input
+            <UiInput
               required
               value={value.nome}
               onChange={(event) => updateCreationName(event.target.value)}
@@ -1429,7 +1430,7 @@ export function CampeonatoForm({
                     </small>
                   </div>
                   <Field label={originChoice === 'season' ? 'Pesquisar season' : 'Pesquisar modelo'}>
-                    <input
+                    <UiInput
                       autoFocus
                       value={sourceSearch}
                       onChange={(event) => setSourceSearch(event.target.value)}
@@ -1484,7 +1485,7 @@ export function CampeonatoForm({
 
       <section className="form-section-card" hidden={mode !== 'edit' || !pageVisible('identity')}>
         <div className="mini-grid two">
-          <Field label="Nome"><input required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
+          <Field label="Nome"><UiInput required value={value.nome} onChange={(e) => update('nome', e.target.value)} /></Field>
           <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
         </div>
         <div className="championship-banner-upload">
@@ -1515,14 +1516,14 @@ export function CampeonatoForm({
         <div className="mini-grid two">
           <Field label="Cor principal">
             <div className="color-field-row">
-              <input type="color" value={value.cor_principal || '#c9b766'} onChange={(e) => update('cor_principal', e.target.value)} />
-              <input value={value.cor_principal || ''} onChange={(e) => update('cor_principal', e.target.value)} placeholder="#c9b766" />
+              <UiInput type="color" value={value.cor_principal || '#c9b766'} onChange={(e) => update('cor_principal', e.target.value)} />
+              <UiInput value={value.cor_principal || ''} onChange={(e) => update('cor_principal', e.target.value)} placeholder="#c9b766" />
             </div>
           </Field>
           <Field label="Cor de apoio">
             <div className="color-field-row">
-              <input type="color" value={value.cor_secundaria || '#141518'} onChange={(e) => update('cor_secundaria', e.target.value)} />
-              <input value={value.cor_secundaria || ''} onChange={(e) => update('cor_secundaria', e.target.value)} placeholder="#141518" />
+              <UiInput type="color" value={value.cor_secundaria || '#141518'} onChange={(e) => update('cor_secundaria', e.target.value)} />
+              <UiInput value={value.cor_secundaria || ''} onChange={(e) => update('cor_secundaria', e.target.value)} placeholder="#141518" />
             </div>
           </Field>
         </div>
@@ -1555,16 +1556,16 @@ export function CampeonatoForm({
         </p>
         <div className="mini-grid two">
           <Field label="Nome histórico da competição">
-            <input value={value.nome_historico} onChange={(event) => update('nome_historico', event.target.value)} placeholder={value.nome || 'Ex.: Liga ALOE'} />
+            <UiInput value={value.nome_historico} onChange={(event) => update('nome_historico', event.target.value)} placeholder={value.nome || 'Ex.: Liga ALOE'} />
           </Field>
           <Field label="Título público desta edição">
-            <input value={value.titulo_publico} onChange={(event) => update('titulo_publico', event.target.value)} placeholder="Ex.: Liga ALOE — Ouro 2026" />
+            <UiInput value={value.titulo_publico} onChange={(event) => update('titulo_publico', event.target.value)} placeholder="Ex.: Liga ALOE — Ouro 2026" />
           </Field>
           <Field label="Season / temporada">
-            <input value={value.temporada} onChange={(event) => update('temporada', event.target.value)} placeholder="Ex.: Temporada 2026 ou Season 3" />
+            <UiInput value={value.temporada} onChange={(event) => update('temporada', event.target.value)} placeholder="Ex.: Temporada 2026 ou Season 3" />
           </Field>
           <Field label="Número da edição">
-            <input type="number" min="1" value={value.numero_edicao} onChange={(event) => update('numero_edicao', event.target.value)} />
+            <UiInput type="number" min="1" value={value.numero_edicao} onChange={(event) => update('numero_edicao', event.target.value)} />
           </Field>
         </div>
       </section>
@@ -1598,14 +1599,14 @@ export function CampeonatoForm({
         {value.sistema_pontuacao_tipo === 'personalizado' ? (
           <div className="championship-scoring-custom-head">
             <Field label="Nome do sistema">
-              <input
+              <UiInput
                 value={value.sistema_pontuacao_nome}
                 onChange={(event) => update('sistema_pontuacao_nome', event.target.value)}
                 placeholder="Ex.: Pontuação Liga Paraense"
               />
             </Field>
             <Field label="Equipes por partida">
-              <input
+              <UiInput
                 type="number"
                 min="2"
                 max="15"
@@ -1615,7 +1616,7 @@ export function CampeonatoForm({
               />
             </Field>
             <Field label="Pontos por abate">
-              <input
+              <UiInput
                 type="number"
                 min="0"
                 step="0.5"
@@ -1650,7 +1651,7 @@ export function CampeonatoForm({
               {value.sistema_pontuacao_tipo === 'garena' ? (
                 <strong>{points || '0'}</strong>
               ) : (
-                <input
+                <UiInput
                   type="number"
                   min="0"
                   step="1"
@@ -1683,7 +1684,7 @@ export function CampeonatoForm({
                 <div className="championship-daily-schedule-row" key={item.id}>
                   <span className="championship-daily-schedule-index">{String(index + 1).padStart(2, '0')}</span>
                   <Field label={`Horário ${index + 1}`}>
-                    <input type="time" value={item.horario} onChange={(event) => updateDailySchedule(item.id, event.target.value)} />
+                    <UiInput type="time" value={item.horario} onChange={(event) => updateDailySchedule(item.id, event.target.value)} />
                   </Field>
                   <div className="championship-daily-schedule-meta">
                     <strong>{value.diario_equipes_por_horario || '12'} equipes</strong>
@@ -1716,7 +1717,7 @@ export function CampeonatoForm({
 
             <div className="championship-guided-question-grid">
               <Field label="Equipes inscritas">
-                <input
+                <UiInput
                   type="number"
                   min="2"
                   max="500"
@@ -1726,7 +1727,7 @@ export function CampeonatoForm({
                 />
               </Field>
               <Field label="Equipes por grupo">
-                <input
+                <UiInput
                   type="number"
                   min="2"
                   max="52"
@@ -1736,7 +1737,7 @@ export function CampeonatoForm({
                 />
               </Field>
               <Field label="Avançam por grupo">
-                <input
+                <UiInput
                   type="number"
                   min="1"
                   max={Math.max(1, Number(value.estrutura_planejada[0]?.equipes_por_grupo || 12) - 1)}
@@ -1769,7 +1770,7 @@ export function CampeonatoForm({
 
             <div className="championship-guided-question">
               <Field label="Quedas por jogo nas fases">
-                <input
+                <UiInput
                   type="number"
                   min="1"
                   max="20"
@@ -1793,19 +1794,19 @@ export function CampeonatoForm({
 
             <div className="championship-xtreino-grid">
               <Field label="Equipes por sala">
-                <input type="number" min="2" max="15" value={value.numero_vagas || '12'} onChange={(event) => updateXtreinoTeams(event.target.value)} />
+                <UiInput type="number" min="2" max="15" value={value.numero_vagas || '12'} onChange={(event) => updateXtreinoTeams(event.target.value)} />
               </Field>
               <Field label="Quedas por jogo">
-                <input type="number" min="1" max="20" value={value.partidas_por_jogo || '4'} onChange={(event) => update('partidas_por_jogo', event.target.value)} />
+                <UiInput type="number" min="1" max="20" value={value.partidas_por_jogo || '4'} onChange={(event) => update('partidas_por_jogo', event.target.value)} />
               </Field>
               <Field label="Plataforma">
-                <select value={value.plataforma} onChange={(event) => update('plataforma', event.target.value)}>
+                <UiSelect value={value.plataforma} onChange={(event) => update('plataforma', event.target.value)}>
                   <option value="mobile">Mobile</option>
                   <option value="emulador">Emulador</option>
                   <option value="misto">Misto</option>
-                </select>
+                </UiSelect>
               </Field>
-              <Field label="Servidor"><input value={value.servidor} onChange={(event) => update('servidor', event.target.value)} placeholder="Ex.: Brasil" /></Field>
+              <Field label="Servidor"><UiInput value={value.servidor} onChange={(event) => update('servidor', event.target.value)} placeholder="Ex.: Brasil" /></Field>
             </div>
 
             <div className="championship-xtreino-analysis-options">
@@ -1869,17 +1870,17 @@ export function CampeonatoForm({
             {value.liga_usa_divisoes ? (
               <div className="mini-grid two">
                 <Field label="Nome do agrupamento">
-                  <select
+                  <UiSelect
                     value={(LEAGUE_GROUPING_OPTIONS as readonly string[]).includes(value.liga_nome_agrupamento) ? value.liga_nome_agrupamento : '__custom__'}
                     onChange={(event) => updateLeagueGrouping(event.target.value === '__custom__' ? 'Faixas' : event.target.value)}
                   >
                     {LEAGUE_GROUPING_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                     <option value="__custom__">Nome personalizado</option>
-                  </select>
+                  </UiSelect>
                 </Field>
                 {!(LEAGUE_GROUPING_OPTIONS as readonly string[]).includes(value.liga_nome_agrupamento) ? (
                   <Field label="Nome personalizado">
-                    <input
+                    <UiInput
                       value={value.liga_nome_agrupamento}
                       onChange={(event) => updateLeagueGrouping(event.target.value)}
                       placeholder="Ex.: Faixas (Bronze/Prata/Ouro)"
@@ -1907,14 +1908,14 @@ export function CampeonatoForm({
 
                   <div className="championship-league-series-fields">
                     <Field label={value.liga_usa_divisoes ? `Nome do item` : 'Nome da série'}>
-                      <input
+                      <UiInput
                         value={division.nome}
                         onChange={(event) => updateLeagueDivision(division.id, { nome: event.target.value })}
                         placeholder={value.liga_usa_divisoes ? `Ex.: ${leagueSeriesLabel(index)}` : 'Ex.: Liga Principal'}
                       />
                     </Field>
                     <Field label="Equipes">
-                      <input
+                      <UiInput
                         type="number"
                         min="2"
                         max="200"
@@ -1924,7 +1925,7 @@ export function CampeonatoForm({
                       />
                     </Field>
                     <Field label="Inscrição por equipe">
-                      <input
+                      <UiInput
                         inputMode="numeric"
                         value={moneyDisplay(division.valor_inscricao)}
                         onChange={(event) => updateLeagueDivision(division.id, { valor_inscricao: moneyValue(event.target.value) })}
@@ -1932,7 +1933,7 @@ export function CampeonatoForm({
                       />
                     </Field>
                     <Field label="Premiação">
-                      <input
+                      <UiInput
                         inputMode="numeric"
                         value={moneyDisplay(division.premiacao)}
                         onChange={(event) => updateLeagueDivision(division.id, { premiacao: moneyValue(event.target.value) })}
@@ -1950,19 +1951,19 @@ export function CampeonatoForm({
                       {(division.entradas || []).map((entry) => (
                         <div className="championship-league-entry-row" key={entry.id}>
                           <Field label="Forma de entrada">
-                            <select value={entry.tipo} onChange={(event) => updateLeagueEntry(division.id, entry.id, { tipo: event.target.value as typeof entry.tipo })}>
+                            <UiSelect value={entry.tipo} onChange={(event) => updateLeagueEntry(division.id, entry.id, { tipo: event.target.value as typeof entry.tipo })}>
                               {LEAGUE_ENTRY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                            </select>
+                            </UiSelect>
                           </Field>
                           <Field label="Equipes">
-                            <input type="number" min="1" max={division.equipes || '200'} value={entry.quantidade} onChange={(event) => updateLeagueEntry(division.id, entry.id, { quantidade: event.target.value })} />
+                            <UiInput type="number" min="1" max={division.equipes || '200'} value={entry.quantidade} onChange={(event) => updateLeagueEntry(division.id, entry.id, { quantidade: event.target.value })} />
                           </Field>
                           {(entry.tipo === 'promovida' || entry.tipo === 'rebaixada') ? (
                             <Field label="Agrupamento de origem">
-                              <select value={entry.origem_agrupamento_id} onChange={(event) => updateLeagueEntry(division.id, entry.id, { origem_agrupamento_id: event.target.value })}>
+                              <UiSelect value={entry.origem_agrupamento_id} onChange={(event) => updateLeagueEntry(division.id, entry.id, { origem_agrupamento_id: event.target.value })}>
                                 <option value="">Selecione</option>
                                 {value.liga_divisoes.filter((item) => item.id !== division.id).map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
-                              </select>
+                              </UiSelect>
                             </Field>
                           ) : <div />}
                           <button type="button" className="icon-action-button danger" onClick={() => removeLeagueEntry(division.id, entry.id)} aria-label={`Remover forma de entrada de ${division.nome}`}><Trash2 size={14} /></button>
@@ -2015,7 +2016,7 @@ export function CampeonatoForm({
             </p>
             <div className="mini-grid three">
               <Field label="Limite de vagas (meta)">
-                <input
+                <UiInput
                   type="number"
                   min="1"
                   value={value.numero_vagas}
@@ -2025,7 +2026,7 @@ export function CampeonatoForm({
               </Field>
 
               <Field label="Fases iniciais">
-                <input
+                <UiInput
                   type="number"
                   min="1"
                   max="12"
@@ -2037,25 +2038,25 @@ export function CampeonatoForm({
 
               {value.tipo === 'confronto' ? (
                 <Field label="Modo do confronto">
-                  <select value={value.formato} onChange={(e) => update('formato', e.target.value)}>
+                  <UiSelect value={value.formato} onChange={(e) => update('formato', e.target.value)}>
                     <option value="Confronto direto 4x4 - Tático">Tático</option>
                     <option value="Confronto direto 4x4 - UMP">UMP</option>
                     <option value="Confronto direto 4x4 - Personalizado">Personalizado</option>
-                  </select>
+                  </UiSelect>
                 </Field>
               ) : (
-                <Field label="Formato definido pelo tipo"><input value={value.tipo === 'copa' ? 'Mata-mata' : 'Jogo único'} readOnly /></Field>
+                <Field label="Formato definido pelo tipo"><UiInput value={value.tipo === 'copa' ? 'Mata-mata' : 'Jogo único'} readOnly /></Field>
               )}
 
               <Field label="Plataforma">
-                <select value={value.plataforma} onChange={(e) => update('plataforma', e.target.value)}>
+                <UiSelect value={value.plataforma} onChange={(e) => update('plataforma', e.target.value)}>
                   <option value="">Selecione</option>
                   <option value="mobile">Mobile</option>
                   <option value="emulador">Emulador</option>
                   <option value="misto">Misto</option>
-                </select>
+                </UiSelect>
               </Field>
-              <Field label="Servidor"><input value={value.servidor} onChange={(e) => update('servidor', e.target.value)} placeholder="Ex.: Brasil" /></Field>
+              <Field label="Servidor"><UiInput value={value.servidor} onChange={(e) => update('servidor', e.target.value)} placeholder="Ex.: Brasil" /></Field>
             </div>
             <div className="form-initial-phases">
               <div className="form-section-heading">
@@ -2072,17 +2073,17 @@ export function CampeonatoForm({
                   <span>Fase {index + 1}</span>
                   <div className="mini-grid four">
                     <Field label="Nome da fase">
-                      <input value={phase.nome} onChange={(event) => updateInitialPhaseName(index, event.target.value)} placeholder={phaseNameSuggestion(index, Number(value.numero_fases) || 1)} />
+                      <UiInput value={phase.nome} onChange={(event) => updateInitialPhaseName(index, event.target.value)} placeholder={phaseNameSuggestion(index, Number(value.numero_fases) || 1)} />
                     </Field>
                     <Field label="Grupos">
-                      <input type="number" min="1" max="26" value={phase.grupos} onChange={(event) => updateStructurePhase(index, { grupos: event.target.value })} />
+                      <UiInput type="number" min="1" max="26" value={phase.grupos} onChange={(event) => updateStructurePhase(index, { grupos: event.target.value })} />
                     </Field>
                     <Field label="Equipes por grupo">
-                      <input type="number" min="1" max="52" value={phase.equipes_por_grupo} onChange={(event) => updateStructurePhase(index, { equipes_por_grupo: event.target.value })} />
+                      <UiInput type="number" min="1" max="52" value={phase.equipes_por_grupo} onChange={(event) => updateStructurePhase(index, { equipes_por_grupo: event.target.value })} />
                     </Field>
                     {index < Math.max(1, Number(value.numero_fases) || 1) - 1 ? (
                       <Field label="Classificam por grupo">
-                        <input type="number" min="1" max="51" value={phase.classificam_por_grupo} onChange={(event) => updateStructurePhase(index, { classificam_por_grupo: event.target.value })} placeholder="Ex.: 6" />
+                        <UiInput type="number" min="1" max="51" value={phase.classificam_por_grupo} onChange={(event) => updateStructurePhase(index, { classificam_por_grupo: event.target.value })} placeholder="Ex.: 6" />
                       </Field>
                     ) : <div className="championship-structure-summary">{Number(phase.grupos || 0) * Number(phase.equipes_por_grupo || 0) || 0} vagas nesta fase</div>}
                   </div>
@@ -2105,7 +2106,7 @@ export function CampeonatoForm({
 
               <div className="championship-guided-question">
                 <Field label="Quedas no jogo">
-                  <input
+                  <UiInput
                     type="number"
                     min="1"
                     max="20"
@@ -2144,18 +2145,18 @@ export function CampeonatoForm({
 
               <div className="championship-guided-final-grid">
                 <Field label="Dias de Final">
-                  <input type="number" min="1" max="15" value={value.final_dias || '1'} onChange={(event) => updateCupFinal({ final_dias: event.target.value })} placeholder="Ex.: 2" />
+                  <UiInput type="number" min="1" max="15" value={value.final_dias || '1'} onChange={(event) => updateCupFinal({ final_dias: event.target.value })} placeholder="Ex.: 2" />
                 </Field>
                 <Field label="Formato da Final">
-                  <select value={value.final_formato || 'pontos_corridos'} onChange={(event) => updateCupFinal({ final_formato: event.target.value as CampeonatoFormValue['final_formato'] })}>
+                  <UiSelect value={value.final_formato || 'pontos_corridos'} onChange={(event) => updateCupFinal({ final_formato: event.target.value as CampeonatoFormValue['final_formato'] })}>
                     <option value="pontos_corridos">Pontos corridos</option>
                     <option value="champion_point">Champion Point</option>
                     <option value="point_rush">Point Rush</option>
                     <option value="point_rush_champion_point">Point Rush + Champion Point</option>
                     <option value="personalizado">Personalizado</option>
-                  </select>
+                  </UiSelect>
                 </Field>
-                <Field label="Equipes na Final"><input value={value.estrutura_planejada.at(-1)?.equipes_por_grupo || '12'} disabled /></Field>
+                <Field label="Equipes na Final"><UiInput value={value.estrutura_planejada.at(-1)?.equipes_por_grupo || '12'} disabled /></Field>
               </div>
 
               <div className="championship-final-days">
@@ -2163,7 +2164,7 @@ export function CampeonatoForm({
                   <div className="championship-final-day-row" key={day.dia}>
                     <span><small>Dia</small><strong>{day.dia}</strong></span>
                     <Field label="Quedas neste dia">
-                      <input type="number" min="1" max="30" value={day.quedas} onChange={(event) => updateFinalDayFalls(day.dia, event.target.value)} placeholder="Ex.: 6" />
+                      <UiInput type="number" min="1" max="30" value={day.quedas} onChange={(event) => updateFinalDayFalls(day.dia, event.target.value)} placeholder="Ex.: 6" />
                     </Field>
                     <em>{day.quedas || '0'} quedas</em>
                   </div>
@@ -2178,7 +2179,7 @@ export function CampeonatoForm({
                   </div>
                   <div className="championship-guided-field">
                     <Field label="Pontos para ativar">
-                      <input type="number" min="1" step="1" value={value.final_champion_point_pontos || '160'} onChange={(event) => updateCupFinal({ final_champion_point_pontos: event.target.value })} placeholder="Ex.: 160" />
+                      <UiInput type="number" min="1" step="1" value={value.final_champion_point_pontos || '160'} onChange={(event) => updateCupFinal({ final_champion_point_pontos: event.target.value })} placeholder="Ex.: 160" />
                     </Field>
                   </div>
                 </div>
@@ -2192,7 +2193,7 @@ export function CampeonatoForm({
                   </div>
                   <div className="championship-guided-field">
                     <Field label="Dias de Point Rush">
-                      <input type="number" min="1" max={Math.max(1, Number(value.final_dias || 1))} value={value.final_point_rush_dias || '1'} onChange={(event) => updateCupFinal({ final_point_rush_dias: event.target.value })} />
+                      <UiInput type="number" min="1" max={Math.max(1, Number(value.final_dias || 1))} value={value.final_point_rush_dias || '1'} onChange={(event) => updateCupFinal({ final_point_rush_dias: event.target.value })} />
                     </Field>
                   </div>
                   <div className="championship-final-bonus-editor">
@@ -2200,7 +2201,7 @@ export function CampeonatoForm({
                     {(value.final_bonus_ranking || []).map((item, index) => (
                       <div className="championship-final-bonus-row" key={`${item.posicao}-${index}`}>
                         <strong>TOP {item.posicao}</strong>
-                        <input type="number" min="0" step="1" value={item.pontos_bonus} onChange={(event) => updateFinalBonusPosition(index, event.target.value)} placeholder="Ex.: 12" />
+                        <UiInput type="number" min="0" step="1" value={item.pontos_bonus} onChange={(event) => updateFinalBonusPosition(index, event.target.value)} placeholder="Ex.: 12" />
                         <button type="button" className="icon-action-button danger" onClick={() => removeFinalBonusPosition(index)} aria-label={`Remover TOP ${item.posicao}`}><Trash2 size={15} /></button>
                       </div>
                     ))}
@@ -2210,7 +2211,7 @@ export function CampeonatoForm({
               ) : null}
 
               <Field label="Observações da Final (opcional)">
-                <textarea value={value.final_observacoes || ''} onChange={(event) => updateCupFinal({ final_observacoes: event.target.value })} placeholder="Ex.: Dia 1 com 6 quedas; Dia 2 com 10; regra especial de desempate..." />
+                <UiTextarea value={value.final_observacoes || ''} onChange={(event) => updateCupFinal({ final_observacoes: event.target.value })} placeholder="Ex.: Dia 1 com 6 quedas; Dia 2 com 10; regra especial de desempate..." />
               </Field>
 
               <div className="championship-guided-final-summary">
@@ -2238,7 +2239,7 @@ export function CampeonatoForm({
             </div>
             <div className="championship-guided-field">
               <Field label={value.tipo === 'copa' ? 'Vagas disponíveis' : 'Equipes por horário'}>
-                <input
+                <UiInput
                   type="number"
                   min="2"
                   max="500"
@@ -2278,7 +2279,7 @@ export function CampeonatoForm({
             {value.inscricao_paga ? (
               <div className="championship-guided-field">
                 <Field label="Valor da inscrição">
-                  <input
+                  <UiInput
                     inputMode="numeric"
                     value={moneyDisplay(value.valor_inscricao)}
                     onChange={(event) => update('valor_inscricao', moneyValue(event.target.value))}
@@ -2321,7 +2322,7 @@ export function CampeonatoForm({
             {showMoneyPrize ? (
               <div className="championship-guided-prize">
                 <Field label="Valor total da premiação">
-                  <input
+                  <UiInput
                     inputMode="numeric"
                     value={moneyDisplay(value.premiacao)}
                     onChange={(event) => update('premiacao', moneyValue(event.target.value))}
@@ -2342,7 +2343,7 @@ export function CampeonatoForm({
             {showGiftPrize ? (
               <div className="championship-guided-field">
                 <Field label="Qual é o brinde?">
-                  <textarea
+                  <UiTextarea
                     value={value.descricao_premiacao}
                     onChange={(event) => update('descricao_premiacao', event.target.value)}
                     placeholder="Ex.: troféu, camisa personalizada e kit gamer"
@@ -2372,17 +2373,17 @@ export function CampeonatoForm({
         <p className="eyebrow">Premiação e inscrição</p>
         <div className="mini-grid three">
           <Field label="Tipo de premiação">
-            <select value={value.tipo_premiacao} onChange={(e) => updatePrizeType(e.target.value)}>
+            <UiSelect value={value.tipo_premiacao} onChange={(e) => updatePrizeType(e.target.value)}>
               <option value="sem_premiacao">Sem premiação</option>
               <option value="pix">PIX</option>
               <option value="dinheiro">Dinheiro</option>
               <option value="brinde">Brinde</option>
-            </select>
+            </UiSelect>
           </Field>
 
           {showMoneyPrize ? (
             <Field label="Valor da premiação">
-              <input
+              <UiInput
                 inputMode="numeric"
                 value={moneyDisplay(value.premiacao)}
                 onChange={(e) => update('premiacao', moneyValue(e.target.value))}
@@ -2392,7 +2393,7 @@ export function CampeonatoForm({
           ) : null}
 
           <Field label="Valor da inscrição">
-            <input
+            <UiInput
               inputMode="numeric"
               value={moneyDisplay(value.valor_inscricao)}
               onChange={(e) => update('valor_inscricao', moneyValue(e.target.value))}
@@ -2402,7 +2403,7 @@ export function CampeonatoForm({
         </div>
 
         {showGiftPrize ? (
-          <Field label="Descrição do brinde"><textarea value={value.descricao_premiacao} onChange={(e) => update('descricao_premiacao', e.target.value)} placeholder="Ex.: troféu, camisa personalizada e kit gamer" /></Field>
+          <Field label="Descrição do brinde"><UiTextarea value={value.descricao_premiacao} onChange={(e) => update('descricao_premiacao', e.target.value)} placeholder="Ex.: troféu, camisa personalizada e kit gamer" /></Field>
         ) : null}
 
         {showMoneyPrize ? (
@@ -2415,25 +2416,25 @@ export function CampeonatoForm({
         ) : null}
 
         <div className="checkbox-row">
-          <label><input type="checkbox" checked={value.tem_trofeu} onChange={(e) => update('tem_trofeu', e.target.checked)} /> Tem troféu</label>
-          <label><input type="checkbox" checked={value.tem_live} onChange={(e) => update('tem_live', e.target.checked)} /> Tem transmissão ao vivo</label>
+          <label><UiInput type="checkbox" checked={value.tem_trofeu} onChange={(e) => update('tem_trofeu', e.target.checked)} /> Tem troféu</label>
+          <label><UiInput type="checkbox" checked={value.tem_live} onChange={(e) => update('tem_live', e.target.checked)} /> Tem transmissão ao vivo</label>
         </div>
       </section>
 
       <section className="form-section-card" hidden={!pageVisible('operation') || (mode === 'create' && (value.tipo === 'diario' || value.tipo === 'copa'))}>
         <p className="eyebrow">Controle de inscrições</p>
         <div className="mini-grid three">
-          <Field label="Vagas por equipe"><input type="number" min="1" value={value.vagas_por_equipe} onChange={(e) => update('vagas_por_equipe', e.target.value)} /></Field>
-          <Field label="Players por vaga"><input type="number" min="1" value={value.jogadores_por_vaga} onChange={(e) => update('jogadores_por_vaga', e.target.value)} /></Field>
-          <Field label="Data limite de inscrição"><input type="datetime-local" value={value.data_limite_inscricao} onChange={(e) => update('data_limite_inscricao', e.target.value)} /></Field>
+          <Field label="Vagas por equipe"><UiInput type="number" min="1" value={value.vagas_por_equipe} onChange={(e) => update('vagas_por_equipe', e.target.value)} /></Field>
+          <Field label="Players por vaga"><UiInput type="number" min="1" value={value.jogadores_por_vaga} onChange={(e) => update('jogadores_por_vaga', e.target.value)} /></Field>
+          <Field label="Data limite de inscrição"><UiInput type="datetime-local" value={value.data_limite_inscricao} onChange={(e) => update('data_limite_inscricao', e.target.value)} /></Field>
         </div>
         <div className="checkbox-row">
-          <label><input type="checkbox" checked={value.aceita_novas_inscricoes_equipes} onChange={(e) => update('aceita_novas_inscricoes_equipes', e.target.checked)} /> Aceitar novas inscrições de equipes</label>
-          <label><input type="checkbox" checked={value.permite_jogador_multiplas_equipes} onChange={(e) => update('permite_jogador_multiplas_equipes', e.target.checked)} /> Permitir jogador em mais de uma line</label>
-          <label><input type="checkbox" checked={value.permite_troca_jogadores} onChange={(e) => update('permite_troca_jogadores', e.target.checked)} /> Permitir troca de jogadores</label>
+          <label><UiInput type="checkbox" checked={value.aceita_novas_inscricoes_equipes} onChange={(e) => update('aceita_novas_inscricoes_equipes', e.target.checked)} /> Aceitar novas inscrições de equipes</label>
+          <label><UiInput type="checkbox" checked={value.permite_jogador_multiplas_equipes} onChange={(e) => update('permite_jogador_multiplas_equipes', e.target.checked)} /> Permitir jogador em mais de uma line</label>
+          <label><UiInput type="checkbox" checked={value.permite_troca_jogadores} onChange={(e) => update('permite_troca_jogadores', e.target.checked)} /> Permitir troca de jogadores</label>
         </div>
         {value.permite_troca_jogadores ? (
-          <Field label="Data limite para troca de jogadores"><input type="datetime-local" value={value.data_limite_trocas} onChange={(e) => update('data_limite_trocas', e.target.value)} /></Field>
+          <Field label="Data limite para troca de jogadores"><UiInput type="datetime-local" value={value.data_limite_trocas} onChange={(e) => update('data_limite_trocas', e.target.value)} /></Field>
         ) : null}
       </section>
 
@@ -2449,30 +2450,30 @@ export function CampeonatoForm({
         </p>
         <div className="championship-resource-grid">
           <label className="championship-resource-toggle">
-            <input type="checkbox" checked={value.pagamento_pix_ativo} onChange={(e) => update('pagamento_pix_ativo', e.target.checked)} />
+            <UiInput type="checkbox" checked={value.pagamento_pix_ativo} onChange={(e) => update('pagamento_pix_ativo', e.target.checked)} />
             <span><QrCode size={15} /> PIX</span>
           </label>
           <label className="championship-resource-toggle">
-            <input type="checkbox" checked={value.pagamento_cartao_ativo} onChange={(e) => update('pagamento_cartao_ativo', e.target.checked)} />
+            <UiInput type="checkbox" checked={value.pagamento_cartao_ativo} onChange={(e) => update('pagamento_cartao_ativo', e.target.checked)} />
             <span><CreditCard size={15} /> Cartão</span>
           </label>
           <label className="championship-resource-toggle">
-            <input type="checkbox" checked={value.pagamento_paypal_ativo} onChange={(e) => update('pagamento_paypal_ativo', e.target.checked)} />
+            <UiInput type="checkbox" checked={value.pagamento_paypal_ativo} onChange={(e) => update('pagamento_paypal_ativo', e.target.checked)} />
             <span><WalletCards size={15} /> PayPal</span>
           </label>
           <label className="championship-resource-toggle">
-            <input type="checkbox" checked={value.pagamento_whatsapp_ativo} onChange={(e) => update('pagamento_whatsapp_ativo', e.target.checked)} />
+            <UiInput type="checkbox" checked={value.pagamento_whatsapp_ativo} onChange={(e) => update('pagamento_whatsapp_ativo', e.target.checked)} />
             <span><MessageCircle size={15} /> WhatsApp</span>
           </label>
         </div>
 
         {value.pagamento_cartao_ativo ? (
           <Field label="Máximo de parcelas no cartão">
-            <select value={value.cartao_max_parcelas} onChange={(e) => update('cartao_max_parcelas', e.target.value)}>
+            <UiSelect value={value.cartao_max_parcelas} onChange={(e) => update('cartao_max_parcelas', e.target.value)}>
               {Array.from({ length: 12 }, (_, index) => index + 1).map((installment) => (
                 <option value={String(installment)} key={installment}>{installment === 1 ? 'À vista' : `Até ${installment}x`}</option>
               ))}
-            </select>
+            </UiSelect>
           </Field>
         ) : null}
 
@@ -2481,7 +2482,7 @@ export function CampeonatoForm({
             <div className="checkbox-row">
               {(['BRL', 'USD', 'EUR'] as const).map((currency) => (
                 <label key={currency}>
-                  <input
+                  <UiInput
                     type="checkbox"
                     checked={value.paypal_moedas.includes(currency)}
                     onChange={(event) => update(
@@ -2507,17 +2508,17 @@ export function CampeonatoForm({
           <div className="whatsapp-contact-list">
             {value.contatos_whatsapp.map((contact) => (
               <div className="whatsapp-contact-row" key={contact.id}>
-                <Field label="Nome do vendedor"><input value={contact.nome} onChange={(event) => updateWhatsappContact(contact.id, { nome: event.target.value })} placeholder="Ex.: Paulo" /></Field>
+                <Field label="Nome do vendedor"><UiInput value={contact.nome} onChange={(event) => updateWhatsappContact(contact.id, { nome: event.target.value })} placeholder="Ex.: Paulo" /></Field>
                 <Field label="País do contato">
-                  <select value={contact.ddi} onChange={(event) => {
+                  <UiSelect value={contact.ddi} onChange={(event) => {
                     const country = WHATSAPP_COUNTRIES.find((item) => item.ddi === event.target.value) || WHATSAPP_COUNTRIES[0]
                     updateWhatsappContact(contact.id, country)
                   }}>
                     {WHATSAPP_COUNTRIES.map((country) => <option value={country.ddi} key={country.ddi}>{country.bandeira} {country.pais} ({country.ddi})</option>)}
-                  </select>
+                  </UiSelect>
                 </Field>
                 <Field label="Contato">
-                  <div className="phone-input-group"><span>{contact.bandeira} {contact.ddi}</span><input inputMode="tel" value={contact.telefone} onChange={(event) => updateWhatsappContact(contact.id, { telefone: event.target.value.replace(/[^0-9 ()-]/g, '') })} placeholder="(91) 99999-9999" /></div>
+                  <div className="phone-input-group"><span>{contact.bandeira} {contact.ddi}</span><UiInput inputMode="tel" value={contact.telefone} onChange={(event) => updateWhatsappContact(contact.id, { telefone: event.target.value.replace(/[^0-9 ()-]/g, '') })} placeholder="(91) 99999-9999" /></div>
                 </Field>
                 <button className="inline-icon-button whatsapp-contact-remove" type="button" onClick={() => removeWhatsappContact(contact.id)} aria-label={`Remover contato de ${contact.nome || 'vendedor'}`}><Trash2 size={16} /></button>
               </div>
@@ -2639,7 +2640,7 @@ export function CampeonatoForm({
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="championship-resource-toggle">
-                <input
+                <UiInput
                   type="checkbox"
                   checked={Boolean(value[key])}
                   onChange={(e) => update(key, e.target.checked)}

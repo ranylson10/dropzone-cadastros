@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { useMemo, useState } from 'react'
 import { Search, BookOpen, Download, Loader2 } from 'lucide-react'
 import type { GeneratedDocument, RulebookHighlight } from '../types/rulebook.types'
@@ -115,7 +116,7 @@ export function RulebookViewer({ documento, compact }: Props) {
         <div className="rulebook-viewer-actions">
           <label className="rulebook-search">
             <Search size={16} />
-            <input
+            <UiInput
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar no regulamento…"

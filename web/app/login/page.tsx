@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Eye, EyeOff, Loader2, LogOut, Mail, ShieldCheck, UserRound } from 'lucide-react'
@@ -753,7 +754,7 @@ export default function LoginPage() {
                       <div className="login-account-name-fields">
                         <label className="login-email-field">
                           <span>Nome de exibição</span>
-                          <input
+                          <UiInput
                             type="text"
                             autoComplete="name"
                             maxLength={60}
@@ -767,7 +768,7 @@ export default function LoginPage() {
                           <span>Usuário único</span>
                           <span className="login-username-control">
                             <b>@</b>
-                            <input
+                            <UiInput
                               type="text"
                               autoComplete="username"
                               minLength={3}
@@ -786,7 +787,7 @@ export default function LoginPage() {
                     <div className="login-account-name-fields login-account-name-fields-simple">
                       <label className="login-email-field">
                         <span>Como devemos chamar você?</span>
-                        <input
+                        <UiInput
                           type="text"
                           autoComplete="name"
                           maxLength={60}
@@ -800,7 +801,7 @@ export default function LoginPage() {
                         <span>Seu @ no DropZone</span>
                         <span className="login-username-control">
                           <b>@</b>
-                          <input
+                          <UiInput
                             type="text"
                             autoComplete="username"
                             minLength={3}
@@ -822,7 +823,7 @@ export default function LoginPage() {
                     ) : (
                       <label className="login-email-field">
                         <span>E-mail</span>
-                        <input
+                        <UiInput
                           type="email"
                           autoComplete="email"
                           inputMode="email"
@@ -838,7 +839,7 @@ export default function LoginPage() {
                   {emailMode === 'confirmar-cadastro' || emailMode === 'confirmar-recuperacao' ? (
                     <label className="login-otp-field">
                       <span>Código de 6 dígitos</span>
-                      <input
+                      <UiInput
                         type="text"
                         inputMode="numeric"
                         autoComplete="one-time-code"
@@ -856,7 +857,7 @@ export default function LoginPage() {
                     <label className="login-email-field">
                       <span>{emailMode === 'nova-senha' ? 'Nova senha' : 'Senha'}</span>
                       <span className="login-password-control">
-                        <input
+                        <UiInput
                           type={showPassword ? 'text' : 'password'}
                           autoComplete={emailMode === 'entrar' ? 'current-password' : 'new-password'}
                           value={password}
@@ -882,7 +883,7 @@ export default function LoginPage() {
                       <label className="login-email-field">
                         <span>Confirmar {emailMode === 'nova-senha' ? 'nova senha' : 'senha'}</span>
                         <span className="login-password-control">
-                          <input
+                          <UiInput
                             type={showConfirmPassword ? 'text' : 'password'}
                             autoComplete="new-password"
                             value={confirmPassword}

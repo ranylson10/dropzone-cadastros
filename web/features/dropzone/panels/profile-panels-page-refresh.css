@@ -1,0 +1,211 @@
+/*
+ * DROPZONE — PAINÉIS DE PERFIL R169–R176
+ * Revisão explícita, área por área, dos painéis internos.
+ * Regra visual: conteúdo claro, navegação óbvia, amarelo = ação/estado,
+ * grafite somente em cabeçalhos e blocos que precisam de contraste.
+ */
+
+/* =========================================================
+   BASE COMPARTILHADA DOS PAINÉIS
+   ========================================================= */
+.page-authenticated:has(.panel-workspace-shell){
+  background:var(--dz-paper,#f1f3f5)!important;
+  color:var(--dz-text,#171a1f)!important;
+}
+.panel-workspace-shell{
+  width:min(1480px,calc(100% - 48px))!important;
+  max-width:none!important;
+  margin:0 auto!important;
+  padding:22px 0 64px!important;
+}
+.panel-workspace-return{margin:0 0 10px!important}
+.panel-workspace-return button{
+  min-height:36px!important;padding:0 12px!important;
+  border:1px solid #d1d6dc!important;border-radius:6px!important;
+  background:#fff!important;color:#505963!important;font-size:12px!important;font-weight:900!important;text-transform:uppercase!important;
+}
+.panel-workspace-return button:hover{border-color:#aeb5bd!important;color:#171a1f!important;background:#fafbfc!important}
+.panel-workspace-shell .account-workspace-hero{
+  position:relative!important;isolation:isolate!important;overflow:hidden!important;
+  grid-template-columns:minmax(0,1fr) auto auto!important;gap:18px!important;
+  min-height:90px!important;margin:0 0 14px!important;padding:15px 18px!important;
+  border:1px solid #333941!important;border-bottom:3px solid var(--dz-yellow,#f2c900)!important;border-radius:9px!important;
+  background:linear-gradient(105deg,#22262c 0%,#313740 100%)!important;color:#fff!important;
+  box-shadow:0 8px 22px rgba(24,28,33,.08)!important;
+}
+.panel-workspace-shell .account-workspace-hero::after{
+  display:block!important;position:absolute!important;inset:0 0 0 auto!important;z-index:-1!important;width:48%!important;content:""!important;
+  background:url("/ui/texture-speedlines.svg") right center/660px 210px no-repeat!important;opacity:.26!important;pointer-events:none!important;
+}
+.panel-workspace-shell .account-workspace-avatar{width:58px!important;height:58px!important;flex:0 0 58px!important;border:1px solid rgba(242,201,0,.62)!important;border-radius:8px!important;background:#171a1f!important;color:#fff!important;box-shadow:none!important}
+.panel-workspace-shell .account-workspace-hero .eyebrow{color:var(--dz-yellow,#f2c900)!important}
+.panel-workspace-shell .account-workspace-hero .account-strip-head strong{color:#fff!important;font-size:23px!important;letter-spacing:-.025em!important}
+.panel-workspace-shell .account-workspace-hero .account-strip-head strong span{color:#c7cdd4!important;font-size:12px!important;font-weight:700!important}
+.panel-workspace-shell .account-workspace-hero .account-strip-metrics{gap:0!important;padding:0!important;border:0!important}
+.panel-workspace-shell .account-workspace-hero .account-strip-metrics .metric{min-width:86px!important;min-height:42px!important;padding:0 14px!important;border-left:1px solid rgba(255,255,255,.14)!important}
+.panel-workspace-shell .account-workspace-hero .account-strip-metrics .metric svg,.panel-workspace-shell .account-workspace-hero .account-strip-metrics .metric b{color:var(--dz-yellow,#f2c900)!important}
+.panel-workspace-shell .account-workspace-hero .account-strip-metrics .metric span{color:#c1c7ce!important}
+.panel-workspace-shell .account-workspace-hero .account-strip-action{min-height:38px!important;padding:0 12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:6px!important;background:rgba(255,255,255,.07)!important;color:#fff!important}
+.panel-workspace-shell .account-workspace-hero .account-strip-action:hover{border-color:var(--dz-yellow,#f2c900)!important;color:var(--dz-yellow,#f2c900)!important}
+
+.panel-workspace-shell .dashboard,.panel-workspace-shell .producer-layout-ref{width:100%!important;max-width:none!important;gap:12px!important}
+.panel-workspace-shell .panel,.panel-workspace-shell .panel-soft,.panel-workspace-shell .producer-hub-section,.panel-workspace-shell .championship-nav-card,.panel-workspace-shell .championship-detail-card{
+  border:1px solid #d5dae0!important;border-radius:8px!important;background:#fff!important;color:#1d2126!important;box-shadow:none!important;
+}
+.panel-workspace-shell .panel h1,.panel-workspace-shell .panel h2,.panel-workspace-shell .panel h3,.panel-workspace-shell .panel strong,
+.panel-workspace-shell .producer-layout-ref h1,.panel-workspace-shell .producer-layout-ref h2,.panel-workspace-shell .producer-layout-ref h3,.panel-workspace-shell .producer-layout-ref strong{color:#1d2126!important}
+.panel-workspace-shell .panel p,.panel-workspace-shell .panel small,.panel-workspace-shell .muted-copy,.panel-workspace-shell .panel-guide-copy{color:#69727d!important}
+.panel-workspace-shell .eyebrow{color:#8a7300!important}
+.panel-workspace-shell input,.panel-workspace-shell select,.panel-workspace-shell textarea{
+  border:1px solid #cbd1d7!important;border-radius:6px!important;background:#fff!important;color:#1d2126!important;box-shadow:none!important;
+}
+.panel-workspace-shell input:focus,.panel-workspace-shell select:focus,.panel-workspace-shell textarea:focus{border-color:#ae9300!important;outline:3px solid rgba(242,201,0,.13)!important}
+.panel-workspace-shell .button:not(.secondary):not(.danger),.panel-workspace-shell button.primary{
+  border-color:#c9a800!important;border-radius:6px!important;background:var(--dz-yellow,#f2c900)!important;color:#17191c!important;box-shadow:none!important;
+}
+.panel-workspace-shell .button.secondary{border-color:#ccd2d8!important;border-radius:6px!important;background:#fff!important;color:#414a54!important}
+.panel-workspace-shell .button.danger{border-radius:6px!important}
+.panel-workspace-shell .empty,.panel-workspace-shell .empty-state-big,.panel-workspace-shell .compact-empty{border:1px dashed #cbd1d7!important;border-radius:7px!important;background:#f8f9fa!important;color:#6d7680!important}
+.panel-workspace-shell .count-pill{border:1px solid #d6dbe0!important;border-radius:999px!important;background:#f1f3f5!important;color:#4e5761!important}
+
+/* navegação interna consistente */
+
+
+
+.panel-workspace-shell .champ-context-nav{
+  display:flex!important;gap:6px!important;padding:0!important;border:0!important;background:transparent!important;overflow-x:auto!important;
+}
+.panel-workspace-shell .champ-context-nav button{
+  flex:0 0 auto!important;min-height:34px!important;padding:0 11px!important;border:1px solid #d2d7dd!important;border-radius:5px!important;background:#fff!important;color:#56606a!important;font-size:12px!important;font-weight:900!important;
+}
+.panel-workspace-shell .champ-context-nav button.active{border-color:#24282e!important;background:#24282e!important;color:#fff!important;box-shadow:inset 0 -2px 0 var(--dz-yellow,#f2c900)!important}
+
+/* =========================================================
+   R169 — PAINEL DA EQUIPE
+   Início · Elenco/Jogadores · Lines · Convites · Competições ·
+   Desempenho · Staff · Configurações
+   ========================================================= */
+.team-dashboard{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.team-dashboard>.panel.span-3:first-child{padding:16px!important}
+.team-dashboard .section-head{align-items:center!important;gap:14px!important;border-bottom:1px solid #e1e5e9!important;padding-bottom:12px!important}
+.team-dashboard .panel-tab-body{grid-column:1/-1!important;padding:16px!important;border:1px solid #d5dae0!important;border-radius:8px!important;background:#fff!important;color:#1d2126!important}
+.team-dashboard .team-start-actions,.team-dashboard .team-championship-quick-actions{display:flex!important;flex-wrap:wrap!important;gap:7px!important}
+.team-dashboard .team-summary-grid,.team-dashboard .team-ops-kpis,.team-dashboard .team-training-kpis{gap:8px!important}
+.team-dashboard .team-championship-card,.team-dashboard .team-player-card,.team-dashboard .team-line-card,.team-dashboard .lineup-token-card,.team-dashboard .token-card,
+.team-dashboard .team-training-row,.team-dashboard .team-training-details,.team-dashboard .team-training-advanced,.team-dashboard .staff-search-card{
+  border:1px solid #dde1e5!important;border-radius:7px!important;background:#fff!important;color:#1d2126!important;box-shadow:none!important;
+}
+.team-dashboard .team-championship-card:hover,.team-dashboard .team-player-card:hover,.team-dashboard .team-line-card:hover,.team-dashboard .token-card:hover{border-color:#b8c0c8!important;background:#fafbfc!important}
+.team-dashboard .team-player-card img,.team-dashboard .team-line-card img{border:1px solid #d7dce1!important;border-radius:7px!important;background:#eef0f2!important}
+.team-dashboard .team-championship-status,.team-dashboard .team-training-active-filter{border-radius:999px!important;background:#fff6c7!important;color:#665700!important}
+.team-dashboard .team-ops-filterbar,.team-dashboard .team-training-period-actions{border:1px solid #e0e4e8!important;border-radius:7px!important;background:#f7f8f9!important}
+.team-dashboard .team-ops-chart-grid,.team-dashboard .team-training-chart-grid,.team-dashboard .team-training-technical-grid,.team-dashboard .team-squad-synergy,.team-dashboard .team-tactical-contexts,
+.team-dashboard .performance-goals,.team-dashboard .performance-long-evolution,.team-dashboard .performance-objective-reading{border:1px solid #e0e4e8!important;border-radius:7px!important;background:#fafbfc!important;color:#1d2126!important}
+.team-dashboard .team-training-chart,.team-dashboard .team-training-telemetry,.team-dashboard .team-training-player-performance,.team-dashboard .team-training-technical-summary{border-color:#e0e4e8!important;background:#fff!important;color:#1d2126!important}
+.team-dashboard .team-training-chart-line,.team-dashboard .performance-goal-progress{background:#e3e7eb!important}
+.team-dashboard .performance-goal-progress>span{background:var(--dz-yellow,#f2c900)!important}
+.team-dashboard .staff-tab .subtab-actionbar{padding:0 0 10px!important;border-bottom:1px solid #e2e6ea!important}
+
+/* =========================================================
+   R170 — FLOWS DA EQUIPE
+   Convite / entrada / reivindicação / escalação são estilizados
+   em utility-page-refresh.css, mas o conteúdo de elenco fica aqui.
+   ========================================================= */
+.team-dashboard .lineup-slots,.team-dashboard .championship-vagas-list{border:1px solid #e0e4e8!important;border-radius:7px!important;background:#fff!important;overflow:hidden!important}
+.team-dashboard .lineup-slot,.team-dashboard .championship-vaga-row{border-color:#e3e6e9!important;background:#fff!important;color:#1d2126!important}
+.team-dashboard .lineup-slot:hover,.team-dashboard .championship-vaga-row:hover{background:#fffbea!important}
+.team-dashboard .lineup-invite-token{border:1px solid #d7dce1!important;border-radius:6px!important;background:#f4f6f7!important;color:#454e58!important}
+
+/* =========================================================
+   R172 — PAINEL DO JOGADOR
+   Início · Competições · Equipe · Desempenho · Perfil
+   ========================================================= */
+.player-dashboard{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.player-dashboard>.panel.span-3:first-child{padding:16px!important}
+.player-dashboard .player-summary-grid,.player-dashboard .player-performance-metrics,.player-dashboard .player-performance-recent-grid{gap:8px!important}
+.player-dashboard .player-next-step,.player-dashboard .player-competition-main,.player-dashboard .player-team-workspace,.player-dashboard .player-lineup-token,
+.player-dashboard .player-performance,.player-dashboard .player-performance-recent,.player-dashboard .player-performance-championships,.player-dashboard .performance-goals,
+.player-dashboard .performance-long-evolution,.player-dashboard .performance-objective-reading{
+  border:1px solid #dde1e5!important;border-radius:7px!important;background:#fff!important;color:#1d2126!important;box-shadow:none!important;
+}
+.player-dashboard .player-competition-list,.player-dashboard .player-performance-list,.player-dashboard .player-performance-championship-list{border:1px solid #e0e4e8!important;border-radius:7px!important;background:#fff!important;overflow:hidden!important}
+.player-dashboard .player-competition-journey,.player-dashboard .player-performance-list>*,.player-dashboard .player-performance-championship-list>*{border-color:#e2e6ea!important;background:#fff!important}
+.player-dashboard .player-competition-journey:hover{background:#fafbfc!important}
+.player-dashboard .team-line-card{border:1px solid #dfe3e7!important;border-radius:7px!important;background:#fff!important;color:#1d2126!important}
+.player-dashboard .player-lineup-token{padding:14px!important;background:#f8f9fa!important}
+.player-dashboard .player-lineup-token-form input{background:#fff!important}.player-dashboard .player-lineup-token-form button{border-radius:6px!important;background:#22262c!important;color:#fff!important}
+.player-dashboard .player-performance-filters{padding:8px!important;border:1px solid #dfe3e7!important;border-radius:7px!important;background:#f5f7f8!important}
+.player-dashboard .team-training-chart,.player-dashboard .player-performance-map-reading,.player-dashboard .player-performance-tech{border-color:#e0e4e8!important;background:#fafbfc!important;color:#1d2126!important}
+.player-dashboard .performance-goal-progress{background:#e3e7eb!important}.player-dashboard .performance-goal-progress>span{background:var(--dz-yellow,#f2c900)!important}
+
+/* =========================================================
+   R174 — PAINEL DA PRODUTORA
+   Visão geral · Campeonatos (todas as 11 subáreas) · Financeiro ·
+   Equipe interna · Cadastros provisórios · Configurações
+   ========================================================= */
+.producer-layout-ref{display:grid!important;grid-template-columns:minmax(280px,320px) minmax(0,1fr)!important;align-items:start!important;gap:12px!important}
+.producer-layout-ref>.producer-hub-nav,.producer-layout-ref>.producer-workspace-access-bar,.producer-layout-ref>.producer-workspace-dashboard,.producer-layout-ref>.producer-hub-section,.producer-layout-ref>.message{grid-column:1/-1!important}
+.producer-workspace-dashboard{display:grid!important;gap:10px!important}
+.producer-dashboard-hero{
+  position:relative!important;overflow:hidden!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:20px!important;align-items:center!important;
+  min-height:150px!important;padding:22px!important;border:1px solid #333941!important;border-bottom:3px solid var(--dz-yellow,#f2c900)!important;border-radius:8px!important;
+  background:linear-gradient(106deg,#24282e,#353b43)!important;color:#fff!important;
+}
+.producer-dashboard-hero::after{position:absolute;inset:0 0 0 auto;width:48%;content:"";background:url("/ui/texture-brush.svg") right center/auto 100% no-repeat;opacity:.27;pointer-events:none}
+.producer-dashboard-hero>*{position:relative;z-index:1}.producer-dashboard-hero h2,.producer-dashboard-hero strong{color:#fff!important}.producer-dashboard-hero p,.producer-dashboard-hero small{color:#ccd2d8!important}.producer-dashboard-hero .eyebrow{color:var(--dz-yellow,#f2c900)!important}
+.producer-dashboard-kpis{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}
+.producer-dashboard-kpis>*{padding:13px!important;border:1px solid #d8dde2!important;border-radius:7px!important;background:#fff!important}
+.producer-dashboard-flow-card{padding:16px!important}.producer-dashboard-flow{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}
+.producer-dashboard-flow button{min-height:104px!important;padding:14px!important;border:1px solid #d9dee3!important;border-radius:7px!important;background:#fafbfc!important;color:#1d2126!important;text-align:left!important}.producer-dashboard-flow button:hover{border-color:#b6bdc5!important;background:#fffbea!important}.producer-dashboard-flow button b{color:#8a7300!important}.producer-dashboard-flow button small{color:#69727d!important}
+.producer-command-card{grid-column:1!important;position:sticky!important;top:82px!important;max-height:calc(100dvh - 102px)!important;overflow:auto!important;padding:12px!important}
+.producer-layout-ref>.championship-detail-card{grid-column:2!important;min-width:0!important;margin:0!important;padding:0!important;overflow:hidden!important}
+.producer-command-card .section-head{padding:2px 2px 10px!important;border-bottom:1px solid #e0e4e8!important}
+.producer-filter-popover{display:flex!important;flex-wrap:wrap!important;gap:4px!important;margin:8px 0!important}.producer-filter-popover button{min-height:30px!important;padding:0 9px!important;border:1px solid #d5dae0!important;border-radius:5px!important;background:#fff!important;color:#626b75!important}.producer-filter-popover button.active{border-color:#24282e!important;background:#24282e!important;color:#fff!important}
+.producer-championship-list,.championship-list{display:grid!important;gap:4px!important}.producer-championship-list .champ-list-item,.championship-list .champ-list-item{min-height:58px!important;padding:7px!important;border:1px solid transparent!important;border-radius:6px!important;background:#f6f7f8!important;color:#1d2126!important}.producer-championship-list .champ-list-item:hover,.championship-list .champ-list-item:hover{border-color:#d4d9de!important;background:#fff!important}.producer-championship-list .champ-list-item.active,.championship-list .champ-list-item.active{border-color:#22262c!important;background:#22262c!important;color:#fff!important}.producer-championship-list .champ-list-item.active strong,.championship-list .champ-list-item.active strong{color:#fff!important}.producer-championship-list .champ-list-item.active small,.championship-list .champ-list-item.active small{color:#cbd1d7!important}
+.championship-detail-card .detail-hero-ref{position:relative!important;overflow:hidden!important;display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;gap:14px!important;align-items:center!important;padding:18px!important;border:0!important;border-bottom:1px solid #3c424a!important;border-radius:0!important;background:linear-gradient(105deg,#22262c,#343a42)!important;color:#fff!important}.championship-detail-card .detail-hero-ref::after{position:absolute;right:0;top:0;width:45%;height:100%;content:"";background:url("/ui/texture-speedlines.svg") right center/560px 170px no-repeat;opacity:.22}.championship-detail-card .detail-hero-ref>*{position:relative;z-index:1}.championship-detail-card .detail-title-ref h2,.championship-detail-card .detail-title-ref strong{color:#fff!important}.championship-detail-card .detail-title-ref small{color:#cbd1d7!important}.championship-detail-card .detail-logo-ref{border-radius:7px!important;background:#171a1f!important}.championship-detail-card .detail-stats-ref{gap:0!important}.championship-detail-card .detail-stat{border-left:1px solid rgba(255,255,255,.14)!important}.championship-detail-card .detail-stat strong{color:#fff!important}.championship-detail-card .detail-stat small{color:#bfc6ce!important}
+.champ-workspace-nav{display:flex!important;gap:3px!important;padding:4px!important;border-bottom:1px solid #d8dde2!important;background:#eef0f2!important;overflow-x:auto!important}.champ-workspace-nav button{flex:0 0 auto!important;min-height:40px!important;padding:0 12px!important;border:0!important;border-radius:5px!important;background:transparent!important;color:#5c6570!important;font-size:12px!important;font-weight:900!important}.champ-workspace-nav button.active{background:#22262c!important;color:#fff!important;box-shadow:inset 0 -3px 0 var(--dz-yellow,#f2c900)!important}
+.championship-detail-card .champ-context-nav{padding:8px 12px!important;border-bottom:1px solid #e0e4e8!important;background:#fafbfc!important}
+.champ-tab-body-ref{padding:14px!important;background:#fff!important;color:#1d2126!important}
+.champ-overview-panel,.champ-overview-card,.inline-action-panel,.folder-card,.form-section-card,.link-ref-list-panel,.line-picker-card,.game-form-section,.game-classification-section{border:1px solid #dfe3e7!important;border-radius:7px!important;background:#fff!important;color:#1d2126!important;box-shadow:none!important}
+.champ-overview-card.is-main{background:#fafbfc!important}.champ-operation-pipeline>*,.champ-overview-quick-actions button{border-color:#d8dde2!important;background:#fff!important;color:#1d2126!important}.champ-overview-quick-actions button:hover{background:#fffbea!important}
+.folder-card,.game-folder-card{overflow:hidden!important}.folder-row,.phase-folder-row,.game-folder-row{border-color:#e0e4e8!important;background:#f8f9fa!important;color:#1d2126!important}.folder-structure,.phase-groups-list,.game-folder-structure{background:#fff!important}
+.subtab-actionbar{padding:0 0 10px!important;margin:0 0 10px!important;border-bottom:1px solid #e2e6ea!important;background:transparent!important}
+.championship-vagas-list,.link-entry-table,.ref-list{border:1px solid #e0e4e8!important;border-radius:7px!important;background:#fff!important;overflow:hidden!important}.championship-vaga-row,.link-entry-row,.compact-row{border-color:#e2e6ea!important;background:#fff!important;color:#1d2126!important}.championship-vaga-row:hover,.link-entry-row:hover,.compact-row:hover{background:#fffbea!important}
+.link-status-filter{border:1px solid #d2d7dc!important;border-radius:5px!important;background:#fff!important;color:#5e6771!important}.link-status-filter.active{border-color:#22262c!important;background:#22262c!important;color:#fff!important}
+.producer-layout-ref .producer-settings-grid,.producer-layout-ref .seller-perm-grid{gap:8px!important}.producer-layout-ref .producer-marketplace-setting,.producer-layout-ref .seller-perm-item{border:1px solid #dfe3e7!important;border-radius:7px!important;background:#fafbfc!important;color:#1d2126!important}
+
+/* =========================================================
+   R176 — PAINEL DO AFILIADO / MANAGER
+   Campeonatos/Vendas · Equipes · Jogadores · Perfis vinculados
+   ========================================================= */
+.manager-dashboard{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.manager-hub-header{padding:12px!important;border:1px solid #d5dae0!important;border-radius:8px!important;background:#fff!important}
+.manager-guide-grid{gap:8px!important}.manager-guide-grid>*{border:1px solid #dfe3e7!important;border-radius:7px!important;background:#fff!important;color:#1d2126!important}
+.manager-dashboard .manager-champ-layout,.manager-dashboard .producer-layout-ref{display:grid!important;grid-template-columns:minmax(270px,320px) minmax(0,1fr)!important;gap:12px!important}
+.manager-dashboard .manager-champ-panel,.manager-dashboard .manager-detail-panel,.manager-dashboard .manager-detail-block,.manager-dashboard .manager-vendas-row,.manager-dashboard .manager-profile-card{
+  border:1px solid #dfe3e7!important;border-radius:7px!important;background:#fff!important;color:#1d2126!important;box-shadow:none!important;
+}
+.manager-dashboard .manager-vendas-row:hover,.manager-dashboard .manager-profile-card:hover{border-color:#b7bec6!important;background:#fafbfc!important}
+.manager-dashboard .manager-champ-tabs,.manager-dashboard .producer-tabs{display:flex!important;gap:4px!important;padding:4px!important;border:1px solid #d6dbe0!important;border-radius:7px!important;background:#eef0f2!important;overflow-x:auto!important}.manager-dashboard .manager-champ-tabs button,.manager-dashboard .producer-tabs button{flex:0 0 auto!important;min-height:36px!important;border:0!important;border-radius:5px!important;background:transparent!important;color:#59626c!important}.manager-dashboard .manager-champ-tabs button.active,.manager-dashboard .producer-tabs button.active{background:#22262c!important;color:#fff!important;box-shadow:inset 0 -3px 0 var(--dz-yellow,#f2c900)!important}
+.manager-dashboard .manager-perm-chip{border:1px solid #d8dde2!important;border-radius:999px!important;background:#f5f6f7!important;color:#59626c!important}.manager-dashboard .manager-detail-actions{display:flex!important;flex-wrap:wrap!important;gap:6px!important}
+.manager-dashboard .manager-profile-avatar{border:1px solid #d9dee3!important;border-radius:8px!important;background:#eef0f2!important}
+
+/* =========================================================
+   RESPONSIVO DOS PAINÉIS
+   ========================================================= */
+@media(max-width:1100px){
+  .panel-workspace-shell{width:calc(100% - 24px)!important}
+  .producer-layout-ref,.manager-dashboard .manager-champ-layout,.manager-dashboard .producer-layout-ref{grid-template-columns:1fr!important}
+  .producer-command-card{grid-column:1!important;position:static!important;max-height:none!important}.producer-layout-ref>.championship-detail-card{grid-column:1!important}
+  .producer-dashboard-kpis,.producer-dashboard-flow{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:760px){
+  .panel-workspace-shell{width:calc(100% - 16px)!important;padding-top:10px!important}
+  .panel-workspace-shell .account-workspace-hero{grid-template-columns:minmax(0,1fr) auto!important;gap:10px!important;padding:12px!important}
+  .panel-workspace-shell .account-workspace-avatar{width:50px!important;height:50px!important;flex-basis:50px!important}.panel-workspace-shell .account-workspace-hero .account-strip-head strong{font-size:19px!important}
+  .panel-workspace-shell .account-workspace-hero .account-strip-metrics{grid-column:1/-1!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important;padding-top:9px!important;border-top:1px solid rgba(255,255,255,.13)!important}.panel-workspace-shell .account-workspace-hero .account-strip-metrics .metric{min-width:0!important;padding:0 6px!important;justify-content:center!important}
+  .team-dashboard,.player-dashboard,.manager-dashboard{grid-template-columns:1fr!important}.team-dashboard>.panel,.player-dashboard>.panel,.manager-dashboard>.panel{grid-column:1!important}
+  .producer-dashboard-hero{grid-template-columns:1fr!important;padding:18px!important}.producer-dashboard-kpis,.producer-dashboard-flow{grid-template-columns:1fr!important}
+  .championship-detail-card .detail-hero-ref{grid-template-columns:54px minmax(0,1fr)!important}.championship-detail-card .detail-stats-ref{grid-column:1/-1!important;overflow-x:auto!important}.championship-detail-card .detail-stat{min-width:100px!important}
+  .champ-tab-body-ref,.team-dashboard .panel-tab-body{padding:10px!important}
+}

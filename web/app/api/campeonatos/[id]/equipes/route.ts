@@ -1,4 +1,14 @@
+import { loadLeagueSeasonSuggestions } from '@backend/campeonatos/league-season-read'
+import { leagueSeasonWriteMode, tryAtomicLeagueSeason } from '@backend/campeonatos/league-season-transport'
 import { NextRequest, NextResponse } from 'next/server'
+import { loadLigaConfig } from '@backend/campeonatos/liga-config'
+import { ligaOriginChoices } from '@backend/campeonatos/liga-plan'
+import { tryAtomicSlotTransfer, slotTransferErrorResponse, slotMovementMode } from '@backend/campeonatos/slot-transfer'
+import { tryAtomicSlotBatch } from '@backend/campeonatos/slot-batch'
+import { tryAtomicParticipation, participationWriteMode } from '@backend/campeonatos/participation-transport'
+import { requireAtomicOperation, assertAtomicOperationBody } from '@backend/campeonatos/atomic-operation-route'
+import { loadParticipationSnapshots, loadSlotSnapshotSources, participationSnapshot, slotMovementSnapshot } from '@backend/campeonatos/participation-snapshot'
+import { assertEnrollmentOpen, assertTeamEnrollmentVisible } from '@backend/campeonatos/invites/enrollment-policy'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import {
   getCampeonatoPermission,
@@ -18,6 +28,7 @@ import { listarEstatisticasEquipes } from '@backend/campeonatos/estatisticas/est
 
 
 function apiErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === 'object' && 'code' in error) return fallback
   if (error instanceof Error && error.message.trim()) return error.message
   if (error && typeof error === 'object') {
     const dbError = error as { message?: unknown; code?: unknown }
@@ -68,47 +79,10 @@ function mapConviteResumo(
   }
 }
 
-/** Marca convites de slot expirados e libera status do slot (não bloqueia listagem). */
-async function liberarExpirados(campeonatoId: string) {
-  try {
-    const agora = new Date().toISOString()
-    // Busca ativos e filtra no JS — evita filtro PostgREST com ISO (dois-pontos quebram .or())
-    const { data: ativos } = await supabaseAdmin
-      .from('tokens')
-      .select('id,slot_id,expira_em')
-      .eq('campeonato_id', campeonatoId)
-      .in('tipo', ['convite_equipe_campeonato', 'team_invite'])
-      .eq('status', 'ativo')
-      .eq('usado', false)
-
-    const nowMs = Date.now()
-    const expirados = (ativos || []).filter(
-      (item) => item.expira_em && new Date(item.expira_em).getTime() <= nowMs,
-    )
-    if (!expirados.length) return
-
-    const ids = expirados.map((item) => item.id)
-    await supabaseAdmin.from('tokens').update({ status: 'expirado' }).in('id', ids)
-
-    const slotIds = [...new Set(expirados.map((t) => t.slot_id).filter(Boolean))]
-    if (slotIds.length) {
-      await supabaseAdmin
-        .from('campeonato_slots')
-        .update({ status: 'livre', updated_at: agora })
-        .in('id', slotIds)
-        .eq('status', 'reservado')
-        .is('line_id', null)
-    }
-  } catch {
-    // listagem não depende disso
-  }
-}
-
-
 async function loadSolicitacoes(campeonatoId: string) {
   const { data: rows, error } = await supabaseAdmin
     .from('campeonato_equipes')
-    .select('id,campeonato_id,equipe_id,line_id,status,nome_exibicao,origem_entrada,solicitado_em,revisado_em,revisado_por,motivo_rejeicao,created_at,updated_at')
+    .select('id,campeonato_id,equipe_id,line_id,slot_id,status,nome_exibicao,origem_entrada,solicitado_em,revisado_em,revisado_por,motivo_rejeicao,created_at,updated_at')
     .eq('campeonato_id', campeonatoId)
     .in('status', ['pendente', 'rejeitado'])
     .order('solicitado_em', { ascending: false, nullsFirst: false })
@@ -136,203 +110,11 @@ async function loadSolicitacoes(campeonatoId: string) {
 
 const LIGA_ENTRY_TYPES = new Set(['mantida', 'promovida', 'rebaixada', 'classificatoria_aberta', 'vaga_paga', 'convite_direto'])
 
-async function loadLigaConfig(campeonatoId: string, canManage: boolean) {
-  if (!canManage) return null
-
-  // Primeiro identifica o tipo do campeonato. Campeonatos comuns não devem depender
-  // de colunas exclusivas de Liga na tabela de configurações.
-  const { data: campeonato, error: campeonatoError } = await supabaseAdmin
-    .from('campeonatos')
-    .select('tipo')
-    .eq('id', campeonatoId)
-    .maybeSingle()
-
-  if (campeonatoError) throw campeonatoError
-  if (!campeonato || String((campeonato as any).tipo || '') !== 'liga') return null
-
-  const { data: config, error: configError } = await supabaseAdmin
-    .from('campeonato_configuracoes')
-    .select('liga_nome_agrupamento,liga_divisoes')
-    .eq('campeonato_id', campeonatoId)
-    .maybeSingle()
-
-  if (configError) throw configError
-  if (!config) return null
-
-  return {
-    nome_agrupamento: String((config as any).liga_nome_agrupamento || 'Agrupamentos'),
-    divisoes: Array.isArray((config as any).liga_divisoes) ? (config as any).liga_divisoes : [],
-  }
-}
-
-type LigaSeasonSuggestionCandidate = {
-  equipe_id: string
-  line_id: string
-  nome: string
-  tag: string | null
-  logo_url: string | null
-  colocacao: number
-  grupo_origem_nome: string
-}
-
-type LigaSeasonSuggestion = {
-  divisao_id: string
-  divisao_nome: string
-  tipo: 'mantida' | 'promovida' | 'rebaixada'
-  origem_divisao_id: string
-  origem_divisao_nome: string
-  quantidade_planejada: number
-  candidatos: LigaSeasonSuggestionCandidate[]
-}
-
-async function loadLigaSeasonSuggestions(campeonatoId: string, ligaConfig: any, canManage: boolean) {
-  if (!canManage || !ligaConfig?.divisoes?.length) return null
-
-  const { data: currentEdition, error: currentEditionError } = await supabaseAdmin
-    .from('campeonato_edicoes')
-    .select('id,franquia_id,numero_edicao,temporada')
-    .eq('campeonato_id', campeonatoId)
-    .maybeSingle()
-  if (currentEditionError) throw currentEditionError
-  if (!currentEdition?.franquia_id || Number(currentEdition.numero_edicao || 0) <= 1) return null
-
-  const { data: previousEdition, error: previousEditionError } = await supabaseAdmin
-    .from('campeonato_edicoes')
-    .select('id,campeonato_id,numero_edicao,temporada,titulo_publico')
-    .eq('franquia_id', currentEdition.franquia_id)
-    .lt('numero_edicao', Number(currentEdition.numero_edicao))
-    .order('numero_edicao', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (previousEditionError) throw previousEditionError
-  if (!previousEdition?.campeonato_id) return null
-
-  const previousChampionshipId = String(previousEdition.campeonato_id)
-  const [{ data: previousConfig, error: previousConfigError }, { data: previousGroups, error: previousGroupsError }] = await Promise.all([
-    supabaseAdmin.from('campeonato_configuracoes').select('liga_divisoes').eq('campeonato_id', previousChampionshipId).maybeSingle(),
-    supabaseAdmin.from('campeonato_grupos').select('id,nome').eq('campeonato_id', previousChampionshipId),
-  ])
-  if (previousConfigError) throw previousConfigError
-  if (previousGroupsError) throw previousGroupsError
-
-  const previousDivisions = Array.isArray((previousConfig as any)?.liga_divisoes) ? (previousConfig as any).liga_divisoes : []
-  const groupByDivisionId = new Map<string, any>()
-  for (const division of previousDivisions) {
-    const divisionName = String(division?.nome || '').trim().toLocaleLowerCase('pt-BR')
-    const group = (previousGroups || []).find((row: any) => String(row?.nome || '').trim().toLocaleLowerCase('pt-BR') === divisionName)
-    if (group) groupByDivisionId.set(String(division?.id || ''), group)
-  }
-
-  const sourceIds = new Set<string>()
-  for (const division of ligaConfig.divisoes || []) {
-    sourceIds.add(String(division?.id || ''))
-    for (const entry of Array.isArray(division?.entradas) ? division.entradas : []) {
-      if (['promovida', 'rebaixada'].includes(String(entry?.tipo || '')) && entry?.origem_agrupamento_id) {
-        sourceIds.add(String(entry.origem_agrupamento_id))
-      }
-    }
-  }
-
-  const rankingByDivisionId = new Map<string, any[]>()
-  for (const sourceId of sourceIds) {
-    const group = groupByDivisionId.get(sourceId)
-    if (!group?.id) continue
-    const ranking = await listarEstatisticasEquipes(previousChampionshipId, { grupoId: String(group.id) })
-    rankingByDivisionId.set(sourceId, ranking)
-  }
-
-  const promotedOut = new Map<string, number>()
-  const relegatedOut = new Map<string, number>()
-  for (const destination of ligaConfig.divisoes || []) {
-    for (const entry of Array.isArray(destination?.entradas) ? destination.entradas : []) {
-      const sourceId = String(entry?.origem_agrupamento_id || '')
-      const qty = Math.max(0, Number(entry?.quantidade || 0))
-      if (!sourceId || !qty) continue
-      if (String(entry?.tipo || '') === 'promovida') promotedOut.set(sourceId, (promotedOut.get(sourceId) || 0) + qty)
-      if (String(entry?.tipo || '') === 'rebaixada') relegatedOut.set(sourceId, (relegatedOut.get(sourceId) || 0) + qty)
-    }
-  }
-
-  const promotedOffsets = new Map<string, number>()
-  const relegatedOffsets = new Map<string, number>()
-  const suggestions: LigaSeasonSuggestion[] = []
-
-  const candidate = (row: any, groupName: string): LigaSeasonSuggestionCandidate | null => {
-    const equipeId = String(row?.equipe_id || '')
-    const lineId = String(row?.line_id || '')
-    if (!equipeId || !lineId) return null
-    return {
-      equipe_id: equipeId,
-      line_id: lineId,
-      nome: String(row?.nome || 'Equipe'),
-      tag: row?.tag ? String(row.tag) : null,
-      logo_url: row?.logo_url ? String(row.logo_url) : null,
-      colocacao: Number(row?.colocacao || 0),
-      grupo_origem_nome: groupName,
-    }
-  }
-
-  for (const destination of ligaConfig.divisoes || []) {
-    const entries = Array.isArray(destination?.entradas) ? destination.entradas : []
-    for (const entry of entries) {
-      const tipo = String(entry?.tipo || '')
-      if (!['mantida', 'promovida', 'rebaixada'].includes(tipo)) continue
-      const quantity = Math.max(0, Number(entry?.quantidade || 0))
-      if (!quantity) continue
-
-      const sourceId = tipo === 'mantida'
-        ? String(destination?.id || '')
-        : String(entry?.origem_agrupamento_id || '')
-      const sourceDivision = previousDivisions.find((item: any) => String(item?.id || '') === sourceId)
-        || (ligaConfig.divisoes || []).find((item: any) => String(item?.id || '') === sourceId)
-      const sourceName = String(sourceDivision?.nome || 'Agrupamento de origem')
-      const ranking = rankingByDivisionId.get(sourceId) || []
-      let selected: any[] = []
-
-      if (tipo === 'promovida') {
-        const offset = promotedOffsets.get(sourceId) || 0
-        const ceiling = Math.max(0, ranking.length - (relegatedOut.get(sourceId) || 0))
-        selected = ranking.slice(offset, Math.min(offset + quantity, ceiling))
-        promotedOffsets.set(sourceId, offset + quantity)
-      } else if (tipo === 'rebaixada') {
-        const offset = relegatedOffsets.get(sourceId) || 0
-        const floor = promotedOut.get(sourceId) || 0
-        const end = Math.max(floor, ranking.length - offset)
-        const start = Math.max(floor, end - quantity)
-        selected = ranking.slice(start, end)
-        relegatedOffsets.set(sourceId, offset + quantity)
-      } else {
-        const start = promotedOut.get(sourceId) || 0
-        const end = Math.max(start, ranking.length - (relegatedOut.get(sourceId) || 0))
-        selected = ranking.slice(start, end).slice(0, quantity)
-      }
-
-      suggestions.push({
-        divisao_id: String(destination?.id || ''),
-        divisao_nome: String(destination?.nome || ''),
-        tipo: tipo as LigaSeasonSuggestion['tipo'],
-        origem_divisao_id: sourceId,
-        origem_divisao_nome: sourceName,
-        quantidade_planejada: quantity,
-        candidatos: selected.map((row) => candidate(row, sourceName)).filter(Boolean) as LigaSeasonSuggestionCandidate[],
-      })
-    }
-  }
-
-  return {
-    previous_championship_id: previousChampionshipId,
-    previous_edition_number: Number(previousEdition.numero_edicao || 0),
-    previous_season: previousEdition.temporada ? String(previousEdition.temporada) : null,
-    previous_title: previousEdition.titulo_publico ? String(previousEdition.titulo_publico) : null,
-    current_edition_number: Number(currentEdition.numero_edicao || 0),
-    current_season: currentEdition.temporada ? String(currentEdition.temporada) : null,
-    suggestions,
-  }
-}
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
+    let participationActor: string | null = null
     let permission: CampeonatoPermission = {
       canView: true,
       canManage: false,
@@ -348,15 +130,26 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     try {
       const user = await getBearerUser(req)
       permission = await getCampeonatoPermission(user.id, id)
+      participationActor = user.id
     } catch {
     }
 
     const includeInviteToken = Boolean(permission.canGenerateToken)
+    const publicRead = permission.role === 'none' || !permission.canView
+    let championshipQuery = supabaseAdmin.from('campeonatos')
+      .select('id,nome,logo_url,aprovacao_status,status').eq('id', id).is('deleted_at', null)
+    if (publicRead) championshipQuery = championshipQuery.eq('aprovacao_status', 'aprovado')
+    const { data: campeonato, error: campError } = await championshipQuery.single()
+    if (campError) throw campError
+    if (publicRead && (!campeonato || campeonato.aprovacao_status !== 'aprovado'
+      || ['suspenso', 'banido', 'excluido', 'excluído'].includes(String(campeonato.status || 'ativo').trim().toLowerCase()))) {
+      throw new Error('Campeonato indisponível para acompanhamento.')
+    }
 
-    // liberarExpirados em paralelo com a leitura (não serializa a tela)
-    const [, { data: campeonato, error: campError }, viewResult, convitesRes, capacidade, solicitacoes, liga] = await Promise.all([
-      liberarExpirados(id),
-      supabaseAdmin.from('campeonatos').select('id, nome, logo_url').eq('id', id).is('deleted_at', null).single(),
+    // Reads never expire tokens or release reservations. Cleanup requires a guarded writer.
+    const writeMode = participationWriteMode()
+    const movementMode = slotMovementMode()
+    const [viewResult, convitesRes, capacidade, rawRequests, liga, snapshots, movementSlots] = await Promise.all([
       listSlotsLinesView(id),
       supabaseAdmin
         .from('tokens')
@@ -369,10 +162,18 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       getCampeonatoCapacidade(id).catch(() => null),
       permission.canManage ? loadSolicitacoes(id) : Promise.resolve([]),
       loadLigaConfig(id, permission.canManage),
+      (writeMode === 'atomic' && (permission.canManage || permission.canRemove)) || (movementMode === 'atomic' && permission.canManage)
+        ? loadParticipationSnapshots(id) : Promise.resolve([]),
+      movementMode === 'atomic' && permission.canManage ? loadSlotSnapshotSources(id) : Promise.resolve([]),
     ])
-    if (campError) throw campError
+    const snapshotById = new Map(snapshots.map((row: any) => [row.id, row]))
+    const movementSlotById = new Map(movementSlots.map((row: any) => [row.id, row]))
+    const solicitacoes = rawRequests.map((row: any) => ({ ...row,
+      // Keep the version of the displayed review row, never a later parallel read.
+      ...(writeMode === 'atomic' ? { participation_expected: participationSnapshot(row, id) } : {}),
+    }))
 
-    const ligaSeason = liga ? await loadLigaSeasonSuggestions(id, liga, permission.canManage) : null
+    const ligaSeason = liga ? await loadLeagueSeasonSuggestions(id, liga, participationActor) : null
     const nowMs = Date.now()
     // Filtra expiração no JS: PostgREST .or com ISO (dois-pontos) falhava e escondia convites válidos
     const convites = (convitesRes.error ? [] : convitesRes.data || []).filter((t) => conviteAindaValido(t, nowMs))
@@ -471,12 +272,26 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           line_tag: campeonatoEquipe?.line_tag || row.line_tag || null,
           equipe_nome: campeonatoEquipe?.equipe_nome || row.equipe_nome || null,
           campeonato_equipe: campeonatoEquipe,
+          ...(movementMode === 'atomic' && permission.canManage ? {
+            slot_movement_expected: slotMovementSnapshot(snapshotById.get(row.participacao_id), id,
+              { ...movementSlotById.get(row.slot_id), participacao_id: row.participacao_id }),
+          } : {}),
+          ...(writeMode === 'atomic' && (permission.canManage || permission.canRemove) ? {
+            participation_expected: participationSnapshot(snapshotById.get(row.participacao_id), id,
+              { id: row.slot_id, equipe_id: row.equipe_id, line_id: row.line_id, grupo_id: row.grupo_id, slot_numero: row.slot_numero }),
+          } : {}),
           convite: mapConviteResumo(convite, row.slot_id, { includeToken: includeInviteToken }),
         }
       })
 
       return NextResponse.json({
         campeonato,
+        participation_write_mode: writeMode,
+        league_season_write_mode: leagueSeasonWriteMode(),
+        league_season_actor_id: participationActor,
+        participation_actor_id: participationActor,
+        slot_movement_mode: movementMode,
+        slot_movement_actor_id: participationActor,
         permission: permissionPublicPayload(permission),
         capacidade,
         solicitacoes,
@@ -490,7 +305,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           hierarquia: ['campeonato', 'fase', 'grupo', 'slot', 'line'],
           leitura: 'vw_campeonato_slots_lines',
         },
-      })
+      }, { headers: { 'Cache-Control': 'no-store' } })
     }
 
     // Fallback: queries manuais se a view ainda não existir no Supabase.
@@ -601,6 +416,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         line_tag: display?.line_tag || null,
         equipe_nome: display?.equipe_nome || null,
         campeonato_equipe: campeonatoEquipe,
+        ...(movementMode === 'atomic' && permission.canManage ? {
+          slot_movement_expected: slotMovementSnapshot(snapshotById.get(participation?.id), id, { ...movementSlotById.get(slot.id), participacao_id: participation?.id }),
+        } : {}),
+        ...(writeMode === 'atomic' && (permission.canManage || permission.canRemove) ? {
+          participation_expected: participationSnapshot(snapshotById.get(participation?.id), id, slot),
+        } : {}),
         convite: mapConviteResumo(convite, slot.id, { includeToken: includeInviteToken }),
       }
     })
@@ -630,12 +451,22 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           line_tag: display?.line_tag || null,
           equipe_nome: display?.equipe_nome || null,
           campeonato_equipe: display,
+          ...(movementMode === 'atomic' && permission.canManage ? { slot_movement_expected: null } : {}),
+          ...(writeMode === 'atomic' && (permission.canManage || permission.canRemove) ? {
+            participation_expected: participationSnapshot(snapshotById.get(p.id), id),
+          } : {}),
           convite: null,
         }
       })
 
     return NextResponse.json({
       campeonato,
+      participation_write_mode: writeMode,
+        league_season_write_mode: leagueSeasonWriteMode(),
+        league_season_actor_id: participationActor,
+      participation_actor_id: participationActor,
+      slot_movement_mode: movementMode,
+      slot_movement_actor_id: participationActor,
       permission: permissionPublicPayload(permission),
       capacidade,
       solicitacoes,
@@ -649,9 +480,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         hierarquia: ['campeonato', 'fase', 'grupo', 'slot', 'line'],
         leitura: 'fallback',
       },
-    })
+    }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao carregar equipes.' }, { status: 400 })
+    const atomicError = slotTransferErrorResponse(error)
+    if (atomicError) return NextResponse.json(atomicError.body, { status: atomicError.status, headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ error: apiErrorMessage(error, 'Erro ao carregar equipes.') }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 }
 
@@ -659,23 +492,31 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
+    const requiredFamily = requireAtomicOperation(req.headers, 'POST')
     const body = await req.json().catch(() => ({}))
+    assertAtomicOperationBody(requiredFamily, 'POST', body)
+    if (['preview_league_season_suggestions', 'apply_league_season_suggestions'].includes(body.mode)) {
+      const seasonPermission = await getCampeonatoPermission(user.id, id)
+      if (!seasonPermission.canView || !seasonPermission.canManage || seasonPermission.role === 'none') {
+        return NextResponse.json({ error: 'Sem permissão para importar esta temporada.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
+      }
+      if (leagueSeasonWriteMode() !== 'atomic') return NextResponse.json({ error: 'Confirmação de temporada temporariamente indisponível.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+    }
+    const atomicSeason = await tryAtomicLeagueSeason(user.id, id, body, req.headers.get('Idempotency-Key'))
+    if (atomicSeason) return NextResponse.json(atomicSeason, { headers: { 'Cache-Control': 'no-store' } })
+    const atomic = await tryAtomicParticipation(user.id, id, 'POST', body, req.headers.get('Idempotency-Key'))
+    if (atomic) return NextResponse.json(atomic, { headers: { 'Cache-Control': 'no-store' } })
 
     if (body.mode === 'request') {
-      const accounts = await getAccountsForUser(user)
       const equipeId = String(body.equipe_id || '')
       const lineId = String(body.line_id || '')
       if (!equipeId || !lineId) throw new Error('Selecione sua equipe e a line que será inscrita.')
+      // Account discovery can claim provisional email-linked profiles. Check policy first.
+      await assertTeamEnrollmentVisible(id)
+      await assertEnrollmentOpen(id)
+      const accounts = await getAccountsForUser(user)
       const equipeAccount = accounts.find((item: any) => item.profile_type === 'equipe' && String(item.id) === equipeId)
       if (!equipeAccount) throw new Error('A equipe informada não pertence ao seu perfil.')
-
-      const { data: config } = await supabaseAdmin
-        .from('campeonato_configuracoes')
-        .select('aceita_novas_inscricoes_equipes,data_limite_inscricao')
-        .eq('campeonato_id', id)
-        .maybeSingle()
-      if (config && config.aceita_novas_inscricoes_equipes === false) throw new Error('As inscrições de equipes estão fechadas.')
-      if (config?.data_limite_inscricao && new Date(config.data_limite_inscricao).getTime() < Date.now()) throw new Error('O prazo de inscrição deste campeonato terminou.')
 
       const { data: line, error: lineError } = await supabaseAdmin
         .from('equipe_lines')
@@ -698,23 +539,27 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       if (existing?.status === 'pendente') return NextResponse.json({ ok: true, solicitacao: existing, mensagem: 'Esta line já possui uma inscrição pendente.' })
 
       const now = new Date().toISOString()
-      const { data: previousRejected } = await supabaseAdmin
+      const { data: previousRejected, error: previousRejectedError } = await supabaseAdmin
         .from('campeonato_equipes')
-        .select('id')
+        .select('id,updated_at')
         .eq('campeonato_id', id)
         .eq('line_id', lineId)
         .eq('status', 'rejeitado')
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle()
+      if (previousRejectedError) throw previousRejectedError
 
       const requestPayload = {
         campeonato_id: id, equipe_id: equipeId, line_id: lineId, nome_exibicao: line.nome,
         origem_entrada: 'inscricao', status: 'pendente', criado_por: user.id, solicitado_em: now,
         revisado_em: null, revisado_por: null, motivo_rejeicao: null, slot_id: null, grupo_id: null, slot_numero: null, updated_at: now,
       }
+      await assertTeamEnrollmentVisible(id)
+      await assertEnrollmentOpen(id)
       const requestQuery = previousRejected?.id
         ? supabaseAdmin.from('campeonato_equipes').update(requestPayload).eq('id', previousRejected.id)
+          .eq('campeonato_id', id).eq('equipe_id', equipeId).eq('line_id', lineId).eq('status', 'rejeitado').eq('updated_at', previousRejected.updated_at)
         : supabaseAdmin.from('campeonato_equipes').insert(requestPayload)
       const { data: solicitacao, error: requestError } = await requestQuery.select('*').single()
       if (requestError) throw requestError
@@ -726,93 +571,25 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       throw new Error('Você não tem permissão para adicionar equipes. Use o link de convite gerado pelo admin/vendedor.')
     }
 
-    if (body.mode === 'apply_league_season_suggestions') {
-      const ligaConfig = await loadLigaConfig(id, true)
-      if (!ligaConfig) throw new Error('Esta operação está disponível somente para Ligas.')
-      const season = await loadLigaSeasonSuggestions(id, ligaConfig, true)
-      if (!season?.suggestions?.length) throw new Error('Nenhuma sugestão de season disponível para aplicar.')
-
-      const { count: occupiedCount, error: occupiedError } = await supabaseAdmin
-        .from('campeonato_equipes')
-        .select('id', { count: 'exact', head: true })
-        .eq('campeonato_id', id)
-        .eq('status', 'ativo')
-      if (occupiedError) throw occupiedError
-      if (Number(occupiedCount || 0) > 0) {
-        throw new Error('A aplicação automática só pode ser usada antes de preencher manualmente os agrupamentos.')
-      }
-
-      const { data: groups, error: groupsError } = await supabaseAdmin
-        .from('campeonato_grupos')
-        .select('id,nome')
-        .eq('campeonato_id', id)
-      if (groupsError) throw groupsError
-      const { data: slots, error: slotsError } = await supabaseAdmin
-        .from('campeonato_slots')
-        .select('id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status')
-        .eq('campeonato_id', id)
-        .order('slot_numero', { ascending: true })
-      if (slotsError) throw slotsError
-      if ((slots || []).some((slot: any) => String(slot.status || '') === 'reservado')) {
-        throw new Error('Existem slots reservados por convite. Cancele ou confirme as reservas antes de aplicar as sugestões da season.')
-      }
-
-      const groupByDivision = new Map<string, any>()
-      for (const division of ligaConfig.divisoes || []) {
-        const target = String(division?.nome || '').trim().toLocaleLowerCase('pt-BR')
-        const group = (groups || []).find((row: any) => String(row?.nome || '').trim().toLocaleLowerCase('pt-BR') === target)
-        if (group) groupByDivision.set(String(division?.id || ''), group)
-      }
-
-      const pending: Array<{ slot: any; candidate: LigaSeasonSuggestionCandidate; origem: string }> = []
-      const usedTeams = new Set<string>()
-      for (const suggestion of season.suggestions as LigaSeasonSuggestion[]) {
-        const group = groupByDivision.get(suggestion.divisao_id)
-        if (!group) throw new Error(`Prepare o agrupamento "${suggestion.divisao_nome}" antes de aplicar as sugestões.`)
-        const freeSlots = (slots || []).filter((slot: any) => slot.grupo_id === group.id && !slot.equipe_id && !slot.line_id)
-        const alreadyReserved = pending.filter((item) => item.slot.grupo_id === group.id).length
-        const available = freeSlots.slice(alreadyReserved)
-        if (available.length < suggestion.candidatos.length) {
-          throw new Error(`Não há slots livres suficientes em "${suggestion.divisao_nome}".`)
-        }
-        suggestion.candidatos.forEach((candidate, index) => {
-          if (usedTeams.has(candidate.equipe_id)) throw new Error(`A equipe "${candidate.nome}" apareceu em mais de uma sugestão. Revise as cotas de acesso e rebaixamento.`)
-          usedTeams.add(candidate.equipe_id)
-          pending.push({ slot: available[index], candidate, origem: `liga_${suggestion.tipo}` })
-        })
-      }
-
-      for (const item of pending) {
-        await inserirParticipacaoNoSlot({
-          campeonatoId: id,
-          slotId: String(item.slot.id),
-          lineId: item.candidate.line_id,
-          equipeId: item.candidate.equipe_id,
-          nomeExibicao: item.candidate.nome,
-          origem: item.origem,
-          criadoPor: user.id,
-        })
-      }
-
-      return NextResponse.json({
-        ok: true,
-        aplicadas: pending.length,
-        mensagem: `${pending.length} sugestão(ões) confirmada(s) na nova season.`,
-      })
+    if (['apply_league_season_suggestions', 'preview_league_season_suggestions'].includes(body.mode)) {
+      return NextResponse.json({ error: 'Confirmação de temporada temporariamente indisponível.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
     }
 
     let sellerPermission: any = null
     if (permission.role === 'seller') {
+      if (!permission.sellerRowId) throw new Error('Permissão de vendedor direto indisponível.')
       const { data: seller, error: sellerErr } = await supabaseAdmin
         .from('campeonato_vendedores')
-        .select('id,limite_vagas,permissoes')
+        .select('id,limite_vagas,permissoes,manager_auth_user_id,manager:manager_id!inner(auth_user_id,status)')
         .eq('campeonato_id', id)
-        .eq('manager_auth_user_id', user.id)
+        .eq('id', permission.sellerRowId)
+        .eq('manager.auth_user_id', user.id).eq('manager.status', 'ativo')
         .eq('status', 'ativo')
         .maybeSingle()
       if (sellerErr) throw sellerErr
       sellerPermission = seller
       if (!sellerPermission) throw new Error('Permissão de vendedor não encontrada para este campeonato.')
+      if (sellerPermission.manager_auth_user_id && sellerPermission.manager_auth_user_id !== user.id) throw new Error('Permissão de vendedor direto indisponível.')
       if (!hasSellerPermission(sellerPermission, 'adicionar_equipes', true)) {
         throw new Error('Este vendedor não pode adicionar equipes diretamente. Gere um link de convite.')
       }
@@ -823,7 +600,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           .select('id', { count: 'exact', head: true })
           .eq('campeonato_id', id)
           .eq('criado_por', user.id)
-          .in('origem_entrada', ['vendedor', 'convite', 'inscricao', 'link'])
+          .in('origem_entrada', ['vendedor', 'convite', 'inscricao', 'link', 'liga_mantida', 'liga_promovida', 'liga_rebaixada', 'liga_classificatoria_aberta', 'liga_vaga_paga', 'liga_convite_direto'])
           .eq('status', 'ativo')
         if (countError) throw countError
         if (Number(count || 0) >= limiteVagas) {
@@ -838,12 +615,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     const { data: slot } = await supabaseAdmin
       .from('campeonato_slots')
-      .select('id,grupo_id,slot_numero,slot_letra,equipe_id,line_id')
+      .select('id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status')
       .eq('id', slotId)
       .eq('campeonato_id', id)
       .maybeSingle()
     if (!slot) throw new Error('Slot não encontrado.')
     if (slot.equipe_id || slot.line_id) throw new Error('Este slot já está ocupado.')
+    if (slot.status === 'reservado') throw new Error('Este slot está reservado por convite.')
 
     const { data: equipe } = await supabaseAdmin.from('equipes').select('id, nome, tag, logo_url').eq('id', equipeId).single()
     if (!equipe) throw new Error('Equipe não encontrada.')
@@ -863,10 +641,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       if (grupoError) throw grupoError
       if (!grupo) throw new Error('Agrupamento da Liga não encontrado para este slot.')
 
-      const division = ligaConfig.divisoes.find((item: any) => String(item?.nome || '').trim().toLocaleLowerCase('pt-BR') === String(grupo.nome || '').trim().toLocaleLowerCase('pt-BR'))
-      if (!division) throw new Error('Este grupo não corresponde a um agrupamento configurado da Liga.')
-      const planned = (Array.isArray(division.entradas) ? division.entradas : []).filter((entry: any) => String(entry?.tipo || '') === requestedOrigin)
-      const quota = planned.reduce((sum: number, entry: any) => sum + Math.max(0, Number(entry?.quantidade || 0)), 0)
+      const quota = ligaOriginChoices(ligaConfig, String(grupo.nome || ''), String(grupo.id), []).find(entry => entry.tipo === requestedOrigin)?.quota || 0
       if (quota < 1) throw new Error('Esta origem não possui vagas planejadas neste agrupamento.')
 
       const normalizedOrigin = `liga_${requestedOrigin}`
@@ -923,7 +698,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         : `Line "${resolved.nome}" adicionada ao slot ${slot.slot_letra || slot.slot_numero}.`,
     }, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: apiErrorMessage(error, 'Erro ao adicionar line.') }, { status: 400 })
+    const atomicError = slotTransferErrorResponse(error)
+    if (atomicError) return NextResponse.json(atomicError.body, { status: atomicError.status, headers: { 'Cache-Control': 'no-store' } })
+    const unauthorized = error instanceof Error && ['Sessao ausente.', 'Sessao invalida.'].includes(error.message)
+    return NextResponse.json({ error: unauthorized ? 'Não autenticado.' : apiErrorMessage(error, 'Erro ao adicionar line.') }, { status: unauthorized ? 401 : 400, headers: { 'Cache-Control': 'no-store' } })
   }
 }
 
@@ -932,10 +710,23 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
+    const requiredFamily = requireAtomicOperation(req.headers, 'PATCH')
+    const preparedBody = (requiredFamily !== null || participationWriteMode() === 'atomic') ? await req.json() : undefined
+    assertAtomicOperationBody(requiredFamily, 'PATCH', preparedBody)
+    if (preparedBody?.mode === 'review_request') {
+      const result = await tryAtomicParticipation(user.id, id, 'PATCH', preparedBody, req.headers.get('Idempotency-Key'))
+      if (result) return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } })
+    }
     const permission = await getCampeonatoPermission(user.id, id)
     if (!permission.canManage) throw new Error('Você não tem permissão para mover equipes entre slots.')
 
-    const body = await req.json()
+    const body = preparedBody === undefined ? await req.json() : preparedBody
+    if (body?.mode !== 'review_request') {
+      const batch = await tryAtomicSlotBatch(user.id, id, body, req.headers.get('Idempotency-Key'))
+      if (batch) return NextResponse.json(batch, { headers: { 'Cache-Control': 'no-store' } })
+      const atomic = await tryAtomicSlotTransfer(user.id, id, body, req.headers.get('Idempotency-Key'))
+      if (atomic) return NextResponse.json(atomic, { headers: { 'Cache-Control': 'no-store' } })
+    }
 
     if (body.mode === 'review_request') {
       const participationId = String(body.participacao_id || body.request_id || '')
@@ -945,7 +736,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
       const { data: requestRow, error: requestError } = await supabaseAdmin
         .from('campeonato_equipes')
-        .select('id,campeonato_id,equipe_id,line_id,status')
+        .select('id,campeonato_id,equipe_id,line_id,status,updated_at')
         .eq('id', participationId)
         .eq('campeonato_id', id)
         .maybeSingle()
@@ -960,6 +751,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           .from('campeonato_equipes')
           .update({ status: 'rejeitado', motivo_rejeicao: motivo || null, revisado_em: now, revisado_por: user.id, slot_id: null, grupo_id: null, slot_numero: null, updated_at: now })
           .eq('id', participationId)
+          .eq('campeonato_id', id).eq('status', requestRow.status).eq('updated_at', requestRow.updated_at)
+          .eq('equipe_id', requestRow.equipe_id).eq('line_id', requestRow.line_id)
           .select('*')
           .single()
         if (rejectError) throw rejectError
@@ -970,13 +763,14 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       if (!slotId) throw new Error('Escolha manualmente o slot antes de aprovar a inscrição.')
       const { data: slot, error: slotError } = await supabaseAdmin
         .from('campeonato_slots')
-        .select('id,grupo_id,slot_numero,slot_letra,equipe_id,line_id')
+        .select('id,grupo_id,slot_numero,slot_letra,equipe_id,line_id,status')
         .eq('id', slotId)
         .eq('campeonato_id', id)
         .maybeSingle()
       if (slotError) throw slotError
       if (!slot) throw new Error('Slot não encontrado.')
       if (slot.equipe_id || slot.line_id) throw new Error('Este slot já está ocupado.')
+      if (slot.status === 'reservado') throw new Error('Este slot está reservado por convite.')
 
       const { data: activeLine, error: activeLineError } = await supabaseAdmin
         .from('campeonato_equipes')
@@ -993,6 +787,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         .from('campeonato_equipes')
         .update({ status: 'ativo', slot_id: slot.id, grupo_id: slot.grupo_id, slot_numero: slot.slot_numero, revisado_em: now, revisado_por: user.id, motivo_rejeicao: null, updated_at: now })
         .eq('id', participationId)
+        .eq('campeonato_id', id).eq('status', requestRow.status).eq('updated_at', requestRow.updated_at)
+        .eq('equipe_id', requestRow.equipe_id).eq('line_id', requestRow.line_id)
         .select('*')
         .single()
       if (approveError) throw approveError
@@ -1260,6 +1056,10 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     const sourceParticipation = (participacoes || []).find((row) => String(row.slot_id) === sourceSlotId)
     const targetParticipation = (participacoes || []).find((row) => String(row.slot_id) === targetSlotId)
     if (!sourceParticipation) throw new Error('Não foi possível localizar a participação vinculada ao slot de origem.')
+    if ((body.source_participation_id && body.source_participation_id !== sourceParticipation.id)
+      || (body.target_participation_id && body.target_participation_id !== targetParticipation?.id)) {
+      throw new Error('O ocupante mudou. Atualize o acompanhamento.')
+    }
     if (mode === 'swap' && !targetParticipation) {
       throw new Error('Não foi possível localizar a participação vinculada ao slot de destino.')
     }
@@ -1403,7 +1203,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       mensagem: `Equipe movida para o slot ${target.slot_letra || target.slot_numero}.`,
     })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao organizar slots.' }, { status: 400 })
+    const atomicError = slotTransferErrorResponse(error)
+    if (atomicError) return NextResponse.json(atomicError.body, { status: atomicError.status, headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ error: apiErrorMessage(error, 'Erro ao organizar slots.') }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 }
 
@@ -1411,11 +1213,17 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   try {
     const { id } = await context.params
     const user = await getBearerUser(req)
+    requireAtomicOperation(req.headers, 'DELETE')
+    if (participationWriteMode() === 'atomic') {
+      const body = await req.json().catch(() => ({}))
+      const result = await tryAtomicParticipation(user.id, id, 'DELETE', body, req.headers.get('Idempotency-Key'), req.nextUrl.searchParams.get('participacao_id'))
+      if (result) return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } })
+    }
     const permission = await getCampeonatoPermission(user.id, id)
     const participacaoId = req.nextUrl.searchParams.get('participacao_id') || ''
-    const { data: participacao } = await supabaseAdmin.from('campeonato_equipes').select('id, grupo_id, slot_numero, line_id, criado_por, origem_entrada').eq('id', participacaoId).eq('campeonato_id', id).single()
+    const { data: participacao } = await supabaseAdmin.from('campeonato_equipes').select('id, campeonato_id, grupo_id, slot_numero, slot_id, equipe_id, line_id, criado_por, origem_entrada').eq('id', participacaoId).eq('campeonato_id', id).single()
     if (!participacao) throw new Error('Participação não encontrada.')
-    if (permission.role === 'owner' || permission.role === 'manager') {
+    if (permission.role === 'owner' || permission.role === 'manager' || permission.role === 'workspace') {
       if (!permission.canRemove && !permission.canManage) {
         throw new Error('Você não tem permissão para remover equipes deste campeonato.')
       }
@@ -1423,19 +1231,22 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
       if (!permission.canRemove) {
         throw new Error('Este vendedor não pode remover equipes. Solicite ao administrador.')
       }
+      if (!permission.sellerRowId) throw new Error('Permissão de vendedor direto indisponível.')
       const { data: seller, error: sellerError } = await supabaseAdmin
         .from('campeonato_vendedores')
-        .select('id,permissoes')
+        .select('id,permissoes,manager_auth_user_id,manager:manager_id!inner(auth_user_id,status)')
         .eq('campeonato_id', id)
-        .eq('manager_auth_user_id', user.id)
+        .eq('id', permission.sellerRowId)
+        .eq('manager.auth_user_id', user.id).eq('manager.status', 'ativo')
         .eq('status', 'ativo')
         .maybeSingle()
       if (sellerError) throw sellerError
       if (!seller) throw new Error('Permissão de vendedor não encontrada para este campeonato.')
+      if (seller.manager_auth_user_id && seller.manager_auth_user_id !== user.id) throw new Error('Permissão de vendedor direto indisponível.')
       // remoção plena se remover_equipes; senão (legado) só as próprias
       const perms = seller.permissoes || {}
-      const fullRemove = perms.remover_equipes === true || perms.remover_equipes === undefined
-      const ownOnly = !fullRemove && (perms.remover_proprias_equipes === true || hasSellerPermission(seller, 'remover_proprias_equipes', true))
+      const fullRemove = perms.remover_equipes === true
+      const ownOnly = !fullRemove && perms.remover_proprias_equipes === true
       if (!fullRemove && !ownOnly) {
         throw new Error('Este vendedor não pode remover equipes.')
       }
@@ -1448,9 +1259,11 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     } else {
       throw new Error('Você não tem permissão para remover equipes deste campeonato.')
     }
-    await softRemoveParticipacao(participacaoId)
+    await softRemoveParticipacao(participacaoId, participacao)
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao remover line.' }, { status: 400 })
+    const atomicError = slotTransferErrorResponse(error)
+    if (atomicError) return NextResponse.json(atomicError.body, { status: atomicError.status, headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ error: apiErrorMessage(error, 'Erro ao remover line.') }, { status: 400 })
   }
 }

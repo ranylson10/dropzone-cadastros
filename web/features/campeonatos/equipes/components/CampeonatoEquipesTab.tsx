@@ -1,5 +1,8 @@
 'use client'
 
+import {LeagueSeasonPanel} from './LeagueSeasonPanel'
+import { confirmAction, promptAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect, Textarea as UiTextarea } from '@/components/ui/Field'
 import { useMemo, useState } from 'react'
 import {
   ChevronDown,
@@ -19,6 +22,8 @@ import { useCampeonatoEquipes } from '../hooks/useCampeonatoEquipes'
 import { campeonatoEquipesService } from '../services/campeonato-equipes.service'
 import type { CampeonatoVaga, EquipeBusca, LigaEntradaTipo } from '../types/campeonato-equipes.types'
 import '../campeonato-equipes.css'
+import { usePagedSearch } from '@/hooks/usePagedSearch'
+import { ParticipationRecovery } from './ParticipationRecovery'
 
 type FiltroVaga = 'todas' | 'livre' | 'reservada' | 'ocupada'
 
@@ -77,7 +82,8 @@ export function CampeonatoEquipesTab({ campeonatoId, readOnly = false }: { campe
   const [vagaAlvo, setVagaAlvo] = useState<CampeonatoVaga | null>(null)
   const [modo, setModo] = useState<'adicionar' | 'convite' | null>(null)
   const [busca, setBusca] = useState('')
-  const [resultados, setResultados] = useState<EquipeBusca[]>([])
+  const directory = usePagedSearch<EquipeBusca>(`/api/campeonatos/${campeonatoId}/equipes/busca`, { authenticated: true, itemsKey: 'equipes' })
+  const resultados = directory.items
   const [equipe, setEquipe] = useState<EquipeBusca | null>(null)
   const [lineId, setLineId] = useState('')
   const [nomeLine, setNomeLine] = useState('')
@@ -91,7 +97,6 @@ export function CampeonatoEquipesTab({ campeonatoId, readOnly = false }: { campe
   const [linkGerado, setLinkGerado] = useState('')
   const [origemEntrada, setOrigemEntrada] = useState<LigaEntradaTipo | ''>('')
   const [preparandoLiga, setPreparandoLiga] = useState(false)
-  const [aplicandoSeason, setAplicandoSeason] = useState(false)
   const [historicasOpen, setHistoricasOpen] = useState(false)
   const [historicasTexto, setHistoricasTexto] = useState('')
   const [historicasResultado, setHistoricasResultado] = useState<any[]>([])
@@ -204,28 +209,6 @@ export function CampeonatoEquipesTab({ campeonatoId, readOnly = false }: { campe
     }
   }
 
-  async function aplicarSugestoesSeasonLiga() {
-    const season = data?.liga?.season
-    if (!season?.suggestions?.length) return
-    const total = season.suggestions.reduce((sum, suggestion) => sum + suggestion.candidatos.length, 0)
-    if (!total) return
-    const confirmed = window.confirm(
-      `Confirmar ${total} equipe(s) sugerida(s) pela classificação da season anterior? As vagas abertas, pagas e por convite continuarão livres.`,
-    )
-    if (!confirmed) return
-    setAplicandoSeason(true)
-    setFeedback('')
-    try {
-      const result = await campeonatoEquipesService.aplicarSugestoesSeasonLiga(campeonatoId) as { aplicadas?: number; mensagem?: string }
-      await reload()
-      setFeedback(result.mensagem || `${result.aplicadas || total} sugestão(ões) aplicada(s).`)
-    } catch (err) {
-      setFeedback(err instanceof Error ? err.message : 'Erro ao aplicar sugestões da season.')
-    } finally {
-      setAplicandoSeason(false)
-    }
-  }
-
   async function abrirHistoricas() {
     setHistoricasOpen(true)
     setHistoricasResultado([])
@@ -282,7 +265,7 @@ export function CampeonatoEquipesTab({ campeonatoId, readOnly = false }: { campe
     setVagaAlvo(null)
     setModo(null)
     setBusca('')
-    setResultados([])
+    directory.clear()
     setEquipe(null)
     setLineId('')
     setNomeLine('')
@@ -324,16 +307,8 @@ export function CampeonatoEquipesTab({ campeonatoId, readOnly = false }: { campe
 
   async function pesquisar() {
     if (busca.trim().length < 2) return
-    setProcessando(true)
     setFeedback('')
-    try {
-      const result = await campeonatoEquipesService.buscarEquipes(campeonatoId, busca) as { equipes: EquipeBusca[] }
-      setResultados(result.equipes)
-    } catch (err) {
-      setFeedback(err instanceof Error ? err.message : 'Erro na busca.')
-    } finally {
-      setProcessando(false)
-    }
+    await directory.search(busca)
   }
 
   async function adicionar() {
@@ -347,7 +322,7 @@ export function CampeonatoEquipesTab({ campeonatoId, readOnly = false }: { campe
         line_id: lineId || null,
         nome_line: nomeLine,
         ...(origemEntrada ? { origem_entrada: origemEntrada } : {}),
-      })
+      }, data || {})
       await reload()
       fechar()
     } catch (err) {
@@ -461,9 +436,9 @@ Acesse: ${link}`
     referenciaAtualLine?: string | null,
   ) {
     if (!tokenId) return
-    const referenciaEquipe = window.prompt('Identificação da reserva:', referenciaAtualEquipe || '')
+    const referenciaEquipe = await promptAction('Identificação da reserva:', referenciaAtualEquipe || '')
     if (referenciaEquipe === null) return
-    const referenciaLine = window.prompt('Identificação da line:', referenciaAtualLine || '')
+    const referenciaLine = await promptAction('Identificação da line:', referenciaAtualLine || '')
     if (referenciaLine === null) return
     if (!referenciaEquipe.trim() || !referenciaLine.trim()) {
       setFeedback('As duas identificações são obrigatórias.')
@@ -501,7 +476,7 @@ Acesse: ${link}`
   async function cancelar(tokenId: string, label?: string) {
     if (!tokenId) return
     const confirmLabel = label || 'este convite'
-    if (!window.confirm(`Cancelar ${confirmLabel}?`)) return
+    if (!await confirmAction(`Cancelar ${confirmLabel}?`)) return
     setProcessando(true)
     try {
       await campeonatoEquipesService.cancelarConvite(campeonatoId, tokenId)
@@ -518,10 +493,10 @@ Acesse: ${link}`
   async function remover(vaga: CampeonatoVaga) {
     const id = vaga.campeonato_equipe?.id
     const label = vaga.line_nome || vaga.campeonato_equipe?.line_nome || vaga.campeonato_equipe?.nome_exibicao || 'esta line'
-    if (!id || !window.confirm(`Remover ${label} e liberar o slot ${vaga.slot_letra || vaga.numero_vaga}?`)) return
+    if (!id || !await confirmAction(`Remover ${label} e liberar o slot ${vaga.slot_letra || vaga.numero_vaga}?`)) return
     setProcessando(true)
     try {
-      await campeonatoEquipesService.remover(campeonatoId, id)
+      await campeonatoEquipesService.remover(campeonatoId, id, data || {}, vaga.participation_expected)
       setVagaAbertaId(null)
       await reload()
     } catch (err) {
@@ -554,6 +529,7 @@ Acesse: ${link}`
 
   return (
     <section className="champ-registration">
+      {!readOnly && (data.permission.canManage || data.permission.canRemove) ? <ParticipationRecovery championshipId={campeonatoId} contract={data} onConfirmed={async () => { await reload() }} /> : null}
       <header className="champ-registration-head">
         <div>
           <p>Equipes e inscrições</p>
@@ -608,7 +584,7 @@ Acesse: ${link}`
 
       {feedback ? <div className="champ-registration-feedback">{feedback}</div> : null}
 
-      {readOnly ? <><div className="teams-tab-info">Consulta de equipes inscritas. Para adicionar ou remover uma line, abra <strong>Grupos e slots</strong> e selecione o slot desejado.</div><div className="team-search-row"><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Pesquisar equipe, line ou grupo" /><Search size={16} /></div></> : null}
+      {readOnly ? <><div className="teams-tab-info">Consulta de equipes inscritas. Para adicionar ou remover uma line, abra <strong>Grupos e slots</strong> e selecione o slot desejado.</div><div className="team-search-row"><UiInput value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Pesquisar equipe, line ou grupo" /><Search size={16} /></div></> : null}
 
       {!readOnly && (data.convites_grupo || []).length > 0 ? (
         <details className="champ-registration-group-invites">
@@ -652,68 +628,8 @@ Acesse: ${link}`
         </div>
       ) : null}
 
-      {data.liga?.season?.suggestions?.length ? (() => {
-        const season = data.liga!.season!
-        const totalCandidates = season.suggestions.reduce((sum, suggestion) => sum + suggestion.candidatos.length, 0)
-        const plannedMovement = season.suggestions.reduce((sum, suggestion) => sum + suggestion.quantidade_planejada, 0)
-        const incomplete = totalCandidates < plannedMovement
-        const canApply = data.vagas.length > 0 && stats.ocupadas === 0 && totalCandidates > 0
-        return (
-          <details className="champ-league-season-preview">
-            <summary>
-              <span>
-                <small>Nova season · sugestão pela classificação</small>
-                <strong>{season.previous_season || `Edição ${season.previous_edition_number}`} → {season.current_season || `Edição ${season.current_edition_number}`}</strong>
-              </span>
-              <em>{totalCandidates}/{plannedMovement} equipes sugeridas</em>
-            </summary>
-            <div className="champ-league-season-body">
-              <p>
-                A classificação anterior é usada somente como proposta. Nenhuma equipe muda de agrupamento até você confirmar.
-              </p>
-              {incomplete ? (
-                <div className="champ-league-season-warning">
-                  Existem cotas sem classificação suficiente na season anterior. Revise os resultados antes de confirmar.
-                </div>
-              ) : null}
-              <div className="champ-league-season-suggestions">
-                {season.suggestions.map((suggestion, index) => (
-                  <article key={`${suggestion.divisao_id}-${suggestion.tipo}-${index}`}>
-                    <header>
-                      <span>{LIGA_ENTRY_LABELS[suggestion.tipo]} · {suggestion.divisao_nome}</span>
-                      <strong>{suggestion.candidatos.length}/{suggestion.quantidade_planejada}</strong>
-                    </header>
-                    <small>Origem: {suggestion.origem_divisao_nome}</small>
-                    {suggestion.candidatos.length ? (
-                      <ul>
-                        {suggestion.candidatos.map((candidate) => (
-                          <li key={`${suggestion.tipo}-${candidate.equipe_id}`}>
-                            <span><b>{candidate.colocacao}º</b>{candidate.nome}</span>
-                            <small>{candidate.grupo_origem_nome}</small>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : <em>Sem resultado suficiente.</em>}
-                  </article>
-                ))}
-              </div>
-              <div className="champ-league-season-actions">
-                <span>
-                  {data.vagas.length === 0
-                    ? 'Prepare os agrupamentos antes de aplicar.'
-                    : stats.ocupadas > 0
-                      ? 'A aplicação em lote fica bloqueada depois de iniciar o preenchimento manual.'
-                      : `${totalCandidates} equipe(s) serão inseridas. As demais origens ficam livres para operação manual.`}
-                </span>
-                <button className="button" type="button" disabled={!canApply || incomplete || aplicandoSeason} onClick={() => void aplicarSugestoesSeasonLiga()}>
-                  {aplicandoSeason ? <Loader2 className="spin" size={15} /> : <Shield size={15} />}
-                  Revisar e confirmar sugestões
-                </button>
-              </div>
-            </div>
-          </details>
-        )
-      })() : null}
+      <LeagueSeasonPanel championshipId={campeonatoId} contract={data} initialPreview={data.liga?.season||null} availableSlots={data.vagas.length}
+        occupied={stats.ocupadas} canManage={data.permission.canManage&&!readOnly} onRefresh={async()=>Boolean(await reload())}/>
 
       <div className="champ-registration-groups">
         {gruposOperacionais.length === 0 ? (
@@ -824,7 +740,7 @@ Acesse: ${link}`
         <div className="historical-team-bulk">
           <label>
             <span>Equipes</span>
-            <textarea
+            <UiTextarea
               rows={10}
               value={historicasTexto}
               onChange={(event) => setHistoricasTexto(event.target.value)}
@@ -876,26 +792,31 @@ Acesse: ${link}`
               {data.liga && ligaDivisaoAlvo ? (
                 <label className="field champ-league-origin-field">
                   <span>Origem desta vaga · {ligaDivisaoAlvo.nome}</span>
-                  <select value={origemEntrada} onChange={(event) => setOrigemEntrada(event.target.value as LigaEntradaTipo)}>
+                  <UiSelect value={origemEntrada} onChange={(event) => setOrigemEntrada(event.target.value as LigaEntradaTipo)}>
                     {ligaDivisaoAlvo.entradas.map((entry) => {
                       const used = ligaOriginUsed(entry.tipo)
                       return <option key={entry.id} value={entry.tipo} disabled={used >= Number(entry.quantidade || 0)}>{LIGA_ENTRY_LABELS[entry.tipo]} · {used}/{entry.quantidade}</option>
                     })}
-                  </select>
+                  </UiSelect>
                 </label>
               ) : null}
               <div className="team-search-row">
-                <input
+                <UiInput
                   value={busca}
-                  onChange={(event) => setBusca(event.target.value)}
+                  onChange={(event) => { directory.clear(); setEquipe(null); setLineId(''); setBusca(event.target.value) }}
                   onKeyDown={(event) => { if (event.key === 'Enter') void pesquisar() }}
                   placeholder="Buscar pasta/equipe por nome ou tag"
+                  aria-label="Buscar pasta ou equipe"
                 />
-                <button className="button secondary" onClick={pesquisar} disabled={processando}>
+                <button className="button secondary" onClick={pesquisar} disabled={processando || directory.loading}>
                   <Search size={15} /> Pesquisar
                 </button>
               </div>
 
+              {directory.loading ? <p role="status">Buscando equipes...</p> : null}
+              {directory.error ? <p role="alert">{directory.error}</p> : null}
+              {directory.term && !directory.loading && !directory.error && !resultados.length ? <p role="status">Nenhuma equipe encontrada.</p> : null}
+              {directory.nextCursor ? <button className="button secondary" type="button" disabled={directory.loading || processando} onClick={() => void directory.more()}>Carregar mais equipes</button> : null}
               {resultados.length ? (
                 <div className="team-search-results">
                   {resultados.map((item) => (
@@ -924,14 +845,14 @@ Acesse: ${link}`
                   {equipe.lines.some((line) => !line.ja_inscrita) ? (
                     <label className="field">
                       <span>Line livre (unidade no campeonato)</span>
-                      <select value={lineId} onChange={(event) => { setLineId(event.target.value); setNomeLine('') }}>
+                      <UiSelect value={lineId} onChange={(event) => { setLineId(event.target.value); setNomeLine('') }}>
                         {equipe.lines.filter((line) => !line.ja_inscrita).map((line) => (
                           <option key={line.id} value={line.id}>
                             {line.nome}
                           </option>
                         ))}
                         <option value="">+ Criar nova line para este slot</option>
-                      </select>
+                      </UiSelect>
                     </label>
                   ) : (
                     <p>Todas as lines desta pasta já estão no campeonato. Crie uma nova line abaixo (ex.: ALOE ELITE 2).</p>
@@ -947,7 +868,7 @@ Acesse: ${link}`
               {equipe && !lineId ? (
                 <label className="field">
                   <span>Nome da nova line (herda logo da pasta; o líder pode trocar depois)</span>
-                  <input value={nomeLine} onChange={(event) => setNomeLine(event.target.value)} placeholder="Ex.: ALOE ELITE" />
+                  <UiInput value={nomeLine} onChange={(event) => setNomeLine(event.target.value)} placeholder="Ex.: ALOE ELITE" />
                 </label>
               ) : null}
             </>
@@ -963,7 +884,7 @@ Acesse: ${link}`
 
               <div className="invite-scope-options" role="radiogroup" aria-label="Escopo do convite">
                 <label className={`invite-scope-card ${fixarSlot ? 'selected' : ''}`}>
-                  <input
+                  <UiInput
                     type="radio"
                     name="escopo-convite"
                     checked={fixarSlot}
@@ -975,7 +896,7 @@ Acesse: ${link}`
                   </span>
                 </label>
                 <label className={`invite-scope-card ${!fixarSlot ? 'selected' : ''}`}>
-                  <input
+                  <UiInput
                     type="radio"
                     name="escopo-convite"
                     checked={!fixarSlot}
@@ -990,11 +911,11 @@ Acesse: ${link}`
 
               <label className="field">
                 <span>Identificação da reserva</span>
-                <input value={referenciaEquipe} onChange={(event) => setReferenciaEquipe(event.target.value)} placeholder="Ex.: Vaga do Lucas" />
+                <UiInput value={referenciaEquipe} onChange={(event) => setReferenciaEquipe(event.target.value)} placeholder="Ex.: Vaga do Lucas" />
               </label>
               <label className="field">
                 <span>Identificação da line</span>
-                <input value={referenciaLine} onChange={(event) => setReferenciaLine(event.target.value)} placeholder="Ex.: Line Elite" />
+                <UiInput value={referenciaLine} onChange={(event) => setReferenciaLine(event.target.value)} placeholder="Ex.: Line Elite" />
               </label>
 
               {linkGerado ? (

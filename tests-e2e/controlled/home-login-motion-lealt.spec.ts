@@ -7,9 +7,9 @@ const read = (relative: string) => fs.readFileSync(path.join(root, relative), 'u
 
 test('home pública abre o catálogo atual sem restaurar a landing cinematográfica', async () => {
   const source = read('web/features/home/AuthenticatedHomeFeed.tsx')
-  expect(source).toContain('Encontre seu próximo campeonato')
+  expect(source).toContain('store-home-hero')
   expect(source).toContain("fetch('/api/vagas'")
-  expect(source).toContain('<VacancyCard')
+  expect(source).toContain('store-home-products')
   expect(source).not.toContain('<video')
   expect(fs.existsSync(path.join(root, 'web/features/home/PublicChampionshipHome.tsx'))).toBeFalsy()
 })

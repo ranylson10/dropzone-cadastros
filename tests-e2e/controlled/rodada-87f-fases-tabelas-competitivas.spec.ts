@@ -23,18 +23,18 @@ test.describe('Rodada 87F — fases e tabelas competitivas', () => {
     expect(component).not.toContain('<th>P. abates</th>')
   })
 
-  test('MVP mostra somente quedas, KD e abates', () => {
+  test('MVP mostra quedas, abates por queda e abates totais', () => {
     const component = source('web/features/campeonatos/estatisticas/components/CampeonatoEstatisticasTab.tsx')
-    expect(component).toContain('<small>K.D</small>')
+    expect(component).toContain('<small>K/Q</small>')
     expect(component).toContain('<small>KILLS</small>')
-    expect(component).toContain('kdValue(row.abates, row.quedas)')
+    expect(component).toContain('killsPerDropValue(row.abates, row.quedas)')
     expect(component).not.toContain('<th>Dano</th>')
     expect(component).not.toContain('<th>Assist.</th>')
     expect(component).not.toContain('<th>Revives</th>')
   })
 
   test('API agrega o grupo da equipe sem alterar a pontuação', () => {
-    const service = source('backend/src/campeonatos/estatisticas/estatisticas.service.ts')
+    const service = source('backend/src/campeonatos/estatisticas/statistics-read.service.ts')
     expect(service).toContain('grupo_id: row.grupo_id || null')
     expect(service).toContain('pontos_total: 0')
   })

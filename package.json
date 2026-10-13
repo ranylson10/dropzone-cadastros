@@ -6,10 +6,13 @@
     "web"
   ],
   "scripts": {
+    "test:security": "node scripts/testes/test-security-audit.mjs && node scripts/testes/test-private-entity-reads.mjs && node scripts/testes/test-lili-services.mjs && node scripts/testes/test-workspace-loading.mjs && node scripts/testes/test-directory-pagination.mjs && node scripts/testes/test-championship-catalog.mjs && node scripts/testes/test-mobile-fetch.mjs && node scripts/testes/test-public-profile-scope.mjs && node scripts/testes/test-statistics-pagination.mjs && node scripts/testes/test-ranking-publication.mjs && node scripts/testes/test-registration-safety.mjs && node scripts/testes/test-group-invite-safety.mjs && node scripts/testes/test-atomic-enrollment-transport.mjs && node scripts/testes/test-enrollment-attempt.mjs && node scripts/testes/test-mobile-enrollment-attempt.mjs && node scripts/testes/test-group-choice-window.mjs && node scripts/testes/test-slot-transfer.mjs && node scripts/testes/test-slot-permissions.mjs && node scripts/testes/test-mobile-slot-transfer.mjs && node scripts/testes/test-group-choice-transport.mjs && node scripts/testes/test-group-choice-attempt.mjs && node scripts/testes/test-structure-delete.mjs && node scripts/testes/test-slot-batch.mjs && node scripts/testes/test-participation-transport.mjs && node scripts/testes/test-participation-clients.mjs && node scripts/testes/test-participation-snapshots.mjs && node scripts/testes/test-liga-operational-plan.mjs && node scripts/testes/test-slot-movement-clients.mjs && node scripts/testes/test-mobile-championship-operations.mjs && node scripts/testes/test-atomic-operation-routes.mjs && node scripts/testes/test-progression-preview.mjs && node scripts/testes/test-advanced-structure-read.mjs && node scripts/testes/test-progression-atomic.mjs && node scripts/testes/test-league-season.mjs && node scripts/testes/test-league-season-atomic.mjs && node scripts/testes/test-daily-group-atomic.mjs && node scripts/testes/test-edition-atomic.mjs && node scripts/testes/test-lifecycle-safety.mjs && node scripts/testes/test-lifecycle-atomic.mjs && node scripts/testes/test-mobile-lifecycle.mjs && node scripts/testes/test-invite-architecture.mjs && node scripts/testes/test-structure-group-atomic.mjs && node scripts/testes/test-mobile-group-write.mjs",
+    "check:release": "npm run check:code && node scripts/testes/check-production-audit.mjs",
     "dev": "npm run dev --workspace dropzone-web",
     "build": "npm run build --workspace dropzone-web",
     "start": "npm run start --workspace dropzone-web",
-    "lint": "npm run lint --workspace dropzone-web",
+    "lint": "npm run lint --workspace dropzone-web && npm run lint:backend",
+    "lint:backend": "eslint --config web/eslint.config.mjs backend/src --quiet",
     "typecheck": "npm run typecheck --workspace dropzone-web",
     "audit:dropzone": "node scripts/testes/executar.mjs",
     "audit:dropzone:full": "node scripts/testes/executar.mjs --full",
@@ -47,10 +50,29 @@
     "test:e2e:total": "playwright test --config=playwright.total.config.ts",
     "test:e2e:total:headed": "playwright test --config=playwright.total.config.ts --headed",
     "test:e2e:contracts": "playwright test --config=playwright.contracts.config.ts --project=contracts-static --project=contracts-runtime-desktop --project=contracts-runtime-mobile",
-    "test:e2e:contracts:mobile-native": "playwright test --config=playwright.contracts.config.ts --project=contracts-native-mobile"
+    "test:e2e:contracts:mobile-native": "playwright test --config=playwright.contracts.config.ts --project=contracts-native-mobile",
+    "audit:layout-pages": "node scripts/testes/audit-layout-pages.mjs",
+    "audit:layout-campeonatos": "node scripts/testes/audit-layout-campeonatos.mjs",
+    "audit:ui-foundation": "node scripts/testes/audit-ui-foundation.mjs",
+    "audit:championship-card": "node scripts/testes/audit-championship-card.mjs",
+    "audit:entity-components": "node scripts/testes/audit-entity-components.mjs",
+    "audit:workspace-components": "node scripts/testes/audit-workspace-components.mjs",
+    "audit:shell-overflow": "node scripts/testes/audit-shell-overflow.mjs",
+    "audit:form-foundation": "node scripts/testes/audit-form-foundation.mjs",
+    "audit:form-migration": "node scripts/testes/audit-form-migration.mjs",
+    "audit:admin-home-integration": "node scripts/testes/audit-admin-home-integration.mjs",
+    "audit:data-display": "node scripts/testes/audit-data-display.mjs",
+    "audit:feedback-system": "node scripts/testes/audit-feedback-system.mjs",
+    "audit:commerce-integration": "node scripts/testes/audit-commerce-integration.mjs",
+    "audit:token-flows": "node scripts/testes/audit-token-flows.mjs",
+    "audit:structural-cleanup": "node scripts/testes/audit-structural-cleanup.mjs",
+    "audit:final-r207": "node scripts/testes/audit-final-r207.mjs",
+    "test:e2e:r207": "playwright test tests-e2e/controlled/rodada-196-ui-foundation.spec.ts tests-e2e/controlled/rodada-197-championship-card-global.spec.ts tests-e2e/controlled/rodada-198-entity-components.spec.ts tests-e2e/controlled/rodada-199-workspace-components.spec.ts tests-e2e/controlled/rodada-199-1-shell-desktop-overflow.spec.ts tests-e2e/controlled/rodada-200-form-foundation.spec.ts tests-e2e/controlled/rodada-201-form-migration.spec.ts tests-e2e/controlled/rodada-201-1-form-migration-admin.spec.ts tests-e2e/controlled/rodada-201-3-admin-home-integration.spec.ts tests-e2e/controlled/rodada-202-data-display.spec.ts tests-e2e/controlled/rodada-203-feedback-system.spec.ts tests-e2e/controlled/rodada-204-commerce-integration.spec.ts tests-e2e/controlled/rodada-205-token-flows.spec.ts tests-e2e/controlled/rodada-206-structural-cleanup.spec.ts tests-e2e/controlled/rodada-207-auditoria-final.spec.ts --project=chromium-desktop --project=chromium-mobile --workers=1",
+    "audit:championship-catalog": "node scripts/testes/audit-championship-catalog.mjs",
+    "test:e2e:r208": "playwright test --config=playwright.r208.config.ts tests-e2e/controlled/rodada-208-catalogo-campeonatos-unificado.spec.ts --project=chromium-desktop --project=chromium-mobile --workers=1",
+    "check:code": "npm run test:security && npm run typecheck && npm run lint && npm run build"
   },
   "devDependencies": {
-    "depcheck": "^1.4.7",
     "@playwright/test": "^1.54.1"
   }
 }

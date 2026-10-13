@@ -104,6 +104,7 @@ export function buildChampionshipDirectoryItems(
       eyebrow: tipo,
       description: first(config.formato, `${tipo} competitivo`),
       commercial: {
+        tipo: row.tipo || null,
         valor_inscricao: config.valor_inscricao != null ? Number(config.valor_inscricao) : null,
         premiacao: config.premiacao != null ? Number(config.premiacao) : null,
         tem_live: Boolean(config.tem_live),

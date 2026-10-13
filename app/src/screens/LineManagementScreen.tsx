@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { externalUrl } from "@/config/env";
 import { mobileApi } from "@/lib/api";
+import { usePagedDirectory } from "@/hooks/usePagedDirectory";
+import { DirectoryStatus } from "@/components/DirectoryStatus";
 import { useAuth } from "@/lib/auth";
 import { colors, spacing } from "@/theme/tokens";
 import { ScreenProps } from "@/types/dropzone";
@@ -32,8 +34,13 @@ export function LineManagementScreen({
 }: ScreenProps) {
   const auth = useAuth(),
     token = auth.session?.access_token;
-  const [data, setData] = useState<any>(null),
-    [tab, setTab] = useState<Tab>("overview"),
+  const resourceScope = JSON.stringify([selectedTeamId, selectedLineId, token]);
+  const currentResource = useRef(resourceScope);
+  currentResource.current = resourceScope;
+  const loadGeneration = useRef(0);
+  const [snapshot, setSnapshot] = useState<{ scope: string; data: any } | null>(null);
+  const data = snapshot?.scope === resourceScope ? snapshot.data : null;
+  const [tab, setTab] = useState<Tab>("overview"),
     [loading, setLoading] = useState(true),
     [refreshing, setRefreshing] = useState(false),
     [saving, setSaving] = useState(false),
@@ -45,14 +52,15 @@ export function LineManagementScreen({
     [formations, setFormations] = useState<
       Record<string, Record<string, FormationDraft>>
     >({});
-  const [destinations, setDestinations] = useState<any[]>([]),
-    [destinationQuery, setDestinationQuery] = useState(""),
+  const [destinationQuery, setDestinationQuery] = useState(""),
     [destinationId, setDestinationId] = useState("");
   const [transferPlayerId, setTransferPlayerId] = useState(""),
     [transferDestinationLineId, setTransferDestinationLineId] = useState("");
   const load = useCallback(
     async (refresh = false) => {
-      if (!selectedTeamId || !selectedLineId) return;
+      if (currentResource.current !== resourceScope) return;
+      const generation = ++loadGeneration.current;
+      if (!selectedTeamId || !selectedLineId) { setLoading(false); return; }
       refresh ? setRefreshing(true) : setLoading(true);
       try {
         const result = await mobileApi.teamLine(
@@ -60,7 +68,8 @@ export function LineManagementScreen({
           selectedLineId,
           token,
         );
-        setData(result);
+        if (generation !== loadGeneration.current || currentResource.current !== resourceScope) return;
+        setSnapshot({ scope: resourceScope, data: result });
         setName(result.line?.nome || "");
         setTag(result.line?.tag || "");
         setLogo(result.line?.logo_url || "");
@@ -77,24 +86,25 @@ export function LineManagementScreen({
         setFormations(next);
         setError("");
       } catch (err: any) {
+        if (generation !== loadGeneration.current || currentResource.current !== resourceScope) return;
         setError(err?.message || "Não foi possível carregar a line.");
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (generation === loadGeneration.current && currentResource.current === resourceScope) { setLoading(false); setRefreshing(false); }
       }
     },
-    [selectedTeamId, selectedLineId, token],
+    [selectedTeamId, selectedLineId, token, resourceScope],
   );
   useEffect(() => {
+    setDestinationId(""); setDestinationQuery(""); setTransferPlayerId(""); setTransferDestinationLineId("");
+    setError(""); setFeedback("");
     void load();
+    return () => { loadGeneration.current++; };
   }, [load]);
-  useEffect(() => {
-    if (data?.transfer?.allowed && !destinations.length)
-      mobileApi
-        .publicTeams("")
-        .then((result) => setDestinations((result.items || []) as any[]))
-        .catch(() => null);
-  }, [data?.transfer?.allowed, destinations.length]);
+  const destinationPage = usePagedDirectory<any>("/api/equipes/busca-publica", destinationQuery, {
+    enabled: tab === "settings" && Boolean(data?.transfer?.allowed && data?.permissions?.pode_editar), limit: 30, scopeKey: resourceScope,
+  });
+  const destinations = destinationPage.items;
+  useEffect(() => { setDestinationId(""); }, [destinationQuery, resourceScope, tab]);
   const line = data?.line || {},
     members = data?.members || [],
     roster = data?.roster || [],
@@ -112,21 +122,7 @@ export function LineManagementScreen({
     () => events.filter((event: any) => event.proximo_jogo),
     [events],
   );
-  const visibleDestinations = useMemo(() => {
-    const q = destinationQuery.trim().toLowerCase();
-    return destinations
-      .filter(
-        (team) =>
-          String(team.id) !== String(selectedTeamId) &&
-          (!q ||
-            [team.nome, team.tag, team.username].some((value) =>
-              String(value || "")
-                .toLowerCase()
-                .includes(q),
-            )),
-      )
-      .slice(0, 20);
-  }, [destinations, destinationQuery, selectedTeamId]);
+  const visibleDestinations = destinations.filter(team => String(team.id) !== String(selectedTeamId));
   async function action(body: Record<string, unknown>, success: string) {
     if (!selectedTeamId || !selectedLineId || saving) return;
     setSaving(true);
@@ -733,6 +729,7 @@ export function LineManagementScreen({
                   </TouchableOpacity>
                 ))}
               </View>
+              <DirectoryStatus page={{ ...destinationPage, items: visibleDestinations }} empty="Nenhuma equipe encontrada." />
               <TouchableOpacity
                 style={[styles.save, !destinationId && styles.disabled]}
                 disabled={!destinationId || saving}

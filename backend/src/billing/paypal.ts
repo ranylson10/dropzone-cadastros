@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto'
 import { supabaseAdmin } from '../shared/supabase-admin'
 import { attachReservationPayment } from './lili-slot-reservation'
 import { liberarCompraVagaComSplit } from './vacancy-purchase'
+import type { InternationalQuote } from './currency'
+import { assertPayPalPrice, assertPayPalReferenceOpen, resolvePayPalQuote } from './paypal-price'
 
 export type PayPalCurrency = 'BRL' | 'USD' | 'EUR'
 
@@ -73,12 +75,18 @@ export async function createLiliPayPalOrder(input: {
   referenceType?: 'lili_reservas_slot' | 'sistema_compras_vaga'
   returnUrl?: string
   cancelUrl?: string
+  quote?: Partial<InternationalQuote>
 }) {
   if (!paypalConfigured()) throw new Error('PayPal ainda não foi configurado.')
   if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) throw new Error('Valor inválido para o PayPal.')
 
   const referenceType = input.referenceType || 'lili_reservas_slot'
   const isPurchase = referenceType === 'sistema_compras_vaga'
+  const { data: record, error: recordError } = await supabaseAdmin.from(referenceType).select('*').eq('id', input.reservation.id).single()
+  if (recordError) throw recordError
+  if (!record || record.auth_user_id !== input.reservation.auth_user_id) throw new Error('Reserva não localizada para esta conta.')
+  const quote = resolvePayPalQuote(record, referenceType, input.currency, input.quote)
+  assertPayPalPrice(quote, input.amountMinor, input.currency)
   const externalReference = `${isPurchase ? 'compra_vaga_paypal' : 'lili_paypal'}:${input.reservation.id}`
   const { data: existing } = await supabaseAdmin
     .from('sistema_pagamentos')
@@ -89,7 +97,14 @@ export async function createLiliPayPalOrder(input: {
     .limit(1)
     .maybeSingle()
 
-  if (existing?.paypal_order_id && existing?.paypal_approval_url) return existing
+  if (existing?.paypal_order_id && existing?.paypal_approval_url) {
+    assertPayPalPrice(quote, existing.valor_centavos, existing.moeda)
+    if (['pago', 'confirmado'].includes(String(existing.status))) return existing
+    assertPayPalReferenceOpen(record, referenceType)
+    return existing
+  }
+  assertPayPalReferenceOpen(record, referenceType)
+  if (quote.expiresAt && Date.parse(quote.expiresAt) <= Date.now()) throw new Error('Esta cotação expirou. Gere uma nova reserva.')
 
   const returnUrl = input.returnUrl || (isPurchase
     ? `${input.returnOrigin}/lili?paypal=approved&purchase=${encodeURIComponent(input.reservation.token)}&purchase_id=${encodeURIComponent(input.reservation.id)}`
@@ -141,7 +156,7 @@ export async function createLiliPayPalOrder(input: {
     paypal_order_id: order.id,
     paypal_status: order.status,
     paypal_approval_url: approvalUrl,
-    payload_criacao: { ...order, dropzone: isPurchase ? { compra_vaga_id: input.reservation.id, compra_token: input.reservation.token } : { lili_reserva_id: input.reservation.id } },
+    payload_criacao: { ...order, dropzone: { ...(isPurchase ? { compra_vaga_id: record.id, compra_token: record.token } : { lili_reserva_id: record.id }), quote } },
     updated_at: new Date().toISOString(),
   }
   const { data: saved, error } = await supabaseAdmin
@@ -171,6 +186,7 @@ function captureFromOrder(order: any) {
 }
 
 async function validateAndPersistOrder(order: any, expectedPayment: any) {
+  await validateStoredPaymentPrice(expectedPayment)
   const unit = order?.purchase_units?.[0]
   const capture = captureFromOrder(order)
   const amount = capture?.amount || unit?.amount
@@ -209,6 +225,15 @@ async function validateAndPersistOrder(order: any, expectedPayment: any) {
   return updated
 }
 
+async function validateStoredPaymentPrice(payment: any) {
+  if (!['lili_reservas_slot', 'sistema_compras_vaga'].includes(payment.referencia_tipo)) throw new Error('Referência de pagamento inválida.')
+  const { data: record, error } = await supabaseAdmin.from(payment.referencia_tipo).select('*').eq('id', payment.referencia_id).single()
+  if (error) throw error
+  if (!record || record.auth_user_id !== payment.pagador_auth_user_id) throw new Error('Pagamento não pertence a esta conta.')
+  const quote = resolvePayPalQuote(record, payment.referencia_tipo, payment.moeda, payment.payload_criacao?.dropzone?.quote)
+  assertPayPalPrice(quote, payment.valor_centavos, payment.moeda)
+}
+
 export async function captureLiliPayPalOrder(input: { orderId: string; reservationId: string; authUserId: string }) {
   const { data: payment, error } = await supabaseAdmin
     .from('sistema_pagamentos')
@@ -221,6 +246,8 @@ export async function captureLiliPayPalOrder(input: { orderId: string; reservati
   if (error) throw error
   if (!payment) throw new Error('Pagamento PayPal não localizado para esta reserva.')
   if (['pago', 'confirmado'].includes(String(payment.status))) return payment
+
+  await validateStoredPaymentPrice(payment)
 
   let order = await getPayPalOrder(input.orderId)
   if (String(order?.status || '').toUpperCase() === 'APPROVED') {
@@ -256,6 +283,8 @@ export async function captureVacancyPayPalOrder(input: { orderId: string; purcha
   if (error) throw error
   if (!payment) throw new Error('Pagamento PayPal não localizado para esta compra de vaga.')
   if (['pago', 'confirmado'].includes(String(payment.status))) return payment
+
+  await validateStoredPaymentPrice(payment)
 
   let order = await getPayPalOrder(input.orderId)
   const orderStatus = String(order?.status || '').toUpperCase()
@@ -359,9 +388,16 @@ export async function applyPayPalWebhook(event: any) {
 
   const eventType = String(event?.event_type || '')
   const completed = eventType === 'PAYMENT.CAPTURE.COMPLETED'
+  if (completed) {
+    // Read the order with our merchant credentials and verify its reference,
+    // amount and currency before recording a successful webhook payment.
+    const order = await getPayPalOrder(String(payment.paypal_order_id))
+    const updated = await validateAndPersistOrder(order, payment)
+    return { updated: true, status: updated.status }
+  }
   const denied = ['PAYMENT.CAPTURE.DENIED', 'PAYMENT.CAPTURE.REVERSED'].includes(eventType)
   const refunded = eventType === 'PAYMENT.CAPTURE.REFUNDED'
-  const status = completed ? 'pago' : refunded ? 'estornado' : denied ? 'falha' : 'aguardando'
+  const status = refunded ? 'estornado' : denied ? 'falha' : 'aguardando'
   const { error: updateError } = await supabaseAdmin
     .from('sistema_pagamentos')
     .update({
@@ -369,24 +405,11 @@ export async function applyPayPalWebhook(event: any) {
       paypal_status: resource?.status || eventType,
       paypal_capture_id: captureId || payment.paypal_capture_id,
       payload_webhook: event,
-      pago_em: completed ? new Date().toISOString() : payment.pago_em,
+      pago_em: payment.pago_em,
       updated_at: new Date().toISOString(),
     })
     .eq('id', payment.id)
   if (updateError) throw updateError
-  if (completed) {
-    if (payment.referencia_tipo === 'sistema_compras_vaga') {
-      const { data: updatedPayment } = await supabaseAdmin.from('sistema_pagamentos').select('*').eq('id', payment.id).single()
-      if (updatedPayment) await liberarCompraVagaComSplit(updatedPayment)
-    } else {
-      await supabaseAdmin
-        .from('lili_reservas_slot')
-        .update({ expira_em: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() })
-        .eq('id', payment.referencia_id)
-        .eq('status', 'ativa')
-    }
-  }
-
   if ((refunded || eventType === 'PAYMENT.CAPTURE.REVERSED') && payment.referencia_tipo === 'sistema_compras_vaga') {
     const { data: updatedPayment } = await supabaseAdmin.from('sistema_pagamentos').select('*').eq('id', payment.id).single()
     if (updatedPayment) {

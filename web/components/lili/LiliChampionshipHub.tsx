@@ -1,11 +1,20 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput } from '@/components/ui/Field'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRightLeft, CalendarDays, ChevronRight, CirclePlus, ExternalLink, Link2, Loader2, Map, Minus, Pencil, Plus, RefreshCw, Save, Search, Shield, Shuffle, Sparkles, Trash2, Trophy, UserMinus, UserPlus, Users, X } from 'lucide-react'
 import { LiliPhaseDistributor } from './LiliPhaseDistributor'
 import { LiliLinksManager } from './LiliLinksManager'
 import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@/components/forms/campeonato'
 import { SystemModal } from '@/components/layout/SystemModal'
+import { writeParticipation, type ParticipationReadContract } from '@/lib/participation-write'
+import { writeSlotMovement, type SlotMovementReadContract } from '@/lib/slot-movement-write'
+import { slotMovementBoardExpected, slotMovementMode } from '@backend/campeonatos/slot-movement-contract'
+import { SlotMovementRecovery } from './SlotMovementRecovery'
+import { ParticipationRecovery } from '@/features/campeonatos/equipes/components/ParticipationRecovery'
+import { LigaOriginField } from '@/features/campeonatos/equipes/components/LigaOriginField'
+import { validateLigaOrigin, type LigaPlan } from '@backend/campeonatos/liga-plan'
 
 type ChampionshipItem = {
   id: string
@@ -24,7 +33,8 @@ type BulkPhaseDraft = { id: string; nome: string; ordem: number; grupos: BulkGro
 type EditPhaseDraft = { id: string; nome: string; ordem: number }
 type EditGroupDraft = { id: string; nome: string; slots: number }
 
-type Structure = {
+type Structure = ParticipationReadContract & SlotMovementReadContract & {
+  liga?: LigaPlan | null
   campeonato?: Record<string, any>
   fases?: Array<Record<string, any>>
   grupos?: Array<Record<string, any>>
@@ -41,6 +51,13 @@ type ActiveAccount = {
 }
 
 export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToken?: string | null; activeAccount?: ActiveAccount | null }) {
+  return <LiliChampionshipContent key={activeAccount?.id || 'anonymous'} accessToken={accessToken} activeAccount={activeAccount} />
+}
+
+function LiliChampionshipContent({ accessToken, activeAccount }: { accessToken?: string | null; activeAccount?: ActiveAccount | null }) {
+  const detailGeneration = useRef(0)
+  const participationLock = useRef(false)
+  useEffect(() => () => { ++detailGeneration.current }, [])
   const [items, setItems] = useState<ChampionshipItem[]>([])
   const [selected, setSelected] = useState<ChampionshipItem | null>(null)
   const [structure, setStructure] = useState<Structure | null>(null)
@@ -58,6 +75,7 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
   const [feedback, setFeedback] = useState('')
   const [slotManagerGroup, setSlotManagerGroup] = useState<string | null>(null)
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
+  const [slotOrigin, setSlotOrigin] = useState('')
   const [slotSearch, setSlotSearch] = useState('')
   const [teamResults, setTeamResults] = useState<Array<Record<string, any>>>([])
   const [searchingTeams, setSearchingTeams] = useState(false)
@@ -69,6 +87,9 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
   const [showCreateChampionship, setShowCreateChampionship] = useState(false)
   const [championshipDraft, setChampionshipDraft] = useState<CampeonatoFormValue>({ ...emptyCampeonatoForm })
   const [creatingChampionship, setCreatingChampionship] = useState(false)
+  useEffect(() => {
+    setSelectedSlotId(null); setSlotOrigin(''); setMoveSourceSlotId(null); setTeamResults([]); setSlotSearch('')
+  }, [activePhase, openGroupId])
 
   async function request(url: string, options?: RequestInit) {
     const response = await fetch(url, {
@@ -157,13 +178,17 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
   }
 
   async function openChampionship(item: ChampionshipItem) {
+    const generation = ++detailGeneration.current
+    setSelectedSlotId(null); setSlotOrigin(''); setSlotManagerGroup(null); setMoveSourceSlotId(null); setTeamResults([]); setSlotSearch('')
     setSelected(item); setStructure(null); setDetailLoading(true); setError(''); setActivePhase('all'); setDetailTab('overview'); setOpenGroupId(null); setSlotsExpanded(false)
     try {
       const payload = await request(`/api/campeonatos/${item.id}/estrutura`)
+      if (generation !== detailGeneration.current) return
       setStructure(payload)
     } catch (err: any) {
+      if (generation !== detailGeneration.current) return
       setError(err?.message || 'Não foi possível carregar a estrutura do campeonato.')
-    } finally { setDetailLoading(false) }
+    } finally { if (generation === detailGeneration.current) setDetailLoading(false) }
   }
 
   useEffect(() => { void loadItems() }, [accessToken])
@@ -172,6 +197,7 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
   const groups = structure?.grupos || []
   const slots = structure?.slots || []
   const games = structure?.jogos || []
+  const readGeneration = detailGeneration.current
   const visibleGroups = useMemo(() => activePhase === 'all' ? groups : groups.filter((group) => String(group.fase_id) === activePhase), [groups, activePhase])
 
 
@@ -371,7 +397,7 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
 
   async function deleteStructureEntity(entity: 'phase' | 'group', entityId: string, label: string) {
     if (!selected) return
-    const confirmed = window.confirm(`Excluir ${label}? Esta ação só será permitida se não houver equipes nos slots.`)
+    const confirmed = await confirmAction(`Excluir ${label}? Esta ação só será permitida se não houver equipes nos slots.`)
     if (!confirmed) return
     setSavingEntity(`${entity}:${entityId}`)
     setFeedback('')
@@ -406,8 +432,7 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
     const form = new FormData(event.currentTarget)
     setFeedback('')
     try {
-      await request(`/api/campeonatos/${selected.id}/estrutura`, { method: 'POST', body: JSON.stringify({ action: 'create_group', nome: form.get('nome'), fase_id: form.get('fase_id'), slots: Number(form.get('slots') || 12) }) })
-      setCreating(null); setFeedback('Grupo e slots criados com sucesso.'); await openChampionship(selected)
+      setFeedback('Criação de grupo temporariamente indisponível. Use a estrutura do campeonato após sua ativação revisada.')
     } catch (err: any) { setFeedback(err?.message || 'Não foi possível criar o grupo.') }
   }
 
@@ -430,86 +455,100 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
   }
 
   async function assignLineToSlot(slotId: string, equipeId: string, lineId: string) {
-    if (!selected) return
+    if (!selected || participationLock.current) return
+    const generation = detailGeneration.current
+    participationLock.current = true
     setSlotAction(`assign:${slotId}:${lineId}`)
     setFeedback('')
     try {
-      const payload = await request(`/api/campeonatos/${selected.id}/equipes`, {
-        method: 'POST',
-        body: JSON.stringify({ slot_id: slotId, equipe_id: equipeId, line_id: lineId }),
-      })
+      const target = slots.find(slot => String(slot.id) === slotId)
+      if (!target || target.equipe_id || target.line_id || !['livre', 'disponivel'].includes(String(target.status || 'livre'))) throw new Error('Este slot não está disponível. Atualize a estrutura.')
+      if (structure?.liga && slots.some(slot => slot.equipe_id === equipeId)) throw new Error('Esta equipe já ocupa uma vaga nesta Liga.')
+      const entry = validateLigaOrigin(structure?.liga || null, String(groups.find(group => group.id === target.grupo_id)?.nome || ''), String(target.grupo_id || ''), slotOrigin, slots)
+      const payload = await writeParticipation(selected.id, structure || {}, 'POST', { slot_id: slotId, equipe_id: equipeId, line_id: lineId, ...(entry ? { origem_entrada: entry } : {}) })
+      if (generation !== detailGeneration.current) return
       setFeedback(payload?.mensagem || 'Equipe adicionada ao slot.')
       setTeamResults([])
       setSlotSearch('')
       setSelectedSlotId(null)
       await openChampionship(selected)
     } catch (err: any) {
-      setFeedback(err?.message || 'Não foi possível adicionar a equipe ao slot.')
+      if (generation === detailGeneration.current) setFeedback(err?.message || 'Não foi possível adicionar a equipe ao slot.')
     } finally {
+      participationLock.current = false
+      setSlotAction(null)
+    }
+  }
+
+  async function executeSlotMovement(body: Record<string, unknown>) {
+    if (!selected || !structure || readGeneration !== detailGeneration.current || participationLock.current) return
+    const generation = detailGeneration.current
+    participationLock.current = true
+    setSlotAction(`movement:${body.mode}`)
+    setFeedback('')
+    try {
+      const payload = await writeSlotMovement(selected.id, structure, body)
+      if (generation !== detailGeneration.current) return
+      const message = body.mode === 'swap' ? 'Equipes trocadas de posição.' : body.mode === 'move' ? 'Equipe movida para o novo slot.' : body.mode === 'shuffle_group' ? 'Slots sorteados com sucesso.' : 'Equipes distribuídas com sucesso.'
+      setFeedback(payload?.mensagem || message)
+      setMoveSourceSlotId(null)
+      setSelectedSlotId(null)
+      await openChampionship(selected)
+    } catch (err: any) {
+      if (generation === detailGeneration.current) setFeedback(err?.message || 'Não foi possível concluir a movimentação.')
+    } finally {
+      participationLock.current = false
       setSlotAction(null)
     }
   }
 
   async function moveTeamToSlot(targetSlotId: string, swap = false) {
-    if (!selected || !moveSourceSlotId || moveSourceSlotId === targetSlotId) return
-    setSlotAction(`move:${moveSourceSlotId}:${targetSlotId}`)
-    setFeedback('')
+    if (!selected || !moveSourceSlotId || moveSourceSlotId === targetSlotId || participationLock.current) return
     try {
-      const payload = await request(`/api/campeonatos/${selected.id}/equipes`, {
-        method: 'PATCH',
-        body: JSON.stringify({ source_slot_id: moveSourceSlotId, target_slot_id: targetSlotId, mode: swap ? 'swap' : 'move' }),
-      })
-      setFeedback(payload?.mensagem || (swap ? 'Equipes trocadas de posição.' : 'Equipe movida para o novo slot.'))
-      setMoveSourceSlotId(null)
-      setSelectedSlotId(null)
-      await openChampionship(selected)
-    } catch (err: any) {
-      setFeedback(err?.message || (swap ? 'Não foi possível trocar as equipes.' : 'Não foi possível mover a equipe.'))
-    } finally {
-      setSlotAction(null)
-    }
+      const source = slots.find(slot => slot.id === moveSourceSlotId), target = slots.find(slot => slot.id === targetSlotId)
+      if (!source?.equipe_id || !target || (!swap && (target.equipe_id || target.line_id || !['livre', 'disponivel'].includes(String(target.status || 'livre')))) || (swap && !target.equipe_id)) throw new Error('Os slots mudaram. Atualize a estrutura antes de confirmar.')
+      const atomic = slotMovementMode(structure || {}) === 'atomic'
+      if (atomic) slotMovementBoardExpected([source, ...(swap ? [target] : [])])
+      await executeSlotMovement({ mode: swap ? 'swap' : 'move', source_slot_id: source.id, target_slot_id: target.id,
+        ...(atomic ? { source_participation_id: source.participacao_id, target_participation_id: swap ? target.participacao_id : null } : {}) })
+    } catch (err: any) { setFeedback(err?.message || 'Não foi possível preparar a movimentação.') }
   }
 
   async function shuffleGroupSlots(group: Record<string, any>, groupSlots: Array<Record<string, any>>) {
-    if (!selected) return
+    if (!selected || participationLock.current) return
     const occupiedCount = groupSlots.filter((slot) => slot.equipe_id || slot.line_id).length
     if (occupiedCount < 2) {
       setFeedback('É necessário ter pelo menos duas equipes no grupo para realizar o sorteio.')
       return
     }
-    const confirmed = window.confirm(`Sortear novamente a posição das ${occupiedCount} equipes de ${group.nome || 'este grupo'}? Os slots serão reorganizados aleatoriamente.`)
-    if (!confirmed) return
-    setSlotAction(`shuffle:${group.id}`)
-    setFeedback('')
     try {
-      const payload = await request(`/api/campeonatos/${selected.id}/equipes`, {
-        method: 'PATCH',
-        body: JSON.stringify({ mode: 'shuffle_group', group_id: String(group.id) }),
-      })
-      setFeedback(payload?.mensagem || 'Slots sorteados com sucesso.')
-      setMoveSourceSlotId(null)
-      setSelectedSlotId(null)
-      await openChampionship(selected)
+      if (slotMovementMode(structure || {}) === 'legacy' && groupSlots.some(slot => !slot.equipe_id && !slot.line_id && !['livre', 'disponivel'].includes(String(slot.status || 'livre')))) throw new Error('O sorteio está indisponível neste grupo porque há slots reservados ou bloqueados.')
+      const expected = slotMovementMode(structure || {}) === 'atomic' ? slotMovementBoardExpected(groupSlots) : undefined
+      const confirmed = await confirmAction(`Sortear novamente a posição das ${occupiedCount} equipes de ${group.nome || 'este grupo'}? Os slots serão reorganizados aleatoriamente.`)
+      if (!confirmed || readGeneration !== detailGeneration.current) return
+      await executeSlotMovement({ mode: 'shuffle_group', group_id: String(group.id), ...(expected ? { expected } : {}) })
     } catch (err: any) {
       setFeedback(err?.message || 'Não foi possível sortear os slots do grupo.')
-    } finally {
-      setSlotAction(null)
     }
   }
 
   async function freeOccupiedSlot(slot: Record<string, any>) {
-    if (!selected || !slot.participacao_id) return
-    const confirmed = window.confirm(`Liberar o slot ${slot.slot_numero || ''} ocupado por ${slot.line_nome || slot.equipe_nome || 'esta equipe'}?`)
-    if (!confirmed) return
+    if (!selected || !slot.participacao_id || participationLock.current) return
+    const confirmed = await confirmAction(`Liberar o slot ${slot.slot_numero || ''} ocupado por ${slot.line_nome || slot.equipe_nome || 'esta equipe'}?`)
+    if (!confirmed || readGeneration !== detailGeneration.current || participationLock.current) return
+    const generation = detailGeneration.current
+    participationLock.current = true
     setSlotAction(`remove:${slot.id}`)
     setFeedback('')
     try {
-      await request(`/api/campeonatos/${selected.id}/equipes?participacao_id=${encodeURIComponent(String(slot.participacao_id))}`, { method: 'DELETE' })
+      await writeParticipation(selected.id, structure || {}, 'DELETE', { expected: slot.participation_expected }, String(slot.participacao_id))
+      if (generation !== detailGeneration.current) return
       setFeedback('Slot liberado com sucesso.')
       await openChampionship(selected)
     } catch (err: any) {
-      setFeedback(err?.message || 'Não foi possível liberar o slot.')
+      if (generation === detailGeneration.current) setFeedback(err?.message || 'Não foi possível liberar o slot.')
     } finally {
+      participationLock.current = false
       setSlotAction(null)
     }
   }
@@ -517,6 +556,7 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
   function toggleSlotManager(groupId: string) {
     setSlotManagerGroup((current) => current === groupId ? null : groupId)
     setSelectedSlotId(null)
+    setSlotOrigin('')
     setSlotSearch('')
     setTeamResults([])
     setFeedback('')
@@ -607,38 +647,42 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
       <div className="lili-slot-manager-note"><strong>Toque em uma equipe e depois no destino</strong><span>Um slot livre move; um slot ocupado troca as equipes.</span>{moveSourceSlotId ? <button type="button" onClick={() => setMoveSourceSlotId(null)}><X size={14} /> Cancelar seleção</button> : null}</div>
       <div className="lili-champ-slots manager">{chosenGroupSlots.map((slot, index) => {
         const occupied = Boolean(slot.equipe_id || slot.line_id)
+        const unavailable = !occupied && !['livre', 'disponivel'].includes(String(slot.status || 'livre'))
         const selectedSlot = selectedSlotId === String(slot.id)
         const movingSource = moveSourceSlotId === String(slot.id)
-        const movingNow = Boolean(slotAction?.startsWith('move:'))
-        return <button type="button" className={`${occupied ? 'occupied' : 'free'} ${selectedSlot ? 'selected' : ''} ${movingSource ? 'move-source' : ''}`} key={slot.id} onClick={() => {
+        return <button type="button" className={`${occupied ? 'occupied' : 'free'} ${selectedSlot ? 'selected' : ''} ${movingSource ? 'move-source' : ''}`} key={slot.id} onClick={async () => {
           if (moveSourceSlotId) {
             if (occupied) {
               if (movingSource) return
               const source = slots.find((item) => String(item.id) === moveSourceSlotId)
-              const confirmed = window.confirm(`Trocar ${source?.line_nome || source?.equipe_nome || 'a equipe selecionada'} com ${slot.line_nome || slot.equipe_nome || 'esta equipe'}?`)
+              const confirmed = await confirmAction(`Trocar ${source?.line_nome || source?.equipe_nome || 'a equipe selecionada'} com ${slot.line_nome || slot.equipe_nome || 'esta equipe'}?`)
+              if (readGeneration !== detailGeneration.current) return
               if (confirmed) void moveTeamToSlot(String(slot.id), true)
               return
             }
             void moveTeamToSlot(String(slot.id)); return
           }
           if (occupied) { setMoveSourceSlotId(String(slot.id)); setSelectedSlotId(null); setFeedback('Equipe selecionada. Escolha o slot de destino.'); return }
+          if (selectedSlotId !== String(slot.id)) setSlotOrigin('')
           setSelectedSlotId(String(slot.id))
-        }} disabled={slotAction === `remove:${slot.id}` || movingNow}>
-          <span>{slotLetter(slot, index)}</span><div><strong>{slot.nome_exibicao || slot.line_nome || slot.equipe_nome || 'Slot disponível'}</strong><small>{movingSource ? 'Origem selecionada' : occupied ? (slot.equipe_nome && slot.line_nome ? `${slot.equipe_nome} · ${slot.line_nome}` : slot.equipe_nome || slot.line_nome) : moveSourceSlotId ? 'Mover para cá' : selectedSlot ? 'Selecionado para receber equipe' : 'Disponível'}</small></div>{movingSource ? <ArrowRightLeft size={16} /> : null}{occupied && slot.participacao_id ? <span className="lili-slot-remove" onClick={(event) => { event.stopPropagation(); void freeOccupiedSlot(slot) }} title="Liberar slot"><UserMinus size={15} /></span> : null}
+        }} disabled={unavailable || Boolean(slotAction)}>
+          <span>{slotLetter(slot, index)}</span><div><strong>{slot.nome_exibicao || slot.line_nome || slot.equipe_nome || (unavailable ? 'Slot indisponível' : 'Slot disponível')}</strong><small>{movingSource ? 'Origem selecionada' : occupied ? (slot.equipe_nome && slot.line_nome ? `${slot.equipe_nome} · ${slot.line_nome}` : slot.equipe_nome || slot.line_nome) : unavailable ? 'Reservado ou bloqueado' : moveSourceSlotId ? 'Mover para cá' : selectedSlot ? 'Selecionado para receber equipe' : 'Disponível'}</small></div>{movingSource ? <ArrowRightLeft size={16} /> : null}{occupied && slot.participacao_id ? <span className="lili-slot-remove" onClick={(event) => { event.stopPropagation(); void freeOccupiedSlot(slot) }} title="Liberar slot"><UserMinus size={15} /></span> : null}
         </button>
       })}</div>
-      {selectedSlotId ? <div className="lili-slot-search"><div className="lili-slot-search-form"><label>Buscar equipe<input value={slotSearch} onChange={(event) => setSlotSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchTeams() } }} placeholder="Nome ou tag" /></label><button type="button" onClick={() => void searchTeams()} disabled={searchingTeams || slotSearch.trim().length < 2}>{searchingTeams ? <Loader2 className="spin" size={16} /> : <Search size={16} />}</button></div>{teamResults.length ? <div className="lili-slot-results">{teamResults.map((team) => <section key={team.id}><div className="lili-slot-team"><span>{team.logo_url ? <img src={team.logo_url} alt="" /> : <Users size={16} />}</span><div><strong>{team.nome}</strong><small>{team.tag || 'Sem tag'}</small></div></div><div className="lili-slot-lines">{(team.lines || []).map((line: Record<string, any>) => <button type="button" key={line.id} disabled={line.ja_inscrita || Boolean(slotAction)} onClick={() => void assignLineToSlot(selectedSlotId, String(team.id), String(line.id))}><span>{line.nome}</span><small>{line.ja_inscrita ? 'Já inscrita' : 'Adicionar'}</small>{slotAction === `assign:${selectedSlotId}:${line.id}` ? <Loader2 className="spin" size={15} /> : <UserPlus size={15} />}</button>)}</div></section>)}</div> : null}</div> : null}
+      {selectedSlotId ? <div className="lili-slot-search"><LigaOriginField plan={structure?.liga || null} groupName={String(chosenGroup.nome || '')} groupId={String(chosenGroup.id)} slots={slots} value={slotOrigin} onChange={setSlotOrigin} disabled={Boolean(slotAction)} /><div className="lili-slot-search-form"><label>Buscar equipe<UiInput value={slotSearch} onChange={(event) => setSlotSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchTeams() } }} placeholder="Nome ou tag" /></label><button type="button" onClick={() => void searchTeams()} disabled={searchingTeams || slotSearch.trim().length < 2}>{searchingTeams ? <Loader2 className="spin" size={16} /> : <Search size={16} />}</button></div>{teamResults.length ? <div className="lili-slot-results">{teamResults.map((team) => <section key={team.id}><div className="lili-slot-team"><span>{team.logo_url ? <img src={team.logo_url} alt="" /> : <Users size={16} />}</span><div><strong>{team.nome}</strong><small>{team.tag || 'Sem tag'}</small></div></div><div className="lili-slot-lines">{(team.lines || []).map((line: Record<string, any>) => <button type="button" key={line.id} disabled={line.ja_inscrita || Boolean(slotAction)} onClick={() => void assignLineToSlot(selectedSlotId, String(team.id), String(line.id))}><span>{line.nome}</span><small>{line.ja_inscrita ? 'Já inscrita' : 'Adicionar'}</small>{slotAction === `assign:${selectedSlotId}:${line.id}` ? <Loader2 className="spin" size={15} /> : <UserPlus size={15} />}</button>)}</div></section>)}</div> : null}</div> : null}
     </div>
   }
 
   return (
     <section className="lili-champ-hub detail mobile-first">
-      <div className="lili-champ-detail-head"><button type="button" onClick={() => { setSelected(null); setStructure(null); setFeedback('') }}><ArrowLeft size={18} /> Voltar</button><a href={structure?.permission?.canManage ? `/?perfil=produtora&campeonato=${encodeURIComponent(String(selected.id))}&section=grupos` : `/campeonatos/${selected.id}`}><ExternalLink size={16} /> {structure?.permission?.canManage ? 'Gerenciar no site' : 'Site completo'}</a></div>
+      <div className="lili-champ-detail-head"><button type="button" onClick={() => { ++detailGeneration.current; setSelected(null); setStructure(null); setFeedback('') }}><ArrowLeft size={18} /> Voltar</button><a href={structure?.permission?.canManage ? `/?perfil=produtora&campeonato=${encodeURIComponent(String(selected.id))}&section=grupos` : `/campeonatos/${selected.id}`}><ExternalLink size={16} /> {structure?.permission?.canManage ? 'Gerenciar no site' : 'Site completo'}</a></div>
       <div className="lili-champ-title"><span className="lili-champ-logo large">{selected.logo_url || selected.banner_url ? <img src={selected.logo_url || selected.banner_url || ''} alt="" /> : <Trophy size={25} />}</span><div><strong>{selected.nome}</strong><span>{selected.tipo || 'Campeonato'} · {selected.status || 'ativo'}</span></div></div>
       {detailLoading ? <div className="lili-champ-loading"><Loader2 className="spin" size={24} /> Carregando estrutura…</div> : null}
       {error ? <div className="lili-champ-feedback error">{error}</div> : null}
       {feedback ? <div className="lili-champ-feedback">{feedback}</div> : null}
       {structure ? <>
+        {structure.permission?.canManage || structure.permission?.canRemove ? <ParticipationRecovery championshipId={selected.id} contract={structure} onConfirmed={() => openChampionship(selected)} /> : null}
+        {structure.permission?.canManage ? <SlotMovementRecovery championshipId={selected.id} contract={structure} onConfirmed={() => openChampionship(selected)} /> : null}
         <nav className="lili-mobile-sections" aria-label="Áreas do campeonato">
           <button type="button" className={detailTab === 'overview' ? 'active' : ''} onClick={() => setDetailTab('overview')}><Trophy size={17} /><span>Resumo</span></button>
           <button type="button" className={detailTab === 'groups' ? 'active' : ''} onClick={() => { setDetailTab('groups'); if (!openGroupId && groups[0]) setOpenGroupId(String(groups[0].id)) }}><Users size={17} /><span>Grupos</span></button>
@@ -671,6 +715,7 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
               </div> : null}
             </article> : null}
           </> : <div className="lili-champ-empty compact"><Users size={25} /><strong>Nenhum grupo nesta fase</strong><span>{structure.permission?.canOrganizeGroups ? 'Abra Configurar para montar a estrutura.' : 'A organização ainda não publicou grupos nesta fase.'}</span></div>}
+          {structure.slot_movement_mode === 'atomic' ? <LiliPhaseDistributor key={selected.id} championshipId={String(selected.id)} phases={phases} groups={groups} slots={slots} contract={structure} canManage={Boolean(structure.permission?.canManage)} busy={Boolean(slotAction)} execute={executeSlotMovement} onFeedback={setFeedback} /> : null}
         </div> : null}
 
         {detailTab === 'links' ? <div className="lili-mobile-panel"><LiliLinksManager championshipId={String(selected.id)} phases={phases} groups={groups} slots={slots} canManage={Boolean(structure.permission?.canGenerateToken)} request={request} onFeedback={setFeedback} /></div> : null}
@@ -684,16 +729,15 @@ export function LiliChampionshipHub({ accessToken, activeAccount }: { accessToke
             <div className="lili-structure-phase-list">{phases.map((phase) => {
               const phaseId = String(phase.id); const phaseDraft = editPhases[phaseId] || { id: phaseId, nome: String(phase.nome || ''), ordem: Number(phase.ordem || 1) }; const phaseItems = groups.filter((group) => String(group.fase_id) === phaseId)
               return <details className="lili-structure-phase" key={phaseId}><summary><span><strong>{phase.nome}</strong><small>{phaseItems.length} grupo(s)</small></span><ChevronRight size={17} /></summary><div className="lili-structure-phase-content">
-                <div className="lili-structure-phase-row compact-row"><label>Fase<input value={phaseDraft.nome} onChange={(event) => setEditPhases((current) => ({ ...current, [phaseId]: { ...phaseDraft, nome: event.target.value } }))} /></label><label className="order-field">Ordem<input type="number" min="1" value={phaseDraft.ordem} onChange={(event) => setEditPhases((current) => ({ ...current, [phaseId]: { ...phaseDraft, ordem: Math.max(1, Number(event.target.value || 1)) } }))} /></label><button type="button" className="icon-danger" title="Excluir fase vazia" onClick={() => void deleteStructureEntity('phase', phaseId, `a fase ${phase.nome}`)} disabled={savingEntity === 'structure:all'}><Trash2 size={15} /></button></div>
-                <div className="lili-structure-groups">{phaseItems.map((group) => { const groupId = String(group.id); const groupDraft = editGroups[groupId] || { id: groupId, nome: String(group.nome || ''), slots: Number(group.slots_total || group.slots || 12) }; return <div className="lili-structure-group-row compact-row" key={groupId}><label>Grupo<input value={groupDraft.nome} onChange={(event) => setEditGroups((current) => ({ ...current, [groupId]: { ...groupDraft, nome: event.target.value } }))} /></label><label className="slots-field">Slots<input type="number" min="1" max="52" value={groupDraft.slots} onChange={(event) => setEditGroups((current) => ({ ...current, [groupId]: { ...groupDraft, slots: Math.max(1, Math.min(52, Number(event.target.value || 1))) } }))} /></label><small>{Number(group.slots_ocupados || 0)} ocupados</small><button type="button" className="icon-danger" title="Excluir grupo vazio" onClick={() => void deleteStructureEntity('group', groupId, `o grupo ${group.nome}`)} disabled={savingEntity === 'structure:all'}><Trash2 size={15} /></button></div> })}</div>
+                <div className="lili-structure-phase-row compact-row"><label>Fase<UiInput value={phaseDraft.nome} onChange={(event) => setEditPhases((current) => ({ ...current, [phaseId]: { ...phaseDraft, nome: event.target.value } }))} /></label><label className="order-field">Ordem<UiInput type="number" min="1" value={phaseDraft.ordem} onChange={(event) => setEditPhases((current) => ({ ...current, [phaseId]: { ...phaseDraft, ordem: Math.max(1, Number(event.target.value || 1)) } }))} /></label><button type="button" className="icon-danger" title="Excluir fase vazia" onClick={() => void deleteStructureEntity('phase', phaseId, `a fase ${phase.nome}`)} disabled={savingEntity === 'structure:all'}><Trash2 size={15} /></button></div>
+                <div className="lili-structure-groups">{phaseItems.map((group) => { const groupId = String(group.id); const groupDraft = editGroups[groupId] || { id: groupId, nome: String(group.nome || ''), slots: Number(group.slots_total || group.slots || 12) }; return <div className="lili-structure-group-row compact-row" key={groupId}><label>Grupo<UiInput value={groupDraft.nome} onChange={(event) => setEditGroups((current) => ({ ...current, [groupId]: { ...groupDraft, nome: event.target.value } }))} /></label><label className="slots-field">Slots<UiInput type="number" min="1" max="52" value={groupDraft.slots} onChange={(event) => setEditGroups((current) => ({ ...current, [groupId]: { ...groupDraft, slots: Math.max(1, Math.min(52, Number(event.target.value || 1))) } }))} /></label><small>{Number(group.slots_ocupados || 0)} ocupados</small><button type="button" className="icon-danger" title="Excluir grupo vazio" onClick={() => void deleteStructureEntity('group', groupId, `o grupo ${group.nome}`)} disabled={savingEntity === 'structure:all'}><Trash2 size={15} /></button></div> })}</div>
               </div></details>
             })}</div>
             <div className="lili-structure-savebar"><button type="button" onClick={() => void saveAllStructure()} disabled={savingEntity === 'structure:all'}>{savingEntity === 'structure:all' ? <Loader2 className="spin" size={15} /> : <Save size={15} />} Salvar alterações</button></div>
           </div> : null}
 
-          {creating === 'bulk' ? <div className="lili-bulk-builder mobile-guided"><div className="lili-bulk-builder-head"><div><strong>{phases.length ? 'Adicionar nova estrutura' : 'Montagem guiada'}</strong><span>O sistema mostra acima tudo que já existe para evitar repetição.</span></div><button type="button" onClick={addBulkPhase}><Plus size={16} /> Fase</button></div><div className="lili-bulk-phases">{bulkPhases.map((phase, phaseIndex) => <section className="lili-bulk-phase" key={phase.id}><div className="lili-bulk-phase-head"><strong>Nova fase {phaseIndex + 1}</strong><button type="button" aria-label="Remover fase" onClick={() => removeBulkPhase(phase.id)} disabled={bulkPhases.length === 1}><Trash2 size={16} /></button></div><div className="lili-bulk-phase-fields"><label>Nome da fase<input value={phase.nome} onChange={(event) => updateBulkPhase(phase.id, { nome: event.target.value })} placeholder="Ex.: Semifinal" list="lili-phase-suggestions" /></label><label>Ordem<input type="number" min="1" value={phase.ordem} onChange={(event) => updateBulkPhase(phase.id, { ordem: Math.max(1, Number(event.target.value || 1)) })} /></label></div><datalist id="lili-phase-suggestions"><option value="Fase 1"/><option value="Fase 2"/><option value="Quartas de final"/><option value="Semifinal"/><option value="Grande final"/></datalist><div className="lili-bulk-groups">{phase.grupos.map((group, groupIndex) => <div className="lili-bulk-group" key={group.id}><span>{String.fromCharCode(65 + groupIndex)}</span><label>Grupo<input value={group.nome} onChange={(event) => updateBulkGroup(phase.id, group.id, { nome: event.target.value })} placeholder={`Grupo ${String.fromCharCode(65 + groupIndex)}`} /></label><label>Slots<input type="number" min="1" max="52" value={group.slots} onChange={(event) => updateBulkGroup(phase.id, group.id, { slots: Math.max(1, Math.min(52, Number(event.target.value || 1))) })} /></label><button type="button" aria-label="Remover grupo" onClick={() => removeBulkGroup(phase.id, group.id)} disabled={phase.grupos.length === 1}><Minus size={15} /></button></div>)}</div><button type="button" className="lili-bulk-add-group" onClick={() => addBulkGroup(phase.id)}><Plus size={15} /> Adicionar grupo</button></section>)}</div><div className="lili-bulk-summary"><span>{bulkPhases.length} nova(s) fase(s)</span><span>{bulkPhases.reduce((sum, phase) => sum + phase.grupos.length, 0)} grupo(s)</span><span>{bulkPhases.flatMap((phase) => phase.grupos).reduce((sum, group) => sum + group.slots, 0)} slot(s)</span><button type="button" onClick={() => void createBulkStructure()} disabled={savingBulk}>{savingBulk ? <><Loader2 className="spin" size={16} /> Criando…</> : <><Sparkles size={16} /> Criar estrutura</>}</button></div></div> : null}
+          {creating === 'bulk' ? <div className="lili-bulk-builder mobile-guided"><div className="lili-bulk-builder-head"><div><strong>{phases.length ? 'Adicionar nova estrutura' : 'Montagem guiada'}</strong><span>O sistema mostra acima tudo que já existe para evitar repetição.</span></div><button type="button" onClick={addBulkPhase}><Plus size={16} /> Fase</button></div><div className="lili-bulk-phases">{bulkPhases.map((phase, phaseIndex) => <section className="lili-bulk-phase" key={phase.id}><div className="lili-bulk-phase-head"><strong>Nova fase {phaseIndex + 1}</strong><button type="button" aria-label="Remover fase" onClick={() => removeBulkPhase(phase.id)} disabled={bulkPhases.length === 1}><Trash2 size={16} /></button></div><div className="lili-bulk-phase-fields"><label>Nome da fase<UiInput value={phase.nome} onChange={(event) => updateBulkPhase(phase.id, { nome: event.target.value })} placeholder="Ex.: Semifinal" list="lili-phase-suggestions" /></label><label>Ordem<UiInput type="number" min="1" value={phase.ordem} onChange={(event) => updateBulkPhase(phase.id, { ordem: Math.max(1, Number(event.target.value || 1)) })} /></label></div><datalist id="lili-phase-suggestions"><option value="Fase 1"/><option value="Fase 2"/><option value="Quartas de final"/><option value="Semifinal"/><option value="Grande final"/></datalist><div className="lili-bulk-groups">{phase.grupos.map((group, groupIndex) => <div className="lili-bulk-group" key={group.id}><span>{String.fromCharCode(65 + groupIndex)}</span><label>Grupo<UiInput value={group.nome} onChange={(event) => updateBulkGroup(phase.id, group.id, { nome: event.target.value })} placeholder={`Grupo ${String.fromCharCode(65 + groupIndex)}`} /></label><label>Slots<UiInput type="number" min="1" max="52" value={group.slots} onChange={(event) => updateBulkGroup(phase.id, group.id, { slots: Math.max(1, Math.min(52, Number(event.target.value || 1))) })} /></label><button type="button" aria-label="Remover grupo" onClick={() => removeBulkGroup(phase.id, group.id)} disabled={phase.grupos.length === 1}><Minus size={15} /></button></div>)}</div><button type="button" className="lili-bulk-add-group" onClick={() => addBulkGroup(phase.id)}><Plus size={15} /> Adicionar grupo</button></section>)}</div><div className="lili-bulk-summary"><span>{bulkPhases.length} nova(s) fase(s)</span><span>{bulkPhases.reduce((sum, phase) => sum + phase.grupos.length, 0)} grupo(s)</span><span>{bulkPhases.flatMap((phase) => phase.grupos).reduce((sum, group) => sum + group.slots, 0)} slot(s)</span><button type="button" onClick={() => void createBulkStructure()} disabled={savingBulk}>{savingBulk ? <><Loader2 className="spin" size={16} /> Criando…</> : <><Sparkles size={16} /> Criar estrutura</>}</button></div></div> : null}
 
-          <LiliPhaseDistributor championshipId={String(selected.id)} phases={phases} groups={groups} slots={slots} canManage={Boolean(structure.permission?.canManage)} request={request} onChanged={async () => { await openChampionship(selected) }} onFeedback={setFeedback} />
         </div> : null}
       </> : null}
     </section>

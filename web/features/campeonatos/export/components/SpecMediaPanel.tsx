@@ -1,5 +1,7 @@
 'use client'
 
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Input as UiInput } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { Copy, Image as ImageIcon, Loader2, Save, Trash2, Upload, X } from 'lucide-react'
 import type { CampeonatoExportPayload } from '../types/campeonato-export.types'
@@ -67,19 +69,19 @@ function MarginFields({
     <div className="spec-margin-grid">
       <label>
         <span>Cima</span>
-        <input type="number" min={0} max={max} value={value.top} disabled={disabled} onChange={(e) => set('top', Number(e.target.value))} />
+        <UiInput type="number" min={0} max={max} value={value.top} disabled={disabled} onChange={(e) => set('top', Number(e.target.value))} />
       </label>
       <label>
         <span>Baixo</span>
-        <input type="number" min={0} max={max} value={value.bottom} disabled={disabled} onChange={(e) => set('bottom', Number(e.target.value))} />
+        <UiInput type="number" min={0} max={max} value={value.bottom} disabled={disabled} onChange={(e) => set('bottom', Number(e.target.value))} />
       </label>
       <label>
         <span>Esquerda</span>
-        <input type="number" min={0} max={max} value={value.left} disabled={disabled} onChange={(e) => set('left', Number(e.target.value))} />
+        <UiInput type="number" min={0} max={max} value={value.left} disabled={disabled} onChange={(e) => set('left', Number(e.target.value))} />
       </label>
       <label>
         <span>Direita</span>
-        <input type="number" min={0} max={max} value={value.right} disabled={disabled} onChange={(e) => set('right', Number(e.target.value))} />
+        <UiInput type="number" min={0} max={max} value={value.right} disabled={disabled} onChange={(e) => set('right', Number(e.target.value))} />
       </label>
       <button
         type="button"
@@ -121,7 +123,7 @@ function TransformFields({
     <div className="spec-transform">
       <label className="spec-transform-zoom">
         <span>Zoom {zoomPct}%</span>
-        <input
+        <UiInput
           type="range"
           min={20}
           max={300}
@@ -130,7 +132,7 @@ function TransformFields({
           disabled={disabled}
           onChange={(e) => patch({ zoom: Number(e.target.value) / 100 })}
         />
-        <input
+        <UiInput
           type="number"
           min={20}
           max={300}
@@ -164,7 +166,7 @@ function TransformFields({
       <div className="spec-margin-grid">
         <label>
           <span>Lados (X)</span>
-          <input
+          <UiInput
             type="number"
             min={-400}
             max={400}
@@ -175,7 +177,7 @@ function TransformFields({
         </label>
         <label>
           <span>Cima/Baixo (Y)</span>
-          <input
+          <UiInput
             type="number"
             min={-400}
             max={400}
@@ -672,7 +674,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
               {isLogo
                 ? (logoBg ? 'Trocar fundo' : 'Adicionar fundo')
                 : (photoBg ? 'Trocar fundo' : 'Adicionar fundo')}
-              <input
+              <UiInput
                 type="file"
                 accept="image/*"
                 hidden
@@ -724,7 +726,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
               <label className="spec-upload-btn">
                 <Upload size={14} />
                 Trocar {isLogo ? 'logo' : 'foto'}
-                <input
+                <UiInput
                   type="file"
                   accept="image/*"
                   hidden
@@ -745,7 +747,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                 Só altera a logo selecionada (ex.: ALoE), não as outras.
               </p>
               <label className="spec-check">
-                <input
+                <UiInput
                   type="checkbox"
                   checked={Boolean(activeLogo.tintColor)}
                   disabled={disabled || Boolean(busy)}
@@ -757,14 +759,14 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                 <div className="export-color-row" style={{ marginTop: 8 }}>
                   <label className="export-color-field">
                     <span>Cor viva</span>
-                    <input
+                    <UiInput
                       type="color"
                       value={activeLogo.tintColor}
                       disabled={disabled || Boolean(busy)}
                       onChange={(e) => setActiveLogoTint(e.target.value)}
                     />
                   </label>
-                  <input
+                  <UiInput
                     className="export-cell-input export-cell-input-sm"
                     value={activeLogo.tintColor}
                     disabled={disabled || Boolean(busy)}
@@ -814,28 +816,28 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
         </h5>
         <div className="export-table-wrap">
           {isLogo ? (
-            <table className="export-table export-table-edit">
-              <thead>
-                <tr>
-                  <th>Line ID</th>
-                  <th>Slot</th>
-                  <th>Código</th>
-                  <th>Equipe</th>
-                  <th>Cor</th>
-                  <th>Origem</th>
-                  <th>Trocar</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
+            <DataTable className="export-table export-table-edit">
+              <DataTableHead>
+                <DataTableRow>
+                  <DataTableHeaderCell>Line ID</DataTableHeaderCell>
+                  <DataTableHeaderCell>Slot</DataTableHeaderCell>
+                  <DataTableHeaderCell>Código</DataTableHeaderCell>
+                  <DataTableHeaderCell>Equipe</DataTableHeaderCell>
+                  <DataTableHeaderCell>Cor</DataTableHeaderCell>
+                  <DataTableHeaderCell>Origem</DataTableHeaderCell>
+                  <DataTableHeaderCell>Trocar</DataTableHeaderCell>
+                  <DataTableHeaderCell></DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
                 {logos.map((item) => (
-                  <tr
+                  <DataTableRow
                     key={item.key}
                     className={activeLogo?.key === item.key ? 'is-preview' : ''}
                     onClick={() => setLogoKey(item.key)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <td onClick={(e) => e.stopPropagation()}>
+                    <DataTableCell onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className="link-button"
@@ -845,15 +847,15 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                       >
                         <code>{item.lineId || '—'}</code> <Copy size={12} />
                       </button>
-                    </td>
-                    <td><strong>{item.slotLetra}</strong></td>
-                    <td><code>{item.codigo}</code></td>
-                    <td>
+                    </DataTableCell>
+                    <DataTableCell><strong>{item.slotLetra}</strong></DataTableCell>
+                    <DataTableCell><code>{item.codigo}</code></DataTableCell>
+                    <DataTableCell>
                       {item.equipeNome}
                       <small style={{ display: 'block', color: 'var(--muted)' }}>{item.lineNome}</small>
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <input
+                    </DataTableCell>
+                    <DataTableCell onClick={(e) => e.stopPropagation()}>
+                      <UiInput
                         type="color"
                         title="Cor só desta logo"
                         value={item.tintColor || '#ffffff'}
@@ -869,7 +871,7 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                         <button
                           type="button"
                           className="link-button"
-                          style={{ minHeight: 24, fontSize: 10, padding: '0 4px' }}
+                          style={{ minHeight: 24, fontSize: 12, padding: '0 4px' }}
                           onClick={() =>
                             setLogos((prev) =>
                               prev.map((l) => (l.key === item.key ? { ...l, tintColor: null } : l)),
@@ -881,19 +883,19 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                       ) : (
                         <small className="empty">orig.</small>
                       )}
-                    </td>
-                    <td>
+                    </DataTableCell>
+                    <DataTableCell>
                       {item.sourceUrl ? <img className="spec-thumb" src={item.sourceUrl} alt="" /> : <span className="empty">—</span>}
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <input
+                    </DataTableCell>
+                    <DataTableCell onClick={(e) => e.stopPropagation()}>
+                      <UiInput
                         type="file"
                         accept="image/*"
                         disabled={disabled || Boolean(busy)}
                         onChange={(e) => void replaceSource('logo', item.key, e.target.files?.[0] || null)}
                       />
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
+                    </DataTableCell>
+                    <DataTableCell onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className="button secondary small"
@@ -903,47 +905,47 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                       >
                         <X size={14} />
                       </button>
-                    </td>
-                  </tr>
+                    </DataTableCell>
+                  </DataTableRow>
                 ))}
-                {!logos.length ? <tr><td colSpan={8}>Lista vazia.</td></tr> : null}
-              </tbody>
-            </table>
+                {!logos.length ? <DataTableRow><DataTableCell colSpan={8}>Lista vazia.</DataTableCell></DataTableRow> : null}
+              </DataTableBody>
+            </DataTable>
           ) : (
-            <table className="export-table export-table-edit">
-              <thead>
-                <tr>
-                  <th>Id jogo</th>
-                  <th>Nick</th>
-                  <th>Equipe</th>
-                  <th>Origem</th>
-                  <th>Trocar</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
+            <DataTable className="export-table export-table-edit">
+              <DataTableHead>
+                <DataTableRow>
+                  <DataTableHeaderCell>Id jogo</DataTableHeaderCell>
+                  <DataTableHeaderCell>Nick</DataTableHeaderCell>
+                  <DataTableHeaderCell>Equipe</DataTableHeaderCell>
+                  <DataTableHeaderCell>Origem</DataTableHeaderCell>
+                  <DataTableHeaderCell>Trocar</DataTableHeaderCell>
+                  <DataTableHeaderCell></DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
                 {photos.map((item) => (
-                  <tr
+                  <DataTableRow
                     key={item.key}
                     className={activePhoto?.key === item.key ? 'is-preview' : ''}
                     onClick={() => setPhotoKey(item.key)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <td><code>{item.idJogo}</code></td>
-                    <td>{item.nick}</td>
-                    <td>{item.equipeNome}</td>
-                    <td>
+                    <DataTableCell><code>{item.idJogo}</code></DataTableCell>
+                    <DataTableCell>{item.nick}</DataTableCell>
+                    <DataTableCell>{item.equipeNome}</DataTableCell>
+                    <DataTableCell>
                       {item.sourceUrl ? <img className="spec-thumb spec-thumb-photo" src={item.sourceUrl} alt="" /> : <span className="empty">—</span>}
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <input
+                    </DataTableCell>
+                    <DataTableCell onClick={(e) => e.stopPropagation()}>
+                      <UiInput
                         type="file"
                         accept="image/*"
                         disabled={disabled || Boolean(busy)}
                         onChange={(e) => void replaceSource('photo', item.key, e.target.files?.[0] || null)}
                       />
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
+                    </DataTableCell>
+                    <DataTableCell onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className="button secondary small"
@@ -952,12 +954,12 @@ export function SpecMediaPanel({ data, campeonatoId, disabled, focus, initialBac
                       >
                         <Trash2 size={14} />
                       </button>
-                    </td>
-                  </tr>
+                    </DataTableCell>
+                  </DataTableRow>
                 ))}
-                {!photos.length ? <tr><td colSpan={6}>Lista vazia.</td></tr> : null}
-              </tbody>
-            </table>
+                {!photos.length ? <DataTableRow><DataTableCell colSpan={6}>Lista vazia.</DataTableCell></DataTableRow> : null}
+              </DataTableBody>
+            </DataTable>
           )}
         </div>
       </aside>

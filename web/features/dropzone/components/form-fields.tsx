@@ -1,8 +1,12 @@
 'use client'
 
-import { useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react'
-import { createPortal } from 'react-dom'
-import { Check, Minus, Plus, RotateCcw, Trash2, Upload, X } from 'lucide-react'
+import { Input as UiInput } from '@/components/ui/Field'
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
+import { Check, Minus, Plus, RotateCcw, Trash2, Upload } from 'lucide-react'
+import { Field, Input } from '@/components/ui'
+import { Dialog } from '@/components/ui/Dialog'
+
+export { Field } from '@/components/ui'
 
 const uploadTargets = {
   account: { width: 500, height: 500, kindLabel: 'foto' },
@@ -157,6 +161,8 @@ export function LocationSearch({
   const [query, setQuery] = useState(selectedLabel)
   const [open, setOpen] = useState(false)
   const [locations, setLocations] = useState<LocationOption[]>(BRAZIL_LOCATIONS)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const listId = `${useId()}-locations`
 
   useEffect(() => {
     let active = true
@@ -168,6 +174,8 @@ export function LocationSearch({
 
   useEffect(() => {
     setQuery(selectedLabel)
+    setActiveIndex(-1)
+    setOpen(false)
   }, [selectedLabel])
 
   const filtered = useMemo(() => {
@@ -181,48 +189,70 @@ export function LocationSearch({
       .map(({ item }) => item)
   }, [locations, query])
 
+  function selectLocation(item: LocationOption) {
+    onSelect(item)
+    setQuery(formatLocationLabel(item))
+    setActiveIndex(-1)
+    setOpen(false)
+  }
+
+  useEffect(() => {
+    if (open && activeIndex >= 0 && activeIndex < filtered.length) document.getElementById(`${listId}-${activeIndex}`)?.scrollIntoView({block:'nearest'})
+  }, [activeIndex, open, listId, filtered])
+
   return (
     <Field label={label}>
-      <div className="location-search">
-        <input
+      <div className="location-search" onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { setOpen(false); setActiveIndex(-1) }
+      }}>
+        <Input
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={open ? listId : undefined}
+          aria-activedescendant={open && activeIndex >= 0 && activeIndex < filtered.length ? `${listId}-${activeIndex}` : undefined}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
+            setActiveIndex(-1)
             setOpen(true)
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault(); setOpen(true)
+              setActiveIndex(index => !filtered.length ? -1 : event.key === 'ArrowDown' ? Math.min(index + 1, filtered.length - 1) : index < 0 ? filtered.length - 1 : Math.max(0, index - 1))
+            } else if (event.key === 'Enter' && open) {
+              event.preventDefault()
+              if (activeIndex >= 0 && activeIndex < filtered.length) selectLocation(filtered[activeIndex])
+            } else if (event.key === 'Escape' && open) {
+              event.preventDefault(); event.stopPropagation(); setOpen(false); setActiveIndex(-1)
+            } else if (event.key === 'Tab') { setOpen(false); setActiveIndex(-1) }
+          }}
           placeholder={placeholder}
         />
         {open ? (
-          <div className="location-results">
-            {filtered.length ? filtered.map((item) => (
+          <div id={listId} className="location-results" role="listbox" aria-label={`Opções de ${label}`}>
+            {filtered.length ? filtered.map((item, index) => (
               <button
                 type="button"
+                id={`${listId}-${index}`}
+                role="option"
+                aria-selected={activeIndex === index}
+                tabIndex={-1}
                 key={`${item.cidade}-${item.estado}`}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onSelect(item)
-                  setQuery(formatLocationLabel(item))
-                  setOpen(false)
-                }}
+                onClick={() => selectLocation(item)}
               >
                 <strong>{item.cidade}</strong>
                 <span>{item.pais}, {item.estadoNome || item.estado} - {item.estado}</span>
               </button>
-            )) : <div className="location-empty">Nenhuma cidade encontrada.</div>}
+            )) : <div className="location-empty" role="status">Nenhuma cidade encontrada.</div>}
           </div>
         ) : null}
       </div>
     </Field>
-  )
-}
-
-export function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      {children}
-    </div>
   )
 }
 
@@ -404,7 +434,7 @@ export function UploadField({
   return (
     <Field label={label}>
       <div className="upload-field compact-upload-field">
-        <input id={inputId} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={async (e) => {
+        <UiInput id={inputId} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={async (e) => {
           const input = e.currentTarget
           const file = input.files?.[0]
           if (!file) return
@@ -419,14 +449,8 @@ export function UploadField({
           {value ? <button type="button" className="inline-icon-button" onClick={() => { discardPendingImageUpload(value); onChange('') }}><Trash2 size={15} /> Remover</button> : null}
         </div>
 
-        {cropOpen && typeof document !== 'undefined' ? createPortal(
-          <div className="cropper-overlay" onClick={closeCropper}>
+        <Dialog open={cropOpen} title={`Ajustar ${target.kindLabel}`} description={`${target.width} x ${target.height} px`} onClose={closeCropper} size="wide" className="cropper-dialog" closeLabel="Fechar ajuste da imagem">
             <div className="cropper-modal cropper-modal-interactive" onClick={(event) => event.stopPropagation()}>
-              <div className="cropper-head">
-                <div><p className="eyebrow">Ajustar {target.kindLabel}</p><h3>{target.width} x {target.height} px</h3></div>
-                <button type="button" className="close-auth" onClick={closeCropper} aria-label="Fechar ajuste da imagem"><X size={18} /></button>
-              </div>
-
               <div className="cropper-workspace">
                 <div className="cropper-canvas-column">
                   <div
@@ -447,7 +471,7 @@ export function UploadField({
                 </div>
                 <aside className="cropper-side-controls" aria-label="Zoom da imagem">
                   <button type="button" onClick={() => updateZoom(zoom + 0.15)} aria-label="Aumentar imagem"><Plus size={18} /></button>
-                  <input className="cropper-zoom-slider" type="range" min="100" max="400" step="5" value={Math.round(zoom * 100)} onChange={(event) => updateZoom(Number(event.target.value) / 100)} aria-label="Aumentar ou diminuir imagem" />
+                  <UiInput className="cropper-zoom-slider" type="range" min="100" max="400" step="5" value={Math.round(zoom * 100)} onChange={(event) => updateZoom(Number(event.target.value) / 100)} aria-label="Aumentar ou diminuir imagem" />
                   <strong>{Math.round(zoom * 100)}%</strong>
                   <button type="button" onClick={() => updateZoom(zoom - 0.15)} aria-label="Diminuir imagem"><Minus size={18} /></button>
                   <button type="button" className="cropper-reset-button" onClick={() => { setZoom(1); setOffsetX(0); setOffsetY(0) }} aria-label="Centralizar e restaurar imagem" title="Centralizar e restaurar"><RotateCcw size={16} /></button>
@@ -460,8 +484,7 @@ export function UploadField({
                 <button type="button" className="button" onClick={() => void handleSaveCrop()} disabled={uploading}><Check size={16} /> {uploading ? 'Preparando...' : 'Usar imagem'}</button>
               </div>
             </div>
-          </div>, document.body
-        ) : null}
+        </Dialog>
       </div>
     </Field>
   )

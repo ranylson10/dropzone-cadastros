@@ -1,92 +1,52 @@
-import { ArrowRight, CalendarDays, Flame, Gift, Search, Ticket, Trophy } from 'lucide-react'
 import { AppShell } from '@/components/layout'
+import { cachedStorageMediaUrl } from '@/lib/upload-public'
+import { Trophy, ArrowUpRight } from 'lucide-react'
 import { DIRECTORY_CONFIG } from '../config'
 import { listDirectory } from '../server'
-import type { DirectoryItem, DirectoryKind } from '../types'
+import type { DirectoryKind } from '../types'
 import { DirectoryListClient } from './DirectoryListClient'
-
-function marketMoney(value: unknown) {
-  const number = Number(value)
-  if (!Number.isFinite(number) || number <= 0) return 'Grátis'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
-}
-
-function marketDate(value: unknown) {
-  const raw = String(value || '').trim()
-  if (!raw) return 'Data a confirmar'
-  const date = new Date(raw.length === 10 ? `${raw}T12:00:00` : raw)
-  if (Number.isNaN(date.getTime())) return 'Data a confirmar'
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-}
-
-function ChampionshipMarketplaceIntro({ items }: { items: DirectoryItem[] }) {
-  const sorted = [...items].sort((a, b) => Number(b.commercial?.premiacao || 0) - Number(a.commercial?.premiacao || 0) || Number(b.commercial?.vagas_livres || 0) - Number(a.commercial?.vagas_livres || 0))
-  const featured = sorted.find((item) => item.banner) || sorted[0] || null
-  const side = sorted.filter((item) => item.id !== featured?.id).slice(0, 2)
-
-  return (
-    <section className="champ-market-intro">
-      <div className="champ-market-titlebar">
-        <div><small>MARKETPLACE DROPZONE</small><h1>Campeonatos</h1><p>Compare vagas, preço, premiação e próxima data. Depois acompanhe tudo pela sua conta.</p></div>
-        <a href="#marketplace-catalog"><Search size={16} /> Explorar catálogo</a>
-      </div>
-
-      {featured ? (
-        <div className="champ-market-hero">
-          <a className="champ-market-feature" href={`/campeonatos/${featured.id}`}>
-            <span className="champ-market-feature-media">{featured.banner ? <img src={featured.banner} alt="" /> : <Trophy size={54} />}</span>
-            <span className="champ-market-feature-overlay" />
-            <span className="champ-market-feature-copy">
-              <small>DESTAQUE DA VITRINE</small>
-              <strong>{featured.name}</strong>
-              {featured.producerName ? <em>por {featured.producerName}</em> : null}
-              <span className="champ-market-feature-facts">
-                <b>{marketMoney(featured.commercial?.valor_inscricao)}<i>por vaga</i></b>
-                <b>{Number(featured.commercial?.vagas_livres || 0)}<i>vagas livres</i></b>
-                <b>{marketMoney(featured.commercial?.premiacao)}<i>premiação</i></b>
-                <b>{marketDate(featured.commercial?.data_jogo)}<i>próximo jogo</i></b>
-              </span>
-              <span className="champ-market-feature-cta">Ver campeonato <ArrowRight size={17} /></span>
-            </span>
-          </a>
-          <div className="champ-market-side">
-            {side.map((item) => (
-              <a href={`/campeonatos/${item.id}`} key={item.id}>
-                <span>{item.banner ? <img src={item.banner} alt="" /> : <Trophy size={28} />}</span>
-                <div><small>{Number(item.commercial?.vagas_livres || 0)} vagas livres</small><strong>{item.name}</strong><b>{marketMoney(item.commercial?.valor_inscricao)} / vaga</b></div>
-                <ArrowRight size={16} />
-              </a>
-            ))}
-            <a className="champ-market-side-cta" href="/campeonatos?vagas=1"><span><small>ENTRE AGORA</small><strong>Ver só vagas abertas</strong></span><Ticket size={20} /></a>
-          </div>
-        </div>
-      ) : null}
-
-      <nav className="champ-market-categories" aria-label="Categorias do marketplace">
-        <a href="/campeonatos?vagas=1"><span><Flame size={22} /></span><b>Vagas abertas</b><small>Prontas para entrar</small></a>
-        <a href="/campeonatos?gratis=1"><span><Gift size={22} /></span><b>Grátis</b><small>Sem taxa de vaga</small></a>
-        <a href="/campeonatos?ordem=premio"><span><Trophy size={22} /></span><b>Maior premiação</b><small>Prêmios em destaque</small></a>
-        <a href="/campeonatos?ultimas=1"><span><Ticket size={22} /></span><b>Últimas vagas</b><small>Quase lotando</small></a>
-        <a href="/campeonatos?hoje=1"><span><CalendarDays size={22} /></span><b>Começa hoje</b><small>Competições do dia</small></a>
-      </nav>
-    </section>
-  )
-}
+import { DirectoryAccountAction } from './DirectoryAccountAction'
 
 export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
   const config = DIRECTORY_CONFIG[kind]
   const items = await listDirectory(kind)
-  const isMarketplace = kind === 'campeonatos'
+  const isChampionshipDirectory = kind === 'campeonatos'
+  const highlights = isChampionshipDirectory ? items.filter((item) => item.banner || item.image).slice(0, 3) : []
+
   return (
     <AppShell
-      activeLabel={isMarketplace ? 'Competições' : undefined}
+      activeLabel={isChampionshipDirectory ? 'Competições' : undefined}
       loadSession
-      withAuthOffset={!isMarketplace}
-      mainClassName={`directory-page directory-theme-${kind} ${isMarketplace ? 'directory-market-page marketplace-shell-page' : ''} ${isMarketplace ? '' : 'page page-authenticated'}`}
+      headerVariant="storefront"
+      withAuthOffset={false}
+      mainClassName={`directory-page directory-v1-catalog directory-theme-${kind} page ${isChampionshipDirectory ? 'directory-championship-page directory-market-page' : ''}`}
     >
       <div className="directory-page-body directory-page-body-with-banner directory-immersive-shell">
-        {isMarketplace ? (
-          <ChampionshipMarketplaceIntro items={items} />
+        {isChampionshipDirectory ? (
+          <>
+            <section className="dz-market-showcase" aria-label="Explore campeonatos de Free Fire">
+              <div className="dz-market-showcase-copy">
+                <span className="dz-market-showcase-kicker"><Trophy size={15} aria-hidden="true" /> COMPITA NO DROPZONE</span>
+                <h1>Seu próximo campeonato começa aqui.</h1>
+                <p>Encontre campeonatos de Free Fire, acompanhe vagas, premiações e participe com sua equipe.</p>
+                <a href="#campeonatos-lista" className="dz-market-showcase-button">Explorar campeonatos <ArrowUpRight size={17} aria-hidden="true" /></a>
+              </div>
+              {highlights.length ? (
+                <div className="dz-market-showcase-images" aria-label="Campeonatos em destaque">
+                  {highlights.map((item) => (
+                    <a key={item.id} href={`/campeonatos/${item.id}`} title={item.name} aria-label={`Conhecer ${item.name}`}>
+                      <img src={cachedStorageMediaUrl(item.banner || item.image || '')} alt={item.name} loading={item === highlights[0] ? 'eager' : 'lazy'} />
+                    </a>
+                  ))}
+                </div>
+              ) : <Trophy className="dz-market-showcase-fallback" size={130} aria-hidden="true" />}
+            </section>
+            <nav className="dz-market-quicklinks" aria-label="Atalhos do catálogo">
+              <a href="/campeonatos?vagas=1"><Trophy size={16} aria-hidden="true" /> Campeonatos com vagas <ArrowUpRight size={15} aria-hidden="true" /></a>
+              <a href="/rank"><Trophy size={16} aria-hidden="true" /> Ranking competitivo <ArrowUpRight size={15} aria-hidden="true" /></a>
+            </nav>
+            <DirectoryAccountAction kind={kind} />
+          </>
         ) : (
           <section className={`directory-hero directory-hero-banner directory-immersive-hero theme-${kind}`} data-theme={kind}>
             <span className="directory-hero-character" aria-hidden="true" />
@@ -94,20 +54,12 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
               <small>DIRETÓRIO PÚBLICO</small>
               <h1>{config.title}</h1>
               <p>{config.description}</p>
-              {kind === 'equipes' || kind === 'jogadores' ? (
-                <a
-                  className="button primary directory-context-action"
-                  href={`/?login=${kind === 'equipes' ? 'equipe' : 'jogador'}&returnTo=%2F%3Fpainel%3D1`}
-                >
-                  {kind === 'equipes' ? 'Minha equipe' : 'Meu perfil de jogo'}
-                </a>
-              ) : null}
+              <DirectoryAccountAction kind={kind} />
             </div>
           </section>
         )}
-        <div id={isMarketplace ? 'marketplace-catalog' : undefined}>
-          <DirectoryListClient items={items} kind={kind} />
-        </div>
+
+        <DirectoryListClient items={items} kind={kind} />
       </div>
     </AppShell>
   )

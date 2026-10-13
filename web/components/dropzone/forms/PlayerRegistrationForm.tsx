@@ -1,4 +1,5 @@
-import { Field, LocationSearch, UploadField } from '@/features/dropzone/components/form-fields'
+import { Field, FormGrid, Input, Select } from '@/components/ui'
+import { LocationSearch, UploadField } from '@/features/dropzone/components/form-fields'
 
 type PlayerRegistrationFormProps = {
   player: { nick: string; foto_url: string; id_jogo: string; funcao: string; localidade: string; senha: string }
@@ -10,23 +11,35 @@ export function PlayerRegistrationForm({ player, setPlayer, uploadPublicFile }: 
   const [cidade = '', estado = ''] = String(player.localidade || '').split(/\s+-\s+/)
 
   return (
-    <div className="form-grid">
-      <Field label="Nick"><input value={player.nick} onChange={(e) => setPlayer({ ...player, nick: e.target.value })} /></Field>
-      <Field label="ID de jogo"><input value={player.id_jogo} onChange={(e) => setPlayer({ ...player, id_jogo: e.target.value })} /></Field>
-      <UploadField label="Foto do jogador" value={player.foto_url} bucket="jogador" onChange={(url) => setPlayer({ ...player, foto_url: url })} onUpload={uploadPublicFile} />
-      <Field label="Funcao">
-        <select value={player.funcao} onChange={(e) => setPlayer({ ...player, funcao: e.target.value })}>
+    <FormGrid columns={2} className="form-grid player-registration-form">
+      <Field label="Nick">
+        <Input value={player.nick} onChange={(e) => setPlayer({ ...player, nick: e.target.value })} />
+      </Field>
+      <Field label="ID de jogo">
+        <Input value={player.id_jogo} onChange={(e) => setPlayer({ ...player, id_jogo: e.target.value })} />
+      </Field>
+      <UploadField
+        label="Foto do jogador"
+        value={player.foto_url}
+        bucket="jogador"
+        onChange={(url) => setPlayer({ ...player, foto_url: url })}
+        onUpload={uploadPublicFile}
+      />
+      <Field label="Função">
+        <Select value={player.funcao} onChange={(e) => setPlayer({ ...player, funcao: e.target.value })}>
           <option value="support">Support</option>
           <option value="rush">Rush</option>
           <option value="sniper">Sniper</option>
           <option value="bomber">Bomber</option>
-        </select>
+        </Select>
       </Field>
       <LocationSearch
         value={{ pais: cidade || estado ? 'Brasil' : '', estado, cidade }}
         onSelect={(location) => setPlayer({ ...player, localidade: `${location.cidade} - ${location.estado}` })}
       />
-      <Field label="Senha"><input type="password" value={player.senha} onChange={(e) => setPlayer({ ...player, senha: e.target.value })} /></Field>
-    </div>
+      <Field label="Senha">
+        <Input type="password" value={player.senha} onChange={(e) => setPlayer({ ...player, senha: e.target.value })} />
+      </Field>
+    </FormGrid>
   )
 }

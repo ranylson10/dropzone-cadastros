@@ -1,0 +1,17 @@
+# Duas frentes em paralelo — 12/10/2026
+
+O trabalho passou a ser agrupado em duas frentes independentes, com testes direcionados e uma validação conjunta. Este lote preparou a integração mobile do encerramento/reabertura e separou as regras dos convites de manager por campeonato. A auditoria integral permanece em andamento; os achados originais continuam em 20 corrigidos e seis parciais.
+
+**Mobile:** cliente dedicado com contrato compartilhado, sessão fresca, isolamento de conta/campeonato/epoch e armazenamento da intenção/UUID originais sem bearer. Há conferência, confirmação, retomada após resposta perdida e descarte local. A confirmação consumida e a leitura do recibo sob bloqueio impedem que callbacks antigos de Alert/retry criem outra tentativa após sucesso. O painel de lifecycle funciona mesmo se a leitura de ranking/premiação falhar; o estado duplicado da edição foi removido do pai. A reabertura ativa todas as etapas/divisões encerradas, preserva canceladas e mantém inscrições fechadas, conforme regra confirmada.
+
+Passaram **53 testes de transporte/armazenamento** e **28 cenários React em Chromium**, em 390 e 1280 px, mais os tipos mobile. O runtime usa os componentes/hooks reais com adaptadores para primitivas React Native, Alert, Auth, HTTP e storage. Isso não certifica Android/iOS físico, SecureStore físico ou release. Os fluxos legados de ranking/MVP/premiação e seus callbacks não foram certificados neste recorte. [Evidência mobile](E:/dropzone-cadastros/relatorios-testes/lote-duplo-2026-10-12/mobile/verification.json).
+
+**Convites:** a rota passou de **243 para 39 linhas**; regras e consultas ficaram no serviço de backend. O cancelamento agora exige id, campeonato, `tipo=convite` e estado pendente. A reprodução histórica confirmou que o código anterior também cancelava um pedido e arquivava sua notificação; o código atual preserva ambos. Os scanners continuam seguindo os serviços e a autorização, sem alterar classificações manuais.
+
+Passaram **35 cenários**, sendo 34 atuais e uma reprodução histórica, incluindo 20 comparações de paridade. Foram usados handlers, helpers e SDK reais com dados/HTTP/Auth fictícios, sem envio de notificações externas. Outros convites/painéis grandes e a atomicidade entre criação, notificação e vínculo continuam pendentes; A01 permanece parcial. [Evidência de convites](E:/dropzone-cadastros/relatorios-testes/lote-duplo-2026-10-12/convites/verification.json).
+
+O gate conjunto com **41 suítes**, tipos web, lint web/backend, build e audit npm de produção passou, sem vulnerabilidades no audit de produção. Também passaram 16 contratos estáticos afetados. O inventário confirmou a presença de 43 rotas e 16 subáreas; é uma verificação estrutural, sem nova certificação visual completa. Os erros iniciais do ambiente/adaptador mobile permanecem registrados; as expectativas dos testes não foram enfraquecidas.
+
+Os 17 hashes SQL anteriores permanecem iguais; nenhum PostgreSQL foi repetido nesta etapa. Flags permanecem legacy, sem ativação remota, mudanças Auth/env, SQL/MCP ao projeto, commit, push, PR ou deploy. O build normal pode consultar diretório/cache externo, sem instrumentação desse tráfego. Staging/backup/owners/ACLs, históricos sem imagem, reconciliação após publicação, Booyah não padrão, criação completa/estrutura/demais escritores e QA integral continuam no [registro de fechamento](E:/dropzone-cadastros/docs/PENDENCIAS_FECHAMENTO_2026-10-12.md).
+
+[Validação conjunta e limites](E:/dropzone-cadastros/relatorios-testes/lote-duplo-2026-10-12/final-verification.json).

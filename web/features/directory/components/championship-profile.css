@@ -31,7 +31,7 @@
 .champ-public .directory-back.on-banner {
   margin: 0 0 20px;
   color: var(--champ-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -55,7 +55,7 @@
 }
 
 .champ-public .directory-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.champ-public .directory-profile-copy small { color: var(--champ-muted); font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.champ-public .directory-profile-copy small { color: var(--champ-muted); font-size: 12px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
 .champ-public .directory-profile-copy h1 { margin: 4px 0; color: var(--champ-ink); font-size: clamp(28px, 4vw, 46px); line-height: .98; letter-spacing: -.04em; text-transform: uppercase; }
 .champ-public .directory-profile-copy > .directory-profile-desc { margin: 8px 0 0; color: #c7cbd1; font-size: 13px; line-height: 1.45; text-shadow: none; }
 
@@ -71,7 +71,7 @@
 
 .champ-public .champ-public-profile-facts div { padding: 12px 16px; border-bottom: 1px solid var(--champ-line); background: transparent; }
 .champ-public .champ-public-profile-facts div:nth-last-child(-n + 4) { border-bottom: 0; }
-.champ-public .champ-public-profile-facts dt { color: var(--champ-muted); font-size: 8px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.champ-public .champ-public-profile-facts dt { color: var(--champ-muted); font-size: 12px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .champ-public .champ-public-profile-facts dd { margin: 5px 0 0; color: var(--champ-ink); font-size: 12px; font-weight: 800; }
 
 .champ-public .champ-public-nav {
@@ -103,7 +103,7 @@
   background: transparent !important;
   box-shadow: none !important;
   color: var(--champ-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .075em;
 }
@@ -118,7 +118,7 @@
 }
 
 .champ-public .champ-public-nav-btn::after { display: none; }
-.champ-public .champ-public-nav-count { min-width: 18px; height: 17px; margin-left: 0; padding: 0 4px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--champ-muted); font-size: 8px; }
+.champ-public .champ-public-nav-count { min-width: 18px; height: 17px; margin-left: 0; padding: 0 4px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--champ-muted); font-size: 12px; }
 
 .champ-public .champ-public-panel {
   width: min(1240px, calc(100% - 32px));
@@ -162,7 +162,7 @@
 }
 
 .champ-public .champ-public-info-card:nth-child(3n) { border-right: 0; }
-.champ-public .champ-public-info-card small { color: var(--champ-muted); font-size: 8px; }
+.champ-public .champ-public-info-card small { color: var(--champ-muted); font-size: 12px; }
 .champ-public .champ-public-info-card strong { color: var(--champ-ink); font-size: 15px; }
 
 .champ-public .directory-related-list,
@@ -249,10 +249,10 @@
 /* Informações públicas: resumo enxuto + ficha de leitura, sem mural de cartões. */
 .champ-public .champ-public-info-summary{display:flex;flex-wrap:wrap;gap:0;margin-top:16px;border-top:1px solid var(--champ-line);border-bottom:1px solid var(--champ-line)}
 .champ-public .champ-public-info-summary>div{display:grid;gap:3px;min-width:150px;flex:1;padding:12px 16px;border-right:1px solid var(--champ-line)}
-.champ-public .champ-public-info-summary>div:last-child{border-right:0}.champ-public .champ-public-info-summary small{color:var(--champ-muted);font-size:8px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}.champ-public .champ-public-info-summary strong{color:var(--champ-ink);font-size:16px}
-.champ-public .champ-public-info-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin-top:18px}.champ-public .champ-public-info-groups section{min-width:0}.champ-public .champ-public-info-groups h3{margin:0 0 8px;color:var(--champ-muted);font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.champ-public .champ-public-info-groups dl{display:grid;gap:0;margin:0;border-top:1px solid var(--champ-line)}
-.champ-public .champ-public-info-groups dl>div{display:flex;align-items:baseline;justify-content:space-between;gap:16px;min-height:39px;border-bottom:1px solid var(--champ-line);padding:0 2px}.champ-public .champ-public-info-groups dt{color:var(--champ-muted);font-size:10px}.champ-public .champ-public-info-groups dd{margin:0;color:var(--champ-ink);font-size:12px;font-weight:850;text-align:right}
-@media (max-width:850px){.champ-public .champ-public-info-summary{margin-top:12px}.champ-public .champ-public-info-summary>div{min-width:50%;padding:10px;border-bottom:1px solid var(--champ-line)}.champ-public .champ-public-info-summary>div:nth-child(2n){border-right:0}.champ-public .champ-public-info-summary strong{font-size:14px}.champ-public .champ-public-info-groups{grid-template-columns:1fr;gap:16px;margin-top:15px}.champ-public .champ-public-info-groups dl>div{min-height:37px}.champ-public .champ-public-info-groups dt{font-size:9px}.champ-public .champ-public-info-groups dd{font-size:11px}}
+.champ-public .champ-public-info-summary>div:last-child{border-right:0}.champ-public .champ-public-info-summary small{color:var(--champ-muted);font-size:12px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}.champ-public .champ-public-info-summary strong{color:var(--champ-ink);font-size:16px}
+.champ-public .champ-public-info-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin-top:18px}.champ-public .champ-public-info-groups section{min-width:0}.champ-public .champ-public-info-groups h3{margin:0 0 8px;color:var(--champ-muted);font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.champ-public .champ-public-info-groups dl{display:grid;gap:0;margin:0;border-top:1px solid var(--champ-line)}
+.champ-public .champ-public-info-groups dl>div{display:flex;align-items:baseline;justify-content:space-between;gap:16px;min-height:39px;border-bottom:1px solid var(--champ-line);padding:0 2px}.champ-public .champ-public-info-groups dt{color:var(--champ-muted);font-size:12px}.champ-public .champ-public-info-groups dd{margin:0;color:var(--champ-ink);font-size:12px;font-weight:850;text-align:right}
+@media (max-width:850px){.champ-public .champ-public-info-summary{margin-top:12px}.champ-public .champ-public-info-summary>div{min-width:50%;padding:10px;border-bottom:1px solid var(--champ-line)}.champ-public .champ-public-info-summary>div:nth-child(2n){border-right:0}.champ-public .champ-public-info-summary strong{font-size:14px}.champ-public .champ-public-info-groups{grid-template-columns:1fr;gap:16px;margin-top:15px}.champ-public .champ-public-info-groups dl>div{min-height:37px}.champ-public .champ-public-info-groups dt{font-size:12px}.champ-public .champ-public-info-groups dd{font-size:12px}}
 
 /* Agenda embutida no campeonato: mesma paleta grafite/dourado da página. */
 body .champ-public .agenda-root.is-compact{--agenda-event-color:var(--champ-gold);color:var(--champ-ink)}
@@ -272,4 +272,4 @@ body .champ-public .agenda-root.is-compact .agenda-sequence-time small,body .cha
 body .champ-public .agenda-root.is-compact .agenda-sequence-copy strong{color:var(--champ-ink)}
 @media(max-width:760px){body .champ-public .agenda-root.is-compact .agenda-sequence-date{border-right:0;border-bottom:1px solid var(--champ-line)}body .champ-public .agenda-root.is-compact .agenda-sequence-event{min-height:52px}}
 
-.champ-public .champ-public-agenda-link{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border-top:1px solid var(--champ-line)}.champ-public .champ-public-agenda-link p{margin:0;color:var(--champ-muted);font-size:11px}.champ-public .champ-public-agenda-link .button{flex:0 0 auto}@media(max-width:650px){.champ-public .champ-public-agenda-link{display:grid;gap:10px}.champ-public .champ-public-agenda-link .button{width:100%;justify-content:center}}
+.champ-public .champ-public-agenda-link{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border-top:1px solid var(--champ-line)}.champ-public .champ-public-agenda-link p{margin:0;color:var(--champ-muted);font-size:12px}.champ-public .champ-public-agenda-link .button{flex:0 0 auto}@media(max-width:650px){.champ-public .champ-public-agenda-link{display:grid;gap:10px}.champ-public .champ-public-agenda-link .button{width:100%;justify-content:center}}

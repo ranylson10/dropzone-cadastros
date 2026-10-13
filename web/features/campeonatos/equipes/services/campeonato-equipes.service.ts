@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase-browser'
+import { writeParticipation, type ParticipationReadContract } from '@/lib/participation-write'
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const { data } = await supabase.auth.getSession()
@@ -19,12 +20,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 export const campeonatoEquipesService = {
   listar: (campeonatoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes`),
   buscarEquipes: (campeonatoId: string, termo: string) => request(`/api/campeonatos/${campeonatoId}/equipes/busca?q=${encodeURIComponent(termo)}`),
-  adicionar: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/equipes`, { method: 'POST', body: JSON.stringify(body) }),
+  adicionar: (campeonatoId: string, body: Record<string, unknown>, contract: ParticipationReadContract) => writeParticipation(campeonatoId, contract, 'POST', body),
   listarHistoricas: (campeonatoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes/historicas`),
   criarHistoricasEmBloco: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/equipes/historicas`, { method: 'POST', body: JSON.stringify(body) }),
   prepararLiga: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/estrutura`, { method: 'POST', body: JSON.stringify(body) }),
-  aplicarSugestoesSeasonLiga: (campeonatoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes`, { method: 'POST', body: JSON.stringify({ mode: 'apply_league_season_suggestions' }) }),
-  remover: (campeonatoId: string, participacaoId: string) => request(`/api/campeonatos/${campeonatoId}/equipes?participacao_id=${encodeURIComponent(participacaoId)}`, { method: 'DELETE' }),
+  remover: (campeonatoId: string, participacaoId: string, contract: ParticipationReadContract, expected?: unknown) => writeParticipation(campeonatoId, contract, 'DELETE', { expected }, participacaoId),
   criarConvite: (campeonatoId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/convites-equipe`, { method: 'POST', body: JSON.stringify(body) }),
   renovarConvite: (campeonatoId: string, tokenId: string) => request(`/api/campeonatos/${campeonatoId}/convites-equipe/${tokenId}/renovar`, { method: 'POST' }),
   editarConvite: (campeonatoId: string, tokenId: string, body: unknown) => request(`/api/campeonatos/${campeonatoId}/convites-equipe/${tokenId}`, { method: 'PATCH', body: JSON.stringify(body) }),

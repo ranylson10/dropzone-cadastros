@@ -1,8 +1,9 @@
 'use client'
 
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { ClipboardList, Loader2, Pencil, Send, Trophy, Users } from 'lucide-react'
+import { CheckCircle2, ClipboardList, Clock3, Loader2, Pencil, Send, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { uploadPublicFile as uploadStoragePublicFile } from '@/lib/upload-public'
 import { WEB_PROFILE_TYPES, isWebProfileType, type DropZoneRow, type ProfileType, type WebProfileType } from '@/lib/types'
@@ -18,6 +19,9 @@ import { SocialLogin } from '@/features/auth/SocialLogin'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { SystemModal } from '@/components/layout/SystemModal'
+import { initialWorkspaceEntityTypes } from './workspace-entities'
+import { useProducerEntities } from './useProducerEntities'
+import styles from './workspace.module.css'
 
 const AuthenticatedHomeFeed = dynamic(() => import('@/features/home/AuthenticatedHomeFeed').then((module) => module.AuthenticatedHomeFeed))
 const ProdutoraPanel = dynamic(() => import('./panels/produtora/ProdutoraPanel').then((module) => module.ProdutoraPanel), {
@@ -158,7 +162,7 @@ export function DropZoneHome() {
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
   const [linkingProfile, setLinkingProfile] = useState(false)
-  const [rows, setRows] = useState<DropZoneRow[]>([])
+  const [storedRows, setRows] = useState<DropZoneRow[]>([])
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -170,6 +174,11 @@ export function DropZoneHome() {
   const [inviteReturnTo, setInviteReturnTo] = useState('')
   /** Só true se /api/admin/session confirmar (backend). Nunca confiar só no front. */
   const [workspaceMode, setWorkspaceMode] = useState<'home' | 'panel'>('home')
+  const producerEntities = useProducerEntities(account, workspaceMode === 'panel')
+  const rows = useMemo(() => account?.profile_type === 'produtora'
+    ? [...storedRows.filter(row => row.entity_type === 'championship'), ...producerEntities.rows]
+    : storedRows, [account?.profile_type, storedRows, producerEntities.rows])
+  const profileLoadVersion = useRef(0)
 
   const [championship, setChampionship] = useState(emptyChampionship)
   const [team, setTeam] = useState({
@@ -232,7 +241,7 @@ export function DropZoneHome() {
     senha: '',
   })
 
-  const championships = useMemo(() => rows.filter((row) => row.entity_type === 'championship'), [rows])
+  const championships = useMemo(() => storedRows.filter((row) => row.entity_type === 'championship'), [storedRows])
   const teams = useMemo(() => rows.filter((row) => row.entity_type === 'team'), [rows])
   const teamLines = useMemo(() => rows.filter((row) => row.entity_type === 'team_line'), [rows])
   const links = useMemo(() => rows.filter((row) => row.entity_type === 'championship_team'), [rows])
@@ -251,7 +260,7 @@ export function DropZoneHome() {
     .filter((link) => link.parent_id === selectedChamp?.id)
     .flatMap((link) => {
       const team = teams.find((teamRow) => teamRow.id === link.ref_id)
-      if (!team) return []
+      if (!team) return [link]
       const enrolledLineId = String(link.data?.line_id || '')
       const candidateLines = enrolledLineId
         ? [teamLines.find((line) => line.id === enrolledLineId) || null]
@@ -277,7 +286,7 @@ export function DropZoneHome() {
   const managedTeamIds = useMemo(() => {
     if (!account) return []
     const directProfile = account.profile_type === 'equipe' ? [account.id] : []
-    const direct = teams.filter((row) => row.created_by === account.auth_user_id || row.id === account.id).map((row) => row.id)
+    const direct = teams.filter((row) => row.data?.managed_by_current_user || row.created_by === account.auth_user_id || row.id === account.id).map((row) => row.id)
     const linked = links.filter((row) => row.created_by === account.auth_user_id).map((row) => String(row.ref_id || ''))
     return Array.from(new Set([...directProfile, ...direct, ...linked].filter(Boolean)))
   }, [account, teams, links])
@@ -286,7 +295,7 @@ export function DropZoneHome() {
   const managedLinks = links.filter((row) => row.ref_id && managedTeamIds.includes(row.ref_id))
   const managedChampionships = championships.filter((row) => managedLinks.some((link) => link.parent_id === row.id))
   const playerInvite = tokens.find((row) => row.token?.toUpperCase() === playerToken.trim().toUpperCase() && PLAYER_INVITE_TYPES.has(String(row.data?.token_kind || '')))
-  const myRegistrations = registrations.filter((row) => row.created_by === account?.auth_user_id)
+  const myRegistrations = registrations.filter((row) => row.created_by === account?.auth_user_id || row.data?.jogador_id === account?.id)
   const passwordIssue = getPasswordIssue(password)
   const resendBlocked = loading || resendCooldown > 0
   const resendLabel = resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar código'
@@ -323,6 +332,7 @@ export function DropZoneHome() {
       try {
         await syncMobileSessionFromStorage()
         const params = new URLSearchParams(window.location.search)
+        setSelectedChampId(String(params.get('campeonato') || '').trim())
         setWorkspaceMode(params.get('painel') === '1' ? 'panel' : 'home')
         const convite = String(params.get('convite') || '').trim()
         const escala = String(params.get('escala') || '').trim()
@@ -718,6 +728,7 @@ export function DropZoneHome() {
   }
 
   async function loadMeAndRows(token?: string, preferredType?: WebProfileType | null, preferredId?: string | null) {
+    const loadVersion = ++profileLoadVersion.current
     const accessToken = token || await getToken()
     if (!accessToken) throw new Error('Sessão não encontrada.')
     const rawStoredType = preferredType || localStorage.getItem('dropzone_active_profile_type')
@@ -728,6 +739,7 @@ export function DropZoneHome() {
       headers: authHeaders(accessToken, storedType, storedId),
     })
     const meJson = await meRes.json()
+    if (loadVersion !== profileLoadVersion.current) return
     if (!meRes.ok) throw new Error(meJson.error || 'Sessão inválida.')
 
     const loadedAccounts = ((meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[])
@@ -758,15 +770,18 @@ export function DropZoneHome() {
     localStorage.setItem('dropzone_active_profile_type', String(selectedAccount.profile_type || ''))
     localStorage.setItem('dropzone_active_profile_id', selectedAccount.id)
 
-    const rowsRes = await fetch('/api/dropzone', {
+    const workspaceTypes = initialWorkspaceEntityTypes(selectedAccount.profile_type as ProfileType)
+    const rowsRes = await fetch(`/api/dropzone?entity_types=${workspaceTypes.join(',')}`, {
       headers: authHeaders(accessToken, selectedAccount.profile_type, selectedAccount.id),
     })
     const rowsJson = await rowsRes.json()
+    if (loadVersion !== profileLoadVersion.current) return
     if (!rowsRes.ok) throw new Error(rowsJson.error || 'Erro ao listar dados.')
 
     // Atualiza a interface somente quando conta e dados estiverem prontos,
     // evitando piscar a seleção de perfil ou um painel incompleto.
     setRows(rowsJson.rows || [])
+    if (selectedAccount.profile_type === 'produtora') producerEntities.refresh()
     savePanelSnapshot(selectedAccount, loadedAccounts, rowsJson.rows || [])
     saveRecentProfiles(loadedAccounts)
   }
@@ -977,6 +992,7 @@ export function DropZoneHome() {
 
 
   async function signOut() {
+    profileLoadVersion.current += 1
     try {
       await signOutEverywhere()
     } finally {
@@ -1012,6 +1028,7 @@ export function DropZoneHome() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Erro ao salvar.')
       if (json.row?.entity_type === 'group_slot') {
+        if (account?.profile_type === 'produtora') producerEntities.refresh()
         setRows((current) => current.some((row) => row.id === json.row.id)
           ? current.map((row) => row.id === json.row.id ? json.row : row)
           : [json.row, ...current])
@@ -1611,7 +1628,7 @@ export function DropZoneHome() {
       <AppShell
         activeLabel="Início"
         navItems={APP_NAV}
-        header="always"
+        header="never"
         account={null}
         accounts={[]}
         identity={authIdentity}
@@ -1632,7 +1649,7 @@ export function DropZoneHome() {
     <AppShell
       activeLabel="Início"
       navItems={APP_NAV}
-      header={authIdentity ? 'always' : account && !linkingProfile ? 'always' : 'never'}
+      header={workspaceMode === 'home' ? 'never' : authIdentity ? 'always' : account && !linkingProfile ? 'always' : 'never'}
       account={account}
       identity={authIdentity}
       accounts={accounts}
@@ -1640,7 +1657,7 @@ export function DropZoneHome() {
       switchingAccountId={switchingAccountId || undefined}
       onSwitchAccount={switchLinkedAccount}
       onSignOut={signOut}
-      mainClassName={`page ${workspaceMode === 'home' ? 'marketplace-shell-page' : authIdentity || (account && !linkingProfile) ? 'page-authenticated' : ''}`}
+      mainClassName={`page ${workspaceMode === 'panel' ? styles.scope : ''} ${workspaceMode === 'home' ? 'marketplace-shell-page' : authIdentity || (account && !linkingProfile) ? 'page-authenticated' : ''}`}
       mainId="painel-inicio"
       withAuthOffset={workspaceMode !== 'home' && Boolean(authIdentity || (account && !linkingProfile))}
     >
@@ -1681,11 +1698,11 @@ export function DropZoneHome() {
                                 : profileType === 'manager' ? 'Nome do manager'
                                 : 'Nome da produtora'
                           }>
-                            <input value={name} onChange={(e) => updateName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
+                            <UiInput value={name} onChange={(e) => updateName(e.target.value)} placeholder={profileType === 'jogador' ? 'Nick do jogador' : 'Nome público'} />
                           </Field>
 
                           <Field label="@usuário deste perfil">
-                            <input
+                            <UiInput
                               value={username}
                               onChange={(e) => setUsername(cleanUsername(e.target.value).replace(/[^a-z0-9._]/g, '').slice(0, 24))}
                               placeholder={profileType === 'equipe' ? 'aloe.gaming' : profileType === 'jogador' ? 'six.ff' : profileType === 'produtora' ? 'sixblack' : 'six.afiliado'}
@@ -1697,22 +1714,22 @@ export function DropZoneHome() {
 
                           {profileType === 'equipe' ? (
                             <Field label="Tag">
-                              <input value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="6B" required />
+                              <UiInput value={registerData.tag} onChange={(e) => updateRegisterData('tag', e.target.value.toUpperCase())} placeholder="6B" required />
                             </Field>
                           ) : null}
 
                           {profileType === 'jogador' ? (
                             <>
                               <Field label="ID de jogo">
-                                <input value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" required />
+                                <UiInput value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" required />
                               </Field>
                               <Field label="Função">
-                                <select value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
+                                <UiSelect value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
                                   <option value="support">Support</option>
                                   <option value="rush">Rush</option>
                                   <option value="sniper">Sniper</option>
                                   <option value="bomber">Bomber</option>
-                                </select>
+                                </UiSelect>
                               </Field>
                             </>
                           ) : null}
@@ -1785,15 +1802,15 @@ export function DropZoneHome() {
                   <b>{championships.length}</b>
                   <span>Campeonatos</span>
                 </div>
-                <div className="metric" title="Equipes">
-                  <Users size={16} aria-hidden="true" />
-                  <b>{teams.length}</b>
-                  <span>Equipes</span>
+                <div className="metric" title={account.profile_type === 'produtora' ? 'Campeonatos aprovados' : 'Equipes'}>
+                  {account.profile_type === 'produtora' ? <CheckCircle2 size={16} aria-hidden="true" /> : <Users size={16} aria-hidden="true" />}
+                  <b>{account.profile_type === 'produtora' ? championships.filter(champ => String(champ.data?.aprovacao_status || 'aprovado') === 'aprovado').length : teams.length}</b>
+                  <span>{account.profile_type === 'produtora' ? 'Aprovados' : 'Equipes'}</span>
                 </div>
-                <div className="metric" title="Inscrições">
-                  <ClipboardList size={16} aria-hidden="true" />
-                  <b>{registrations.length}</b>
-                  <span>Inscrições</span>
+                <div className="metric" title={account.profile_type === 'produtora' ? 'Campeonatos em aprovação' : 'Inscrições'}>
+                  {account.profile_type === 'produtora' ? <Clock3 size={16} aria-hidden="true" /> : <ClipboardList size={16} aria-hidden="true" />}
+                  <b>{account.profile_type === 'produtora' ? championships.filter(champ => champ.data?.aprovacao_status === 'pendente').length : registrations.length}</b>
+                  <span>{account.profile_type === 'produtora' ? 'Em aprovação' : 'Inscrições'}</span>
                 </div>
               </div>
               <button
@@ -1839,7 +1856,14 @@ export function DropZoneHome() {
 
             {account.profile_type === 'produtora' ? (
               <ProdutoraPanel
+                key={account.id}
                 account={account}
+                dataScopeKey={producerEntities.scopeKey}
+                dataLoading={producerEntities.loading}
+                dataError={producerEntities.error}
+                dataSummary={producerEntities.summary}
+                onDataScopeChange={producerEntities.changeRequest}
+                reloadData={producerEntities.refresh}
                 championships={championships}
                 teams={teams}
                 phases={phases}
@@ -1886,7 +1910,7 @@ export function DropZoneHome() {
                 generateTeamInvite={generateTeamInvite}
                 copyToken={copyToken}
                 reloadStructure={() => {
-                  void loadMeAndRows().catch(() => null)
+                  producerEntities.refresh()
                 }}
                 loading={loading}
                 pendingCreate={pendingCreate}

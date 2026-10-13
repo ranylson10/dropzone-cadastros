@@ -1,0 +1,67 @@
+/* R198 — componentes compartilhados de Equipe/Jogador/Produtora/Manager. */
+.dz-entity-avatar {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.dz-entity-avatar > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.dz-entity-avatar > b {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+}
+
+.dz-entity-avatar--sm { width: 32px; height: 32px; }
+.dz-entity-avatar--md { width: 48px; height: 48px; }
+.dz-entity-avatar--lg { width: 64px; height: 64px; }
+.dz-entity-avatar--xl { width: 88px; height: 88px; }
+
+.dz-entity-row {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.dz-entity-row__main,
+.dz-entity-row__meta,
+.dz-entity-row__meta > em,
+.dz-entity-profile-hero__main,
+.dz-entity-profile-hero__copy,
+.dz-entity-profile-hero__facts,
+.dz-entity-profile-hero__more {
+  min-width: 0;
+}
+
+.dz-entity-row__main > strong,
+.dz-entity-row__main > span,
+.dz-entity-profile-hero__copy h1,
+.dz-entity-profile-hero__copy p,
+.dz-entity-profile-hero__facts dd,
+.dz-entity-profile-hero__more dd {
+  overflow-wrap: anywhere;
+}
+
+.dz-entity-profile-hero {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .dz-entity-avatar--xl {
+    width: 64px;
+    height: 64px;
+  }
+
+  .dz-entity-row__meta {
+    min-width: 0;
+  }
+}

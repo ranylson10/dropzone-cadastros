@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, ensureReportDir, normalizePath, REPORT_DIR, result, safeRead, walk } from '../lib/util.mjs';
+import { backendServiceEvidence } from '../lib/backend-service-evidence.mjs';
 
 const API_ROOT = path.join(ROOT, 'web', 'app', 'api');
 const CLASSIFICATION_FILE = path.join(ROOT, 'database', 'api-route-security-classification.json');
@@ -29,9 +30,11 @@ export async function executar() {
   const debugUnsafe = [];
 
   for (const file of files) {
-    const src = safeRead(file);
+    const routeSource = safeRead(file);
+    const evidence = backendServiceEvidence(routeSource, file);
+    const src = evidence.source;
     const route = routeOf(file);
-    const methods = [...new Set([...src.matchAll(METHOD_RE)].map((m) => m[1]))];
+    const methods = [...new Set([...routeSource.matchAll(METHOD_RE)].map((m) => m[1]))];
     const hasWrite = methods.some((m) => WRITE_METHODS.has(m));
     const publicCandidate = PUBLIC_ROUTE.test(route) || TOKEN_ROUTE.test(route);
     const authEvidence = AUTH_EVIDENCE.test(src);
@@ -41,7 +44,7 @@ export async function executar() {
 
     const manualDecision = manualRoutes[route];
     const reviewedPublicWrite = Boolean(PUBLIC_WRITE_DECISIONS.has(manualDecision?.decision) && manualDecision?.reason);
-    const row = { route, file: normalizePath(path.relative(ROOT, file)), methods, hasWrite, publicCandidate, authEvidence, scopeEvidence, serviceRole, productionGuard, manualDecision: manualDecision || null };
+    const row = { route, file: normalizePath(path.relative(ROOT, file)), delegatedModules: evidence.files, methods, hasWrite, publicCandidate, authEvidence, scopeEvidence, serviceRole, productionGuard, manualDecision: manualDecision || null };
     rows.push(row);
 
     if (hasWrite && !publicCandidate && !authEvidence && !reviewedPublicWrite) writeWithoutAuth.push(row);

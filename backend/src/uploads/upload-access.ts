@@ -3,6 +3,7 @@ import { getCampeonatoPermission } from '../campeonatos/campeonato-permissions'
 import { requireEquipeAccess } from '../equipes/manager-team-access'
 import { assertProdutoraAprovada } from '../admin/aprovacao'
 import { requireProducerWorkspaceAccess } from '../produtora/workspace-access'
+import { isSystemAdmin } from '../admin/admin-auth'
 
 const PROFILE_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast'])
 
@@ -19,6 +20,12 @@ export async function requireUploadAccess(input: {
   // Foto da conta pertence ao usuário autenticado e não exige que ele já
   // tenha criado equipe, jogador, produtora ou outro cadastro operacional.
   if (input.bucket === 'account') return
+  // Mídia institucional da Home só pode ser enviada pelo administrador do sistema.
+  if (input.bucket === 'site') {
+    const admin = await isSystemAdmin(input.user.id)
+    if (!admin) throw new Error('Somente administradores podem enviar mídia do site.')
+    return
+  }
   const accounts = await getAccountsForUser(input.user)
   const producerAccounts = accounts.filter((account) => account.profile_type === 'produtora')
   const activeProducer = (input.activeProfileId

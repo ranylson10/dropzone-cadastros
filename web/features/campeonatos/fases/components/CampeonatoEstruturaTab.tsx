@@ -1,6 +1,12 @@
 'use client'
+import { usePagedSearch } from '@/hooks/usePagedSearch'
+import { useStructureGroupMutation } from '@/hooks/useStructureGroupMutation'
+import { StructureGroupRecovery } from './StructureGroupRecovery'
+import type { StructureGroupReadContract } from '@/lib/structure-group-write'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CheckCircle2,
   ChevronDown,
@@ -19,8 +25,13 @@ import { SystemModal } from '@/components/layout/SystemModal'
 import { supabase } from '@/lib/supabase-browser'
 import { GROUP_LETTERS } from '@/lib/dropzone-constants'
 import { campeonatoEquipesService } from '@/features/campeonatos/equipes/services/campeonato-equipes.service'
-import type { CampeonatoVaga, EquipeBusca } from '@/features/campeonatos/equipes/types/campeonato-equipes.types'
+import type { EquipeBusca } from '@/features/campeonatos/equipes/types/campeonato-equipes.types'
 import './campeonato-estrutura-batch.css'
+import type { ParticipationReadContract } from '@/lib/participation-write'
+import { ParticipationRecovery } from '@/features/campeonatos/equipes/components/ParticipationRecovery'
+import { LigaOriginField } from '@/features/campeonatos/equipes/components/LigaOriginField'
+import { validateLigaOrigin, type LigaPlan } from '@backend/campeonatos/liga-plan'
+import type { ParticipationExpected } from '@backend/campeonatos/participation-contract'
 
 type Fase = { id: string; nome: string; ordem?: number; tipo?: 'normal' | 'grande_final'; oculta?: boolean; data?: { oculta?: boolean } }
 type Grupo = {
@@ -34,6 +45,7 @@ type Grupo = {
   whatsapp_url?: string | null
 }
 type Slot = {
+  participation_expected?: ParticipationExpected | null
   id: string
   grupo_id: string
   fase_id?: string | null
@@ -73,7 +85,7 @@ type BulkPhaseDraft = {
   customizeSlots: boolean
   grupos: BulkGroupDraft[]
 }
-type BatchSlotAssignment = { slotId: string; equipeId: string; lineId: string; lineName: string; teamQuery: string }
+type BatchSlotAssignment = { slotId: string; equipeId: string; lineId: string; lineName: string; teamQuery: string; origin: string }
 
 async function authHeaders() {
   const { data } = await supabase.auth.getSession()
@@ -82,9 +94,10 @@ async function authHeaders() {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 }
 
-function slotStatus(slot: Slot): 'livre' | 'reservada' | 'ocupada' {
+function slotStatus(slot: Slot): 'livre' | 'reservada' | 'ocupada' | 'bloqueada' {
   if (slot.participacao_id || slot.line_id || slot.equipe_id || slot.status === 'ocupado' || slot.status === 'ocupada') return 'ocupada'
   if (slot.status === 'reservado' || slot.status === 'reservada') return 'reservada'
+  if (slot.status === 'bloqueado' || slot.status === 'bloqueada') return 'bloqueada'
   return 'livre'
 }
 
@@ -132,7 +145,11 @@ function createEmptyBulkPhase(ordem: number): BulkPhaseDraft {
   }
 }
 
-export function CampeonatoEstruturaTab({
+export function CampeonatoEstruturaTab(props: { campeonatoId: string; onChanged?: () => void }) {
+  return <CampeonatoEstruturaContent key={props.campeonatoId} {...props} />
+}
+
+function CampeonatoEstruturaContent({
   campeonatoId,
   onChanged,
 }: {
@@ -142,6 +159,9 @@ export function CampeonatoEstruturaTab({
 }) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const groupMutation = useStructureGroupMutation(campeonatoId)
+  const [groupContract, setGroupContract] = useState<StructureGroupReadContract>({})
+  const [groupFeedback, setGroupFeedback] = useState<{ key: string; text: string }>({ key: '', text: '' })
   const [error, setError] = useState('')
   const [fases, setFases] = useState<Fase[]>([])
   const [grupos, setGrupos] = useState<Grupo[]>([])
@@ -162,24 +182,33 @@ export function CampeonatoEstruturaTab({
   const [slotModo, setSlotModo] = useState<'adicionar' | null>(null)
   const [busca, setBusca] = useState('')
   const [resultados, setResultados] = useState<EquipeBusca[]>([])
+  const directory = usePagedSearch<EquipeBusca>(`/api/campeonatos/${campeonatoId}/equipes/busca`, { authenticated: true, itemsKey: 'equipes' })
+  useEffect(() => { setResultados([]) }, [campeonatoId])
   const [equipe, setEquipe] = useState<EquipeBusca | null>(null)
   const [lineId, setLineId] = useState('')
   const [nomeLine, setNomeLine] = useState('')
+  const [origin, setOrigin] = useState('')
+  const [ligaPlan, setLigaPlan] = useState<LigaPlan | null>(null)
   const [slotBusy, setSlotBusy] = useState(false)
+  const slotOperation = useRef(false)
   const [slotFeedback, setSlotFeedback] = useState('')
   const [batchMode, setBatchMode] = useState(false)
   const [batchSlots, setBatchSlots] = useState<Slot[]>([])
   const [batchAssignments, setBatchAssignments] = useState<BatchSlotAssignment[]>([])
   const [batchTeamOpenIndex, setBatchTeamOpenIndex] = useState<number | null>(null)
-  const [vagasIndex, setVagasIndex] = useState<Record<string, CampeonatoVaga>>({})
+  const batchBlurTimer = useRef<number | null>(null)
+  useEffect(() => () => { if (batchBlurTimer.current != null) window.clearTimeout(batchBlurTimer.current) }, [])
+  const [participationContract, setParticipationContract] = useState<ParticipationReadContract>({})
+  const loadGeneration = useRef(0)
   const [enrollmentGroupId, setEnrollmentGroupId] = useState('')
 
   const canEdit = Boolean(permission.canOrganizeGroups)
   const canAdd = Boolean(permission.canManage)
   const canRemove = Boolean(permission.canRemove)
 
-  const load = useCallback(async (options?: { silent?: boolean }) => {
+  const load = useCallback(async (options?: { silent?: boolean; reconcileDraft?: boolean }) => {
     if (!campeonatoId) return
+    const generation = ++loadGeneration.current
     if (!options?.silent) setLoading(true)
     setError('')
     try {
@@ -189,40 +218,30 @@ export function CampeonatoEstruturaTab({
         cache: 'no-store',
       })
       const json = await res.json()
+      if (generation !== loadGeneration.current || !groupMutation.scope.isCurrent()) return
       if (!res.ok) throw new Error(json.error || 'Erro ao carregar estrutura.')
       setFases(Array.isArray(json.fases) ? json.fases : [])
       setGrupos(Array.isArray(json.grupos) ? json.grupos : [])
       setSlots(Array.isArray(json.slots) ? json.slots : [])
+      if (options?.reconcileDraft) setBatchAssignments(current => current.filter(row => (json.slots || []).some((slot: Slot) => slot.id === row.slotId && slotStatus(slot) === 'livre')))
       setPermission(json.permission || {})
-      // index de vagas para participacao_id ao remover
-      try {
-        const eq = await campeonatoEquipesService.listar(campeonatoId) as any
-        const map: Record<string, CampeonatoVaga> = {}
-        for (const v of eq.vagas || []) {
-          if (v.id) map[v.id] = v
-        }
-        setVagasIndex(map)
-        if (eq.permission) {
-          setPermission((p) => ({
-            ...p,
-            canManage: eq.permission.canManage ?? p.canManage,
-            canRemove: eq.permission.canRemove ?? p.canRemove,
-            canGenerateToken: eq.permission.canGenerateToken ?? p.canGenerateToken,
-            canOrganizeGroups: eq.permission.canOrganizeGroups ?? p.canOrganizeGroups,
-          }))
-        }
-      } catch {
-        // opcional
-      }
+      setGroupContract({ structure_group_write_mode: json.structure_group_write_mode, structure_group_actor_id: json.structure_group_actor_id })
+      setParticipationContract({ participation_write_mode: json.participation_write_mode, participation_actor_id: json.participation_actor_id })
+      setLigaPlan(json.liga || null)
     } catch (err: any) {
+      if (generation !== loadGeneration.current || !groupMutation.scope.isCurrent()) return
       setError(err?.message || 'Erro ao carregar estrutura.')
       setFases([])
       setGrupos([])
       setSlots([])
+      setPermission({})
+      setGroupContract({})
+      setParticipationContract({})
+      setLigaPlan(null)
     } finally {
-      if (!options?.silent) setLoading(false)
+      if (generation === loadGeneration.current && groupMutation.scope.isCurrent()) setLoading(false)
     }
-  }, [campeonatoId])
+  }, [campeonatoId, groupMutation.scope.key])
 
   useEffect(() => {
     void load()
@@ -266,7 +285,8 @@ export function CampeonatoEstruturaTab({
     setSlotModo('adicionar')
     setBatchMode(true)
     setBatchSlots(freeSlots)
-    setBatchAssignments(freeSlots.map((freeSlot) => ({ slotId: freeSlot.id, equipeId: '', lineId: '', lineName: '', teamQuery: '' })))
+    setOrigin('')
+    setBatchAssignments(freeSlots.map((freeSlot) => ({ slotId: freeSlot.id, equipeId: '', lineId: '', lineName: '', teamQuery: '', origin: '' })))
     setBatchTeamOpenIndex(null)
     setBusca('')
     setEquipe(null)
@@ -400,9 +420,11 @@ export function CampeonatoEstruturaTab({
     setSlotModo(null)
     setBusca('')
     setResultados([])
+    directory.clear()
     setEquipe(null)
     setLineId('')
     setNomeLine('')
+    setOrigin('')
     setSlotFeedback('')
     setBatchMode(false)
     setBatchSlots([])
@@ -419,43 +441,30 @@ export function CampeonatoEstruturaTab({
   }
 
   async function buscarEquipesParaSelecao(termo: string) {
-    try {
-      const json = await campeonatoEquipesService.buscarEquipes(campeonatoId, termo.trim()) as any
-      const found = Array.isArray(json.equipes) ? json.equipes : json.items || []
-      mergeResultados(found)
-      return found as EquipeBusca[]
-    } catch (err: any) {
-      setSlotFeedback(err?.message || 'Erro na busca.')
-      return []
-    }
+    const found = await directory.search(termo)
+    if (found) mergeResultados(found)
+    return found || []
   }
 
+  const batchSearchTerm = batchTeamOpenIndex == null ? '' : batchAssignments[batchTeamOpenIndex]?.equipeId ? '' : batchAssignments[batchTeamOpenIndex]?.teamQuery || ''
   useEffect(() => {
     if (!batchMode || batchTeamOpenIndex == null) return
-    const termo = batchAssignments[batchTeamOpenIndex]?.teamQuery || ''
+    const termo = batchSearchTerm
     const timer = window.setTimeout(() => {
       void buscarEquipesParaSelecao(termo)
     }, termo ? 220 : 0)
     return () => window.clearTimeout(timer)
-  }, [batchAssignments, batchMode, batchTeamOpenIndex])
+  }, [batchSearchTerm, batchMode, batchTeamOpenIndex])
 
   function batchTeamOptions(index: number) {
-    const row = batchAssignments[index]
     const selectedIds = new Set(batchAssignments.filter((_, rowIndex) => rowIndex !== index).map((item) => item.equipeId).filter(Boolean))
-    const q = String(row?.teamQuery || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim()
-    return resultados
+    return directory.items
       .filter((item) => !selectedIds.has(item.id))
-      .filter((item) => {
-        if (!q) return true
-        const text = `${item.nome || ''} ${item.tag || ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
-        return text.includes(q)
-      })
-      .slice(0, 12)
   }
 
   function selectBatchTeam(index: number, team: EquipeBusca | null, unavailableLineIds: Set<string>) {
     if (!team) {
-      updateBatchAssignment(index, { equipeId: '', lineId: '', lineName: '', teamQuery: '' })
+      updateBatchAssignment(index, { equipeId: '', lineId: '', lineName: '', teamQuery: '', origin: '' })
       return
     }
     const selectableLines = (team.lines || []).filter((line) => !line.ja_inscrita && !unavailableLineIds.has(String(line.id)))
@@ -464,11 +473,13 @@ export function CampeonatoEstruturaTab({
       lineId: selectableLines[0]?.id || '',
       lineName: '',
       teamQuery: `${team.nome}${team.tag ? ` · ${team.tag}` : ''}`,
+      origin: '',
     })
     setBatchTeamOpenIndex(null)
   }
 
   async function adicionarVariosSlots() {
+    if (slotOperation.current) return
     const incomplete = batchAssignments.some((row) => Boolean(row.equipeId) !== Boolean(row.lineId || row.lineName.trim()))
     const valid = batchAssignments.filter((row) => row.slotId && row.equipeId && (row.lineId || row.lineName.trim()))
     if (incomplete) {
@@ -488,15 +499,33 @@ export function CampeonatoEstruturaTab({
       setSlotFeedback('A mesma line não pode ocupar dois slots diferentes neste grupo.')
       return
     }
+    slotOperation.current = true
     setSlotBusy(true)
     setSlotFeedback('')
     try {
-      await Promise.all(valid.map((row) => campeonatoEquipesService.adicionar(campeonatoId, {
-        slot_id: row.slotId,
-        equipe_id: row.equipeId,
-        line_id: row.lineId || undefined,
-        nome_line: row.lineId ? undefined : row.lineName.trim(),
-      })))
+      // Validate the whole draft before the first write, including shared quotas.
+      const pending: Array<{ grupo_id: string; origem_entrada: string }> = []
+      const origins = new Map<string, string | undefined>()
+      if (ligaPlan && new Set(valid.map(row => row.equipeId)).size !== valid.length) throw new Error('Uma equipe só pode ocupar uma vaga nesta Liga.')
+      for (const row of valid) {
+        const target = slots.find(slot => slot.id === row.slotId)
+        if (!target || slotStatus(target) !== 'livre') throw new Error('Um slot selecionado deixou de estar disponível. Atualize a estrutura.')
+        if (ligaPlan && slots.some(slot => slot.equipe_id === row.equipeId)) throw new Error('Esta equipe já ocupa uma vaga nesta Liga.')
+        const entry = validateLigaOrigin(ligaPlan, grupos.find(group => group.id === target.grupo_id)?.nome || '', target.grupo_id, row.origin, slots, pending)
+        origins.set(row.slotId, entry)
+        if (entry) pending.push({ grupo_id: target.grupo_id, origem_entrada: entry })
+      }
+      // Each confirmed row leaves the draft; an uncertain row remains recoverable.
+      for (const row of valid) {
+        await campeonatoEquipesService.adicionar(campeonatoId, {
+          slot_id: row.slotId,
+          equipe_id: row.equipeId,
+          line_id: row.lineId || undefined,
+          nome_line: row.lineId ? undefined : row.lineName.trim(),
+          ...(origins.get(row.slotId) ? { origem_entrada: origins.get(row.slotId) } : {}),
+        }, participationContract)
+        setBatchAssignments(current => current.filter(item => item.slotId !== row.slotId))
+      }
       fecharSlot()
       await load({ silent: true })
       onChanged?.()
@@ -504,17 +533,16 @@ export function CampeonatoEstruturaTab({
       setSlotFeedback(err?.message || 'Erro ao adicionar as equipes em lote.')
       await load({ silent: true })
     } finally {
+      slotOperation.current = false
       setSlotBusy(false)
     }
   }
 
   async function pesquisarEquipe() {
     if (!busca.trim()) return
-    setSlotBusy(true)
     setSlotFeedback('')
-    try {
-      const json = await campeonatoEquipesService.buscarEquipes(campeonatoId, busca.trim()) as any
-      const found = Array.isArray(json.equipes) ? json.equipes : json.items || []
+      const found = await directory.search(busca.trim())
+      if (!found) return
       if (batchMode) mergeResultados(found)
       else setResultados(found)
       if (!found.length) setSlotFeedback('Nenhuma equipe encontrada.')
@@ -522,51 +550,57 @@ export function CampeonatoEstruturaTab({
         setBusca('')
         setSlotFeedback(`${found.length} equipe(s) adicionada(s) à lista de seleção.`)
       }
-    } catch (err: any) {
-      setSlotFeedback(err?.message || 'Erro na busca.')
-      setResultados([])
-    } finally {
-      setSlotBusy(false)
-    }
+  }
+
+  async function carregarMaisEquipes() {
+    const found = await directory.more()
+    if (found) mergeResultados(found)
   }
 
   async function adicionarNoSlot() {
+    if (slotOperation.current) return
     if (!slotAlvo?.id || !equipe?.id) {
       setSlotFeedback('Selecione a equipe.')
       return
     }
+    slotOperation.current = true
     setSlotBusy(true)
     setSlotFeedback('')
     try {
+      const target = slots.find(slot => slot.id === slotAlvo.id)
+      if (!target || slotStatus(target) !== 'livre') throw new Error('Este slot deixou de estar disponível. Atualize a estrutura.')
+      if (ligaPlan && slots.some(slot => slot.equipe_id === equipe.id)) throw new Error('Esta equipe já ocupa uma vaga nesta Liga.')
+      const entry = validateLigaOrigin(ligaPlan, grupos.find(group => group.id === target.grupo_id)?.nome || '', target.grupo_id, origin, slots)
       await campeonatoEquipesService.adicionar(campeonatoId, {
         slot_id: slotAlvo.id,
         equipe_id: equipe.id,
         line_id: lineId || undefined,
         nome_line: nomeLine || undefined,
-      })
+        ...(entry ? { origem_entrada: entry } : {}),
+      }, participationContract)
       fecharSlot()
       await load({ silent: true })
       onChanged?.()
     } catch (err: any) {
       setSlotFeedback(err?.message || 'Erro ao adicionar.')
     } finally {
+      slotOperation.current = false
       setSlotBusy(false)
     }
   }
 
 
   async function removerDoSlot(slot: Slot) {
-    const vaga = vagasIndex[slot.id]
-    const participacaoId = vaga?.campeonato_equipe?.id || (vaga as any)?.participacao_id
+    const participacaoId = slot.participacao_id
     if (!participacaoId) {
       setError('Não foi possível identificar a participação deste slot. Use a aba Equipes.')
       return
     }
-    if (!window.confirm('Remover a line deste slot?')) return
+    if (!await confirmAction('Remover a line deste slot?')) return
     setBusy(true)
     setError('')
     try {
-      await campeonatoEquipesService.remover(campeonatoId, participacaoId)
+      await campeonatoEquipesService.remover(campeonatoId, participacaoId, participationContract, slot.participation_expected)
       await load({ silent: true })
       onChanged?.()
     } catch (err: any) {
@@ -577,6 +611,17 @@ export function CampeonatoEstruturaTab({
   }
 
   async function mutate(method: 'POST' | 'PATCH' | 'DELETE', body: Record<string, unknown>) {
+    if (body.action === 'create_group') {
+      setGroupFeedback({ key: groupMutation.scope.key, text: '' })
+      try {
+        await groupMutation.run(groupContract, body)
+        if (!groupMutation.scope.isCurrent()) return false
+        setGroupFeedback({ key: groupMutation.scope.key, text: 'Grupo e slots confirmados.' })
+        await load({ silent: true })
+        if (groupMutation.scope.isCurrent()) onChanged?.()
+        return groupMutation.scope.isCurrent()
+      } catch { return false }
+    }
     setBusy(true)
     setError('')
     try {
@@ -602,6 +647,7 @@ export function CampeonatoEstruturaTab({
   if (loading) {
     return (
       <div className="teams-tab-loading">
+        <StructureGroupRecovery mutation={groupMutation} onConfirmed={() => load({ silent: true })} />
         <Loader2 size={18} className="spin" /> Carregando estrutura...
       </div>
     )
@@ -609,6 +655,10 @@ export function CampeonatoEstruturaTab({
 
   return (
     <div className="ref-section-stack">
+      <StructureGroupRecovery mutation={groupMutation} onConfirmed={() => load({ silent: true })} />
+      {groupFeedback.key === groupMutation.scope.key && groupFeedback.text ? <p role="status">{groupFeedback.text}</p> : null}
+      {canEdit && groupContract.structure_group_write_mode !== 'atomic' ? <p className="notice">Criação de grupo temporariamente indisponível.</p> : null}
+      {canAdd || canRemove ? <ParticipationRecovery championshipId={campeonatoId} contract={participationContract} onConfirmed={() => load({ silent: true, reconcileDraft: true })} /> : null}
       {error ? <div className="message error">{error}</div> : null}
 
       {canAdd && enrollmentGroups.length ? (
@@ -621,13 +671,13 @@ export function CampeonatoEstruturaTab({
           <div className="championship-enrollment-controls">
             <label>
               <span>Grupo</span>
-              <select value={enrollmentGroupId} onChange={(event) => setEnrollmentGroupId(event.target.value)}>
+              <UiSelect value={enrollmentGroupId} onChange={(event) => setEnrollmentGroupId(event.target.value)}>
                 {enrollmentGroups.map((group) => {
                   const phase = fases.find((item) => item.id === group.fase_id)
                   const free = slots.filter((slot) => slot.grupo_id === group.id && slotStatus(slot) === 'livre').length
                   return <option key={group.id} value={group.id}>{phase?.nome || 'Fase 1'} · {group.nome} · {free} vaga(s)</option>
                 })}
-              </select>
+              </UiSelect>
             </label>
             <button type="button" className="button" disabled={!enrollmentFreeSlots.length} onClick={() => startEnrollmentInGroup()}>
               {enrollmentFreeSlots.length ? `Adicionar equipes · ${enrollmentFreeSlots.length} vaga(s)` : 'Grupo sem vagas'}
@@ -731,14 +781,14 @@ export function CampeonatoEstruturaTab({
 
                 <div className="mini-grid three structure-bulk-phase-fields">
                   <Field label="Nome da fase">
-                    <input
+                    <UiInput
                       value={phase.nome}
                       onChange={(e) => updateBulkPhase(phase.key, { nome: e.target.value })}
                       placeholder={phaseIndex === 0 ? 'Fase de grupos' : `Fase ${phaseIndex + 1}`}
                     />
                   </Field>
                   <Field label="Ordem">
-                    <input
+                    <UiInput
                       type="number"
                       min={1}
                       value={phase.ordem}
@@ -746,7 +796,7 @@ export function CampeonatoEstruturaTab({
                     />
                   </Field>
                   <label className="structure-bulk-customize">
-                    <input
+                    <UiInput
                       type="checkbox"
                       checked={phase.grandeFinal}
                       disabled={bulkPhases.some((item) => item.key !== phase.key && item.grandeFinal)}
@@ -755,7 +805,7 @@ export function CampeonatoEstruturaTab({
                     <span>Grande Final</span>
                   </label>
                   <Field label={phase.grandeFinal ? 'Grupo da final' : 'Nº de grupos (A…Z)'}>
-                    <input
+                    <UiInput
                       type="number"
                       min={1}
                       max={26}
@@ -765,7 +815,7 @@ export function CampeonatoEstruturaTab({
                     />
                   </Field>
                   <Field label={phase.grandeFinal ? 'Slots da final' : 'Slots por grupo'}>
-                    <input
+                    <UiInput
                       type="number"
                       min={1}
                       max={52}
@@ -774,7 +824,7 @@ export function CampeonatoEstruturaTab({
                     />
                   </Field>
                   <label className="structure-bulk-customize">
-                    <input
+                    <UiInput
                       type="checkbox"
                       checked={phase.customizeSlots}
                       disabled={phase.grandeFinal}
@@ -796,7 +846,7 @@ export function CampeonatoEstruturaTab({
                       {phase.grupos.map((group) => (
                         <label key={group.key} className="structure-bulk-group-slot">
                           <span>Grupo {group.letter}</span>
-                          <input
+                          <UiInput
                             type="number"
                             min={1}
                             max={52}
@@ -839,21 +889,21 @@ export function CampeonatoEstruturaTab({
       {openAction === 'phase' && canEdit ? (
         <div className="inline-action-panel structure-phase-form mini-grid">
           <Field label="Nome da fase">
-            <input
+            <UiInput
               value={phaseForm.nome}
               onChange={(e) => setPhaseForm((p) => ({ ...p, nome: e.target.value }))}
               placeholder="Fase de grupos"
             />
           </Field>
           <Field label="Ordem">
-            <input
+            <UiInput
               type="number"
               value={phaseForm.ordem}
               onChange={(e) => setPhaseForm((p) => ({ ...p, ordem: e.target.value }))}
             />
           </Field>
           <Field label="Tipo da fase">
-            <select
+            <UiSelect
               value={phaseForm.grandeFinal ? 'grande_final' : 'normal'}
               onChange={(e) => setPhaseForm((p) => ({
                 ...p,
@@ -863,11 +913,11 @@ export function CampeonatoEstruturaTab({
             >
               <option value="normal">Fase normal</option>
               <option value="grande_final" disabled={fases.some((fase) => fase.tipo === 'grande_final')}>Grande Final</option>
-            </select>
+            </UiSelect>
           </Field>
           {phaseForm.grandeFinal ? (
             <Field label="Slots do Grupo da Final">
-              <input type="number" min={1} max={52} value={phaseForm.finalSlots} onChange={(e) => setPhaseForm((p) => ({ ...p, finalSlots: e.target.value }))} />
+              <UiInput type="number" min={1} max={52} value={phaseForm.finalSlots} onChange={(e) => setPhaseForm((p) => ({ ...p, finalSlots: e.target.value }))} />
             </Field>
           ) : null}
           <div className="button-row">
@@ -985,8 +1035,8 @@ export function CampeonatoEstruturaTab({
                       type="button"
                       title="Excluir fase"
                       className="danger"
-                      onClick={() => {
-                        if (window.confirm(`Excluir ${phase.nome} e todos os grupos dela?`)) {
+                      onClick={async () => {
+                        if (await confirmAction(`Excluir ${phase.nome} e todos os grupos dela?`)) {
                           void mutate('DELETE', { entity: 'phase', id: phase.id })
                         }
                       }}
@@ -1007,13 +1057,13 @@ export function CampeonatoEstruturaTab({
                   {editingPhase?.id === phase.id && canEdit ? (
                     <div className="inline-action-panel structure-edit-form mini-grid">
                       <Field label="Nome da fase">
-                        <input
+                        <UiInput
                           value={editingPhase.nome}
                           onChange={(e) => setEditingPhase({ ...editingPhase, nome: e.target.value })}
                         />
                       </Field>
                       <Field label="Ordem">
-                        <input
+                        <UiInput
                           type="number"
                           min={1}
                           value={editingPhase.ordem}
@@ -1048,7 +1098,7 @@ export function CampeonatoEstruturaTab({
                   {openAction === 'group' && groupForm.fase_id === phase.id && canEdit ? (
                     <div className="inline-action-panel phase-inline-group-form mini-grid three">
                       <Field label="Letra do grupo">
-                        <select
+                        <UiSelect
                           value={groupForm.nome.replace(/^Grupo\s+/i, '').trim() || 'A'}
                           onChange={(e) =>
                             setGroupForm((g) => ({
@@ -1063,10 +1113,10 @@ export function CampeonatoEstruturaTab({
                               Grupo {letter}
                             </option>
                           ))}
-                        </select>
+                        </UiSelect>
                       </Field>
                       <Field label="Slots">
-                        <input
+                        <UiInput
                           type="number"
                           min={1}
                           max={52}
@@ -1075,7 +1125,7 @@ export function CampeonatoEstruturaTab({
                         />
                       </Field>
                       <Field label="Link do WhatsApp">
-                        <input
+                        <UiInput
                           value={groupForm.whatsapp_url}
                           onChange={(e) => setGroupForm((g) => ({ ...g, whatsapp_url: e.target.value }))}
                           placeholder="https://chat.whatsapp.com/..."
@@ -1085,7 +1135,7 @@ export function CampeonatoEstruturaTab({
                         <button
                           className="button"
                           type="button"
-                          disabled={busy}
+                          disabled={busy || groupMutation.busy || !groupMutation.ready || !!groupMutation.pending || groupContract.structure_group_write_mode !== 'atomic' || groupContract.structure_group_actor_id !== groupMutation.scope.actor}
                           onClick={async () => {
                             const ok = await mutate('POST', {
                               action: 'create_group',
@@ -1094,7 +1144,7 @@ export function CampeonatoEstruturaTab({
                               slots: Number(groupForm.slots || 12),
                               whatsapp_url: groupForm.whatsapp_url.trim() || null,
                             })
-                            if (ok) setOpenAction('')
+                            if (ok && groupMutation.scope.isCurrent()) setOpenAction('')
                           }}
                         >
                           {busy ? <><Loader2 size={15} className="button-spinner" /> Criando...</> : 'Criar grupo'}
@@ -1173,8 +1223,8 @@ export function CampeonatoEstruturaTab({
                                 type="button"
                                 title="Excluir grupo"
                                 className="danger"
-                                onClick={() => {
-                                  if (window.confirm(`Excluir ${group.nome} e seus slots?`)) {
+                                onClick={async () => {
+                                  if (await confirmAction(`Excluir ${group.nome} e seus slots?`)) {
                                     void mutate('DELETE', { entity: 'group', id: group.id })
                                   }
                                 }}
@@ -1190,13 +1240,13 @@ export function CampeonatoEstruturaTab({
                             {editingGroup?.id === group.id && canEdit ? (
                               <div className="inline-action-panel group-edit-form mini-grid three">
                                 <Field label="Nome do grupo">
-                                  <input
+                                  <UiInput
                                     value={editingGroup.nome}
                                     onChange={(e) => setEditingGroup({ ...editingGroup, nome: e.target.value })}
                                   />
                                 </Field>
                                 <Field label="Número de slots">
-                                  <input
+                                  <UiInput
                                     type="number"
                                     min={1}
                                     max={52}
@@ -1205,7 +1255,7 @@ export function CampeonatoEstruturaTab({
                                   />
                                 </Field>
                                 <Field label="Iniciar sequência dos slots em">
-                                  <input
+                                  <UiInput
                                     value={editingGroup.slot_start_letter}
                                     maxLength={3}
                                     onChange={(e) => setEditingGroup({ ...editingGroup, slot_start_letter: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })}
@@ -1213,7 +1263,7 @@ export function CampeonatoEstruturaTab({
                                   />
                                 </Field>
                                 <Field label="Link do WhatsApp">
-                                  <input
+                                  <UiInput
                                     value={editingGroup.whatsapp_url}
                                     onChange={(e) =>
                                       setEditingGroup({ ...editingGroup, whatsapp_url: e.target.value })
@@ -1294,6 +1344,7 @@ export function CampeonatoEstruturaTab({
                                             setSlotAlvo(slot)
                                             setSlotModo('adicionar')
                                             setBatchMode(false)
+                                            setOrigin('')
                                             setSlotFeedback('')
                                           } else if (status === 'ocupada' && canRemove) {
                                             void removerDoSlot(slot)
@@ -1359,26 +1410,29 @@ export function CampeonatoEstruturaTab({
       >
         <div className="seller-invite-modal">
           {slotFeedback ? <div className="message success">{slotFeedback}</div> : null}
+          {directory.error ? <p role="alert">{directory.error}</p> : null}
+          {directory.loading ? <p role="status">Buscando equipes...</p> : null}
 
           <>
             {!batchMode ? (
               <Field label="Buscar equipe">
                 <div className="staff-search-row">
-                  <input
+                  <UiInput
                     value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
+                    onChange={(e) => { directory.clear(); setEquipe(null); setBusca(e.target.value) }}
                     placeholder="Nome da equipe"
                     onKeyDown={(e) => { if (e.key === 'Enter') void pesquisarEquipe() }}
                   />
-                  <button type="button" className="button secondary" disabled={slotBusy} onClick={() => void pesquisarEquipe()}>
+                  <button type="button" className="button secondary" disabled={slotBusy || directory.loading} onClick={() => void pesquisarEquipe()}>
                     Buscar
                   </button>
                 </div>
               </Field>
             ) : null}
-              {!batchMode && resultados.length > 0 ? (
+              {!batchMode && directory.nextCursor ? <button type="button" className="button secondary" disabled={directory.loading} onClick={() => void carregarMaisEquipes()}>Carregar mais equipes</button> : null}
+              {!batchMode && directory.items.length > 0 ? (
                 <div className="staff-search-results">
-                  {resultados.map((item: any) => (
+                  {directory.items.map((item: any) => (
                     <button
                       key={item.id}
                       type="button"
@@ -1398,7 +1452,7 @@ export function CampeonatoEstruturaTab({
               {batchMode ? (
                 <div className="slot-batch-editor">
                   <div className="slot-batch-head"><strong>Preencha os slots desejados</strong><span>{batchSelectedCount} de {batchSlots.length} slot(s) selecionado(s)</span></div>
-                  {!resultados.length ? <p className="slot-batch-hint">Carregando equipes. Você também pode clicar no campo e digitar o nome ou TAG.</p> : null}
+                  {!resultados.length ? <p className="slot-batch-hint">Clique no campo e digite o nome, TAG ou ID da equipe.</p> : null}
                   <div className="slot-batch-table">
                     <div className="slot-batch-labels"><span>Slot</span><span>Equipe</span><span>Line</span></div>
                     {batchAssignments.map((row, index) => {
@@ -1413,16 +1467,21 @@ export function CampeonatoEstruturaTab({
                       return <div key={`${row.slotId}-${index}`}>
                         <strong className="slot-batch-slot">{batchSlots.find((slot) => slot.id === row.slotId)?.slot_letra || `Slot ${batchSlots.find((slot) => slot.id === row.slotId)?.slot_numero || index + 1}`}</strong>
                         <div className="slot-team-combobox">
-                          <input
+                          <UiInput
                             aria-label={`Equipe ${index + 1}`}
                             value={row.teamQuery}
                             placeholder="Clique e busque a equipe"
                             onFocus={() => {
+                              if (batchBlurTimer.current != null) window.clearTimeout(batchBlurTimer.current)
+                              if (batchTeamOpenIndex !== index) directory.clear()
                               setBatchTeamOpenIndex(index)
-                              if (!resultados.length) void buscarEquipesParaSelecao('')
                             }}
-                            onBlur={() => window.setTimeout(() => setBatchTeamOpenIndex((current) => current === index ? null : current), 120)}
+                            onBlur={() => {
+                              if (batchBlurTimer.current != null) window.clearTimeout(batchBlurTimer.current)
+                              batchBlurTimer.current = window.setTimeout(() => setBatchTeamOpenIndex((current) => current === index ? null : current), 120)
+                            }}
                             onChange={(event) => {
+                              directory.clear()
                               setBatchTeamOpenIndex(index)
                               updateBatchAssignment(index, { teamQuery: event.target.value, equipeId: '', lineId: '', lineName: '' })
                             }}
@@ -1449,18 +1508,25 @@ export function CampeonatoEstruturaTab({
                                   <span>{item.tag || 'Equipe'} · {(item.lines || []).filter((line) => !line.ja_inscrita).length} line(s) livre(s)</span>
                                 </button>
                               ))}
-                              {!teamOptions.length ? <div className="slot-team-no-results">Nenhuma equipe encontrada.</div> : null}
+                              {directory.nextCursor ? <button type="button" disabled={directory.loading} onMouseDown={(event) => event.preventDefault()} onClick={() => void carregarMaisEquipes()}>Carregar mais equipes</button> : null}
+                              {!directory.loading && !directory.error && !directory.nextCursor && !teamOptions.length ? <div className="slot-team-no-results">Nenhuma equipe encontrada.</div> : null}
                             </div>
                           ) : null}
                         </div>
+                        <div className="slot-batch-line">
+                        <span className="slot-batch-line-label">Line</span>
                         {selectedTeam && !availableLines.length ? (
-                          <input aria-label={`Nova line ${index + 1}`} value={row.lineName} maxLength={80} placeholder="Nome da nova line" onChange={(event) => updateBatchAssignment(index, { lineId: '', lineName: event.target.value })}/>
+                          <UiInput aria-label={`Nova line ${index + 1}`} value={row.lineName} maxLength={80} placeholder="Nome da nova line" onChange={(event) => updateBatchAssignment(index, { lineId: '', lineName: event.target.value })}/>
                         ) : (
-                          <select aria-label={`Line ${index + 1}`} value={row.lineId} disabled={!selectedTeam} onChange={(event) => updateBatchAssignment(index, { lineId: event.target.value, lineName: '' })}>
+                          <UiSelect aria-label={`Line ${index + 1}`} value={row.lineId} disabled={!selectedTeam} onChange={(event) => updateBatchAssignment(index, { lineId: event.target.value, lineName: '' })}>
                             <option value="">Selecione a line</option>
                             {availableLines.map((line) => <option key={line.id} value={line.id}>{line.nome}</option>)}
-                          </select>
+                          </UiSelect>
                         )}
+                        <LigaOriginField plan={ligaPlan} groupId={groupId || ''} groupName={grupos.find(group => group.id === groupId)?.nome || ''} slots={slots}
+                          pending={batchAssignments.filter((item, other) => other !== index && item.equipeId && (item.lineId || item.lineName.trim()) && item.origin).map(item => ({ grupo_id: batchSlots.find(slot => slot.id === item.slotId)?.grupo_id || '', origem_entrada: item.origin }))}
+                          value={row.origin} onChange={value => updateBatchAssignment(index, { origin: value })} disabled={slotBusy || !selectedTeam} label={`Origem da equipe ${index + 1} na Liga`} />
+                        </div>
                       </div>
                     })}
                   </div>
@@ -1468,18 +1534,19 @@ export function CampeonatoEstruturaTab({
               ) : equipe ? (
                 <>
                   <Field label="Line existente (opcional)">
-                    <select value={lineId} onChange={(e) => setLineId(e.target.value)}>
+                    <UiSelect value={lineId} onChange={(e) => setLineId(e.target.value)}>
                       <option value="">Criar line nova</option>
                       {(equipe.lines || []).map((l: any) => (
                         <option key={l.id} value={l.id}>{l.nome}</option>
                       ))}
-                    </select>
+                    </UiSelect>
                   </Field>
                   {!lineId ? (
                     <Field label="Nome da line nova">
-                      <input value={nomeLine} onChange={(e) => setNomeLine(e.target.value)} placeholder="Ex.: ALOE BASE" />
+                      <UiInput value={nomeLine} onChange={(e) => setNomeLine(e.target.value)} placeholder="Ex.: ALOE BASE" />
                     </Field>
                   ) : null}
+                  <LigaOriginField plan={ligaPlan} groupId={slotAlvo?.grupo_id || ''} groupName={grupos.find(group => group.id === slotAlvo?.grupo_id)?.nome || ''} slots={slots} value={origin} onChange={setOrigin} disabled={slotBusy} />
                 </>
               ) : null}
               <div className="modal-form-actions">

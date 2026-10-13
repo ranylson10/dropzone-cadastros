@@ -1,5 +1,7 @@
 'use client'
 
+export type CommerceOrigin = 'direto' | 'vendedor' | 'afiliado' | 'lili' | 'app'
+
 export type LocalCommerceItem = {
   id: string
   itemId?: string | null
@@ -10,6 +12,8 @@ export type LocalCommerceItem = {
   price?: number | null
   freeSlots?: number | null
   quantity?: number
+  origin?: CommerceOrigin
+  sellerManagerId?: string | null
 }
 
 export const CART_STORAGE_KEY = 'dropzone:cart:v1'
@@ -40,11 +44,23 @@ export function getWishlistItems() {
   return readItems(WISHLIST_STORAGE_KEY)
 }
 
+export function replaceCartItems(items: LocalCommerceItem[]) {
+  writeItems(CART_STORAGE_KEY, items)
+  return items
+}
+
+export function replaceWishlistItems(items: LocalCommerceItem[]) {
+  writeItems(WISHLIST_STORAGE_KEY, items)
+  return items
+}
+
 export function addToCart(item: LocalCommerceItem, quantity = 1) {
   const items = getCartItems()
   const existing = items.find((current) => current.id === item.id)
   if (existing) {
     existing.quantity = Math.max(1, Math.min(Number(item.freeSlots || 99), Number(existing.quantity || 1) + quantity))
+    existing.origin = item.origin || existing.origin
+    existing.sellerManagerId = item.sellerManagerId ?? existing.sellerManagerId ?? null
   } else {
     items.push({ ...item, quantity: Math.max(1, quantity) })
   }

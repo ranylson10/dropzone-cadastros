@@ -1,0 +1,778 @@
+/* DropZone R14 — moldura unificada, derivada do catálogo aprovado em R13.
+   Aplicar apenas a páginas de leitura/navegação; ferramentas de operação/OBS
+   mantêm suas superfícies, geometrias e controles especializados. */
+:root {
+  --dz-unified-max: 960px;
+  --dz-unified-wide: 1180px;
+  --dz-unified-bg: #102331;
+  --dz-unified-panel: #1c3446;
+  --dz-unified-panel-hover: #254357;
+  --dz-unified-border: #304c61;
+  --dz-unified-text: #f4f8fc;
+  --dz-unified-muted: #b1c1cf;
+  --dz-unified-accent: #f1cc25;
+}
+
+/* A faixa superior e o main dividem o mesmo referencial: espaço APÓS o menu. */
+.store-home-header--with-discovery .store-home-header-inner--unified {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  width: min(calc(100% - 40px), var(--dz-unified-max)) !important;
+  max-width: var(--dz-unified-max) !important;
+  min-width: 0;
+  margin-inline: auto !important;
+  gap: 14px !important;
+}
+.store-home-header--with-discovery .store-home-header-inner--unified .store-home-header-search {
+  min-width: 0;
+  max-width: 270px;
+  flex: 1 1 190px;
+}
+/* O catálogo já possui a busca na sua própria área de conteúdo. */
+.store-home-header--with-discovery .store-home-header-inner--catalog .store-home-header-search {
+  display: none !important;
+}
+@media (min-width: 1024px) {
+  .dz-discovery-sidebar ~ main.app-shell-main.storefront-public-main.dz-unified-public-page {
+    box-sizing: border-box;
+    margin-left: var(--dz-v1-sidebar-w) !important;
+    width: calc(100% - var(--dz-v1-sidebar-w)) !important;
+    max-width: calc(100% - var(--dz-v1-sidebar-w)) !important;
+    min-width: 0 !important;
+  }
+  .dz-discovery-sidebar[data-collapsed="true"] ~ main.app-shell-main.storefront-public-main.dz-unified-public-page {
+    margin-left: var(--dz-v1-sidebar-mini-w) !important;
+    width: calc(100% - var(--dz-v1-sidebar-mini-w)) !important;
+    max-width: calc(100% - var(--dz-v1-sidebar-mini-w)) !important;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .dz-discovery-sidebar ~ main.app-shell-main.storefront-public-main.dz-unified-public-page,
+  .dz-discovery-sidebar[data-collapsed="true"] ~ main.app-shell-main.storefront-public-main.dz-unified-public-page {
+    margin-left: 72px !important;
+    width: calc(100% - 72px) !important;
+    max-width: calc(100% - 72px) !important;
+  }
+}
+@media (max-width: 1023px) {
+  .dz-discovery-sidebar ~ main.app-shell-main.storefront-public-main.dz-unified-public-page,
+  .dz-discovery-sidebar[data-collapsed="true"] ~ main.app-shell-main.storefront-public-main.dz-unified-public-page {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .store-home-header--with-discovery .store-home-header-inner--unified {
+    width: calc(100% - 24px) !important;
+  }
+}
+
+/* Todas as páginas de descoberta compartilham fundo, eixo, espaçamento e largura. */
+main.dz-unified-public-page:is(.directory-page,.directory-profile-page,.community-hub,.cart-page,.bank-wallet-page,.legal-page,.agenda-page) {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  background: var(--dz-unified-bg) !important;
+}
+main.dz-unified-public-page.directory-page:not(.directory-market-page) {
+  color: var(--dz-unified-text) !important;
+}
+main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-page-body,
+main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-page-body-with-banner,
+main.dz-unified-public-page.directory-profile-page > .directory-page-body {
+  box-sizing: border-box;
+  width: min(calc(100% - 40px), var(--dz-unified-max)) !important;
+  max-width: var(--dz-unified-max) !important;
+  margin-inline: auto !important;
+  padding: 16px 0 70px !important;
+  background: transparent !important;
+  gap: 16px !important;
+}
+main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-shell {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-inline: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-hero-banner {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  min-height: 235px !important;
+  border-color: #365572 !important;
+  border-radius: 11px !important;
+  background: radial-gradient(ellipse at 78% 55%, #145273, transparent 55%),linear-gradient(120deg,#19496f,#102d47 70%,#0a1e2d) !important;
+}
+main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-hero-inner,
+main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-rank-hero-inner {
+  box-sizing: border-box;
+  min-height: 235px !important;
+  padding: 28px 32px !important;
+}
+main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-hero-banner h1 {
+  font-size: clamp(25px,3.1vw,37px) !important;
+  line-height: 1.14 !important;
+  text-transform: none !important;
+  letter-spacing: -.025em !important;
+}
+main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-hero-banner p {
+  max-width: 500px !important;
+  color: #d2e1ec !important;
+  font-size: 13px !important;
+}
+
+/* Diretórios de equipes, jogadores, produtoras e managers: cards compactos
+   baseados no componente EntityListRow existente (sem perder os metadados). */
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) :is(.directory-toolbar,.directory-list-head,.directory-list,.directory-empty) {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin-inline: 0 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-toolbar {
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px !important;
+  padding: 10px !important;
+  border: 1px solid var(--dz-unified-border) !important;
+  border-radius: 8px !important;
+  background: var(--dz-unified-panel) !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-search {
+  flex: 1 1 260px;
+  min-width: 0;
+  background: #112735 !important;
+  color: #d3e0ec !important;
+  border-color: #385369 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-search input {
+  color: #fff !important;
+  font-size: 13px !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-head {
+  display: none !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list:not(.directory-rank-list) {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0,1fr)) !important;
+  align-items: stretch;
+  gap: 12px !important;
+  border: 0 !important;
+  overflow: visible !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-row {
+  position: relative;
+  box-sizing: border-box;
+  display: grid !important;
+  grid-template-columns: 60px minmax(0,1fr) !important;
+  grid-template-rows: auto 1fr auto !important;
+  align-content: start !important;
+  align-items: start !important;
+  gap: 11px !important;
+  min-width: 0;
+  min-height: 178px !important;
+  height: auto !important;
+  padding: 15px !important;
+  border: 1px solid var(--dz-unified-border) !important;
+  border-radius: 10px !important;
+  background: var(--dz-unified-panel) !important;
+  color: var(--dz-unified-text) !important;
+  box-shadow: none !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-row:hover {
+  background: var(--dz-unified-panel-hover) !important;
+  border-color: #6b8497 !important;
+  box-shadow: 0 5px 15px #0003 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-media {
+  grid-column: 1;
+  grid-row: 1;
+  width: 60px !important;
+  height: 60px !important;
+  background: #29495b !important;
+  border-color: #4c7085 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main > strong {
+  color: #fff !important;
+  font-size: 15px !important;
+  line-height: 1.25 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main > small {color: #f1ce53 !important; font-size: 12px !important}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main > span {color: var(--dz-unified-muted) !important; font-size: 12px !important}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-meta {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 7px !important;
+  align-content: start;
+  color: var(--dz-unified-muted) !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-meta em {
+  min-width: 0;
+  border-color: #355467 !important;
+  color: var(--dz-unified-muted) !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-meta b {color: #f5f8fb !important; font-size: 12px !important}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-arrow {grid-column: 2;grid-row: 3;justify-self: end;color: #f1cc25 !important}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-empty {
+  border-color: var(--dz-unified-border) !important;
+  background: var(--dz-unified-panel) !important;
+  color: #f4f8fc !important;
+}
+/* R16 — Correção da cascata nos quatro diretórios de entidades.
+   A R03 usa `.directory-list > .dz-entity-row` (mais específico que
+   `.directory-list-row`) e forçava branco sobre textos preparados para tema
+   escuro. Corrigir somente cores; preservar a geometria dos cards da R03. */
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row {
+  background: var(--dz-unified-panel) !important;
+  border-color: var(--dz-unified-border) !important;
+  color: var(--dz-unified-text) !important;
+  box-shadow: 0 4px 14px #06162230 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row:hover {
+  background: var(--dz-unified-panel-hover) !important;
+  border-color: #6d90a7 !important;
+  box-shadow: 0 7px 19px #06162255 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__main > strong {
+  color: var(--dz-unified-text) !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__main > small {
+  color: #f1ce53 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__main > span {
+  color: #bdd0de !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__meta {
+  border-top-color: #426073 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__meta em::before {
+  color: #b7c9d7 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__meta b {
+  color: #f5f8fc !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__arrow {
+  color: #f1cc25 !important;
+}
+/* O mesmo conflito atingia o input e o seletor reutilizáveis do toolbar. */
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-toolbar .directory-search {
+  background: #112735 !important;
+  border-color: #426078 !important;
+  color: #b7cbd9 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-toolbar .directory-search input.dz-ui-input {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #f4f8fc !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-toolbar .directory-search input::placeholder {
+  color: #a6bdce !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-results,
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-sort {
+  color: #b7c9d7 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-results strong {
+  color: #f4f8fc !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-sort select.dz-ui-select {
+  background: #132c3d !important;
+  border-color: #426078 !important;
+  color: #f4f8fc !important;
+  color-scheme: dark;
+}
+
+/* Ranking mantém lista tabular, mas obedece o mesmo container. */
+main.dz-unified-public-page.directory-theme-rank :is(.directory-rank-content,.directory-rank-hero) {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-inline: auto !important;
+}
+
+/* Perfis individuais: banner, abas e conteúdo no mesmo eixo da vitrine. */
+main.dz-unified-public-page.directory-profile-page .directory-page-body {
+  box-sizing: border-box;
+  width: min(calc(100% - 40px),var(--dz-unified-max)) !important;
+  max-width: var(--dz-unified-max) !important;
+  min-width: 0;
+  margin-inline: auto !important;
+  padding: 16px 0 75px !important;
+  background: transparent !important;
+}
+main.dz-unified-public-page.directory-profile-page .profile-command-page {
+  --profile-bg: transparent;
+  --profile-surface: #1c3446;
+  --profile-surface-raised: #254357;
+  --profile-ink: #f4f8fc;
+  --profile-muted: #b1c1cf;
+  --profile-line: #365366;
+  color: #f4f8fc !important;
+}
+main.dz-unified-public-page.directory-profile-page :is(.profile-command-hero,.directory-profile-tabs-shell,.directory-profile-tab-panel,.team-lines-site-workspace,.competitive-profile-panel,.champ-public-banner,.champ-public-panel) {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+  margin-inline: auto !important;
+}
+main.dz-unified-public-page.directory-profile-page .profile-command-hero {
+  margin-top: 0 !important;
+  border-color: #365572 !important;
+  background: linear-gradient(115deg,#184a75,#102d47) !important;
+}
+main.dz-unified-public-page.directory-profile-page .directory-profile-tabs-shell {
+  background: #203b4e !important;
+  border-color: #365366 !important;
+}
+main.dz-unified-public-page.directory-profile-page .directory-profile-tab-panel,
+main.dz-unified-public-page.directory-profile-page .competitive-profile-panel {
+  background: #1b3345 !important;
+  border-color: #365366 !important;
+  color: #f4f8fc !important;
+}
+main.dz-unified-public-page.directory-profile-page .directory-profile-tabs :is(button,a),
+main.dz-unified-public-page.directory-profile-page .directory-profile-tab-link {
+  min-height: 40px !important;
+  color: #d5e3ec !important;
+}
+main.dz-unified-public-page.directory-profile-page .directory-profile-tabs :is(button,a).active {color: #fff !important; background: #31556b !important}
+
+/* Demais destinos de leitura: consistência de largura/espaçamento sem mexer
+   na lógica dos formulários, pagamentos ou consulta de dados. */
+main.dz-unified-public-page.community-hub,
+main.dz-unified-public-page.legal-page {
+  box-sizing: border-box;
+  width: min(calc(100% - 40px),var(--dz-unified-max)) !important;
+  max-width: var(--dz-unified-max) !important;
+  margin-inline: auto !important;
+}
+main.dz-unified-public-page:is(.cart-page,.bank-wallet-page,.agenda-page) {
+  box-sizing: border-box;
+  padding-left: max(16px,calc((100% - var(--dz-unified-max))/2)) !important;
+  padding-right: max(16px,calc((100% - var(--dz-unified-max))/2)) !important;
+  min-width: 0;
+}
+main.dz-unified-public-page :is(.cart-layout,.cart-hero,.cart-purchases,.cart-recommendations,.bank-wallet-shell,.agenda-page-body) {
+  box-sizing: border-box;
+  max-width: 100% !important;
+  min-width: 0;
+  margin-inline: auto !important;
+}
+main.dz-unified-public-page.agenda-page .agenda-page-body {
+  width: 100% !important;
+}
+main.dz-unified-public-page.community-hub .community-hub-card {
+  background: #1c3446;
+  border-color: #365366;
+  color: #f4f8fc;
+}
+main.dz-unified-public-page.community-hub .community-hub-card:hover {background: #254357}
+main.dz-unified-public-page.community-hub .community-hub-copy strong {color: #f4f8fc}
+main.dz-unified-public-page.community-hub .community-hub-copy small {color: #b1c1cf}
+
+/* Painéis logados: mesmo eixo e mesma hierarquia de controles, mas largura maior
+   para tabelas de 12 equipes, estatísticas e grids. Não alteramos o Engine/OBS. */
+main.dz-unified-workspace-page > .shell.panel-workspace-shell,
+main.dz-unified-workspace-page:has(.dz-workspace--unified) > .shell.panel-workspace-shell {
+  box-sizing: border-box;
+  width: min(calc(100% - 32px),var(--dz-unified-wide)) !important;
+  max-width: var(--dz-unified-wide) !important;
+  min-width: 0;
+  margin-inline: auto !important;
+}
+.dz-workspace--unified {
+  --dz-workspace-ink: #f4f8fc;
+  width: 100% !important;
+  min-width: 0 !important;
+  gap: 14px;
+}
+.dz-workspace--unified > * { min-width: 0; max-width: 100%; }
+.dz-workspace--unified .dz-workspace-header {
+  background: #1b3345;
+  border: 1px solid #365366;
+  border-left: 3px solid #f1cc25;
+  color: #f4f8fc;
+}
+.dz-workspace--unified .dz-workspace-header__title-row h2 {color: #f4f8fc; font-size: clamp(18px,2vw,24px)}
+.dz-workspace--unified .dz-workspace-header__description {color: #b1c1cf; font-size: 12px}
+.dz-workspace--unified .dz-workspace-nav {background:#1b3345; border-color: #365366; gap: 5px}
+.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item {min-height: 42px; color: #cad9e4; font-size: 12px}
+.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item:hover {background: #2c4a5f; color: #fff}
+.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item.is-active {background:#33536a;color:#fff;box-shadow:inset 0 -3px 0 #f1cc25}
+.dz-workspace--unified .dz-workspace-subnav .dz-workspace-nav__item {min-height: 38px; font-size: 12px}
+
+@media (max-width: 1100px) {
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list:not(.directory-rank-list) {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+  }
+}
+@media (max-width: 700px) {
+  .store-home-header--with-discovery .store-home-header-inner--unified {width:calc(100% - 24px) !important}
+  main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-page-body,
+  main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-page-body-with-banner,
+  main.dz-unified-public-page.directory-profile-page .directory-page-body {width:calc(100% - 24px) !important;padding-top:12px !important}
+  main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-hero-banner {min-height:190px !important}
+  main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-hero-inner,
+  main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-rank-hero-inner {min-height:190px !important;padding:20px !important}
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list:not(.directory-rank-list) {gap:9px !important}
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-row {grid-template-columns:44px minmax(0,1fr) !important;padding:10px !important;gap:7px !important;min-height:150px !important}
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-media {width:44px !important;height:44px !important}
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main > strong {font-size:12px !important}
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-meta b {font-size:12px !important}
+  main.dz-unified-public-page:is(.community-hub,.legal-page) {width:calc(100% - 24px) !important}
+  main.dz-unified-workspace-page > .shell.panel-workspace-shell {width:calc(100% - 20px) !important}
+}
+@media (max-width: 340px) {
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list:not(.directory-rank-list) {grid-template-columns: 1fr !important}
+}
+
+/* Superfície de leitura para páginas que antes renderizavam seções soltas no main. */
+main.dz-unified-public-page .dz-unified-center {
+  box-sizing: border-box;
+  width: min(calc(100% - 40px),var(--dz-unified-max));
+  max-width: var(--dz-unified-max);
+  min-width: 0;
+  margin-inline: auto;
+  padding: 20px 0 70px;
+}
+/* O main respeita a sidebar; o conteúdo interno é o elemento centralizado. */
+main.dz-unified-public-page:is(.community-hub,.legal-page) {
+  width: auto;
+  max-width: none;
+  padding: 0;
+}
+main.dz-unified-public-page.community-hub .dz-unified-center .community-hub-hero {max-width: 760px}
+main.dz-unified-public-page.legal-page .dz-unified-center :is(.legal-hero,.legal-document) {
+  box-sizing: border-box; max-width: 100%; min-width: 0;
+}
+/* Acesso por convites, inscrição e compra mantém formulário próprio,
+   apenas padroniza largura máxima e evita ultrapassar a tela. */
+:where(.invite-page,.producer-invite-page,.scale-mode-page,.historical-team-claim-card,.sale-checkout-page,.vacancies-page,.affiliate-landing,.system-admin-page) {
+  box-sizing: border-box;
+  min-width: 0;
+}
+:where(.invite-page,.producer-invite-page,.scale-mode-page) > :is(.invite-card,.producer-invite-card,.scale-mode-card),
+:where(.sale-checkout-page,.vacancies-page) > :is(.sale-checkout-card,.vacancies-hero,.vacancies-grid) {
+  box-sizing: border-box;
+  max-width: min(100%,var(--dz-unified-max));
+  margin-inline: auto;
+}
+.system-admin-page > :is(.system-admin-header,.system-admin-tabs,.admin-metric-grid,.admin-infra-grid,.admin-section) {
+  box-sizing: border-box;
+  max-width: var(--dz-unified-wide);
+  margin-inline: auto;
+}
+/* Central de transmissão: controle pode usar largura ampliada;
+   a saída OBS e o editor de cenas nunca recebem este ajuste. */
+.broadcast-control:not(.broadcast-obs-root) {
+  box-sizing: border-box;
+  max-width: var(--dz-unified-wide);
+  min-width: 0;
+  margin-inline: auto;
+}
+@media(max-width:700px) {
+  main.dz-unified-public-page .dz-unified-center {width:calc(100% - 24px);padding:14px 0 64px}
+  .system-admin-page > :is(.system-admin-header,.system-admin-tabs,.admin-metric-grid,.admin-infra-grid,.admin-section) {max-width:100%}
+}
+
+/* Páginas públicas sem sidebar (inscrição direta e compra) preservam o eixo
+   central do topo sem receber deslocamento lateral artificial. */
+.store-home-header:not(.store-home-header--with-discovery) .store-home-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: min(calc(100% - 40px),var(--dz-unified-max));
+  max-width: var(--dz-unified-max);
+  gap: 14px;
+}
+main.dz-unified-public-page.rulebook-public-layout .rulebook-public-shell {
+  box-sizing: border-box;
+  width: min(calc(100% - 40px),var(--dz-unified-max));
+  max-width: var(--dz-unified-max);
+  min-width: 0;
+  margin-inline: auto;
+}
+main.dz-unified-public-page:is(.sale-checkout-page,.vacancies-page) {
+  background: var(--dz-unified-bg);
+  min-width: 0;
+}
+main.dz-unified-public-page.sale-checkout-page .sale-checkout-card {
+  box-sizing: border-box;
+  width: min(calc(100% - 40px),var(--dz-unified-max));
+  max-width: var(--dz-unified-max);
+  margin-inline: auto;
+}
+@media (max-width: 700px) {
+  .store-home-header:not(.store-home-header--with-discovery) .store-home-header-inner {width:calc(100% - 24px)}
+  main.dz-unified-public-page.rulebook-public-layout .rulebook-public-shell,
+  main.dz-unified-public-page.sale-checkout-page .sale-checkout-card {width:calc(100% - 24px)}
+}
+
+/* R20 — Diretórios de entidades em lista tabular, alinhados ao ranking. */
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-directory-table-head {
+  box-sizing: border-box;
+  display: grid;
+  align-items: center;
+  width: 100% !important;
+  margin: 0 0 0 !important;
+  padding: 0 14px;
+  min-height: 36px;
+  border: 1px solid #314d62;
+  border-radius: 8px 8px 0 0;
+  background: #1a3446;
+  color: #afc5d6;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-directory-table-head--entity {
+  grid-template-columns: 64px minmax(0,1.2fr) minmax(240px,.9fr) 24px;
+  column-gap: 14px;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-directory-table-head--entity span:first-child {
+  grid-column: 1 / span 2;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-directory-table-head--entity span:last-child {
+  text-align: right;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 0 !important;
+  border: 1px solid #314d62 !important;
+  border-top: 0 !important;
+  border-radius: 0 0 8px 8px !important;
+  overflow: hidden !important;
+  background: #142a3b !important;
+  box-shadow: none !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: 64px minmax(0,1.2fr) minmax(240px,.9fr) 20px !important;
+  align-content: center !important;
+  min-height: 76px !important;
+  height: auto !important;
+  padding: 10px 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #2e485d !important;
+  border-radius: 0 !important;
+  background: #162e40 !important;
+  box-shadow: none !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table:nth-child(even) {
+  background: #1b3549 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table:last-child {
+  border-bottom: 0 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table:hover {
+  background: #29465c !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-media {
+  grid-column: 1;
+  grid-row: 1;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 8px !important;
+  border: 1px solid #4d6f84 !important;
+  background: #254558 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main > strong {
+  color: #f4faff !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main > small {
+  color: #f1ce53 !important;
+  font-size: 12px !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main > span {
+  color: #aec6d6 !important;
+  font-size: 12px !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-meta {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 6px !important;
+  min-width: 0;
+  padding: 0 !important;
+  border: 0 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-meta em {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid #3b556a !important;
+  border-radius: 999px;
+  background: #1f3a4f !important;
+  color: #bfd1df !important;
+  font-size: 12px !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-meta em b {
+  color: #f5f9fd !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-arrow {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+  color: #f1cc25 !important;
+}
+@media (max-width: 700px) {
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table {
+    grid-template-columns: 44px minmax(0,1fr) 18px !important;
+    min-height: 68px !important;
+    padding: 10px !important;
+  }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-meta {
+    display: none !important;
+  }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-media {
+    width: 38px !important;
+    height: 38px !important;
+  }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main > strong { font-size: 12px !important; }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main > span { font-size: 12px !important; }
+}
+
+/* R21 — Corrige diretórios tabulares: colunas reais em vez de dados amontoados. */
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-directory-table-head--entity {
+  grid-template-columns: minmax(0,1.45fr) minmax(260px,1.1fr) 90px 120px 100px 48px !important;
+  column-gap: 14px !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table {
+  grid-template-columns: minmax(0,1.45fr) minmax(260px,1.1fr) 90px 120px 100px 48px !important;
+  grid-template-rows: none !important;
+  align-items: center !important;
+  gap: 14px !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-identity {
+  display: grid !important;
+  grid-template-columns: 44px minmax(0,1fr) !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main > strong {
+  color: #f4faff !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main > small {
+  color: #f1ce53 !important;
+  font-size: 12px !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-details {
+  color: #aec6d6 !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  min-height: 44px !important;
+  padding: 6px 8px !important;
+  border: 1px solid #3b556a !important;
+  border-radius: 999px !important;
+  background: #1f3a4f !important;
+  text-align: center !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat > small {
+  color: #b7c9d7 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: .05em !important;
+  text-transform: uppercase !important;
+  line-height: 1 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat > b {
+  color: #f5f9fd !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-open {
+  justify-self: center !important;
+  color: #f1cc25 !important;
+}
+@media (max-width: 920px) {
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-directory-table-head--entity {
+    grid-template-columns: minmax(0,1.2fr) minmax(200px,1fr) 80px 96px 88px 40px !important;
+    column-gap: 10px !important;
+  }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table {
+    grid-template-columns: minmax(0,1.2fr) minmax(200px,1fr) 80px 96px 88px 40px !important;
+    gap: 10px !important;
+  }
+}
+@media (max-width: 700px) {
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-directory-table-head--entity { display: none !important; }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table {
+    grid-template-columns: minmax(0,1fr) 20px !important;
+    grid-template-areas:
+      'identity open'
+      'details open'
+      'meta1 meta2'
+      'meta3 meta3' !important;
+    align-items: start !important;
+    gap: 10px !important;
+  }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-identity { grid-area: identity !important; }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-details { grid-area: details !important; white-space: normal !important; }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat--1 { grid-area: meta1 !important; }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat--2 { grid-area: meta2 !important; }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat--3 { grid-area: meta3 !important; }
+  main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-open { grid-area: open !important; align-self: center !important; }
+}

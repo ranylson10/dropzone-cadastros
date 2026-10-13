@@ -1,8 +1,12 @@
 'use client'
 
-import { useEffect, type ReactNode } from 'react'
-import { X } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Dialog } from '@/components/ui'
 
+/**
+ * Compatibilidade para os módulos existentes. A implementação real vive no
+ * primitive compartilhado Dialog, evitando arquiteturas paralelas de modal.
+ */
 export function SystemModal({
   open,
   title,
@@ -18,51 +22,9 @@ export function SystemModal({
   onClose: () => void
   size?: 'medium' | 'large' | 'wide'
 }) {
-  useEffect(() => {
-    if (!open) return
-
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = previousOverflow
-    }
-  }, [open, onClose])
-
-  if (!open) return null
-
   return (
-    <div
-      className="system-modal-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <section
-        className={`system-modal system-modal-${size}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="system-modal-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="system-modal-header">
-          <div>
-            <h2 id="system-modal-title">{title}</h2>
-            {description ? <p>{description}</p> : null}
-          </div>
-          <button className="system-modal-close" type="button" onClick={onClose} aria-label="Fechar janela">
-            <X size={20} />
-          </button>
-        </header>
-        <div className="system-modal-content">{children}</div>
-      </section>
-    </div>
+    <Dialog open={open} title={title} description={description} onClose={onClose} size={size}>
+      {children}
+    </Dialog>
   )
 }

@@ -12,6 +12,9 @@ const developmentOrigins = [
 ]
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    '/api/stream/image': ['./public/ui/**/*', './public/branding/**/*'],
+  },
   // Libera o navegador do próprio PC, o Playwright e dispositivos da rede local configurados.
   allowedDevOrigins: Array.from(new Set(developmentOrigins)),
   // Garante embutir env públicas no client em monorepo (workspace web/).

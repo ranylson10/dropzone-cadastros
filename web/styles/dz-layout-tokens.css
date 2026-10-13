@@ -1,0 +1,24 @@
+/* DZ Design System V1 — structural tokens only. Existing brand theme remains intact. */
+:root {
+  --dz-v1-header-h: 64px;
+  --dz-v1-sidebar-w: 232px;
+  --dz-v1-sidebar-mini-w: 68px;
+  --dz-v1-bottom-nav-h: 64px;
+  --dz-v1-content-gap: 28px;
+  --dz-v1-section-gap: 28px;
+  --dz-v1-card-gap: 14px;
+  --dz-v1-control-h: 44px;
+  --dz-v1-touch-target: 44px;
+  --dz-v1-card-radius: 10px;
+  --dz-v1-hero-home-h: 300px;
+  --dz-v1-hero-directory-h: 185px;
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  :root { --dz-v1-sidebar-w: 72px; --dz-v1-content-gap: 20px; }
+}
+@media (max-width: 1023px) {
+  :root { --dz-v1-header-h: 56px; --dz-v1-sidebar-w: 0px; --dz-v1-content-gap: 14px; }
+}
+@media (max-width: 767px) {
+  :root { --dz-v1-hero-home-h: 230px; --dz-v1-hero-directory-h: 155px; --dz-v1-card-gap: 10px; }
+}

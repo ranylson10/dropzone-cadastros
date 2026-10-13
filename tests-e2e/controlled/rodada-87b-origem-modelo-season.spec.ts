@@ -25,8 +25,9 @@ test.describe('Rodada 87B — origem, modelo e nova season', () => {
     expect(form).toContain("editionNumber = json?.edition ? Number(json.edition.numero_edicao || 1) + 1 : 2")
     expect(form).toContain("copied.titulo_publico = copied.nome")
     expect(panel).toContain('source_championship_id')
-    expect(api).toContain('sourceChampionshipId')
-    expect(api).toContain("campeonato_edicoes').upsert")
+    expect(read('backend/src/campeonatos/edition-contract.ts')).toContain('source_championship_id')
+    expect(api).toContain('tryAtomicEdition')
+    expect(fs.readFileSync(path.join(root,'docs/sql/20261012_edition_candidate.sql'),'utf8')).toContain('source_edition.franquia_id is distinct from fr_id')
   })
 
   test('Diário e Copa seguem para estrutura sem etapa técnica de season', () => {

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { dateLabel, money, VacancyApiItem } from '@/lib/vacancies'
+import { dateLabel, money, prizeLabel, VacancyApiItem } from '@/lib/vacancies'
 import { colors } from '@/theme/tokens'
 
 export function ChampionshipVacancyCard(props: {
@@ -30,7 +30,7 @@ export function ChampionshipVacancyCard(props: {
       </View>
       <View style={styles.metrics}>
         <Metric icon="ticket-outline" value={money(item.valor_inscricao)} label="Inscrição" />
-        <Metric icon="gift-outline" value={item.descricao_premiacao || money(item.premiacao)} label="Premiação" />
+        <Metric icon="gift-outline" value={prizeLabel(item)} label="Premiação" />
         <Metric icon="people-outline" value={String(free)} label="Vagas livres" />
       </View>
       <View style={styles.vacancyLine}><Text style={styles.vacancyStrong}>{free}</Text><Text style={styles.vacancyText}> vagas disponíveis{total ? ` · ${occupied}/${total} ocupadas` : ''}</Text></View>

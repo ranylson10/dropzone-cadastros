@@ -5,11 +5,14 @@ import path from 'node:path'
 const root = path.resolve(__dirname, '../..')
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), 'utf8')
 
-test('rodada 85L preserva histórico completo e filtros operacionais', async () => {
+test('preserva histórico limitado paginado e filtros operacionais', async () => {
   const api = read('web/app/api/campeonatos/[id]/estrutura-avancada/route.ts')
+  const loader = read('backend/src/campeonatos/advanced-structure-read.ts')
   const ui = read('web/features/campeonatos/estrutura-avancada/AdvancedStructureTab.tsx')
-  expect(api).toContain("limit(500)")
-  expect(api).toContain('alterado_por_nome')
+  expect(api).toContain('loadAdvancedStructure(id)')
+  expect(loader).toContain('readLimitedRows<Row>')
+  expect(loader).toContain('), 500)')
+  expect(loader).toContain('alterado_por_nome')
   expect(ui).toContain('Histórico e logs das escolhas')
   expect(ui).toContain('exportChoiceHistoryCsv')
   expect(ui).toContain('choiceHistoryFilter')

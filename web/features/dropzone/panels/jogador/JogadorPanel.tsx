@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { Activity, BarChart3, CalendarDays, CheckCircle2, ChevronRight, Gamepad2, KeyRound, Loader2, Search, Shield, Swords, Target, Trophy, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
@@ -8,6 +9,7 @@ import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 import { supabase } from '@/lib/supabase-browser'
 import { buildObjectivePerformanceGoals } from '../../performance-goals'
+import { WorkspaceContent, WorkspaceHeader, WorkspaceNav, WorkspaceShell } from '@/components/workspace'
 
 type PlayerTelemetry = {
   abates: number
@@ -188,7 +190,7 @@ export function JogadorPanel(props: {
   championships: DropZoneRow[]
 }) {
   const memberships = props.playerTeams.filter(
-    (row) => row.created_by === props.account.auth_user_id || String(row.data?.jogador_id || '') === props.account.id,
+    (row) => row.created_by === props.account.auth_user_id || row.data?.player_user_id === props.account.auth_user_id || String(row.data?.jogador_id || '') === props.account.id,
   )
   const teamIds = new Set(memberships.map((row) => String(row.ref_id || row.data?.team_id || '')))
   const myTeams = props.teams.filter((team) => teamIds.has(team.id))
@@ -495,19 +497,27 @@ export function JogadorPanel(props: {
   const championshipOptions = performance?.statisticsByChampionship || []
 
   return (
-    <div className="dashboard player-dashboard">
-      <section className="panel span-3">
-        <div className="section-head">
-          <div><p className="eyebrow">Jogador</p><h2>Meu painel</h2></div>
-          <Gamepad2 />
-        </div>
-        <div className="producer-tabs manager-champ-tabs player-primary-nav" style={{ marginBottom: 12 }} aria-label="Áreas do jogador">
-          <button type="button" className={tab === 'resumo' ? 'active' : ''} onClick={() => setTab('resumo')}>Início</button>
-          <button type="button" className={tab === 'competicoes' ? 'active' : ''} onClick={() => setTab('competicoes')}>Competições</button>
-          <button type="button" className={tab === 'equipe' ? 'active' : ''} onClick={() => setTab('equipe')}>Equipe</button>
-          <button type="button" className={tab === 'desempenho' ? 'active' : ''} onClick={() => setTab('desempenho')}>Desempenho</button>
-          <button type="button" className={tab === 'perfil' ? 'active' : ''} onClick={() => setTab('perfil')}>Perfil</button>
-        </div>
+    <WorkspaceShell kind="jogador" className="dashboard player-dashboard">
+      <WorkspaceHeader
+        eyebrow="Jogador"
+        title="Meu painel"
+        description="Equipe, competições, agenda e evolução competitiva em um único workspace."
+        icon={<Gamepad2 size={18} />}
+      />
+      <WorkspaceNav
+        ariaLabel="Áreas do jogador"
+        activeId={tab}
+        onChange={(id) => setTab(id as typeof tab)}
+        items={[
+          { id: 'resumo', label: 'Início' },
+          { id: 'competicoes', label: 'Competições' },
+          { id: 'equipe', label: 'Equipe' },
+          { id: 'desempenho', label: 'Desempenho' },
+          { id: 'perfil', label: 'Perfil' },
+        ]}
+      />
+      <WorkspaceContent>
+        <section className="panel span-3">
 
         {tab === 'perfil' ? (
           <ProfileEditForm profileType="jogador" profileId={props.account.id} initial={{
@@ -557,8 +567,8 @@ export function JogadorPanel(props: {
                 <div className="player-performance-head">
                   <div><p className="eyebrow">Privado</p><h3>Meu desempenho</h3><small>Telemetria e histórico visíveis somente no seu perfil de jogador. O período escolhido recalcula toda a análise abaixo.</small></div>
                   <div className="player-performance-filters">
-                    <label><span>Campeonato</span><select value={championshipFilter} onChange={(event) => setChampionshipFilter(event.target.value)}><option value="todos">Todos</option>{championshipOptions.map((row: any) => <option key={row.campeonato_id} value={row.campeonato_id}>{row.campeonato?.nome || 'Campeonato'}</option>)}</select></label>
-                    <label><span>Período</span><select value={performancePeriod} onChange={(event) => setPerformancePeriod(event.target.value as PerformancePeriod)}><option value="5">Últimas 5</option><option value="10">Últimas 10</option><option value="20">Últimas 20</option><option value="all">Tudo</option></select></label>
+                    <label><span>Campeonato</span><UiSelect value={championshipFilter} onChange={(event) => setChampionshipFilter(event.target.value)}><option value="todos">Todos</option>{championshipOptions.map((row: any) => <option key={row.campeonato_id} value={row.campeonato_id}>{row.campeonato?.nome || 'Campeonato'}</option>)}</UiSelect></label>
+                    <label><span>Período</span><UiSelect value={performancePeriod} onChange={(event) => setPerformancePeriod(event.target.value as PerformancePeriod)}><option value="5">Últimas 5</option><option value="10">Últimas 10</option><option value="20">Últimas 20</option><option value="all">Tudo</option></UiSelect></label>
                   </div>
                 </div>
 
@@ -652,8 +662,9 @@ export function JogadorPanel(props: {
       {tab === 'equipe' ? <>
         <section className="panel span-2 player-team-workspace"><div className="team-section-title"><div><p className="eyebrow">Vínculos</p><h2>Minha equipe</h2></div><span className="count-pill"><Users size={14}/>{myTeams.length}</span></div>{myTeams.length === 0 ? <p className="empty">Você ainda não faz parte de uma equipe.</p> : null}<div className="team-line-grid">{myTeams.map((team) => <article className="team-line-card" key={team.id}><img src={dataText(team, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'Sem tag'}</span></div></article>)}</div><div className="player-lines-inline"><strong>Minhas lines</strong>{myLines.length === 0 ? <p className="empty">Nenhuma line vinculada ao seu elenco.</p> : null}<div className="team-line-grid">{myLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/favicon.ico'} alt="" /><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span></div></article>)}</div></div></section>
         <section className="panel"><h2>{myTeams.length ? 'Pedir entrada em outra equipe' : 'Encontrar equipe'}</h2><PlayerTeamRequest mode="request_join"/></section>
-        <section className="panel span-3"><div className="team-section-title"><div><p className="eyebrow">Escalação</p><h2>Entrar por convite</h2></div></div><div className="player-lineup-token"><div><KeyRound size={18}/><span><strong>Usar token de escalação</strong><small>Cole o token ou link enviado pela equipe.</small></span></div><div className="player-lineup-token-form"><input value={lineupToken} onChange={(event) => { setLineupToken(event.target.value); setLineupTokenError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openLineupToken() }} placeholder="Token ou link de escalação"/><button type="button" onClick={openLineupToken}>Abrir</button></div>{lineupTokenError ? <small className="player-lineup-token-error">{lineupTokenError}</small> : null}</div></section>
+        <section className="panel span-3"><div className="team-section-title"><div><p className="eyebrow">Escalação</p><h2>Entrar por convite</h2></div></div><div className="player-lineup-token"><div><KeyRound size={18}/><span><strong>Usar token de escalação</strong><small>Cole o token ou link enviado pela equipe.</small></span></div><div className="player-lineup-token-form"><UiInput value={lineupToken} onChange={(event) => { setLineupToken(event.target.value); setLineupTokenError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openLineupToken() }} placeholder="Token ou link de escalação"/><button type="button" onClick={openLineupToken}>Abrir</button></div>{lineupTokenError ? <small className="player-lineup-token-error">{lineupTokenError}</small> : null}</div></section>
       </> : null}
-    </div>
+      </WorkspaceContent>
+    </WorkspaceShell>
   )
 }

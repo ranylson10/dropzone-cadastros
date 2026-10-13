@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { loadLigaConfig } from '@backend/campeonatos/liga-config'
 import { getBearerUser } from '@backend/auth/server-auth'
 import {
   getCampeonatoPermission,
   requireCampeonatoStructureWrite,
 } from '@backend/campeonatos/campeonato-permissions'
+import { structureGroupWriteMode, tryAtomicStructureGroup } from '@backend/campeonatos/structure-group-transport'
 import { assertPodeCriarSlots } from '@backend/campeonatos/capacidade'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { listUserRegistrations } from '@/features/lili/tools'
+import { participationWriteMode } from '@backend/campeonatos/participation-transport'
+import { loadParticipationSnapshots, participationSnapshot, slotMovementSnapshot } from '@backend/campeonatos/participation-snapshot'
+import { slotTransferErrorResponse, slotMovementMode } from '@backend/campeonatos/slot-transfer'
 
 function canManageStructure(permission: Awaited<ReturnType<typeof getCampeonatoPermission>>) {
   if (permission.role === 'owner' || permission.role === 'manager') return permission.canView
@@ -94,7 +99,7 @@ async function loadStructure(campeonatoId: string) {
   ] = await Promise.all([
     supabaseAdmin
       .from('campeonatos')
-      .select('id,nome,logo_url,status,aprovacao_status,banner_url')
+      .select('id,nome,tipo,logo_url,status,aprovacao_status,banner_url')
       .eq('id', campeonatoId)
       .is('deleted_at', null)
       .maybeSingle(),
@@ -203,6 +208,7 @@ async function loadStructure(campeonatoId: string) {
   }
 
   return {
+    snapshotSlots: new Map((slots || []).map(slot => [slot.id, slot])),
     campeonato,
     fases: fases || [],
     grupos: gruposEnriquecidos,
@@ -233,19 +239,22 @@ async function loadStructure(campeonatoId: string) {
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
-    const structure = await loadStructure(id)
+    const { snapshotSlots, ...structure } = await loadStructure(id)
     const isPublic = String(structure.campeonato?.status || '') === 'ativo'
       && structure.campeonato?.aprovacao_status === 'aprovado'
 
     let permission: Awaited<ReturnType<typeof getCampeonatoPermission>> | null = null
     let isParticipant = false
+    let participationActor: string | null = null
     try {
       const user = await getBearerUser(req)
       permission = await getCampeonatoPermission(user.id, id)
+      participationActor = user.id
       const registrations = canManageStructure(permission) ? [] : await listUserRegistrations(user)
       isParticipant = registrations.some((item: any) => String(item.campeonato_id || item.campeonato?.id || '') === id)
     } catch {
       permission = null
+      participationActor = null
     }
 
     const canManage = permission ? canManageStructure(permission) : false
@@ -254,8 +263,29 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     }
 
     const spectator = !canManage
+    const writeMode = participationWriteMode()
+    const movementMode = slotMovementMode()
+    const snapshots = (writeMode === 'atomic' && (permission?.canManage || permission?.canRemove)) || (movementMode === 'atomic' && permission?.canManage)
+      ? await loadParticipationSnapshots(id) : []
+    const snapshotById = new Map(snapshots.map((row: any) => [row.id, row]))
+    const liga = await loadLigaConfig(id, !spectator && Boolean(permission?.canManage), String(structure.campeonato.tipo || ''))
     return NextResponse.json({
       ...structure,
+      liga,
+      structure_group_write_mode: structureGroupWriteMode(),
+      structure_group_actor_id: permission?.canOrganizeGroups ? participationActor : null,
+      participation_write_mode: writeMode,
+      participation_actor_id: participationActor,
+      slot_movement_mode: movementMode,
+      slot_movement_actor_id: participationActor,
+      slots: structure.slots.map((slot: any) => ({ ...slot,
+        ...(movementMode === 'atomic' && !spectator && permission?.canManage ? {
+          slot_movement_expected: slotMovementSnapshot(snapshotById.get(slot.participacao_id), id, { ...snapshotSlots.get(slot.id), participacao_id: slot.participacao_id }),
+        } : {}),
+        ...(writeMode === 'atomic' && !spectator ? {
+          participation_expected: participationSnapshot(snapshotById.get(slot.participacao_id), id, slot),
+        } : {}),
+      })),
       permission: {
         canView: true,
         canManage: spectator ? false : Boolean(permission?.canManage),
@@ -266,14 +296,16 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         canScore: spectator ? false : Boolean(permission?.canScore),
         role: spectator ? 'viewer' : permission?.role || 'viewer',
       },
-    })
+    }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error: any) {
+    const atomicError = slotTransferErrorResponse(error)
+    if (atomicError) return NextResponse.json(atomicError.body, { status: atomicError.status, headers: { 'Cache-Control': 'no-store' } })
     const message =
-      (error instanceof Error && error.message)
+      (error?.code ? 'Erro ao carregar estrutura.' : error instanceof Error && error.message)
       || error?.message
       || error?.error_description
       || 'Erro ao carregar estrutura.'
-    return NextResponse.json({ error: message }, { status: 400 })
+    return NextResponse.json({ error: message }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 }
 
@@ -326,57 +358,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       }
     }
 
-    if (action === 'create_group') {
-      const nome = String(body.nome || '').trim()
-      const faseId = String(body.fase_id || '').trim()
-      const slotsCount = Math.max(1, Math.min(52, Number(body.slots || 12)))
-      const whatsapp = String(body.whatsapp_url || '').trim() || null
-      if (!nome) throw new Error('Informe o nome do grupo.')
-      if (!faseId) throw new Error('Informe a fase do grupo.')
-
-      const { data: fase } = await supabaseAdmin
-        .from('campeonato_fases')
-        .select('id,tipo')
-        .eq('id', faseId)
-        .eq('campeonato_id', campeonatoId)
-        .maybeSingle()
-      if (!fase) throw new Error('Fase não encontrada neste campeonato.')
-      if (String((fase as any).tipo || 'normal') === 'grande_final') {
-        throw new Error('A Grande Final usa somente o "Grupo da Final", criado automaticamente com a fase.')
-      }
-
-      await assertPodeCriarSlots(campeonatoId, slotsCount, { faseId })
-
-      const { data: grupo, error } = await supabaseAdmin
-        .from('campeonato_grupos')
-        .insert({
-          campeonato_id: campeonatoId,
-          fase_id: faseId,
-          nome,
-          slots: slotsCount,
-          whatsapp_url: whatsapp,
-        })
-        .select('*')
-        .single()
-      if (error?.code === '23505') throw new Error('Já existe um grupo com esse nome nesta fase.')
-      if (error) throw error
-
-      const additions = Array.from({ length: slotsCount }, (_, offset) => {
-        const number = offset + 1
-        return {
-          campeonato_id: campeonatoId,
-          fase_id: faseId,
-          grupo_id: grupo.id,
-          slot_numero: number,
-          slot_letra: slotLetterFromNumber(number),
-          status: 'livre',
-        }
-      })
-      const { error: slotsError } = await supabaseAdmin.from('campeonato_slots').insert(additions)
-      if (slotsError) throw slotsError
-
-      return NextResponse.json({ ok: true, grupo })
-    }
+    const atomicGroup = await tryAtomicStructureGroup(user.id, campeonatoId, body, req.headers.get('Idempotency-Key'))
+    if (atomicGroup) return NextResponse.json(atomicGroup, { headers: { 'Cache-Control': 'no-store' } })
 
     /**
      * Monta várias fases + grupos + slots em uma única requisição.
@@ -556,9 +539,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     throw new Error('Ação inválida.')
   } catch (error: any) {
+    const atomicError = slotTransferErrorResponse(error)
+    if (atomicError) return NextResponse.json(atomicError.body, { status: atomicError.status, headers: { 'Cache-Control': 'no-store' } })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : error?.message || 'Erro ao criar estrutura.' },
-      { status: 400 },
+      { status: 400, headers: { 'Cache-Control': 'no-store' } },
     )
   }
 }

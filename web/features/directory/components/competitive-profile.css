@@ -36,7 +36,7 @@
   gap: 7px;
   margin: 0 0 20px;
   color: var(--profile-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -79,7 +79,7 @@
 .profile-command-copy strong {
   display: block;
   color: var(--profile-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: .09em;
   text-transform: uppercase;
@@ -121,7 +121,7 @@
 
 .profile-command-facts dt {
   color: var(--profile-muted);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -138,8 +138,8 @@
 }
 
 .profile-command-more-facts{grid-column:1/-1;margin-top:10px;border-top:1px solid var(--profile-line)}
-.profile-command-more-facts summary{display:flex;align-items:center;justify-content:space-between;min-height:38px;color:var(--profile-muted);font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;cursor:pointer}.profile-command-more-facts summary::-webkit-details-marker{display:none}.profile-command-more-facts summary span{display:grid;min-width:18px;height:18px;place-items:center;border-radius:999px;background:var(--profile-surface-raised);color:var(--profile-ink);font-size:8px}
-.profile-command-more-facts dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:0;border-top:1px solid var(--profile-line)}.profile-command-more-facts dl>div{display:grid;gap:4px;min-height:58px;padding:10px 12px;border-right:1px solid var(--profile-line);border-bottom:1px solid var(--profile-line)}.profile-command-more-facts dl>div:nth-child(3n){border-right:0}.profile-command-more-facts dt{color:var(--profile-muted);font-size:8px;font-weight:850;text-transform:uppercase}.profile-command-more-facts dd{margin:0;color:var(--profile-ink);font-size:12px;font-weight:800}
+.profile-command-more-facts summary{display:flex;align-items:center;justify-content:space-between;min-height:38px;color:var(--profile-muted);font-size:12px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;cursor:pointer}.profile-command-more-facts summary::-webkit-details-marker{display:none}.profile-command-more-facts summary span{display:grid;min-width:18px;height:18px;place-items:center;border-radius:999px;background:var(--profile-surface-raised);color:var(--profile-ink);font-size:12px}
+.profile-command-more-facts dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:0;border-top:1px solid var(--profile-line)}.profile-command-more-facts dl>div{display:grid;gap:4px;min-height:58px;padding:10px 12px;border-right:1px solid var(--profile-line);border-bottom:1px solid var(--profile-line)}.profile-command-more-facts dl>div:nth-child(3n){border-right:0}.profile-command-more-facts dt{color:var(--profile-muted);font-size:12px;font-weight:850;text-transform:uppercase}.profile-command-more-facts dd{margin:0;color:var(--profile-ink);font-size:12px;font-weight:800}
 
 .profile-command-actions {
   display: flex;
@@ -164,7 +164,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--profile-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .07em;
   text-decoration: none;
@@ -205,7 +205,7 @@
 .competitive-profile-head small {
   display: block;
   color: var(--profile-muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .09em;
   text-transform: uppercase;
@@ -236,7 +236,7 @@
   padding-left: 8px;
   border-left: 1px solid rgba(215, 196, 97, .35);
   color: var(--profile-ink);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .competitive-tier.tier-s,
@@ -271,7 +271,7 @@
 .competitive-kpi-grid small {
   display: block;
   color: var(--profile-muted);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .085em;
   text-transform: uppercase;
@@ -305,7 +305,7 @@
 
 .competitive-average-grid small {
   color: var(--profile-muted);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .075em;
   text-transform: uppercase;
@@ -333,7 +333,7 @@
   align-items: center;
   gap: 7px;
   color: var(--profile-ink);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -358,7 +358,7 @@
 
 .competitive-loadout dt {
   color: var(--profile-muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .065em;
   text-transform: uppercase;
@@ -414,13 +414,13 @@
 .competitive-trend footer,
 .competitive-no-data { color: var(--profile-muted); }
 
-.competitive-bar-item small { font-size: 8px; font-weight: 800; }
+.competitive-bar-item small { font-size: 12px; font-weight: 800; }
 
 .competitive-trend footer {
   display: flex;
   gap: 12px;
   margin-top: 11px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -478,7 +478,7 @@
   background: transparent;
   box-shadow: none;
   color: var(--profile-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .075em;
   text-transform: uppercase;
@@ -506,9 +506,9 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, .08);
   color: var(--profile-muted);
-  font-size: 8px;
+  font-size: 12px;
 }
-.profile-command-page .directory-profile-tab-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 12px;border:0;background:transparent;color:var(--profile-muted);font-size:10px;font-weight:900;text-decoration:none;text-transform:uppercase}.profile-command-page .directory-profile-tab-link:hover{color:var(--profile-ink);background:rgba(255,255,255,.04)}
+.profile-command-page .directory-profile-tab-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 12px;border:0;background:transparent;color:var(--profile-muted);font-size:12px;font-weight:900;text-decoration:none;text-transform:uppercase}.profile-command-page .directory-profile-tab-link:hover{color:var(--profile-ink);background:rgba(255,255,255,.04)}
 
 .profile-command-page .directory-profile-tab-panel {
   padding: 8px 0 26px;
@@ -610,7 +610,7 @@
   .profile-command-copy p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 12px; }
   .profile-command-facts { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--profile-line); }
   .profile-command-facts div { padding: 10px 0 10px 12px; }
-  .profile-command-facts dd { font-size: 11px; }
+  .profile-command-facts dd { font-size: 12px; }
   .profile-command-more-facts dl{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-command-more-facts dl>div:nth-child(3n){border-right:1px solid var(--profile-line)}.profile-command-more-facts dl>div:nth-child(2n){border-right:0}
   .profile-command-actions a,
   .profile-command-actions .directory-report-button { min-height: 43px; padding: 0 12px; }

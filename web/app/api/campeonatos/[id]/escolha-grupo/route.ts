@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { groupChoiceWindowIsOpen } from '@backend/campeonatos/group-choice-window'
+import { tryAtomicGroupChoice } from '@backend/campeonatos/group-choice-transport'
+import { slotTransferErrorResponse } from '@backend/campeonatos/slot-transfer'
 
 function text(value: unknown, max = 100) { return String(value || '').trim().slice(0, max) }
+
+const privateResponse = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
+function errorResponse(error: unknown, fallback: string) {
+  const atomic=slotTransferErrorResponse(error)
+  if(atomic)return privateResponse(atomic.body,atomic.status)
+  const message = error instanceof Error && error.constructor === Error && !('code' in error) ? error.message : fallback
+  return privateResponse({ error: message }, message.includes('Sessao') ? 401 : 400)
+}
 
 async function notifyUser(input: { userId: string; campeonatoId: string; participationId: string; type: string; title: string; body: string; payload?: Record<string, unknown> }) {
   const { error } = await supabaseAdmin.from('notificacoes').insert({
@@ -56,7 +67,7 @@ async function payload(userId: string, campeonatoId: string) {
   if (blocksError) throw blocksError
   if (historyResult.error) throw historyResult.error
   const now = Date.now()
-  const availableConfigs = (configs || []).filter((row) => row.aberta && (!row.abre_em || new Date(row.abre_em).getTime() <= now) && (!row.fecha_em || new Date(row.fecha_em).getTime() >= now))
+  const availableConfigs = (configs || []).filter((row) => groupChoiceWindowIsOpen(row, now))
   return { participations, configs: availableConfigs, groups: groups || [], slots: slots || [], blocks: blocks || [], history: historyResult.data || [], server_time: new Date().toISOString() }
 }
 
@@ -75,8 +86,7 @@ async function assertOpenConfig(campeonatoId: string, phaseId: string) {
     .eq('fase_id', phaseId)
     .maybeSingle()
   if (error) throw error
-  const now = Date.now()
-  if (!config?.aberta || (config.abre_em && new Date(config.abre_em).getTime() > now) || (config.fecha_em && new Date(config.fecha_em).getTime() < now)) {
+  if (!groupChoiceWindowIsOpen(config)) {
     throw new Error('A escolha de grupos não está aberta para esta fase.')
   }
   return config
@@ -84,6 +94,8 @@ async function assertOpenConfig(campeonatoId: string, phaseId: string) {
 
 async function choose(request: NextRequest, campeonatoId: string, userId: string) {
   const body = await request.json()
+  const atomic=await tryAtomicGroupChoice(userId,campeonatoId,'team','assign',body,request.headers.get('Idempotency-Key'))
+  if(atomic)return atomic
   const participationId = text(body?.campeonato_equipe_id)
   const groupId = text(body?.grupo_id)
   const slotId = text(body?.slot_id)
@@ -133,10 +145,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const user = await getBearerUser(request)
     const { id } = await params
-    return NextResponse.json({ ok: true, ...(await payload(user.id, id)) })
+    return privateResponse({ ok: true, ...(await payload(user.id, id)) })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Falha ao carregar escolha de grupos.'
-    return NextResponse.json({ error: message }, { status: message.includes('Sessao') ? 401 : 400 })
+    return errorResponse(error, 'Falha ao carregar escolha de grupos.')
   }
 }
 
@@ -144,11 +155,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const user = await getBearerUser(request)
     const { id } = await params
-    await choose(request, id, user.id)
-    return NextResponse.json({ ok: true, ...(await payload(user.id, id)) })
+    const atomic=await choose(request, id, user.id)
+    if(atomic)return privateResponse(atomic)
+    return privateResponse({ ok: true, ...(await payload(user.id, id)) })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Falha ao escolher grupo.'
-    return NextResponse.json({ error: message }, { status: message.includes('Sessao') ? 401 : 400 })
+    return errorResponse(error, 'Falha ao escolher grupo.')
   }
 }
 
@@ -161,6 +172,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const user = await getBearerUser(request)
     const { id: campeonatoId } = await params
     const body = await request.json()
+    const atomic=await tryAtomicGroupChoice(user.id,campeonatoId,'team','cancel',body,request.headers.get('Idempotency-Key'))
+    if(atomic)return privateResponse(atomic)
     const participationId = text(body?.campeonato_equipe_id)
     if (!participationId) throw new Error('Equipe/line é obrigatória.')
     const participation = await assertParticipation(user.id, campeonatoId, participationId)
@@ -188,10 +201,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       throw historyError
     }
     await notifyUser({ userId: user.id, campeonatoId, participationId, type: 'escolha_grupo_cancelada', title: 'Escolha de grupo cancelada', body: 'Sua escolha de grupo e slot foi cancelada e o slot foi liberado.' })
-    return NextResponse.json({ ok: true, ...(await payload(user.id, campeonatoId)) })
+    return privateResponse({ ok: true, ...(await payload(user.id, campeonatoId)) })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Falha ao cancelar escolha.'
-    return NextResponse.json({ error: message }, { status: message.includes('Sessao') ? 401 : 400 })
+    return errorResponse(error, 'Falha ao cancelar escolha.')
   }
 }
 
@@ -200,6 +212,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const user = await getBearerUser(request)
     const { id: campeonatoId } = await params
     const body = await request.json()
+    const atomic=await tryAtomicGroupChoice(user.id,campeonatoId,'team','restore',body,request.headers.get('Idempotency-Key'))
+    if(atomic)return privateResponse(atomic)
     const participationId = text(body?.campeonato_equipe_id)
     if (!participationId) throw new Error('Equipe/line é obrigatória.')
     const participation = await assertParticipation(user.id, campeonatoId, participationId)
@@ -230,9 +244,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       throw restoreHistoryError
     }
     await notifyUser({ userId: user.id, campeonatoId, participationId, type: 'escolha_grupo_restaurada', title: 'Escolha de grupo restaurada', body: 'Sua escolha anterior de grupo e slot foi restaurada com sucesso.', payload: { grupo_id: cancelled.grupo_anterior_id, slot_id: reserved.id } })
-    return NextResponse.json({ ok: true, ...(await payload(user.id, campeonatoId)) })
+    return privateResponse({ ok: true, ...(await payload(user.id, campeonatoId)) })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Falha ao restaurar escolha.'
-    return NextResponse.json({ error: message }, { status: message.includes('Sessao') ? 401 : 400 })
+    return errorResponse(error, 'Falha ao restaurar escolha.')
   }
 }

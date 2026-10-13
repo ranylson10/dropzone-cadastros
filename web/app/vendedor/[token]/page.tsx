@@ -1,17 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, CheckCircle2, Shield, UserRound, X } from 'lucide-react'
+import { Check, CheckCircle2, Shield, UserRound } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
-import { SocialLogin } from '@/features/auth/SocialLogin'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
-import { supabase } from '@/lib/supabase-browser'
+import { getTokenFlowAccessToken, tokenFlowAuthHeaders, tokenFlowPath, TokenFlowAccessGate, TokenFlowCard, TokenFlowPage, TokenFlowStatus } from '@/features/token-flow'
 
 export default function ConviteVendedorPage() {
   const params = useParams<{ token: string }>()
   const token = String(params?.token || '').trim()
-  const returnTo = `/vendedor/${encodeURIComponent(token)}`
+  const returnTo = tokenFlowPath('vendedor', token)
 
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -24,14 +23,12 @@ export default function ConviteVendedorPage() {
     setLoading(true)
     setError('')
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const hasSession = Boolean(sessionData.session)
+      const accessToken = await getTokenFlowAccessToken()
+      const hasSession = Boolean(accessToken)
       setGate(!hasSession)
 
       const response = await fetch(`/api/vendedores/convite/${encodeURIComponent(token)}`, {
-        headers: sessionData.session
-          ? { Authorization: `Bearer ${sessionData.session.access_token}` }
-          : undefined,
+        headers: accessToken ? tokenFlowAuthHeaders(accessToken) : undefined,
         cache: 'no-store',
       })
       const json = await response.json()
@@ -63,8 +60,7 @@ export default function ConviteVendedorPage() {
     setError('')
     setMessage('')
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const accessToken = sessionData.session?.access_token
+      const accessToken = await getTokenFlowAccessToken()
       if (!accessToken) {
         setGate(true)
         throw new Error('Entre com uma conta de manager para aceitar.')
@@ -76,10 +72,7 @@ export default function ConviteVendedorPage() {
 
       const response = await fetch(`/api/vendedores/convite/${encodeURIComponent(token)}`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+        headers: tokenFlowAuthHeaders(accessToken, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           nome_publico: data.manager?.nome || data.manager?.username || '',
         }),
@@ -100,13 +93,13 @@ export default function ConviteVendedorPage() {
 
   if (!data?.convite) {
     return (
-      <main className="invite-page">
-        <div className="invite-card">
+      <TokenFlowPage>
+        <TokenFlowCard>
           <Shield size={38} />
           <h1>Convite inválido</h1>
           <p>{error || 'Não foi possível carregar este convite.'}</p>
-        </div>
-      </main>
+        </TokenFlowCard>
+      </TokenFlowPage>
     )
   }
 
@@ -119,8 +112,8 @@ export default function ConviteVendedorPage() {
   // Logado sem manager: tela de transição
   if (data.autenticado && !data.manager && data.valido) {
     return (
-      <main className="invite-page">
-        <div className="invite-card">
+      <TokenFlowPage>
+        <TokenFlowCard>
           <UserRound size={42} />
           <p className="eyebrow">Perfil de manager</p>
           <h1>Criando seu perfil de manager...</h1>
@@ -133,15 +126,15 @@ export default function ConviteVendedorPage() {
           <a className="button secondary" href={buildLoginHref('manager', returnTo, true)}>
             Usar outro login
           </a>
-        </div>
-      </main>
+        </TokenFlowCard>
+      </TokenFlowPage>
     )
   }
 
   return (
     <>
-      <main className="invite-page">
-        <div className="invite-card">
+      <TokenFlowPage>
+        <TokenFlowCard>
           <Shield size={42} />
           <p className="eyebrow">Convite de vendedor</p>
           <h1>{titulo}</h1>
@@ -165,8 +158,8 @@ export default function ConviteVendedorPage() {
             </span>
           </div>
 
-          {error ? <p className="invite-message" style={{ color: '#b4232d' }}>{error}</p> : null}
-          {message ? <p className="invite-message">{message}</p> : null}
+          {error ? <TokenFlowStatus tone="error">{error}</TokenFlowStatus> : null}
+          {message ? <TokenFlowStatus tone="success">{message}</TokenFlowStatus> : null}
 
           {!data.valido ? (
             <div className="invite-expired">
@@ -195,38 +188,18 @@ export default function ConviteVendedorPage() {
               </button>
             </div>
           )}
-        </div>
-      </main>
+        </TokenFlowCard>
+      </TokenFlowPage>
 
-      {gate ? (
-        <div className="vacancies-access-gate">
-          <section>
-            <button
-              className="gate-close"
-              type="button"
-              onClick={() => setGate(false)}
-              aria-label="Fechar"
-            >
-              <X size={18} />
-            </button>
-            <img src="/dropzone-icon.png" alt="" />
-            <p className="eyebrow">Convite de vendedor</p>
-            <h2>Como deseja continuar?</h2>
-            <p>
-              Para aceitar você precisa de um <strong>perfil de manager</strong>. Entre com Google/Facebook/Discord —
-              se ainda não tiver manager, o cadastro abre em seguida.
-            </p>
-            <SocialLogin profileType="manager" returnTo={returnTo} />
-            <a
-              className="button secondary"
-              href={buildLoginHref('manager', returnTo)}
-              style={{ width: '100%', marginTop: 8, placeContent: 'center' }}
-            >
-              Entrar com login e senha
-            </a>
-          </section>
-        </div>
-      ) : null}
+      <TokenFlowAccessGate
+        open={gate}
+        onClose={() => setGate(false)}
+        profileType="manager"
+        returnTo={returnTo}
+        eyebrow="Convite de vendedor"
+        title="Como deseja continuar?"
+        description={<>Para aceitar você precisa de um <strong>perfil de manager</strong>. Entre com Google/Facebook/Discord — se ainda não tiver manager, o cadastro abre em seguida.</>}
+      />
     </>
   )
 }

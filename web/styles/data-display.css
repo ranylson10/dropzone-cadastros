@@ -1,0 +1,47 @@
+/* R202 — uma única fundação para tabelas e listas de dados. */
+.dz-data-table {
+  max-width: 100%;
+}
+
+.dz-data-table__head,
+.dz-data-table__body,
+.dz-data-table__row,
+.dz-data-table__header-cell,
+.dz-data-table__cell {
+  box-sizing: border-box;
+}
+
+.dz-data-table-viewport {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dz-data-table-viewport:focus-visible {
+  outline: none;
+  box-shadow: var(--dz-ui-focus);
+}
+
+.dz-data-table--compact .dz-data-table__header-cell,
+.dz-data-table--compact .dz-data-table__cell {
+  padding-block: 6px;
+}
+
+.dz-data-table--comfortable .dz-data-table__header-cell,
+.dz-data-table--comfortable .dz-data-table__cell {
+  padding-block: 12px;
+}
+
+.dz-data-list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dz-data-list__item {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}

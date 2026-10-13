@@ -1,30 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { externalUrl } from '@/config/env'
-import { mobileApi } from '@/lib/api'
+import { usePublicDirectory } from '@/hooks/usePublicDirectory'
 import { DirectoryHero } from '@/screens/DirectoryHero'
 import { colors, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
 
 export function PlayerDirectoryScreen({ onSelectPlayer }: ScreenProps) {
-  const [items, setItems] = useState<any[]>([])
   const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState('')
-  const load = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true)
-    try { const result = await mobileApi.publicPlayers(); setItems(result.items || []); setError('') }
-    catch (err: any) { setError(err?.message || 'Não foi possível carregar os jogadores.') }
-    finally { setLoading(false); setRefreshing(false) }
-  }, [])
-  useEffect(() => { void load() }, [load])
-  const visible = useMemo(() => {
-    const term = query.trim().toLowerCase()
-    return !term ? items : items.filter((item) => [item.nick, item.nome, item.username, item.id_jogo, item.funcao, item.localidade].some((value) => String(value || '').toLowerCase().includes(term)))
-  }, [items, query])
-  return <ScrollView style={styles.page} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}>
+  const directory = usePublicDirectory<any>('jogadores', query)
+  const { items: visible, loading, refreshing, error } = directory
+  return <ScrollView style={styles.page} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void directory.refresh()} tintColor={colors.brand} />}>
     <DirectoryHero image={require('../../assets/directory-rank.png')} eyebrow="Diretório público" title="Jogadores" description="Perfis competitivos cadastrados na DropZone." compact />
     <View style={styles.search}><Ionicons name="search-outline" size={19} color="#77808d" /><TextInput value={query} onChangeText={setQuery} placeholder="Buscar jogador, nick, ID ou função..." placeholderTextColor="#938d84" style={styles.input} /></View>
     {loading ? <View style={styles.loading}><ActivityIndicator color={colors.brand} /><Text style={styles.meta}>Carregando jogadores...</Text></View> : null}
@@ -38,7 +25,9 @@ export function PlayerDirectoryScreen({ onSelectPlayer }: ScreenProps) {
         <Ionicons name="chevron-forward" size={18} color="#737c86" />
       </TouchableOpacity>
     })}</View>
-    {!loading && !visible.length ? <Text style={styles.empty}>Nenhum jogador encontrado.</Text> : null}
+    {!loading && !error && !visible.length ? <Text style={styles.empty}>Nenhum jogador encontrado.</Text> : null}
+    {directory.nextCursor ? <TouchableOpacity accessibilityRole="button" style={styles.empty} disabled={loading} onPress={() => void directory.more()}><Text style={styles.name}>Carregar mais jogadores</Text></TouchableOpacity> : null}
+    {error ? <TouchableOpacity accessibilityRole="button" style={styles.empty} onPress={() => void directory.refresh()}><Text style={styles.name}>Tentar novamente</Text></TouchableOpacity> : null}
   </ScrollView>
 }
 

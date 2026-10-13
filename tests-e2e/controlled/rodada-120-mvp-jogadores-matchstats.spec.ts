@@ -28,7 +28,7 @@ test('pontuação oficial da equipe não é recalculada pelos kills individuais'
 })
 
 test('MVP usa MatchStats como fallback para importações antigas já concluídas', async () => {
-  const source = read('backend/src/campeonatos/estatisticas/estatisticas.service.ts')
+  const source = read('backend/src/campeonatos/estatisticas/statistics-read.service.ts')
   expect(source).toContain('async function listarMvpGarenaFallback')
   expect(source).toContain("from('garena_matchstats_importacoes')")
   expect(source).toContain("from('garena_matchstats_jogadores')")
@@ -36,7 +36,7 @@ test('MVP usa MatchStats como fallback para importações antigas já concluída
 })
 
 test('fallback preserva abates dano assistências e revives por jogador', async () => {
-  const source = read('backend/src/campeonatos/estatisticas/estatisticas.service.ts')
+  const source = read('backend/src/campeonatos/estatisticas/statistics-read.service.ts')
   for (const field of ['abates', 'dano', 'assistencias', 'revives']) {
     expect(source).toContain(`current.${field} += Number(row.${field} || 0)`)
   }

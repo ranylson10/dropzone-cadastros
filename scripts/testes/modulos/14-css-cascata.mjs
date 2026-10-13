@@ -14,9 +14,6 @@ const DUPLICATE_SELECTOR_BASELINE = new Map([
   ['web/features/campeonatos/stream/stream.css', new Set(['.stream-package-overlay-list', '.stream-package-preview-workspace'])],
   ['web/features/directory/components/championship-directory.css', new Set([
     '.directory-market-page .directory-champ-card-grid',
-    '.directory-market-page .directory-champ-card',
-    '.directory-market-page .directory-champ-body',
-    '.directory-market-page .directory-champ-title strong',
   ])],
   ['web/features/directory/components/competitive-profile.css', new Set([
     '.profile-command-inner',

@@ -1,8 +1,9 @@
 {
   "version": 1,
-  "updated_at": "2026-09-24",
+  "updated_at": "2026-10-11",
   "description": "Classificação revisada das tabelas com RLS habilitado e sem policies no banco publicado. service_role_only exige acesso exclusivo por cliente administrativo com autorização prévia. legacy_controlled indica tabela preservada para compatibilidade/histórico, sem acesso direto localizado no código atual.",
   "tables": {
+    "site_home_config": "service_role_only",
     "agenda_eventos": "service_role_only",
     "agenda_compromissos": "service_role_only",
     "auth_verification_codes": "service_role_only",

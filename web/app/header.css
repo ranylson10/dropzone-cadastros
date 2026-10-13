@@ -85,7 +85,7 @@
 .app-brand-copy small {
   margin-top: 4px;
   color: var(--ui-muted, #918c84);
-  font-size: 7px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: .12em;
 }
@@ -118,7 +118,7 @@
   border-radius: var(--ui-radius-sm, 6px);
   background: transparent;
   color: var(--ui-text-soft, #c7c2b8);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: .045em;
   text-decoration: none;
@@ -273,7 +273,7 @@
   justify-content: center;
   gap: 6px;
   padding: 0 9px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -337,7 +337,7 @@
   align-items: center;
   gap: 6px;
   padding: 0 11px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: .035em;
   text-decoration: none;
@@ -388,7 +388,7 @@
 .app-profile-copy small {
   margin-top: 2px;
   color: var(--ui-muted, #918c84);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .app-profile-avatar {
@@ -434,7 +434,7 @@
 .app-profile-menu-head span {
   margin-top: 3px;
   color: var(--ui-muted, #918c84);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .app-profile-menu a,
@@ -490,7 +490,7 @@
 @media (max-width: 1180px) and (min-width: 901px) {
   .app-header-inner { gap: 8px; }
   .app-main-nav > a,
-  .app-main-nav .app-nav-parent { padding-inline: 8px; font-size: 9px; }
+  .app-main-nav .app-nav-parent { padding-inline: 8px; font-size: 12px; }
   .app-profile-trigger { min-width: 150px; max-width: 180px; }
 }
 
@@ -657,7 +657,7 @@
     padding: 6px 8px 6px 15px;
     border: 0;
     color: var(--ui-muted, #918c84);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 650;
     text-transform: none;
   }
@@ -682,7 +682,7 @@
     content: 'Conta';
     padding: 0 10px 5px;
     color: var(--ui-accent, #c9b766);
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 850;
     letter-spacing: .12em;
     text-transform: uppercase;
@@ -710,7 +710,7 @@
 
   .app-mobile-nav-account a strong {
     color: var(--ui-accent-strong, #dfcf85);
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .app-mobile-dock {
@@ -750,7 +750,7 @@
   .app-mobile-dock button span {
     max-width: 100%;
     overflow: hidden;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: .01em;
     text-overflow: ellipsis;
@@ -830,7 +830,7 @@
     border: 0;
     background: var(--ui-accent, #c9b766);
     color: #11110f;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .app-profile-trigger { display: none; }
@@ -838,7 +838,6 @@
   /* Visitante: a grade reserva 36 px para a ação de entrar; o rótulo longo não pode vazar da tela. */
   .app-header-inner > .app-header-login {
     display: block;
-    width: 36px;
     max-width: 36px;
   }
 
@@ -974,7 +973,7 @@
   }
 
   .app-mobile-quick-head > div { display: grid; gap: 3px; }
-  .app-mobile-quick-head small { color: var(--ui-accent, #c9b766); font-size: 9px; font-weight: 900; letter-spacing: .14em; }
+  .app-mobile-quick-head small { color: var(--ui-accent, #c9b766); font-size: 12px; font-weight: 900; letter-spacing: .14em; }
   .app-mobile-quick-head strong { color: var(--ui-text, #f5f3ed); font-size: 16px; }
   .app-mobile-quick-head > button { display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:8px;background:var(--ui-surface-soft,#202125);color:var(--ui-text-soft,#c7c2b8); }
 
@@ -993,7 +992,7 @@
   }
   .app-mobile-quick-list > a > span:nth-child(2) { display:grid;gap:2px;min-width:0; }
   .app-mobile-quick-list strong { color:var(--ui-text,#f5f3ed);font-size:13px; }
-  .app-mobile-quick-list small { overflow:hidden;color:var(--ui-muted,#918c84);font-size:10px;text-overflow:ellipsis;white-space:nowrap; }
+  .app-mobile-quick-list small { overflow:hidden;color:var(--ui-muted,#918c84);font-size:12px;text-overflow:ellipsis;white-space:nowrap; }
   .app-mobile-quick-list > a > span:last-child { color:var(--ui-muted,#918c84);font-size:20px; }
   .app-mobile-quick-action-icon { display:grid;width:40px;height:40px;place-items:center;border-radius:9px;background:var(--ui-surface-soft,#202125);color:var(--ui-accent-strong,#dfcf85); }
 }
@@ -1050,7 +1049,7 @@
     padding: 0 12px;
     border-radius: 2px;
     color: #b8b5bd;
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: .055em;
   }
 
@@ -1116,8 +1115,12 @@
   .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-copy small { color: #817e86 !important; }
 
   .app-header:has(+ .app-shell-main.page-authenticated) + .app-shell-main.page-authenticated {
+    min-width: 0;
+    width: calc(100% - 232px);
+    max-width: calc(100% - 232px);
     min-height: 100dvh;
     margin-left: 232px;
+    box-sizing: border-box;
     background: #f1efe9;
   }
 }
@@ -1174,7 +1177,7 @@
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy strong span:first-child{color:#6f43ff}
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-brand-copy small{color:#8b8780}
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a,
-.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent{min-height:72px;color:#5d5954;font-size:10px}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent{min-height:72px;color:#5d5954;font-size:12px}
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a:hover,
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent:hover{background:#f3f0ff;color:#171619}
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a.active,
@@ -1207,7 +1210,7 @@
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-profile-copy small{color:#827d76!important}
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-admin-chip{background:#6f43ff;color:#fff}
 .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-header-login{background:#171619;color:#fff}
-.app-header:has(+ .app-shell-main.marketplace-shell-page) + .app-shell-main.marketplace-shell-page{min-height:calc(100dvh - 72px);margin-left:0;background:#f6f5f2}
+.app-header:has(+ .app-shell-main.marketplace-shell-page) + .app-shell-main.marketplace-shell-page{width:100%;max-width:none;min-height:calc(100dvh - 72px);margin-left:0;background:#f6f5f2}
 
 @media(max-width:900px){
   .app-header:has(+ .app-shell-main.marketplace-shell-page){height:58px;background:#fff;color:#171619}

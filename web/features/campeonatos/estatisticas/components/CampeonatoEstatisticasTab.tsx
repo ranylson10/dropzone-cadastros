@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, RefreshCcw } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -331,7 +333,7 @@ export function CampeonatoEstatisticasTab(props: {
 
   async function finalizeDrop() {
     if (!selectedPartidaId) return
-    if (!window.confirm('Finalizar esta queda? Depois disso a pontuação não poderá ser alterada.')) return
+    if (!await confirmAction('Finalizar esta queda? Depois disso a pontuação não poderá ser alterada.')) return
     setSaving(true); setError(''); setNotice('')
     try {
       await request(`/api/campeonatos/${props.campeonatoId}/quedas/${selectedPartidaId}/finalizar`, { method: 'POST' }, true)
@@ -406,24 +408,24 @@ export function CampeonatoEstatisticasTab(props: {
             <small>{Object.values(filters).filter(Boolean).length ? `${Object.values(filters).filter(Boolean).length} ativos` : 'Todos os dados'}</small>
           </summary>
           <div className="champ-stats-filter-grid">
-            <select value={filters.fase_id} onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, rodada_id: '', jogo_id: '', partida_id: '', grupo_id: '' })}>
+            <UiSelect value={filters.fase_id} onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, rodada_id: '', jogo_id: '', partida_id: '', grupo_id: '' })}>
               <option value="">Todas as fases</option>{props.phases.map((phase) => <option key={phase.id} value={phase.id}>{String(phase.data?.nome || phase.name || 'Fase')}</option>)}
-            </select>
-            <select value={filters.grupo_id} onChange={(event) => setFilters({ ...filters, grupo_id: event.target.value })}>
+            </UiSelect>
+            <UiSelect value={filters.grupo_id} onChange={(event) => setFilters({ ...filters, grupo_id: event.target.value })}>
               <option value="">Todos os grupos</option>{props.groups.filter((group) => !filters.fase_id || group.data?.fase_id === filters.fase_id).map((group) => <option key={group.id} value={group.id}>{String(group.data?.nome || group.name || 'Grupo')}</option>)}
-            </select>
-            <select value={filters.rodada_id} onChange={(event) => setFilters({ ...filters, rodada_id: event.target.value, jogo_id: '', partida_id: '' })}>
+            </UiSelect>
+            <UiSelect value={filters.rodada_id} onChange={(event) => setFilters({ ...filters, rodada_id: event.target.value, jogo_id: '', partida_id: '' })}>
               <option value="">Todas as rodadas</option>{rounds.map((round) => <option key={round.id} value={round.id}>{round.nome}</option>)}
-            </select>
-            <select value={filters.jogo_id} onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value, partida_id: '' })}>
+            </UiSelect>
+            <UiSelect value={filters.jogo_id} onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value, partida_id: '' })}>
               <option value="">Todos os jogos</option>{props.games.filter((game) => selectedGameIds.has(game.id)).map((game) => <option key={game.id} value={game.id}>{String(game.data?.nome || game.name || 'Jogo')}</option>)}
-            </select>
-            <select value={filters.partida_id} onChange={(event) => setFilters({ ...filters, partida_id: event.target.value })}>
+            </UiSelect>
+            <UiSelect value={filters.partida_id} onChange={(event) => setFilters({ ...filters, partida_id: event.target.value })}>
               <option value="">Todas as quedas</option>{filteredPartidas.map((partida) => <option key={partida.id} value={partida.id}>Queda {partida.numero_partida} · {partida.mapa_nome || partida.mapa || 'Mapa'}</option>)}
-            </select>
-            <select value={filters.mapa_codigo} onChange={(event) => setFilters({ ...filters, mapa_codigo: event.target.value })}>
+            </UiSelect>
+            <UiSelect value={filters.mapa_codigo} onChange={(event) => setFilters({ ...filters, mapa_codigo: event.target.value })}>
               <option value="">Todos os mapas</option>{props.maps.map((map) => <option key={map.codigo} value={map.codigo}>{map.nome}</option>)}
-            </select>
+            </UiSelect>
           </div>
         </details>
       ) : null}
@@ -537,17 +539,17 @@ export function CampeonatoEstatisticasTab(props: {
           <div className="champ-stats-scorer-fields">
             <label>
               <span>Fase</span>
-              <select value={filters.fase_id} onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, jogo_id: '' })}>
+              <UiSelect value={filters.fase_id} onChange={(event) => setFilters({ ...filters, fase_id: event.target.value, jogo_id: '' })}>
                 <option value="">Selecione a fase</option>
                 {props.phases.map((phase) => <option key={phase.id} value={phase.id}>{String(phase.data?.nome || phase.name || 'Fase')}</option>)}
-              </select>
+              </UiSelect>
             </label>
             <label>
               <span>Jogo</span>
-              <select value={filters.jogo_id} onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value })} disabled={!filters.fase_id}>
+              <UiSelect value={filters.jogo_id} onChange={(event) => setFilters({ ...filters, jogo_id: event.target.value })} disabled={!filters.fase_id}>
                 <option value="">Selecione o jogo</option>
                 {props.games.filter((game) => game.data?.fase_id === filters.fase_id).map((game) => <option key={game.id} value={game.id}>{String(game.data?.nome || game.name || 'Jogo')}</option>)}
-              </select>
+              </UiSelect>
             </label>
           </div>
 

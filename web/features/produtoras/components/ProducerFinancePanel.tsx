@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowDownRight,
@@ -241,7 +243,7 @@ export function ProducerFinancePanel(props: {
   }
 
   async function removeEntry(item: any) {
-    if (!window.confirm(`Remover o lançamento “${item.descricao}”?`)) return
+    if (!await confirmAction(`Remover o lançamento “${item.descricao}”?`)) return
     setBusy(true)
     setError('')
     try {
@@ -270,7 +272,7 @@ export function ProducerFinancePanel(props: {
           <span>Carteira é saldo. Aqui ficam desempenho, custos, metas e projeções.</span>
         </div>
         <div className="producer-finance-toolbar-actions">
-          <label><CalendarRange size={15} /><input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
+          <label><CalendarRange size={15} /><UiInput type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
           <button type="button" className="button secondary" disabled={loading} onClick={() => void loadFinance()}><RefreshCcw size={15} /> Atualizar</button>
           {scope === 'workspace' ? <a className="button secondary" href="/carteira"><WalletCards size={15} /> Carteira</a> : null}
         </div>
@@ -312,9 +314,9 @@ export function ProducerFinancePanel(props: {
               </div>
               <div className="producer-finance-progress"><i style={{ width: `${progress}%` }} /></div>
               <div className="producer-finance-goal-form">
-                <label><span>Receita alvo</span><input type="number" min="0" step="0.01" value={goalRevenue} onChange={(event) => setGoalRevenue(event.target.value)} placeholder="25000,00" /></label>
-                <label><span>Lucro alvo</span><input type="number" min="0" step="0.01" value={goalProfit} onChange={(event) => setGoalProfit(event.target.value)} placeholder="8000,00" /></label>
-                <label><span>Vagas alvo</span><input type="number" min="0" step="1" value={goalSeats} onChange={(event) => setGoalSeats(event.target.value)} placeholder="100" /></label>
+                <label><span>Receita alvo</span><UiInput type="number" min="0" step="0.01" value={goalRevenue} onChange={(event) => setGoalRevenue(event.target.value)} placeholder="25000,00" /></label>
+                <label><span>Lucro alvo</span><UiInput type="number" min="0" step="0.01" value={goalProfit} onChange={(event) => setGoalProfit(event.target.value)} placeholder="8000,00" /></label>
+                <label><span>Vagas alvo</span><UiInput type="number" min="0" step="1" value={goalSeats} onChange={(event) => setGoalSeats(event.target.value)} placeholder="100" /></label>
                 <button type="button" className="button" disabled={busy} onClick={() => void saveGoal()}><Target size={15} /> Salvar metas</button>
               </div>
             </section>
@@ -345,14 +347,14 @@ export function ProducerFinancePanel(props: {
             </header>
             {entryOpen ? (
               <div className="producer-finance-entry-form">
-                <label><span>Tipo</span><select value={entry.tipo} onChange={(event) => setEntry((value) => ({ ...value, tipo: event.target.value as EntryForm['tipo'] }))}><option value="receita">Receita</option><option value="despesa">Despesa</option></select></label>
-                <label><span>Categoria</span><select value={entry.categoria} onChange={(event) => setEntry((value) => ({ ...value, categoria: event.target.value }))}>{ENTRY_CATEGORIES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
-                {scope === 'workspace' ? <label><span>Campeonato</span><select value={entry.campeonato_id} onChange={(event) => setEntry((value) => ({ ...value, campeonato_id: event.target.value }))}><option value="">Produtora / geral</option>{props.championships.map((championship) => <option key={championship.id} value={championship.id}>{titleOfChampionship(championship)}</option>)}</select></label> : null}
-                <label className="wide"><span>Descrição</span><input value={entry.descricao} onChange={(event) => setEntry((value) => ({ ...value, descricao: event.target.value }))} placeholder="Ex.: Patrocínio principal, narrador da final, servidor..." /></label>
-                <label><span>Valor</span><input type="number" min="0.01" step="0.01" value={entry.valor} onChange={(event) => setEntry((value) => ({ ...value, valor: event.target.value }))} placeholder="0,00" /></label>
-                <label><span>Competência</span><input type="date" value={entry.data_competencia} onChange={(event) => setEntry((value) => ({ ...value, data_competencia: event.target.value }))} /></label>
-                <label><span>Status</span><select value={entry.status} onChange={(event) => setEntry((value) => ({ ...value, status: event.target.value as EntryForm['status'] }))}><option value="realizado">Realizado</option><option value="previsto">Previsto</option><option value="cancelado">Cancelado</option></select></label>
-                <label className="wide"><span>Observação</span><input value={entry.observacao} onChange={(event) => setEntry((value) => ({ ...value, observacao: event.target.value }))} placeholder="Opcional" /></label>
+                <label><span>Tipo</span><UiSelect value={entry.tipo} onChange={(event) => setEntry((value) => ({ ...value, tipo: event.target.value as EntryForm['tipo'] }))}><option value="receita">Receita</option><option value="despesa">Despesa</option></UiSelect></label>
+                <label><span>Categoria</span><UiSelect value={entry.categoria} onChange={(event) => setEntry((value) => ({ ...value, categoria: event.target.value }))}>{ENTRY_CATEGORIES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</UiSelect></label>
+                {scope === 'workspace' ? <label><span>Campeonato</span><UiSelect value={entry.campeonato_id} onChange={(event) => setEntry((value) => ({ ...value, campeonato_id: event.target.value }))}><option value="">Produtora / geral</option>{props.championships.map((championship) => <option key={championship.id} value={championship.id}>{titleOfChampionship(championship)}</option>)}</UiSelect></label> : null}
+                <label className="wide"><span>Descrição</span><UiInput value={entry.descricao} onChange={(event) => setEntry((value) => ({ ...value, descricao: event.target.value }))} placeholder="Ex.: Patrocínio principal, narrador da final, servidor..." /></label>
+                <label><span>Valor</span><UiInput type="number" min="0.01" step="0.01" value={entry.valor} onChange={(event) => setEntry((value) => ({ ...value, valor: event.target.value }))} placeholder="0,00" /></label>
+                <label><span>Competência</span><UiInput type="date" value={entry.data_competencia} onChange={(event) => setEntry((value) => ({ ...value, data_competencia: event.target.value }))} /></label>
+                <label><span>Status</span><UiSelect value={entry.status} onChange={(event) => setEntry((value) => ({ ...value, status: event.target.value as EntryForm['status'] }))}><option value="realizado">Realizado</option><option value="previsto">Previsto</option><option value="cancelado">Cancelado</option></UiSelect></label>
+                <label className="wide"><span>Observação</span><UiInput value={entry.observacao} onChange={(event) => setEntry((value) => ({ ...value, observacao: event.target.value }))} placeholder="Opcional" /></label>
                 <div className="producer-finance-form-actions"><button type="button" className="button" disabled={busy} onClick={() => void saveEntry()}>{entry.id ? 'Salvar alteração' : 'Adicionar lançamento'}</button><button type="button" className="button secondary" onClick={() => { setEntry(emptyEntry(props.championshipId)); setEntryOpen(false) }}>Cancelar</button></div>
               </div>
             ) : null}

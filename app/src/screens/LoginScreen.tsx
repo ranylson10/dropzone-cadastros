@@ -66,7 +66,7 @@ export function LoginScreen(props: { onCancel?: () => void }) {
         <TouchableOpacity accessibilityLabel="Voltar" style={styles.iconButton} onPress={props.onCancel} disabled={!props.onCancel||busy}>
           <Ionicons name="arrow-back" size={22} color={colors.ink}/>
         </TouchableOpacity>
-        <View style={styles.logoFrame}><Image source={require('../../assets/dropzone-icon-accent.png')} style={styles.logo} resizeMode="contain"/></View>
+        <View style={styles.logoFrame}><Image source={require('../../assets/branding/dropzone-platform.png')} style={styles.logo} resizeMode="contain"/></View>
         <View style={styles.iconSpacer}/>
       </View>
 

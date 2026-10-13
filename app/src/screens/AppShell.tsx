@@ -78,7 +78,7 @@ export function AppShell(props: {
     <View style={styles.shell}>
       <View style={styles.topbar}>
         <TouchableOpacity style={styles.brandSide} activeOpacity={0.8} onPress={() => props.onNavigate('home')}>
-          <Image source={require('../../assets/dropzone-icon-accent.png')} style={styles.systemLogo} resizeMode="contain" />
+          <Image source={require('../../assets/branding/dropzone-platform.png')} style={styles.systemLogo} resizeMode="contain" />
           <Text style={styles.brandName}>DROPZONE</Text>
         </TouchableOpacity>
 

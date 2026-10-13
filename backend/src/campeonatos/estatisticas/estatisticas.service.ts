@@ -1,222 +1,9 @@
 import { supabaseAdmin } from '../../shared/supabase-admin'
-
-type Filters = {
-  faseId?: string | null
-  rodadaId?: string | null
-  jogoId?: string | null
-  partidaId?: string | null
-  mapaCodigo?: string | null
-  grupoId?: string | null
-  partidaIds?: string[] | null
-}
-
-function applyFilters(query: any, filters: Filters) {
-  let result = query
-  if (filters.faseId) result = result.eq('fase_id', filters.faseId)
-  if (filters.rodadaId) result = result.eq('rodada_id', filters.rodadaId)
-  if (filters.jogoId) result = result.eq('jogo_id', filters.jogoId)
-  if (filters.partidaId) result = result.eq('partida_id', filters.partidaId)
-  if (filters.mapaCodigo) result = result.eq('mapa_codigo', filters.mapaCodigo)
-  if (filters.grupoId) result = result.eq('grupo_id', filters.grupoId)
-  if (filters.partidaIds?.length) result = result.in('partida_id', filters.partidaIds)
-  return result
-}
-
-/** Acrescenta o ID público numérico da Line sem expor o UUID como ID de mídia. */
-async function attachLinePublicIds<T extends { line_id?: string | null }>(rows: T[]): Promise<Array<T & { line_public_id: number | null }>> {
-  const lineIds = [...new Set(rows.map((row) => String(row.line_id || '')).filter(Boolean))]
-  if (!lineIds.length) return rows.map((row) => ({ ...row, line_public_id: null }))
-  const { data, error } = await supabaseAdmin
-    .from('equipe_lines')
-    .select('id,public_id')
-    .in('id', lineIds)
-  if (error) throw error
-  const publicIdByLine = new Map((data || []).map((line: any) => [String(line.id), Number(line.public_id)]))
-  return rows.map((row) => ({
-    ...row,
-    line_public_id: publicIdByLine.get(String(row.line_id || '')) ?? null,
-  }))
-}
-
-export async function listarEstatisticasEquipes(campeonatoId: string, filters: Filters) {
-  const query = applyFilters(
-    supabaseAdmin
-      .from('campeonato_estatisticas_equipes_detalhe')
-      .select('*')
-      .eq('campeonato_id', campeonatoId),
-    filters,
-  )
-  const { data, error } = await query
-  if (error) throw error
-
-  const aggregate = new Map<string, any>()
-  for (const row of data || []) {
-    const key = row.campeonato_equipe_id
-    const current = aggregate.get(key) || {
-      campeonato_equipe_id: key,
-      equipe_id: row.equipe_id,
-      line_id: row.line_id,
-      nome: row.nome_exibicao || row.line_nome || row.equipe_nome || 'Equipe',
-      tag: row.line_tag || row.equipe_tag || null,
-      logo_url: row.line_logo_url || row.equipe_logo_url || null,
-      grupo_id: row.grupo_id || null,
-      quedas: 0,
-      booyahs: 0,
-      abates: 0,
-      pontos_posicao: 0,
-      pontos_abates: 0,
-      pontos_total: 0,
-      melhor_posicao: null as number | null,
-    }
-    current.quedas += 1
-    current.booyahs += row.booyah ? 1 : 0
-    current.abates += Number(row.abates || 0)
-    current.pontos_posicao += Number(row.pontos_posicao || 0)
-    current.pontos_abates += Number(row.pontos_abates || 0)
-    current.pontos_total += Number(row.pontos_total || 0)
-    current.melhor_posicao = current.melhor_posicao === null
-      ? Number(row.posicao)
-      : Math.min(current.melhor_posicao, Number(row.posicao))
-    aggregate.set(key, current)
-  }
-
-  const rows = [...aggregate.values()]
-    .sort((a, b) => b.pontos_total - a.pontos_total || b.booyahs - a.booyahs || b.abates - a.abates || Number(a.melhor_posicao ?? 999) - Number(b.melhor_posicao ?? 999))
-    .map((row, index) => ({ ...row, colocacao: index + 1 }))
-  return attachLinePublicIds(rows)
-}
-
-
-async function listarMvpGarenaFallback(campeonatoId: string, filters: Filters) {
-  let importsQuery: any = supabaseAdmin
-    .from('garena_matchstats_importacoes')
-    .select('id,jogo_id,partida_id')
-    .eq('campeonato_id', campeonatoId)
-    .eq('status', 'concluida')
-    .eq('consolidacao_oficial', true)
-  if (filters.jogoId) importsQuery = importsQuery.eq('jogo_id', filters.jogoId)
-  if (filters.partidaId) importsQuery = importsQuery.eq('partida_id', filters.partidaId)
-  if (filters.partidaIds?.length) importsQuery = importsQuery.in('partida_id', filters.partidaIds)
-
-  const { data: imports, error: importsError } = await importsQuery
-  if (importsError) throw importsError
-  const importIds = (imports || []).map((row: any) => row.id)
-  if (!importIds.length) return []
-
-  const { data: rows, error } = await supabaseAdmin
-    .from('garena_matchstats_jogadores')
-    .select('campeonato_jogador_id,jogador_id,jogador_temporario_id,campeonato_equipe_id,nick_snapshot,player_id,abates,dano,assistencias,revives')
-    .in('importacao_id', importIds)
-    .not('campeonato_jogador_id', 'is', null)
-  if (error) throw error
-
-  const aggregate = new Map<string, any>()
-  for (const row of rows || []) {
-    const key = String(row.campeonato_jogador_id || '')
-    if (!key) continue
-    const current = aggregate.get(key) || {
-      campeonato_jogador_id: key,
-      jogador_id: row.jogador_id,
-      jogador_temporario_id: row.jogador_temporario_id,
-      campeonato_equipe_id: row.campeonato_equipe_id,
-      nick: row.nick_snapshot || 'Jogador',
-      id_jogo: row.player_id || null,
-      foto_url: null,
-      tipo_jogador: row.jogador_id ? 'oficial' : 'temporario',
-      quedas: 0,
-      abates: 0,
-      dano: 0,
-      assistencias: 0,
-      revives: 0,
-    }
-    current.quedas += 1
-    current.abates += Number(row.abates || 0)
-    current.dano += Number(row.dano || 0)
-    current.assistencias += Number(row.assistencias || 0)
-    current.revives += Number(row.revives || 0)
-    aggregate.set(key, current)
-  }
-
-  return [...aggregate.values()]
-    .sort((a, b) => b.abates - a.abates || b.dano - a.dano)
-    .map((row, index) => ({ ...row, colocacao: index + 1 }))
-}
-
-export async function listarEstatisticasMvp(campeonatoId: string, filters: Filters) {
-  const query = applyFilters(
-    supabaseAdmin
-      .from('campeonato_estatisticas_mvp_detalhe')
-      .select('*')
-      .eq('campeonato_id', campeonatoId),
-    filters,
-  )
-  const { data, error } = await query
-  if (error) throw error
-  if (!(data || []).length && !filters.faseId && !filters.rodadaId && !filters.mapaCodigo && !filters.grupoId) {
-    return listarMvpGarenaFallback(campeonatoId, filters)
-  }
-
-  const aggregate = new Map<string, any>()
-  for (const row of data || []) {
-    const key = row.campeonato_jogador_id
-    const current = aggregate.get(key) || {
-      campeonato_jogador_id: key,
-      jogador_id: row.jogador_id,
-      jogador_temporario_id: row.jogador_temporario_id,
-      campeonato_equipe_id: row.campeonato_equipe_id,
-      line_id: row.line_id || null,
-      nick: row.nick,
-      id_jogo: row.id_jogo,
-      foto_url: row.foto_url,
-      tipo_jogador: row.tipo_jogador,
-      quedas: 0,
-      abates: 0,
-      dano: 0,
-      assistencias: 0,
-      revives: 0,
-    }
-    current.quedas += 1
-    current.abates += Number(row.abates || 0)
-    current.dano += Number(row.dano || 0)
-    current.assistencias += Number(row.assistencias || 0)
-    current.revives += Number(row.revives || 0)
-    aggregate.set(key, current)
-  }
-
-  const rows = [...aggregate.values()]
-    .sort((a, b) => b.abates - a.abates || b.dano - a.dano)
-    .map((row, index) => ({ ...row, colocacao: index + 1 }))
-  return attachLinePublicIds(rows)
-}
-
-export async function listarEstatisticasEquipesPublicadas(campeonatoId: string, filters: Filters) {
-  const { carregarPublicacaoEstatisticas } = await import('./publicacao.service')
-  const publicacao = await carregarPublicacaoEstatisticas(campeonatoId)
-  if (filters.partidaId && !publicacao.partidas_publicadas.includes(filters.partidaId)) {
-    return { equipes: [], publicacao }
-  }
-  if (!publicacao.partidas_publicadas.length) return { equipes: [], publicacao }
-  const equipes = await listarEstatisticasEquipes(campeonatoId, {
-    ...filters,
-    partidaIds: publicacao.partidas_publicadas,
-  })
-  return { equipes, publicacao }
-}
-
-export async function listarEstatisticasMvpPublicadas(campeonatoId: string, filters: Filters) {
-  const { carregarPublicacaoEstatisticas } = await import('./publicacao.service')
-  const publicacao = await carregarPublicacaoEstatisticas(campeonatoId)
-  if (filters.partidaId && !publicacao.partidas_publicadas.includes(filters.partidaId)) {
-    return { jogadores: [], publicacao }
-  }
-  if (!publicacao.partidas_publicadas.length) return { jogadores: [], publicacao }
-  const jogadores = await listarEstatisticasMvp(campeonatoId, {
-    ...filters,
-    partidaIds: publicacao.partidas_publicadas,
-  })
-  return { jogadores, publicacao }
-}
-
+import { readPagedRows } from '../../shared/paginated-query'
+import { listarEstatisticasEquipes, listarEstatisticasMvp } from './statistics-read.service'
+import { readStatsRows } from './statistics-query'
+export { listarEstatisticasEquipes, listarEstatisticasMvp } from './statistics-read.service'
+export { listarEstatisticasEquipesPublicadas, listarEstatisticasMvpPublicadas, listarEstatisticasPublicadas } from './published-statistics.service'
 
 export async function carregarResumoCampeao(campeonatoId: string) {
   const { data: faseFinal, error: faseError } = await supabaseAdmin
@@ -230,19 +17,21 @@ export async function carregarResumoCampeao(campeonatoId: string) {
     return { final_concluida: false, fase: null, configuracao: null, campeao: null, jogadores: [], mvp_final: null, resumo: null }
   }
 
-  const [{ data: jogos, error: jogosError }, { data: partidas, error: partidasError }, { data: configuracao, error: configError }] = await Promise.all([
-    supabaseAdmin
+  const [jogos, partidas, { data: configuracao, error: configError }] = await Promise.all([
+    readPagedRows<any>(supabaseAdmin
       .from('campeonato_jogos')
       .select('id,nome,dia_final,define_campeao,papel_na_fase,data_jogo,horario,numero_partidas,status')
       .eq('campeonato_id', campeonatoId)
       .eq('fase_id', faseFinal.id)
       .order('dia_final', { ascending: true })
-      .order('data_jogo', { ascending: true }),
-    supabaseAdmin
+      .order('data_jogo', { ascending: true })
+      .order('id', { ascending: true })),
+    readPagedRows<any>(supabaseAdmin
       .from('campeonato_partidas')
       .select('id,jogo_id,numero_partida,status')
       .eq('campeonato_id', campeonatoId)
-      .eq('fase_id', faseFinal.id),
+      .eq('fase_id', faseFinal.id)
+      .order('id', { ascending: true })),
     supabaseAdmin
       .from('campeonato_fases_configuracoes')
       .select('modo_decisao,modo_acumulacao,booyah_ouro_pontos_limite,jogo_decisivo_id')
@@ -250,8 +39,6 @@ export async function carregarResumoCampeao(campeonatoId: string) {
       .eq('fase_id', faseFinal.id)
       .maybeSingle(),
   ])
-  if (jogosError) throw jogosError
-  if (partidasError) throw partidasError
   if (configError) throw configError
 
   const finalConcluida = Boolean(partidas?.length) && (partidas || []).every((row: any) => String(row.status || '') === 'finalizada')
@@ -259,18 +46,18 @@ export async function carregarResumoCampeao(campeonatoId: string) {
   const jogoDecisivoId = String(configuracao?.jogo_decisivo_id || '')
   const pointRush = modoAcumulacao === 'bonus_por_ranking' && Boolean(jogoDecisivoId)
 
-  const [{ data: bonusEquipes, error: bonusError }, rankingBase, mvp] = await Promise.all([
+  const [bonusEquipes, rankingBase, mvp] = await Promise.all([
     pointRush
-      ? supabaseAdmin
+      ? readPagedRows<any>(supabaseAdmin
           .from('campeonato_fases_bonus_equipes')
           .select('campeonato_equipe_id,posicao_origem,pontos_bonus')
           .eq('campeonato_id', campeonatoId)
           .eq('fase_id', faseFinal.id)
-      : Promise.resolve({ data: [], error: null }),
+          .order('campeonato_equipe_id', { ascending: true }))
+      : Promise.resolve([]),
     listarEstatisticasEquipes(campeonatoId, pointRush ? { jogoId: jogoDecisivoId } : { faseId: faseFinal.id }),
     listarEstatisticasMvp(campeonatoId, pointRush ? { jogoId: jogoDecisivoId } : { faseId: faseFinal.id }),
   ])
-  if (bonusError) throw bonusError
 
   const bonusPorEquipe = new Map<string, number>()
   for (const item of bonusEquipes || []) {
@@ -302,12 +89,10 @@ export async function carregarResumoCampeao(campeonatoId: string) {
           const gameDiff = (gameOrder.get(String(a.jogo_id)) ?? 9999) - (gameOrder.get(String(b.jogo_id)) ?? 9999)
           return gameDiff || Number(a.numero_partida || 0) - Number(b.numero_partida || 0)
         })
-      const { data: detalhes, error: detalhesError } = await supabaseAdmin
+      const detalhes = await readStatsRows(() => supabaseAdmin
         .from('campeonato_estatisticas_equipes_detalhe')
         .select('campeonato_equipe_id,partida_id,jogo_id,pontos_total,booyah')
-        .eq('campeonato_id', campeonatoId)
-        .eq('fase_id', faseFinal.id)
-      if (detalhesError) throw detalhesError
+        .eq('campeonato_id', campeonatoId), { faseId: faseFinal.id })
       const porPartida = new Map<string, any[]>()
       for (const row of detalhes || []) {
         if (!idsJogosValidos.has(String(row.jogo_id || ''))) continue
@@ -370,20 +155,19 @@ export async function carregarResumoCampeao(campeonatoId: string) {
 
 export async function carregarResumoCampeaoPublicado(campeonatoId: string) {
   const { carregarPublicacaoEstatisticas } = await import('./publicacao.service')
-  const [resumo, publicacao] = await Promise.all([
-    carregarResumoCampeao(campeonatoId),
-    carregarPublicacaoEstatisticas(campeonatoId),
-  ])
+  const publicacao = await carregarPublicacaoEstatisticas(campeonatoId)
+  const resumo = await carregarResumoCampeao(campeonatoId)
   if (!resumo.final_concluida || !resumo.fase?.id) return { ...resumo, publicacao }
 
-  const { data: partidas, error } = await supabaseAdmin
+  const partidas = await readPagedRows<any>(supabaseAdmin
     .from('campeonato_partidas')
     .select('id')
     .eq('campeonato_id', campeonatoId)
     .eq('fase_id', resumo.fase.id)
-  if (error) throw error
+    .order('id', { ascending: true }))
+  const publishedIds = new Set(publicacao.partidas_publicadas)
   const todasPublicadas = Boolean(partidas?.length)
-    && (partidas || []).every((partida: any) => publicacao.partidas_publicadas.includes(String(partida.id)))
+    && (partidas || []).every((partida: any) => publishedIds.has(String(partida.id)))
   if (todasPublicadas) return { ...resumo, publicacao }
   return {
     ...resumo,
@@ -404,16 +188,14 @@ export async function carregarSumula(campeonatoId: string, partidaId?: string | 
     .order('data_jogo', { ascending: true })
     .order('horario', { ascending: true })
     .order('numero_partida', { ascending: true })
+    .order('id', { ascending: true })
   if (partidaId) partidasQuery = partidasQuery.eq('id', partidaId)
 
-  const [{ data: partidas, error: partidasError }, { data: equipes, error: equipesError }, { data: jogadores, error: jogadoresError }] = await Promise.all([
-    partidasQuery,
-    supabaseAdmin.from('campeonato_equipes').select('*, equipes(id,nome,tag,logo_url), equipe_lines(id,nome,tag,logo_url)').eq('campeonato_id', campeonatoId).eq('status', 'ativo'),
-    supabaseAdmin.from('campeonato_jogadores').select('*, jogadores(id,nome,avatar_url,id_jogo), jogadores_temporarios(id,nick,foto_url,id_jogo,status)').eq('campeonato_id', campeonatoId).eq('status', 'ativo'),
+  const [partidas, equipes, jogadores] = await Promise.all([
+    readPagedRows<any>(partidasQuery),
+    readPagedRows<any>(supabaseAdmin.from('campeonato_equipes').select('*, equipes(id,nome,tag,logo_url), equipe_lines(id,nome,tag,logo_url)').eq('campeonato_id', campeonatoId).eq('status', 'ativo').order('id')),
+    readPagedRows<any>(supabaseAdmin.from('campeonato_jogadores').select('*, jogadores(id,nome,avatar_url,id_jogo), jogadores_temporarios(id,nick,foto_url,id_jogo,status)').eq('campeonato_id', campeonatoId).eq('status', 'ativo').order('id')),
   ])
-  if (partidasError) throw partidasError
-  if (equipesError) throw equipesError
-  if (jogadoresError) throw jogadoresError
 
   return { partidas: partidas || [], equipes: equipes || [], jogadores: jogadores || [] }
 }

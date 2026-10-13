@@ -104,12 +104,13 @@ Já estava logado ao abrir?                         │
 Sempre revalidar no servidor:
 
 1. Token/link ativo e com vaga (limite e slots livres).
-2. Usuário autenticado com perfil **equipe**.
+2. Usuário autenticado controla a equipe por propriedade, staff autorizado ou gestão provisória permitida. Leitura não inscreve; escalação usa line existente, e criação/reativação exige edição.
 3. Line livre no campeonato **ou** criação de line nova usada na hora.
 4. Slot livre (fixo ou **primeiro livre** / auto-slot).
-5. Consumo do uso do link **atômico** (RPC `fn_consumir_vaga_link_grupo` se a migration estiver aplicada).
+5. Consumo do uso do link condicionado ao estado atual. O fluxo ativo usa CAS com snapshot/recibo; inscrição completa ainda depende da RPC candidata, cuja integração está preparada e desativada.
 6. Match best-effort da lista de equipes esperadas (não bloqueia se não casar).
 7. Atualização de contadores, histórico `entradas`, grade pública e status pendente/inscrita.
+8. Campeonato aprovado/No Ar; convites respeitam fechamento e prazo geral das inscrições. Prazo inválido ou erro de leitura recusam o aceite. GET mantém acompanhamento e informa o motivo do bloqueio.
 
 ## 5. Modelo de dados (resumo)
 
@@ -149,7 +150,7 @@ Isso habilita:
 - coluna `deleted_at` (soft-delete);
 - função `fn_consumir_vaga_link_grupo` (consumo atômico com `FOR UPDATE`).
 
-Sem a migration o app ainda funciona com fallbacks (meta em `descricao`, CAS com retentativas, exclusão só por `closed_reason`).
+A migration acima é histórica. A RPC isolada de consumo permanece no banco e não é usada pelo aceite atual, pois não oferece um recibo suficiente para compensação atribuível à própria gravação. O fluxo atual usa CAS, preservando metadata/descricao e alterações posteriores; isso não torna line, participação, token e histórico uma única transação. Não reaplicar SQL legado em lote.
 
 ## 8. Princípios de UX
 
@@ -166,3 +167,12 @@ Sem a migration o app ainda funciona com fallbacks (meta em `descricao`, CAS com
 - `docs/MODELO_EQUIPE_LINE_SLOT.md` — line × slot  
 - `docs/BANCO_DE_DADOS.md` — tabelas  
 - `docs/TESTES_E_VALIDACOES.md` — rotas a exercitar  
+- `docs/PLANO_TRANSACAO_INSCRICAO_2026-10-11.md` — candidatos SQL, transação e ativação em staging
+
+## 10. Estado da integração em 11/10/2026
+
+Backend/web/Lili/app têm integração local preparada para `fn_inscrever_por_convite_atomico`, mas `INVITE_ENROLLMENT_MODE` permanece legacy. O modo atomic é opt-in e só pode ser ativado após validar/aplicar candidatos, conferir esquema atual e revisar todos os escritores administrativos. Ausência/falha da função no modo atomic nunca aciona o aceite legado.
+
+Os clientes guardam digest e UUID antes do POST e enviam `Idempotency-Key`. Mesma conta/convite/dados mantém a chave após erro/recarga; sucesso confirmado a retira, e storage indisponível impede envio. Web mantém a tentativa na mesma aba; app usa o storage já existente. Lili repassa a chave e oferece retry na mensagem mais recente. Recibo é da operação original: conferir o estado atual pelo acompanhamento. Apps anteriores sem o header precisam de atualização antes da ativação.
+
+Fechamento/prazo são a regra definida pelo usuário; não há exceção por convite. O código ativo verifica antes das gravações e antes de concluir, mas sua janela entre HTTPs ainda exige transação. DBR01/P1 (espelho) e DBR02/P2 (índice global de line) continuam no banco publicado; a validação de candidatos em laboratório não significa aplicação. Nenhuma inscrição/pagamento real ou publicação foi feita nesta continuação.

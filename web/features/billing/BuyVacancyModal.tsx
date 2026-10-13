@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, CheckCircle2, ClipboardCopy, CreditCard, Loader2, X } from 'lucide-react'
 import { WhatsappContactSelector } from '@/components/forms/campeonato'
@@ -487,7 +488,7 @@ export function BuyVacancyModal({
             >
               <label className="vacancy-buy-field">
                 <span>CPF ou CNPJ</span>
-                <input
+                <UiInput
                   inputMode="numeric"
                   autoComplete="off"
                   autoFocus

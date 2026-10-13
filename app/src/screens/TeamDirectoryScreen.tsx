@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { externalUrl } from '@/config/env'
 import { mobileApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { usePublicDirectory } from '@/hooks/usePublicDirectory'
 import { DirectoryHero } from '@/screens/DirectoryHero'
 import { colors, spacing } from '@/theme/tokens'
 import { ScreenProps } from '@/types/dropzone'
@@ -28,63 +29,25 @@ type ManagedTeam = PublicTeam & {
 export function TeamDirectoryScreen({ onNavigate, onSelectTeam, onManageTeam }: ScreenProps) {
   const auth = useAuth()
   const token = auth.session?.access_token
-  const [teams, setTeams] = useState<PublicTeam[]>([])
   const [managedTeams, setManagedTeams] = useState<ManagedTeam[]>([])
   const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState('')
-
-  const load = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true)
-    setError('')
-    try {
-      // O diretório é público por definição. Nunca envie Bearer aqui: versões antigas
-      // do endpoint tratavam a presença/ausência de sessão de forma diferente.
-      const directory = await mobileApi.publicTeams('')
-      let publicItems = (directory.items || []) as PublicTeam[]
-      if (!publicItems.length && token) {
-        const fallback = await mobileApi.publicTeamsFallback(token)
-        publicItems = (fallback.rows || []).map((row: any) => ({
-          id: String(row.id || ''),
-          nome: String(row.name || row.nome || 'Equipe'),
-          tag: row.data?.tag || null,
-          logo_url: row.data?.logo_url || null,
-        })).filter((row: PublicTeam) => row.id)
-      }
-      setTeams(publicItems)
-
-      if (token) {
-        const managed = await mobileApi.teams(token)
-        setManagedTeams((managed.items || []) as ManagedTeam[])
-      } else {
-        setManagedTeams([])
-      }
-    } catch (err: any) {
-      const message = String(err?.message || '')
-      setError(/sess[aã]o ausente/i.test(message) ? 'O diretório público precisa ser atualizado no servidor. Publique a API web desta rodada e tente novamente.' : (message || 'Não foi possível carregar as equipes.'))
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
+  const [managedError, setManagedError] = useState('')
+  const directory = usePublicDirectory<PublicTeam>('equipes', query)
+  const { items: visibleTeams, loading, refreshing } = directory
+  const error = directory.error || managedError
+  const managedVersion = useRef(0)
+  const loadManaged = useCallback(async () => {
+    const version = ++managedVersion.current
+    if (!token) { setManagedTeams([]); setManagedError(''); return }
+    try { const result = await mobileApi.teams(token); if (version === managedVersion.current) { setManagedTeams((result.items || []) as ManagedTeam[]); setManagedError('') } }
+    catch { if (version === managedVersion.current) setManagedError('Não foi possível carregar suas equipes. Tente atualizar.') }
   }, [token])
-
-  useEffect(() => { void load() }, [load])
-
-  const visibleTeams = useMemo(() => {
-    const term = query.trim().toLowerCase()
-    if (!term) return teams
-    return teams.filter((team) => [
-      team.nome,
-      team.username,
-      team.tag,
-      team.public_id,
-      team.localidade,
-      team.cidade,
-      team.estado,
-      team.pais,
-    ].some((value) => String(value || '').toLowerCase().includes(term)))
-  }, [query, teams])
+  useEffect(() => {
+    setManagedTeams([])
+    setManagedError('')
+    void loadManaged()
+    return () => { managedVersion.current++ }
+  }, [loadManaged])
 
   const preferredManagedTeam = useMemo(() => {
     const activeId = auth.activeAccount?.profile_type === 'equipe' ? auth.activeAccount.id : null
@@ -104,7 +67,7 @@ export function TeamDirectoryScreen({ onNavigate, onSelectTeam, onManageTeam }: 
       style={styles.page}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void directory.refresh(); void loadManaged() }} tintColor={colors.brand} />}
     >
       <DirectoryHero
         image={require('../../assets/directory-equipes.png')}
@@ -143,7 +106,7 @@ export function TeamDirectoryScreen({ onNavigate, onSelectTeam, onManageTeam }: 
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {!loading && !visibleTeams.length ? (
+      {!loading && !error && !visibleTeams.length ? (
         <View style={styles.emptyRow}>
           <Ionicons name="people-outline" size={24} color={colors.muted} />
           <Text style={styles.emptyText}>Nenhuma equipe encontrada.</Text>
@@ -172,6 +135,8 @@ export function TeamDirectoryScreen({ onNavigate, onSelectTeam, onManageTeam }: 
           )
         })}
       </View>
+      {directory.nextCursor ? <TouchableOpacity accessibilityRole="button" style={styles.emptyRow} disabled={loading} onPress={() => void directory.more()}><Text style={styles.emptyText}>Carregar mais equipes</Text></TouchableOpacity> : null}
+      {error ? <TouchableOpacity accessibilityRole="button" style={styles.emptyRow} onPress={() => { void directory.refresh(); void loadManaged() }}><Text style={styles.emptyText}>Tentar novamente</Text></TouchableOpacity> : null}
     </ScrollView>
   )
 }

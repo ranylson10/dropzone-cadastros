@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput, Textarea as UiTextarea } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Archive, ChevronDown, ChevronRight, Copy, ImagePlus, Loader2, Pencil, Plus, Save, Search, ShieldCheck, Trash2, Trophy, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -301,8 +302,8 @@ export function ProvisionalTeamsPanel({ producerId, uploadPublicFile }: { produc
     {bulkOpen ? <div className="provisional-bulk">
       <div className="provisional-bulk-copy"><strong>Cadastro em tabela</strong><span>Cole a lista de nomes na primeira coluna e a lista de TAGs na segunda. Cada linha forma uma equipe.</span></div>
       <div className="provisional-bulk-columns">
-        <label><span>Nomes das equipes</span><textarea value={bulkNamesText} onChange={(e) => changeBulkColumn('names', e.target.value)} placeholder={'Fluxo\nTropa do Pará\nAmazon Cria'} rows={7}/></label>
-        <label><span>TAGs</span><textarea value={bulkTagsText} onChange={(e) => changeBulkColumn('tags', e.target.value)} placeholder={'FLX\nTPA\nAMZ'} rows={7}/></label>
+        <label><span>Nomes das equipes</span><UiTextarea value={bulkNamesText} onChange={(e) => changeBulkColumn('names', e.target.value)} placeholder={'Fluxo\nTropa do Pará\nAmazon Cria'} rows={7}/></label>
+        <label><span>TAGs</span><UiTextarea value={bulkTagsText} onChange={(e) => changeBulkColumn('tags', e.target.value)} placeholder={'FLX\nTPA\nAMZ'} rows={7}/></label>
       </div>
       <div className="provisional-preview-head"><strong>{bulkRows.length} equipe(s) prontas</strong><span>Nada é salvo até você confirmar. Edite a prévia se a planilha precisar de correção.</span></div>
       {checkingBulkNames ? <div className="provisional-name-check-status"><Loader2 className="spin" size={14}/> Conferindo nomes já cadastrados...</div> : null}
@@ -311,11 +312,11 @@ export function ProvisionalTeamsPanel({ producerId, uploadPublicFile }: { produc
         const matches = bulkNameMatches[normalizeTeamName(row.nome)] || []
         return <div key={`${index}-${row.nome}`}>
         <span>{index + 1}</span>
-        <input aria-label={`Nome da equipe ${index + 1}`} value={row.nome} onChange={(event) => updateBulkRow(index, { nome: event.target.value })}/>
-        <input aria-label={`TAG da equipe ${index + 1}`} value={row.tag} placeholder="Automática" onChange={(event) => updateBulkRow(index, { tag: event.target.value.toUpperCase() })}/>
+        <UiInput aria-label={`Nome da equipe ${index + 1}`} value={row.nome} onChange={(event) => updateBulkRow(index, { nome: event.target.value })}/>
+        <UiInput aria-label={`TAG da equipe ${index + 1}`} value={row.tag} placeholder="Automática" onChange={(event) => updateBulkRow(index, { tag: event.target.value.toUpperCase() })}/>
         <label className="provisional-bulk-logo" title={`Logo da equipe ${index + 1}`}>
           {row.logoPreview ? <img src={row.logoPreview} alt=""/> : <ImagePlus size={16}/>}<span>{row.logoFile ? 'Trocar' : 'Adicionar'}</span>
-          <input type="file" accept="image/*" hidden onChange={(event) => updateBulkLogo(index, event.target.files?.[0])}/>
+          <UiInput type="file" accept="image/*" hidden onChange={(event) => updateBulkLogo(index, event.target.files?.[0])}/>
         </label>
         <div className={`provisional-name-warning${matches.some((match) => match.kind === 'exact') ? ' exact' : ''}`}>
           {matches.length ? <><AlertTriangle size={14}/><div><strong>{matches.some((match) => match.kind === 'exact') ? 'Nome já cadastrado' : 'Nome parecido encontrado'}</strong>{matches.map((match) => <span key={match.id}>{match.nome}{match.tag ? ` · ${match.tag}` : ''}{match.public_id ? ` · EQ${match.public_id}` : ''}</span>)}<small>É apenas um aviso. Você pode manter ou remover esta linha.</small></div></> : <span className="provisional-name-clear">{checkingBulkNames ? 'Conferindo...' : 'Nenhuma semelhante'}</span>}
@@ -326,7 +327,7 @@ export function ProvisionalTeamsPanel({ producerId, uploadPublicFile }: { produc
     </div> : null}
 
     {teams.length ? <div className="provisional-toolbar">
-      <label className="provisional-search"><Search size={15}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por ID, equipe, TAG ou localidade"/>{query ? <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}><X size={14}/></button> : null}</label>
+      <label className="provisional-search"><Search size={15}/><UiInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por ID, equipe, TAG ou localidade"/>{query ? <button type="button" aria-label="Limpar busca" onClick={() => setQuery('')}><X size={14}/></button> : null}</label>
       <span>{visibleTeams.length === teams.length ? `${teams.length} aguardando responsável` : `${visibleTeams.length} de ${teams.length} equipes`}</span>
     </div> : null}
 
@@ -352,9 +353,9 @@ export function ProvisionalTeamsPanel({ producerId, uploadPublicFile }: { produc
 
           {managerTab === 'dados' ? <div className="provisional-manager-section">
             <div className="provisional-edit-grid">
-              <label><span>Nome *</span><input value={draft.nome || ''} onChange={(e) => setDraft((d: any) => ({ ...d, nome: e.target.value }))}/></label>
-              <label><span>TAG *</span><input value={draft.tag || ''} onChange={(e) => setDraft((d: any) => ({ ...d, tag: e.target.value.toUpperCase() }))}/></label>
-              <label className="wide"><span>E-mail de contato</span><input type="email" value={draft.email_contato || ''} onChange={(e) => setDraft((d: any) => ({ ...d, email_contato: e.target.value }))}/></label>
+              <label><span>Nome *</span><UiInput value={draft.nome || ''} onChange={(e) => setDraft((d: any) => ({ ...d, nome: e.target.value }))}/></label>
+              <label><span>TAG *</span><UiInput value={draft.tag || ''} onChange={(e) => setDraft((d: any) => ({ ...d, tag: e.target.value.toUpperCase() }))}/></label>
+              <label className="wide"><span>E-mail de contato</span><UiInput type="email" value={draft.email_contato || ''} onChange={(e) => setDraft((d: any) => ({ ...d, email_contato: e.target.value }))}/></label>
               <div className="wide provisional-location-field">
                 <LocationSearch
                   label="Localidade"
@@ -369,7 +370,7 @@ export function ProvisionalTeamsPanel({ producerId, uploadPublicFile }: { produc
                   }))}
                 />
               </div>
-              <label className="wide"><span>Bio</span><textarea value={draft.bio || ''} onChange={(e) => setDraft((d: any) => ({ ...d, bio: e.target.value }))} rows={3}/></label>
+              <label className="wide"><span>Bio</span><UiTextarea value={draft.bio || ''} onChange={(e) => setDraft((d: any) => ({ ...d, bio: e.target.value }))} rows={3}/></label>
             </div>
             <div className="provisional-manager-actions">
               <div className="provisional-upload-field">
@@ -393,12 +394,12 @@ export function ProvisionalTeamsPanel({ producerId, uploadPublicFile }: { produc
 
           {managerTab === 'lines' ? <div className="provisional-lines provisional-manager-section">
             <div className="provisional-subhead"><div><strong>Lines e jogadores</strong><span>Crie, edite e organize as lines. Convites podem ser gerados por line e por campeonato.</span></div><Users size={18}/></div>
-            <div className="provisional-new-line"><input placeholder="Nome da nova line" value={lineDraft.nome} onChange={(e) => setLineDraft((d) => ({ ...d, nome: e.target.value }))}/><input placeholder="TAG" value={lineDraft.tag} onChange={(e) => setLineDraft((d) => ({ ...d, tag: e.target.value.toUpperCase() }))}/><button type="button" className="button secondary" disabled={!lineDraft.nome.trim() || busy === 'line'} onClick={() => void createLine()}><Plus size={14}/> Criar line</button></div>
+            <div className="provisional-new-line"><UiInput placeholder="Nome da nova line" value={lineDraft.nome} onChange={(e) => setLineDraft((d) => ({ ...d, nome: e.target.value }))}/><UiInput placeholder="TAG" value={lineDraft.tag} onChange={(e) => setLineDraft((d) => ({ ...d, tag: e.target.value.toUpperCase() }))}/><button type="button" className="button secondary" disabled={!lineDraft.nome.trim() || busy === 'line'} onClick={() => void createLine()}><Plus size={14}/> Criar line</button></div>
             <div className="provisional-line-list">{(team.lines || []).map((line: any) => <button key={line.id} type="button" onClick={() => openLine(line, false)} className={selectedLine?.id === line.id ? 'active' : ''}><span className="provisional-line-logo">{line.logo_url ? <img src={line.logo_url} alt=""/> : String(line.tag || line.nome || 'L').slice(0, 2)}</span><span><strong>{line.nome}</strong><small>{line.tag || team.tag || 'Sem TAG'}{line.public_id ? ` · LN${line.public_id}` : ''}</small></span><ChevronRight size={15}/></button>)}</div>
 
             {selectedLine ? <div className="provisional-line-editor">
               <div className="provisional-subhead"><div><strong>Editar line</strong><span>Nome, TAG e logo são da própria line e não alteram o histórico.</span></div></div>
-              <div className="provisional-line-edit-fields"><input value={lineEdit.nome || ''} placeholder="Nome da line" onChange={(e) => setLineEdit((d: any) => ({ ...d, nome: e.target.value }))}/><input value={lineEdit.tag || ''} placeholder="TAG" onChange={(e) => setLineEdit((d: any) => ({ ...d, tag: e.target.value.toUpperCase() }))}/></div>
+              <div className="provisional-line-edit-fields"><UiInput value={lineEdit.nome || ''} placeholder="Nome da line" onChange={(e) => setLineEdit((d: any) => ({ ...d, nome: e.target.value }))}/><UiInput value={lineEdit.tag || ''} placeholder="TAG" onChange={(e) => setLineEdit((d: any) => ({ ...d, tag: e.target.value.toUpperCase() }))}/></div>
               <div className="provisional-manager-actions">
                 <div className="provisional-upload-field">
                   <UploadField

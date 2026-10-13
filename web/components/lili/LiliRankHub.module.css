@@ -1,0 +1,44 @@
+.detail {
+  background: #1c3446;
+  border: 1px solid #486278;
+  color: #f3f8fc;
+}
+
+.detail :global(.system-modal-header) {
+  background: #1c3446;
+  border-color: #486278;
+}
+
+.detail :is(h2, dd, strong) {
+  color: #f4f9ff;
+}
+
+.detail :is(dt, small),
+.detail :global(.system-modal-header) > div > p:last-child,
+.detail :global(.directory-rank-detail-score) > strong > small,
+.detail :global(.directory-rank-detail-advanced) > summary,
+.detail :global(.directory-rank-detail-advanced) dt,
+.detail :global(.directory-rank-detail-score) > span {
+  color: #bdd0df;
+}
+
+.detail :global(.system-modal-header) h2 {
+  overflow-wrap: anywhere;
+}
+
+.detail :global(.directory-rank-detail-advanced) dd {
+  color: #f4f9ff;
+}
+
+.detail :global(.system-modal-close) {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  color: #f4f9ff;
+}
+
+.detail :global(.directory-rank-profile-link) {
+  min-height: 44px;
+  color: #d4eaff;
+  border-color: #829caf;
+}

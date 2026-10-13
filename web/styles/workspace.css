@@ -1,0 +1,119 @@
+/* DROPZONE R199 — workspace compartilhado para Produtora, Equipe, Jogador e Manager */
+.dz-workspace{
+  width:100%;
+  min-width:0;
+  display:grid;
+  gap:12px;
+  color:var(--dz-text,#171a1f);
+}
+.dz-workspace.dashboard{grid-template-columns:minmax(0,1fr)!important}
+.dz-workspace>*{min-width:0}
+
+.dz-workspace-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  min-width:0;
+  padding:14px 16px;
+  border:1px solid #d5dae0;
+  border-left:4px solid var(--dz-yellow,#f2c900);
+  border-radius:8px;
+  background:#fff;
+  color:#1d2126;
+  box-shadow:none;
+}
+.dz-workspace-header__copy{min-width:0;display:grid;gap:4px}
+.dz-workspace-header__eyebrow{margin:0;color:#8a7300;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.dz-workspace-header__title-row{display:flex;align-items:center;gap:9px;min-width:0}
+.dz-workspace-header__title-row h2{margin:0;min-width:0;color:#1d2126;font-size:22px;line-height:1.05;letter-spacing:-.025em;overflow-wrap:anywhere}
+.dz-workspace-header__icon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border-radius:6px;background:#22262c;color:var(--dz-yellow,#f2c900)}
+.dz-workspace-header__description{margin:0;color:#69727d;font-size:12px;line-height:1.45}
+.dz-workspace-header__actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}
+.dz-workspace-header__actions>a,.dz-workspace-header__actions>button,.dz-workspace-header__actions>span{
+  min-height:34px;display:inline-flex;align-items:center;gap:6px;padding:0 10px;border:1px solid #d2d7dd;border-radius:6px;background:#f8f9fa;color:#4d5660;font-size:12px;font-weight:850;text-decoration:none;
+}
+
+.dz-workspace-nav,.dz-workspace-subnav{
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-width:none;
+}
+.dz-workspace-nav::-webkit-scrollbar,.dz-workspace-subnav::-webkit-scrollbar{display:none}
+.dz-workspace-nav{
+  gap:4px;
+  padding:4px;
+  border:1px solid #d5d9de;
+  border-radius:8px;
+  background:#e9ecef;
+}
+.dz-workspace-subnav{gap:6px;padding:0;background:transparent}
+.dz-workspace-nav__item{
+  appearance:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  flex:0 0 auto;
+  white-space:nowrap;
+  cursor:pointer;
+  text-decoration:none;
+  box-shadow:none;
+  transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+}
+.dz-workspace-nav .dz-workspace-nav__item{
+  min-height:40px;
+  padding:0 14px;
+  border:0;
+  border-radius:5px;
+  background:transparent;
+  color:#58616b;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.dz-workspace-nav .dz-workspace-nav__item:hover{background:#fff;color:#171a1f}
+.dz-workspace-nav .dz-workspace-nav__item.is-active{
+  background:#22262c;
+  color:#fff;
+  box-shadow:inset 0 -3px 0 var(--dz-yellow,#f2c900);
+}
+.dz-workspace-subnav .dz-workspace-nav__item{
+  min-height:34px;
+  padding:0 11px;
+  border:1px solid #d2d7dd;
+  border-radius:5px;
+  background:#fff;
+  color:#56606a;
+  font-size:12px;
+  font-weight:900;
+}
+.dz-workspace-subnav .dz-workspace-nav__item:hover{border-color:#adb5bd;color:#1d2126}
+.dz-workspace-subnav .dz-workspace-nav__item.is-active{
+  border-color:#24282e;
+  background:#24282e;
+  color:#fff;
+  box-shadow:inset 0 -2px 0 var(--dz-yellow,#f2c900);
+}
+.dz-workspace-nav__icon{display:grid;place-items:center;flex:0 0 auto}
+.dz-workspace-nav__badge{
+  display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:rgba(0,0,0,.08);font-size:12px;font-weight:900
+}
+.dz-workspace-nav__item.is-active .dz-workspace-nav__badge{background:rgba(255,255,255,.14);color:#fff}
+.dz-workspace-nav__item:disabled,.dz-workspace-nav__item[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+
+.dz-workspace-content{display:grid;gap:12px;min-width:0;width:100%}
+.dz-workspace-content>.panel,.dz-workspace-content>.panel-soft,.dz-workspace-content>section,.dz-workspace-content>article{min-width:0;max-width:100%}
+
+@media (max-width:720px){
+  .dz-workspace{gap:9px}
+  .dz-workspace-header{align-items:flex-start;flex-direction:column;padding:12px;border-left-width:3px}
+  .dz-workspace-header__title-row h2{font-size:19px}
+  .dz-workspace-header__actions{width:100%;justify-content:flex-start}
+  .dz-workspace-nav{border-radius:7px}
+  .dz-workspace-nav .dz-workspace-nav__item{min-height:38px;padding-inline:11px}
+}

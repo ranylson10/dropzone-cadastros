@@ -1,0 +1,257 @@
+/* R18 — Ranking em lista. Apenas a rota /rank; não afeta os demais diretórios. */
+main.dz-unified-public-page.directory-theme-rank .directory-rank-table {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-toolbar {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 10px !important;
+  padding: 8px !important;
+  border: 1px solid #35516a !important;
+  border-radius: 9px !important;
+  background: #193244 !important;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-toolbar > nav {
+  gap: 6px !important;
+  background: transparent !important;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-toolbar > nav button,
+main.dz-unified-public-page.directory-theme-rank .directory-rank-refresh {
+  min-height: 40px !important;
+  border: 1px solid #3a5268 !important;
+  border-radius: 6px !important;
+  background: #112637 !important;
+  color: #dce7f1 !important;
+  font-size: 12px !important;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-toolbar > nav button.active {
+  background: #27445d !important;
+  border-color: #d0ad27 !important;
+  box-shadow: inset 0 -2px 0 #f5c700 !important;
+  color: #fff !important;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-context {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-search {
+  border-color: #38566d !important;
+  border-radius: 7px !important;
+  background: #112737 !important;
+  color: #bed0df !important;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-search input,
+main.dz-unified-public-page.directory-theme-rank .directory-rank-search .dz-ui-input {
+  min-width: 0;
+  background: transparent !important;
+  border: 0 !important;
+  color: #f7fbff !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-search input::placeholder { color: #9db3c4 !important; }
+main.dz-unified-public-page.directory-theme-rank .directory-rank-method { color: #a8c2d3 !important; }
+main.dz-unified-public-page.directory-theme-rank .directory-rank-method summary,
+main.dz-unified-public-page.directory-theme-rank .directory-rank-method details p {
+  background: #193244 !important;
+  border-color: #36536a !important;
+  color: #ebf4fb !important;
+}
+
+/* A cabeça e todas as entradas têm a mesma grade e o mesmo eixo. */
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-head,
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-item {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 82px 108px;
+  align-items: center;
+  column-gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-head {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #314d62;
+  border-radius: 8px 8px 0 0;
+  background: #1a3446;
+  color: #afc5d6;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-head span:nth-child(n+3) {text-align:center;}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-list {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #314d62;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: #142a3b;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-item {
+  min-height: 68px;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 1px solid #2e485d;
+  border-radius: 0;
+  background: #162e40;
+  color: #f2f8fe;
+  cursor: pointer;
+  transition: background-color .14s ease;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-item:nth-child(even) { background: #1b3549; }
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-item:last-child { border-bottom: 0; }
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-item:hover { background: #29465c; }
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-item:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #f5c700;
+  outline-offset: -2px;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-number {
+  color: #e3c456;
+  font-size: 17px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-avatar {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #4d6f84;
+  border-radius: 8px;
+  background: #254558;
+  color: #f2d145;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-name strong {
+  overflow: hidden;
+  color: #f4faff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-name small {
+  overflow: hidden;
+  color: #aec6d6;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-tier { display: grid; place-items: center; }
+main.dz-unified-public-page.directory-theme-rank :is(.dz-ranking-tier,.dz-ranking-score) .directory-tier {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(244, 203, 82, 0.35);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(248, 210, 84, 0.16), rgba(248, 210, 84, 0.08));
+  color: #ffe08a !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(12, 25, 37, .18);
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-score {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: #f7fbff !important;
+  font-variant-numeric: tabular-nums;
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-score > strong {
+  color: #f8fbff !important;
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(0,0,0,.18);
+}
+main.dz-unified-public-page.directory-theme-rank .dz-ranking-score > .directory-tier { display: none; }
+
+/* Os detalhes continuam acessíveis ao clicar na linha. */
+main.dz-unified-public-page.directory-theme-rank .directory-rank-detail-card {
+  background: #1c3446;
+  border: 1px solid #486278;
+  color: #f3f8fc;
+}
+main.dz-unified-public-page.directory-theme-rank .directory-rank-detail-card :is(h2,dd,strong) { color: #f4f9ff; }
+main.dz-unified-public-page.directory-theme-rank .directory-rank-detail-card :is(dt,small) { color: #bdd0df; }
+
+@media (max-width: 700px) {
+  main.dz-unified-public-page.directory-theme-rank .directory-rank-toolbar > nav button { gap: 5px; font-size: 12px !important; }
+  main.dz-unified-public-page.directory-theme-rank .directory-rank-method { flex-wrap: wrap; gap: 4px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-head,
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-item {
+    grid-template-columns: 40px minmax(0,1fr) 73px;
+    column-gap: 8px;
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-head span:nth-child(3) { display: none; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-head span:nth-child(4) { text-align: center; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-item { min-height: 62px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-number { font-size: 13px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-avatar { flex-basis: 34px; width: 34px; height: 34px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-identity { gap: 7px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-name strong { font-size: 12px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-name small { font-size: 12px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-tier { display: none; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-score { flex-direction: column; gap: 3px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-score > strong { font-size: 14px; }
+  main.dz-unified-public-page.directory-theme-rank .dz-ranking-score > .directory-tier {
+    display: inline-flex;
+    min-width: 26px;
+    height: 18px;
+    padding: 0 6px;
+    font-size: 12px !important;
+  }
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   ActivityIndicator,
@@ -10,6 +10,9 @@ import {
   View,
 } from "react-native";
 import { mobileApi } from "@/lib/api";
+import { MobileLifecyclePanel } from "./MobileLifecyclePanel";
+import { useMobileLifecycleScope } from "../hooks/useMobileLifecycleScope";
+import { championshipSession } from "../lib/championship-session";
 import { colors, spacing } from "@/theme/tokens";
 
 type Props = { championshipId: string; token?: string | null };
@@ -25,6 +28,13 @@ export function ChampionshipFinalizationPanel({
   championshipId,
   token,
 }: Props) {
+  const scope = useMobileLifecycleScope(championshipId);
+  return <View><MobileLifecyclePanel championshipId={championshipId} />{scope.ready && scope.actor ? <FinalizationContent key={scope.key} championshipId={championshipId} scope={scope} /> : <Text>Entre para consultar as premiações.</Text>}</View>;
+}
+
+function FinalizationContent({championshipId,scope}:{championshipId:string;scope:ReturnType<typeof useMobileLifecycleScope>}) {
+  const generation = useRef(0), mutation = useRef(false), dialog = useRef<object | null>(null);
+  const current = () => { if (!scope.actor || !scope.isCurrent()) throw new Error('A conta ou o campeonato mudou. Atualize o painel.'); };
   const [structure, setStructure] = useState<any>(null);
   const [ranking, setRanking] = useState<any[]>([]);
   const [mvp, setMvp] = useState<any[]>([]);
@@ -40,13 +50,17 @@ export function ChampionshipFinalizationPanel({
   const [feedback, setFeedback] = useState("");
 
   const load = useCallback(async () => {
+    const request = ++generation.current;
     setLoading(true);
     try {
+      const session = await championshipSession(scope.actor!); current();
       const [advanced, teams, players] = await Promise.all([
-        mobileApi.championshipAdvancedStructure(championshipId, token),
+        mobileApi.championshipAdvancedStructure(championshipId, session.token),
         mobileApi.championshipFinalTeams(championshipId),
         mobileApi.championshipFinalMvp(championshipId),
       ]);
+      await championshipSession(scope.actor!); current();
+      if (request !== generation.current) return;
       setStructure(advanced);
       setRanking(Array.isArray(teams?.equipes) ? teams.equipes : []);
       setMvp(Array.isArray(players?.jogadores) ? players.jogadores : []);
@@ -58,17 +72,19 @@ export function ChampionshipFinalizationPanel({
       );
       setError("");
     } catch (err: any) {
+      if (!scope.isCurrent() || request !== generation.current) return;
       setError(
         err?.message ||
           "Não foi possível carregar o encerramento do campeonato.",
       );
     } finally {
-      setLoading(false);
+      if (scope.isCurrent() && request === generation.current) setLoading(false);
     }
-  }, [championshipId, token]);
+  }, [championshipId, scope.key]);
 
   useEffect(() => {
     void load();
+    return () => { generation.current++; };
   }, [load]);
 
   const prizes = useMemo(
@@ -80,26 +96,31 @@ export function ChampionshipFinalizationPanel({
         : [],
     [structure, stageId],
   );
-  const editionStatus = String(structure?.edition?.status || "sem edição");
-  const isPublished = editionStatus === "encerrada";
 
   async function action(body: Record<string, unknown>, message: string) {
+    if (!scope.isCurrent() || mutation.current) return false;
+    mutation.current = true;
     setBusy(true);
     setError("");
     setFeedback("");
     try {
+      const session = await championshipSession(scope.actor!); current();
       const response = await mobileApi.championshipAdvancedAction(
         championshipId,
         body,
-        token,
+        session.token,
       );
+      await championshipSession(scope.actor!); current();
       setStructure(response);
       setFeedback(message);
       await load();
+      return scope.isCurrent();
     } catch (err: any) {
-      setError(err?.message || "Não foi possível concluir a ação.");
+      if (scope.isCurrent()) setError(err?.message || "Não foi possível concluir a ação. Confira o estado antes de repetir.");
+      return false;
     } finally {
-      setBusy(false);
+      mutation.current = false;
+      if (scope.isCurrent()) setBusy(false);
     }
   }
 
@@ -115,7 +136,7 @@ export function ChampionshipFinalizationPanel({
       setError("Informe uma colocação válida.");
       return;
     }
-    await action(
+    const confirmed = await action(
       {
         action: "create_prize",
         stage_id: stageId,
@@ -127,18 +148,20 @@ export function ChampionshipFinalizationPanel({
       },
       "Premiação registrada.",
     );
-    setTitle("");
-    setValue("");
-    setDescription("");
+    if (confirmed && scope.isCurrent()) { setTitle(""); setValue(""); setDescription(""); }
   }
 
   function removePrize(id: string) {
+    if (!scope.isCurrent() || busy) return;
+    const confirmation = {}; dialog.current = confirmation;
     Alert.alert("Excluir premiação?", "Este item será removido da etapa.", [
-      { text: "Cancelar", style: "cancel" },
+      { text: "Cancelar", style: "cancel", onPress: () => { if (dialog.current === confirmation) dialog.current = null; } },
       {
         text: "Excluir",
         style: "destructive",
-        onPress: () =>
+        onPress: () => {
+          if (dialog.current !== confirmation || !scope.isCurrent()) return;
+          dialog.current = null;
           void action(
             {
               action: "delete",
@@ -146,69 +169,18 @@ export function ChampionshipFinalizationPanel({
               row_id: id,
             },
             "Premiação removida.",
-          ),
+          );
+        },
       },
     ]);
   }
-  function publish() {
-    Alert.alert(
-      "Publicar resultado final?",
-      "O sistema só encerra se todas as quedas estiverem finalizadas. A edição, etapas e divisões serão marcadas como encerradas, mas o campeonato continuará público para consulta.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Publicar final",
-          onPress: () =>
-            void action(
-              { action: "publish_final" },
-              "Resultado final publicado.",
-            ),
-        },
-      ],
-    );
-  }
-  function reopen() {
-    Alert.alert(
-      "Reabrir campeonato?",
-      "A edição, etapas e divisões encerradas voltarão ao estado ativo. As quedas não serão reabertas automaticamente.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Reabrir",
-          onPress: () =>
-            void action({ action: "reopen_final" }, "Encerramento reaberto."),
-        },
-      ],
-    );
-  }
-
-  if (loading && !structure)
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.brand} />
-      </View>
-    );
   return (
     <View style={styles.root}>
+      {loading && !structure ? <ActivityIndicator color={colors.brand} /> : null}
       {error ? (
         <Text style={[styles.message, styles.error]}>{error}</Text>
       ) : null}
       {feedback ? <Text style={styles.message}>{feedback}</Text> : null}
-      <View style={styles.statusCard}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.eyebrow}>PUBLICAÇÃO FINAL</Text>
-          <Text style={styles.statusTitle}>
-            {isPublished ? "RESULTADO PUBLICADO" : "EM PREPARAÇÃO"}
-          </Text>
-          <Text style={styles.meta}>Edição: {editionStatus}</Text>
-        </View>
-        <Ionicons
-          name={isPublished ? "checkmark-circle" : "flag-outline"}
-          size={28}
-          color={isPublished ? "#166534" : colors.brand}
-        />
-      </View>
-
       <Text style={styles.title}>CLASSIFICAÇÃO FINAL</Text>
       <View style={styles.list}>
         {ranking.slice(0, 12).map((row: any, index: number) => (
@@ -352,6 +324,8 @@ export function ChampionshipFinalizationPanel({
             </View>
             <TouchableOpacity
               style={styles.danger}
+              accessibilityRole="button"
+              accessibilityLabel={`Excluir premiação ${prize.titulo || prize.posicao || prize.id}`}
               onPress={() => removePrize(String(prize.id))}
             >
               <Ionicons name="trash-outline" size={16} color="#b42318" />
@@ -360,33 +334,6 @@ export function ChampionshipFinalizationPanel({
         ))}
       </View>
 
-      <View style={styles.finalBox}>
-        <Text style={styles.finalTitle}>ENCERRAMENTO</Text>
-        <Text style={styles.note}>
-          Publicar o final exige todas as quedas finalizadas. A ação encerra a
-          edição, etapas e divisões e grava a publicação no metadata da edição.
-          O status principal do campeonato não é alterado, preservando a
-          consulta pública e o ranking histórico.
-        </Text>
-        {isPublished ? (
-          <TouchableOpacity
-            style={styles.secondary}
-            disabled={busy}
-            onPress={reopen}
-          >
-            <Text style={styles.secondaryText}>Reabrir encerramento</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.primary}
-            disabled={busy}
-            onPress={publish}
-          >
-            <Ionicons name="flag" size={17} color={colors.onBrand} />
-            <Text style={styles.primaryText}>Publicar resultado final</Text>
-          </TouchableOpacity>
-        )}
-      </View>
     </View>
   );
 }
@@ -406,6 +353,7 @@ function Field({
     <View>
       <Text style={styles.label}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         value={value}
         onChangeText={onChangeText}
         keyboardType={numeric ? "numeric" : "default"}

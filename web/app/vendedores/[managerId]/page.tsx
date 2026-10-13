@@ -1,14 +1,13 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { Filter, Search, ShieldCheck, Ticket } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { AppShell } from '@/components/layout'
-import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
 import { WhatsAppIcon } from '@/features/billing/BrandIcons'
 import { VacancyCard, VacancyPreview } from '@/features/vacancies/VacancyCard'
-import { supabase } from '@/lib/supabase-browser'
 import '../../vagas/vagas.css'
 
 export default function VendedorCampeonatosPage() {
@@ -19,18 +18,13 @@ export default function VendedorCampeonatosPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
-  const [buyTarget, setBuyTarget] = useState<any | null>(null)
   const [preview, setPreview] = useState<any | null>(null)
-  const [authenticated, setAuthenticated] = useState(false)
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       setError('')
       try {
-        const { data: session } = await supabase.auth.getSession()
-        setAuthenticated(Boolean(session.session?.access_token))
-
         const response = await fetch(`/api/vendedores/${encodeURIComponent(managerId)}/vagas`, {
           cache: 'no-store',
         })
@@ -75,7 +69,7 @@ export default function VendedorCampeonatosPage() {
   }
 
   return (
-    <AppShell activeLabel="Competições" loadSession mainClassName="vacancies-page page">
+    <AppShell activeLabel="Competições" loadSession headerVariant="storefront" withAuthOffset={false} mainClassName="vacancies-page page">
         <section className="vacancies-hero">
           <div>
             <p className="eyebrow">Portfólio do afiliado</p>
@@ -111,7 +105,7 @@ export default function VendedorCampeonatosPage() {
           </div>
           <label>
             <Search size={16} />
-            <input
+            <UiInput
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Pesquisar campeonato"
@@ -126,8 +120,8 @@ export default function VendedorCampeonatosPage() {
               key={item.id}
               item={item}
               onPreview={setPreview}
-              onBuy={setBuyTarget}
-              buyLabel="Comprar vaga"
+              origin="vendedor"
+              sellerManagerId={managerId}
             />
           ))}
           {visible.length === 0 ? (
@@ -141,25 +135,6 @@ export default function VendedorCampeonatosPage() {
 
       <VacancyPreview item={preview} onClose={() => setPreview(null)} />
 
-      {buyTarget ? (
-        <BuyVacancyModal
-          championship={{
-            id: buyTarget.id,
-            nome: buyTarget.nome,
-            valor_inscricao: buyTarget.valor_inscricao,
-            contatos_whatsapp: buyTarget.contatos_whatsapp?.length
-              ? buyTarget.contatos_whatsapp
-              : manager?.whatsapp_url
-                ? [{ nome: manager.nome || 'Vendedor', url: manager.whatsapp_url }]
-                : [],
-            proximo_grupo: buyTarget.proximo_grupo,
-          }}
-          vendedorManagerId={managerId}
-          returnTo={returnTo}
-          authenticated={authenticated}
-          onClose={() => setBuyTarget(null)}
-        />
-      ) : null}
     </AppShell>
   )
 }

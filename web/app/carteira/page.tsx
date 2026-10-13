@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowDownLeft,
@@ -128,7 +130,7 @@ export default function CarteiraPage() {
 
   async function removerPix() {
     if (!pixChave && !data?.carteira?.pix_chave) return
-    const confirmado = window.confirm(
+    const confirmado = await confirmAction(
       'Remover a chave PIX desta carteira? O saldo, os saques e o histórico não serão apagados.',
     )
     if (!confirmado) return
@@ -328,7 +330,7 @@ export default function CarteiraPage() {
             <div className="bank-form-card">
               <label>
                 <span>Valor (R$)</span>
-                <input
+                <UiInput
                   inputMode="decimal"
                   placeholder="10,00"
                   value={saqueValor}
@@ -423,17 +425,17 @@ export default function CarteiraPage() {
             <div className="bank-form-card">
               <label>
                 <span>Tipo da chave</span>
-                <select value={pixTipo} onChange={(e) => setPixTipo(e.target.value)}>
+                <UiSelect value={pixTipo} onChange={(e) => setPixTipo(e.target.value)}>
                   <option value="aleatoria">Aleatória</option>
                   <option value="cpf">CPF</option>
                   <option value="cnpj">CNPJ</option>
                   <option value="email">E-mail</option>
                   <option value="telefone">Telefone</option>
-                </select>
+                </UiSelect>
               </label>
               <label>
                 <span>Chave PIX</span>
-                <input
+                <UiInput
                   value={pixChave}
                   onChange={(e) => setPixChave(e.target.value)}
                   placeholder="sua chave"
@@ -441,7 +443,7 @@ export default function CarteiraPage() {
               </label>
               <label>
                 <span>Nome do titular</span>
-                <input
+                <UiInput
                   value={pixTitular}
                   onChange={(e) => setPixTitular(e.target.value)}
                   placeholder="Como no banco"

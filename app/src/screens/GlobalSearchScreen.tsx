@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
-  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -11,7 +10,8 @@ import {
   View,
 } from "react-native";
 import { externalUrl } from "@/config/env";
-import { mobileApi } from "@/lib/api";
+import { usePagedDirectory } from "@/hooks/usePagedDirectory";
+import { DirectoryStatus } from "@/components/DirectoryStatus";
 import { toChampionshipCard, VacancyApiItem } from "@/lib/vacancies";
 import { colors, spacing } from "@/theme/tokens";
 import { ScreenProps } from "@/types/dropzone";
@@ -47,65 +47,17 @@ export function GlobalSearchScreen({
 }: ScreenProps) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<SearchKind>("todos");
-  const [championships, setChampionships] = useState<VacancyApiItem[]>([]);
-  const [teams, setTeams] = useState<SearchTeam[]>([]);
-  const [players, setPlayers] = useState<SearchPlayer[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const requestId = useRef(0);
-
-  useEffect(() => {
-    const term = query.trim();
-    if (term.length < 2) {
-      setChampionships([]);
-      setTeams([]);
-      setPlayers([]);
-      setLoading(false);
-      setError("");
-      return;
-    }
-
-    const id = ++requestId.current;
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const [champRes, teamRes, playerRes] = await Promise.all([
-          mobileApi.championshipsPublic(),
-          mobileApi.publicTeams(term),
-          mobileApi.publicPlayers(term),
-        ]);
-        if (id !== requestId.current) return;
-        const lowered = term.toLowerCase();
-        setChampionships(
-          ((champRes.announcements || []) as VacancyApiItem[])
-            .filter((item) =>
-              [item.nome, item.tipo, item.plataforma, item.servidor].some(
-                (value) =>
-                  String(value || "")
-                    .toLowerCase()
-                    .includes(lowered),
-              ),
-            )
-            .slice(0, 12),
-        );
-        setTeams(((teamRes.items || []) as SearchTeam[]).slice(0, 12));
-        setPlayers(((playerRes.items || []) as SearchPlayer[]).slice(0, 12));
-      } catch (err: any) {
-        if (id !== requestId.current) return;
-        setError(err?.message || "Não foi possível concluir a busca.");
-      } finally {
-        if (id === requestId.current) setLoading(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  const total = championships.length + teams.length + players.length;
+  const enabled = query.trim().length >= 2;
   const showChampionships = kind === "todos" || kind === "campeonatos";
   const showTeams = kind === "todos" || kind === "equipes";
   const showPlayers = kind === "todos" || kind === "jogadores";
+  const champPage = usePagedDirectory<VacancyApiItem & { id: string }>("/api/vagas?diretorio=1", query, { enabled: enabled && showChampionships, limit: 20, itemsKey: "announcements" });
+  const teamPage = usePagedDirectory<SearchTeam>("/api/equipes/busca-publica", query, { enabled: enabled && showTeams, limit: 20 });
+  const playerPage = usePagedDirectory<SearchPlayer>("/api/jogadores/busca-publica", query, { enabled: enabled && showPlayers, limit: 20 });
+  const championships = champPage.items, teams = teamPage.items, players = playerPage.items;
+  const loading = champPage.loading || teamPage.loading || playerPage.loading;
+  const error = champPage.error || teamPage.error || playerPage.error;
+  const total = championships.length + teams.length + players.length;
 
   const counts = useMemo(
     () => ({
@@ -168,7 +120,7 @@ export function GlobalSearchScreen({
                   kind === value && styles.filterTextActive,
                 ]}
               >
-                {value} {query.trim().length >= 2 ? counts[value] : ""}
+                {value} {enabled && (kind === "todos" || value === kind) ? `${counts[value]} carregados` : ""}
               </Text>
             </TouchableOpacity>
           ),
@@ -184,14 +136,6 @@ export function GlobalSearchScreen({
           </Text>
         </View>
       ) : null}
-      {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={colors.brand} />
-          <Text style={styles.loadingText}>Buscando...</Text>
-        </View>
-      ) : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
       {!loading && query.trim().length >= 2 && total === 0 && !error ? (
         <View style={styles.empty}>
           <Ionicons name="file-tray-outline" size={28} color={colors.muted} />
@@ -202,7 +146,7 @@ export function GlobalSearchScreen({
         </View>
       ) : null}
 
-      {showChampionships && championships.length ? (
+      {enabled && showChampionships ? (
         <Section title="CAMPEONATOS" count={championships.length}>
           {championships.map((item) => {
             const logo = item.logo_url ? externalUrl(item.logo_url) : "";
@@ -248,10 +192,11 @@ export function GlobalSearchScreen({
               </TouchableOpacity>
             );
           })}
+          <DirectoryStatus page={champPage} />
         </Section>
       ) : null}
 
-      {showTeams && teams.length ? (
+      {enabled && showTeams ? (
         <Section title="EQUIPES" count={teams.length}>
           {teams.map((team) => {
             const logo = team.logo_url ? externalUrl(team.logo_url) : "";
@@ -292,10 +237,11 @@ export function GlobalSearchScreen({
               </TouchableOpacity>
             );
           })}
+          <DirectoryStatus page={teamPage} />
         </Section>
       ) : null}
 
-      {showPlayers && players.length ? (
+      {enabled && showPlayers ? (
         <Section title="JOGADORES" count={players.length}>
           {players.map((player) => {
             const avatar = externalUrl(
@@ -342,6 +288,7 @@ export function GlobalSearchScreen({
               </TouchableOpacity>
             );
           })}
+          <DirectoryStatus page={playerPage} />
         </Section>
       ) : null}
     </ScrollView>
@@ -361,7 +308,7 @@ function Section({
     <View style={styles.section}>
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.sectionCount}>{count}</Text>
+        <Text style={styles.sectionCount}>{count} carregados</Text>
       </View>
       <View style={styles.list}>{children}</View>
     </View>

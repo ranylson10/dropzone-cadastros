@@ -1,12 +1,16 @@
+import { readPagedRows } from '@backend/shared/paginated-query'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
-import { listarEstatisticasEquipes, listarEstatisticasMvp } from '@backend/campeonatos/estatisticas/estatisticas.service'
+import { isPublicDirectoryRow } from '@backend/directory/public-profile-base'
+import { listarEstatisticasPublicadas } from '@backend/campeonatos/estatisticas/estatisticas.service'
 import { unstable_cache } from 'next/cache'
-import { getCachedRankingTiers } from '@/features/ranking/server'
+import { getCachedRankingEntityRows } from '@/features/ranking/server'
+import { buildCompetitiveProfile } from '@backend/ranking/competitive-profile.service'
 import { buildChampionshipDirectoryItems } from './championship-directory'
 import { buildManagerDirectoryItems } from './manager-directory'
 import { buildPlayerDirectoryItems } from './player-directory'
 import { buildProducerDirectoryItems } from './producer-directory'
 import { buildTeamDirectoryItems } from './team-directory'
+import { getPublicDirectoryBase } from './profile-base'
 import type { DirectoryItem, DirectoryKind, DirectoryProfile } from './types'
 
 function text(value: unknown, fallback = '') { return String(value ?? fallback).trim() }
@@ -35,189 +39,17 @@ function dateLabel(value: unknown) {
 function location(row: any) { return first(row.localidade, [row.cidade, row.estado, row.pais].filter(Boolean).join(' · ')) }
 
 const DIRECTORY_PAGE_SIZE = 1000
-const DIRECTORY_MAX_ROWS = 10000
+const DIRECTORY_MAX_ROWS = 50000
 
 function normalized(value: unknown) {
   return String(value ?? '').trim().toLowerCase()
 }
 
-function compactNumber(value: unknown) {
-  return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value || 0))
-}
-
-function integer(value: unknown) {
-  const result = Number(value || 0)
-  return Number.isFinite(result) ? result : 0
-}
-
-async function competitiveProfile(kind: 'equipes' | 'jogadores', id: string) {
-  const ranking = await getCachedRankingTiers().catch(() => null)
-  const isPlayer = kind === 'jogadores'
-  let rankRows: any[] = []
-  let statsRows: any[] = []
-
-  if (isPlayer) {
-    rankRows = (ranking?.players || []).filter((row: any) => String(row.jogador_id) === id)
-    const { data, error } = await supabaseAdmin
-      .from('garena_matchstats_jogadores')
-      .select('importacao_id,abates,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,granadas_usadas,gel_usado,kits_medicos,precisao_percentual,garena_matchstats_importacoes!inner(partida_id,concluida_em,consolidacao_oficial),garena_matchstats_armas(arma,abates,dano),garena_matchstats_habilidades(tipo,personagem,habilidade,usos,pick_times,pick_rate)')
-      .eq('jogador_id', id)
-      .eq('garena_matchstats_importacoes.consolidacao_oficial', true)
-      .limit(1000)
-    if (!error) statsRows = data || []
-  } else {
-    const { data: participations, error: participationError } = await supabaseAdmin
-      .from('campeonato_equipes')
-      .select('id')
-      .eq('equipe_id', id)
-      .neq('status', 'deletado')
-      .limit(1000)
-    const participationIds = (participations || []).map((row: any) => String(row.id)).filter(Boolean)
-    rankRows = (ranking?.teams || []).filter((row: any) => String(row.equipe_id) === id)
-    if (!participationError && participationIds.length) {
-      const { data, error } = await supabaseAdmin
-        .from('garena_matchstats_jogadores')
-        .select('importacao_id,abates,dano,assistencias,revives,headshots,knockdowns,sobrevivencia_segundos,distancia_movida,distancia_max_abate,granadas_usadas,gel_usado,kits_medicos,precisao_percentual,garena_matchstats_importacoes!inner(partida_id,concluida_em,consolidacao_oficial),garena_matchstats_armas(arma,abates,dano),garena_matchstats_habilidades(tipo,personagem,habilidade,usos,pick_times,pick_rate)')
-        .in('campeonato_equipe_id', participationIds)
-        .eq('garena_matchstats_importacoes.consolidacao_oficial', true)
-        .limit(10000)
-      if (!error) statsRows = data || []
-    }
-  }
-
-  const aggregate = (field: string) => rankRows.reduce((total, row) => total + integer(row[field]), 0)
-  const principal = rankRows.sort((a, b) => integer(b.score) - integer(a.score))[0] || null
-  const statTotal = (field: string) => statsRows.reduce((total, row) => total + integer(row[field]), 0)
-  const total = (field: string) => aggregate(field) || statTotal(field)
-  const weaponUsage = new Map<string, { nome: string; abates: number; dano: number }>()
-  const skillUsage = new Map<string, { tipo: string; personagem: string; habilidade: string; usos: number; pickTimes: number; pickRate: number }>()
-  for (const row of statsRows) {
-    for (const weapon of (row.garena_matchstats_armas || [])) {
-      const nome = text(weapon.arma)
-      if (!nome) continue
-      const current = weaponUsage.get(nome) || { nome, abates: 0, dano: 0 }
-      current.abates += integer(weapon.abates)
-      current.dano += integer(weapon.dano)
-      weaponUsage.set(nome, current)
-    }
-    for (const skill of (row.garena_matchstats_habilidades || [])) {
-      const tipo = text(skill.tipo)
-      const habilidade = text(skill.habilidade)
-      if (!tipo || !habilidade) continue
-      const key = `${tipo}:${habilidade}`
-      const current = skillUsage.get(key) || { tipo, personagem: text(skill.personagem), habilidade, usos: 0, pickTimes: 0, pickRate: 0 }
-      current.usos += integer(skill.usos)
-      current.pickTimes += integer(skill.pick_times)
-      current.pickRate += integer(skill.pick_rate)
-      skillUsage.set(key, current)
-    }
-  }
-  const topWeapon = [...weaponUsage.values()].sort((a, b) => b.abates - a.abates || b.dano - a.dano || a.nome.localeCompare(b.nome))[0]?.nome || ''
-  const topSkills = (tipo: string, limit: number) => [...skillUsage.values()]
-    .filter((skill) => skill.tipo === tipo)
-    .sort((a, b) => b.usos - a.usos || b.pickTimes - a.pickTimes || b.pickRate - a.pickRate || a.habilidade.localeCompare(b.habilidade))
-    .slice(0, limit)
-  const skillLabel = (skill: any) => [skill?.personagem, skill?.habilidade].filter(Boolean).join(' · ')
-  const byFall = new Map<string, { label: string; date: string; abates: number; dano: number; assistencias: number }>()
-  for (const row of statsRows) {
-    const imported: any = Array.isArray(row.garena_matchstats_importacoes) ? row.garena_matchstats_importacoes[0] : row.garena_matchstats_importacoes
-    const key = String(imported?.partida_id || row.importacao_id)
-    const current = byFall.get(key) || { label: `P${byFall.size + 1}`, date: String(imported?.concluida_em || ''), abates: 0, dano: 0, assistencias: 0 }
-    current.abates += integer(row.abates)
-    current.dano += integer(row.dano)
-    current.assistencias += integer(row.assistencias)
-    byFall.set(key, current)
-  }
-  const trend = [...byFall.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-8).map(({ label, abates, dano, assistencias }) => ({ label, abates, dano, assistencias }))
-  const sampleSize = Math.max(1, aggregate('quedas') || byFall.size || statsRows.length)
-  const perMatch = (field: string, divisor = sampleSize) => total(field) / Math.max(1, divisor)
-
-  if (isPlayer) {
-    const row = principal
-    return {
-      label: 'Perfil gamer · dados oficiais', tier: row?.tier || null, score: row?.score || null,
-      metrics: [
-        { label: 'Abates', value: String(total('abates')) }, { label: 'Dano total', value: compactNumber(total('dano')) },
-        { label: 'Assistências', value: String(total('assistencias')) }, { label: 'Headshots', value: String(total('headshots')) },
-        { label: 'Sobrevivência', value: `${compactNumber(total('sobrevivencia_segundos'))} s` }, { label: 'Quedas', value: String(aggregate('quedas') || byFall.size) },
-      ],
-      averages: [
-        { label: 'Abates', value: perMatch('abates').toFixed(1) }, { label: 'Dano', value: compactNumber(perMatch('dano')) },
-        { label: 'Assistências', value: perMatch('assistencias').toFixed(1) }, { label: 'Gelo', value: perMatch('gel_usado').toFixed(1) },
-      ],
-      highlights: [
-        { label: 'Arma mais usada', value: row?.arma_mais_usada || topWeapon },
-        { label: 'Habilidade ativa', value: skillLabel(row?.habilidade_ativa) || skillLabel(topSkills('ativa', 1)[0]) },
-        { label: 'Passivas', value: (row?.habilidades_passivas || []).map((item: any) => item.habilidade || item.personagem).filter(Boolean).join(' · ') || topSkills('passiva', 3).map(skillLabel).filter(Boolean).join(' · ') },
-        { label: 'Função', value: row?.funcao || '' },
-        { label: 'Revives', value: String(total('revives')) }, { label: 'Knockdowns', value: String(total('knockdowns')) },
-        { label: 'Paredes de gel', value: String(total('gel_usado')) }, { label: 'Kits médicos', value: String(total('kits_medicos')) },
-        { label: 'Granadas', value: String(total('granadas_usadas')) }, { label: 'Distância movida', value: `${compactNumber(total('distancia_movida'))} m` },
-        { label: 'Maior abate', value: `${compactNumber(total('distancia_max_abate'))} m` },
-      ], trend,
-    }
-  }
-
-  return {
-    label: 'Elenco · dados oficiais', tier: principal?.tier || null, score: principal?.score || null,
-    metrics: [
-      { label: 'Pontos', value: String(total('pontos')) }, { label: 'Abates', value: String(total('abates')) },
-      { label: 'Dano do elenco', value: compactNumber(total('dano')) }, { label: 'Assistências', value: String(total('assistencias')) },
-      { label: 'Booyahs', value: String(total('booyahs')) }, { label: 'Quedas', value: String(aggregate('quedas') || byFall.size) },
-    ],
-    averages: [
-      { label: 'Pontos', value: perMatch('pontos').toFixed(1) }, { label: 'Abates', value: perMatch('abates').toFixed(1) },
-      { label: 'Dano', value: compactNumber(perMatch('dano')) }, { label: 'Assistências', value: perMatch('assistencias').toFixed(1) },
-    ],
-    highlights: [
-      { label: 'Arma do elenco', value: topWeapon }, { label: 'Ativa predominante', value: skillLabel(topSkills('ativa', 1)[0]) },
-      { label: 'Passivas predominantes', value: topSkills('passiva', 3).map(skillLabel).filter(Boolean).join(' · ') }, { label: 'Headshots', value: String(total('headshots')) },
-      { label: 'Knockdowns', value: String(total('knockdowns')) }, { label: 'Revives', value: String(total('revives')) },
-      { label: 'Paredes de gel', value: String(total('gel_usado')) }, { label: 'Kits médicos', value: String(total('kits_medicos')) },
-      { label: 'Granadas', value: String(total('granadas_usadas')) }, { label: 'Distância movida', value: `${compactNumber(total('distancia_movida'))} m` },
-      { label: 'Maior abate', value: `${compactNumber(total('distancia_max_abate'))} m` },
-    ], trend,
-  }
-}
-
 const getCompetitiveProfile = unstable_cache(
-  competitiveProfile,
-  ['directory-competitive-profile-v1'],
-  { revalidate: 30, tags: ['directory:competitive'] },
+  async (kind: 'equipes' | 'jogadores', id: string) => buildCompetitiveProfile(kind, id, await getCachedRankingEntityRows(kind, id)),
+  ['directory-competitive-profile-published-v2'],
+  { revalidate: 30, tags: ['directory:competitive', 'directory:campeonatos'] },
 )
-
-async function rows(table: string) {
-  const collected: any[] = []
-
-  for (let from = 0; from < DIRECTORY_MAX_ROWS; from += DIRECTORY_PAGE_SIZE) {
-    const to = from + DIRECTORY_PAGE_SIZE - 1
-    const { data, error } = await supabaseAdmin
-      .from(table)
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(from, to)
-
-    if (error) {
-      if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
-      throw error
-    }
-
-    const page = data || []
-    collected.push(...page)
-    if (page.length < DIRECTORY_PAGE_SIZE) break
-  }
-
-  return collected.filter((row: any) => {
-    const status = normalized(row.status || 'ativo')
-    if (['suspenso', 'banido', 'excluido', 'excluído'].includes(status)) return false
-    if (row.deleted_at) return false
-
-    // Só no ar se aprovado pelo admin. Normalização evita exclusão por espaços/caixa.
-    const approval = normalized(row.aprovacao_status)
-    if (approval && approval !== 'aprovado') return false
-    return true
-  })
-}
 
 const PUBLIC_CHAMPIONSHIP_COLUMNS = 'id,nome,tipo,logo_url,banner_url,status,created_at,aprovacao_status,deleted_at,produtora_id'
 const PUBLIC_CHAMPIONSHIP_RELATED_COLUMNS = {
@@ -226,14 +58,6 @@ const PUBLIC_CHAMPIONSHIP_RELATED_COLUMNS = {
   campeonato_slots: 'campeonato_id,fase_id,status,equipe_id,line_id',
   campeonato_jogos: 'campeonato_id,status,data_jogo,horario',
 } as const
-
-function isPublicDirectoryRow(row: any) {
-  const status = normalized(row.status || 'ativo')
-  if (['suspenso', 'banido', 'excluido', 'excluído'].includes(status)) return false
-  if (row.deleted_at) return false
-  const approval = normalized(row.aprovacao_status)
-  return !approval || approval === 'aprovado'
-}
 
 type ScopedRowsFilter =
   | { column: string; value: unknown }
@@ -247,13 +71,14 @@ async function scopedRows(
   if ('values' in filter && filter.values.length === 0) return []
   const collected: any[] = []
 
-  for (let from = 0; from < DIRECTORY_MAX_ROWS; from += DIRECTORY_PAGE_SIZE) {
+  for (let from = 0; from <= DIRECTORY_MAX_ROWS;) {
     const to = from + DIRECTORY_PAGE_SIZE - 1
     let query: any = supabaseAdmin.from(table).select('*')
     query = 'values' in filter
       ? query.in(filter.column, filter.values)
       : query.eq(filter.column, filter.value)
     if (!options.plain) query = query.order('created_at', { ascending: false })
+    query = query.order('id', { ascending: true })
     const { data, error } = await query.range(from, to)
 
     if (error) {
@@ -263,7 +88,9 @@ async function scopedRows(
 
     const page = data || []
     collected.push(...page)
-    if (page.length < DIRECTORY_PAGE_SIZE) break
+    if (!page.length) break
+    from += page.length
+    if (collected.length > DIRECTORY_MAX_ROWS) throw new Error('Restrinja os filtros desta consulta.')
   }
 
   return options.plain ? collected : collected.filter(isPublicDirectoryRow)
@@ -271,15 +98,23 @@ async function scopedRows(
 
 async function selectedRows(table: string, columns: string, referencedIds?: string[], referenceColumn = 'campeonato_id') {
   if (referencedIds && referencedIds.length === 0) return []
+  if (referencedIds && referencedIds.length > 150) {
+    const collected: any[] = []
+    for (let offset = 0; offset < referencedIds.length; offset += 150) {
+      collected.push(...await selectedRows(table, columns, referencedIds.slice(offset, offset + 150), referenceColumn))
+      if (collected.length > DIRECTORY_MAX_ROWS) throw new Error('Restrinja os filtros desta consulta.')
+    }
+    return collected
+  }
   let query = supabaseAdmin.from(table).select(columns)
   if (referencedIds) query = query.in(referenceColumn, referencedIds)
   else if (['campeonatos', 'equipes', 'jogadores', 'managers', 'produtoras'].includes(table)) query = query.order('created_at', { ascending: false })
-  const { data, error } = await query.limit(DIRECTORY_MAX_ROWS)
-  if (error) {
-    if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error.code || '')) return []
+  try {
+    return await readPagedRows<any>(query.order('id', { ascending: true }))
+  } catch (error) {
+    if (['42P01', '42703', 'PGRST205', 'PGRST204'].includes(String((error as { code?: string }).code || ''))) return []
     throw error
   }
-  return data || []
 }
 
 const listPublicChampionships = unstable_cache(
@@ -372,8 +207,8 @@ const getPublicPlayerProfileData = unstable_cache(
       competitive,
     }
   },
-  ['public-player-profile-v1'],
-  { revalidate: 30, tags: ['directory:jogadores'] },
+  ['public-player-profile-published-v2'],
+  { revalidate: 30, tags: ['directory:jogadores', 'directory:campeonatos'] },
 )
 
 const PUBLIC_MANAGER_COLUMNS = 'id,nome,username,avatar_url,localidade,cidade,estado,pais,bio,status,created_at'
@@ -407,13 +242,7 @@ async function selectedProducerChampionships(columns: string, producerIds: strin
   const filters: string[] = []
   if (producerIds.length) filters.push(`produtora_id.in.(${producerIds.join(',')})`)
   if (authUserIds.length) filters.push(`criado_por.in.(${authUserIds.join(',')})`)
-  const { data, error } = await supabaseAdmin
-    .from('campeonatos')
-    .select(columns)
-    .or(filters.join(','))
-    .limit(DIRECTORY_MAX_ROWS)
-  if (error) throw error
-  return data || []
+  return readPagedRows<any>(supabaseAdmin.from('campeonatos').select(columns).or(filters.join(',')).order('id', { ascending: true }))
 }
 
 const listPublicProducers = unstable_cache(
@@ -508,9 +337,9 @@ export async function listDirectory(kind: DirectoryKind): Promise<DirectoryItem[
 }
 
 export async function getDirectoryProfile(kind: DirectoryKind, id: string): Promise<DirectoryProfile | null> {
-  const list = await listDirectory(kind)
-  const base = list.find((item) => item.id === id)
+  const base = await getPublicDirectoryBase(kind, id)
   if (!base) return null
+  id = base.id
   const sections: DirectoryProfile['sections'] = []
   const details = [...base.meta]
   const actions: DirectoryProfile['actions'] = []
@@ -521,9 +350,7 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
   let competitive: DirectoryProfile['competitive'] = null
 
   if (kind === 'campeonatos') {
-    const teamStatsPromise = listarEstatisticasEquipes(id, {}).catch(() => [])
-    const mvpStatsPromise = listarEstatisticasMvp(id, {}).catch(() => [])
-    const [championships, phases, groups, slots, games, rounds, participations, championshipPlayers, configs] = await Promise.all([
+    const [championships, phases, groups, slots, games, rounds, participations, championshipPlayers, configs, statistics] = await Promise.all([
       scopedRows('campeonatos', { column: 'id', value: id }),
       scopedRows('campeonato_fases', { column: 'campeonato_id', value: id }),
       scopedRows('campeonato_grupos', { column: 'campeonato_id', value: id }),
@@ -533,6 +360,7 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
       scopedRows('campeonato_equipes', { column: 'campeonato_id', value: id }),
       scopedRows('campeonato_jogadores', { column: 'campeonato_id', value: id }),
       scopedRows('campeonato_configuracoes', { column: 'campeonato_id', value: id }),
+      listarEstatisticasPublicadas(id, {}),
     ])
     const referencedTeamIds = Array.from(new Set(
       [...participations, ...slots].map((row: any) => String(row.equipe_id || '')).filter(Boolean),
@@ -548,14 +376,13 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
         .map((row: any) => String(row.jogador_temporario_id || row.temporario_id || row.jogador_temp_id || ''))
         .filter(Boolean),
     ))
-    const [teams, teamLines, players, temporaryPlayers, teamStats, mvpStats] = await Promise.all([
+    const [teams, teamLines, players, temporaryPlayers] = await Promise.all([
       scopedRows('equipes', { column: 'id', values: referencedTeamIds }),
       scopedRows('equipe_lines', { column: 'id', values: referencedLineIds }),
       scopedRows('jogadores', { column: 'id', values: referencedPlayerIds }),
       scopedRows('jogadores_temporarios', { column: 'id', values: referencedTemporaryPlayerIds }),
-      teamStatsPromise,
-      mvpStatsPromise,
     ])
+    const { equipes: teamStats, jogadores: mvpStats } = statistics
     const championship: any = championships.find((row: any) => row.id === id) || {}
     const cfg: any = configs.find((row: any) => row.campeonato_id === id) || {}
     theme = {
@@ -688,7 +515,7 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     sections.push({
       title: 'Tabela',
       layout: 'stats',
-      items: teamStats.slice(0, 100).map((row: any) => ({
+      items: teamStats.map((row: any) => ({
         id: row.campeonato_equipe_id,
         title: row.nome,
         subtitle: row.tag || undefined,
@@ -708,7 +535,7 @@ export async function getDirectoryProfile(kind: DirectoryKind, id: string): Prom
     sections.push({
       title: 'MVP',
       layout: 'stats',
-      items: mvpStats.slice(0, 100).map((row: any) => ({
+      items: mvpStats.map((row: any) => ({
         id: row.campeonato_jogador_id,
         title: row.nick,
         subtitle: row.id_jogo || undefined,

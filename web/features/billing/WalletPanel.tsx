@@ -1,5 +1,7 @@
 'use client'
 
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Input as UiInput } from '@/components/ui/Field'
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Wallet } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -130,7 +132,7 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
         <div className="mini-grid two">
           <label className="field">
             <span>Valor (R$)</span>
-            <input
+            <UiInput
               inputMode="decimal"
               placeholder="10,00"
               value={valor}
@@ -139,7 +141,7 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
           </label>
           <label className="field">
             <span>Chave PIX</span>
-            <input
+            <UiInput
               placeholder="e-mail, CPF, telefone ou aleatória"
               value={pix}
               onChange={(e) => setPix(e.target.value)}
@@ -167,37 +169,37 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
       <div className="wallet-history">
         <div className="wallet-history-head"><span>Histórico</span><small>Movimentações da carteira</small></div>
         <div className="admin-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Quando</th>
-              <th>Tipo</th>
-              <th>Valor</th>
-              <th>Saldo após</th>
-            </tr>
-          </thead>
-          <tbody>
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeaderCell>Quando</DataTableHeaderCell>
+              <DataTableHeaderCell>Tipo</DataTableHeaderCell>
+              <DataTableHeaderCell>Valor</DataTableHeaderCell>
+              <DataTableHeaderCell>Saldo após</DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
             {(data?.lancamentos || []).length === 0 ? (
-              <tr>
-                <td colSpan={4}>
+              <DataTableRow>
+                <DataTableCell colSpan={4}>
                   <span className="empty">Nenhum lançamento ainda.</span>
-                </td>
-              </tr>
+                </DataTableCell>
+              </DataTableRow>
             ) : (
               (data?.lancamentos || []).map((l: any) => (
-                <tr key={l.id}>
-                  <td>{new Date(l.created_at).toLocaleString('pt-BR')}</td>
-                  <td>{String(l.tipo || '').replaceAll('_', ' ')}</td>
-                  <td>
+                <DataTableRow key={l.id}>
+                  <DataTableCell>{new Date(l.created_at).toLocaleString('pt-BR')}</DataTableCell>
+                  <DataTableCell>{String(l.tipo || '').replaceAll('_', ' ')}</DataTableCell>
+                  <DataTableCell>
                     {l.direcao === 'credito' ? '+' : '−'}
                     {money(l.valor_centavos)}
-                  </td>
-                  <td>{money(l.saldo_apos_centavos)}</td>
-                </tr>
+                  </DataTableCell>
+                  <DataTableCell>{money(l.saldo_apos_centavos)}</DataTableCell>
+                </DataTableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </DataTableBody>
+        </DataTable>
         </div>
       </div>
     </section>

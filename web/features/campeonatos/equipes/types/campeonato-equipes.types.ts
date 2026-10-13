@@ -1,21 +1,9 @@
+import type { ParticipationExpected, ParticipationReadContract } from '@backend/campeonatos/participation-contract'
+import type {LeagueSeasonReadContract} from '@backend/campeonatos/league-season-contract'
 export type VagaStatus = 'livre' | 'reservada' | 'ocupada' | 'bloqueada'
 
-export type LigaEntradaTipo = 'mantida' | 'promovida' | 'rebaixada' | 'classificatoria_aberta' | 'vaga_paga' | 'convite_direto'
-
-export type LigaEntradaPlano = {
-  id: string
-  tipo: LigaEntradaTipo
-  quantidade: string
-  origem_agrupamento_id: string
-}
-
-export type LigaDivisaoOperacional = {
-  id: string
-  nome: string
-  codigo: string
-  equipes: string
-  entradas: LigaEntradaPlano[]
-}
+import type { LigaDivisaoOperacional } from '@backend/campeonatos/liga-plan'
+export type { LigaEntradaTipo, LigaEntradaPlano, LigaDivisaoOperacional } from '@backend/campeonatos/liga-plan'
 
 export type LigaSeasonCandidate = {
   equipe_id: string
@@ -82,6 +70,7 @@ export type ConviteResumo = {
 }
 
 export type CampeonatoVaga = {
+  participation_expected?: ParticipationExpected | null
   id: string
   numero_vaga: number
   status: VagaStatus
@@ -127,7 +116,7 @@ export type CampeonatoCapacidade = {
   vagas_restantes_meta: number | null
 }
 
-export type CampeonatoEquipesPayload = {
+export type CampeonatoEquipesPayload = ParticipationReadContract & LeagueSeasonReadContract & {
   campeonato: { id: string; nome: string; logo_url: string | null }
   vagas: CampeonatoVaga[]
   /** Convites de grupo (sem slot fixo) — não aparecem em nenhum assento */

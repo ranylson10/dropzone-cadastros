@@ -8,10 +8,10 @@ const migration = read('database/migrations/20260907_dpz_engine_resultado_idempo
 const service = read('backend/src/campeonatos/estatisticas/engine-result.service.ts')
 const route = read('web/app/api/desktop/campeonatos/[id]/partidas/[partidaId]/resultado/route.ts')
 const baseline = read('backend/src/campeonatos/estatisticas/baseline.service.ts')
-const stats = read('backend/src/campeonatos/estatisticas/estatisticas.service.ts')
+const stats = read('backend/src/campeonatos/estatisticas/statistics-read.service.ts')
 const editorDatasets = read('backend/src/campeonatos/stream/editor-datasets.service.ts')
-const tierRanking = read('backend/src/ranking/tier-ranking.service.ts')
-const directory = read('web/features/directory/server.ts')
+const tierRanking = read('backend/src/ranking/tier-ranking.service.ts') + read('backend/src/ranking/public-performance-read.service.ts')
+const directory = read('web/features/directory/server.ts') + read('backend/src/ranking/public-performance-read.service.ts')
 const training = read('web/app/api/equipe/treinos/route.ts')
 
 assert.match(route, /getBearerUser/)

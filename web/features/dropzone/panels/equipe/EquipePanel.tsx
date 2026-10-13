@@ -1,5 +1,8 @@
 'use client'
+import { usePagedSearch } from '@/hooks/usePagedSearch'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, Link2, Loader2, LockKeyhole, Pencil, Plus, Search, Send, Shield, Ticket, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -13,6 +16,7 @@ import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 import { buildObjectivePerformanceGoals } from '../../performance-goals'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
 import { TeamAnalyticsDashboard } from './TeamAnalyticsDashboard'
+import { WorkspaceContent, WorkspaceHeader, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
 
 
 type TeamTraining = {
@@ -1166,7 +1170,7 @@ export function EquipePanel(props: {
 
   async function removeStaff(managerId: string) {
     if (!staffTeamId) return
-    if (!window.confirm('Remover este manager do staff?')) return
+    if (!await confirmAction('Remover este manager do staff?')) return
     setStaffBusy(true)
     setStaffError('')
     try {
@@ -1445,7 +1449,7 @@ export function EquipePanel(props: {
   }
 
   async function removeLineupInvite(lineup: Lineup) {
-    if (!lineup.link_id || !window.confirm('Remover este token de escalação? O link deixará de funcionar.')) return
+    if (!lineup.link_id || !await confirmAction('Remover este token de escalação? O link deixará de funcionar.')) return
     setLineupLoading(true)
     setLineupError('')
     try {
@@ -1465,7 +1469,7 @@ export function EquipePanel(props: {
   }
 
   async function removePlayer(playerId: string) {
-    if (!window.confirm('Remover este jogador da escalação?')) return
+    if (!await confirmAction('Remover este jogador da escalação?')) return
     setLineupLoading(true)
     setLineupError('')
     try {
@@ -1516,34 +1520,57 @@ Acesse: ${url}`
   }
 
   return (
-    <div className="dashboard team-dashboard">
-      <section className="panel span-3">
-        <div className="section-head">
-          <div><p className="eyebrow">{props.accountType === 'manager' ? 'Manager' : 'Equipe'}</p><h2>Painel da equipe</h2></div>
-          <Shield />
-        </div>
-        <div className="tabs panel-tabs team-panel-tabs team-primary-nav" aria-label="Áreas da equipe">
-          <button className={`tab ${tab === 'dashboard' ? 'active' : ''}`} onClick={() => setTab('dashboard')}>Início</button>
-          <button className={`tab ${['lines', 'jogadores', 'convites'].includes(tab) ? 'active' : ''}`} onClick={() => setTab('jogadores')}>Elenco</button>
-          <button className={`tab ${tab === 'campeonatos' ? 'active' : ''}`} onClick={() => setTab('campeonatos')}>Competições</button>
-          <button className={`tab ${tab === 'treinos' ? 'active' : ''}`} onClick={() => setTab('treinos')}>Desempenho</button>
-          <button className={`tab ${['staff', 'config'].includes(tab) ? 'active' : ''}`} onClick={() => setTab(showStaffTools ? 'staff' : 'config')}>Mais</button>
-        </div>
+    <WorkspaceShell kind="equipe" className="dashboard team-dashboard">
+      <WorkspaceHeader
+          eyebrow={props.accountType === 'manager' ? 'Manager · Equipe' : 'Equipe'}
+          title="Painel da equipe"
+          description="Elenco, competições, agenda e desempenho organizados por tarefa."
+          icon={<Shield size={18} />}
+        />
+        <WorkspaceNav
+          ariaLabel="Áreas da equipe"
+          activeId={['lines', 'jogadores', 'convites'].includes(tab) ? 'elenco' : ['staff', 'config'].includes(tab) ? 'mais' : tab}
+          onChange={(id) => {
+            if (id === 'elenco') return setTab('jogadores')
+            if (id === 'mais') return setTab(showStaffTools ? 'staff' : 'config')
+            setTab(id as typeof tab)
+          }}
+          items={[
+            { id: 'dashboard', label: 'Início' },
+            { id: 'elenco', label: 'Elenco' },
+            { id: 'campeonatos', label: 'Competições' },
+            { id: 'treinos', label: 'Desempenho' },
+            { id: 'mais', label: 'Mais' },
+          ]}
+        />
 
         {['lines', 'jogadores', 'convites'].includes(tab) ? (
-          <div className="team-secondary-nav" aria-label="Ferramentas de elenco">
-            <button type="button" className={tab === 'jogadores' ? 'active' : ''} onClick={() => setTab('jogadores')}>Jogadores</button>
-            <button type="button" className={tab === 'lines' ? 'active' : ''} onClick={() => setTab('lines')}>Lines</button>
-            <button type="button" className={tab === 'convites' ? 'active' : ''} onClick={() => setTab('convites')}>Convites</button>
-          </div>
+          <WorkspaceSubnav
+            ariaLabel="Ferramentas de elenco"
+            activeId={tab}
+            onChange={(id) => setTab(id as typeof tab)}
+            items={[
+              { id: 'jogadores', label: 'Jogadores' },
+              { id: 'lines', label: 'Lines' },
+              { id: 'convites', label: 'Convites' },
+            ]}
+          />
         ) : null}
 
         {['staff', 'config'].includes(tab) ? (
-          <div className="team-secondary-nav" aria-label="Mais opções da equipe">
-            {showStaffTools ? <button type="button" className={tab === 'staff' ? 'active' : ''} onClick={() => setTab('staff')}>Staff</button> : null}
-            <button type="button" className={tab === 'config' ? 'active' : ''} onClick={() => setTab('config')}>Configurações</button>
-          </div>
+          <WorkspaceSubnav
+            ariaLabel="Mais opções da equipe"
+            activeId={tab}
+            onChange={(id) => setTab(id as typeof tab)}
+            items={[
+              ...(showStaffTools ? [{ id: 'staff', label: 'Staff' }] : []),
+              { id: 'config', label: 'Configurações' },
+            ]}
+          />
         ) : null}
+
+      <WorkspaceContent>
+        <section className="panel span-3">
 
         {tab === 'dashboard' ? (
           <>
@@ -1662,25 +1689,25 @@ Acesse: ${url}`
                 </div>
                 <label>
                   <span>Evento</span>
-                  <select value={trainingExpanded || trainings[0]?.campeonato_equipe_id || ''} onChange={(event) => setTrainingExpanded(event.target.value)}>
+                  <UiSelect value={trainingExpanded || trainings[0]?.campeonato_equipe_id || ''} onChange={(event) => setTrainingExpanded(event.target.value)}>
                     {trainings.map((item) => <option key={item.campeonato_equipe_id} value={item.campeonato_equipe_id}>{item.nome}{item.line_nome ? ` · ${item.line_nome}` : ''}</option>)}
-                  </select>
+                  </UiSelect>
                 </label>
                 <label>
                   <span>Mapa</span>
-                  <select value={trainingMapFilter} onChange={(event) => setTrainingMapFilter(event.target.value)}>
+                  <UiSelect value={trainingMapFilter} onChange={(event) => setTrainingMapFilter(event.target.value)}>
                     <option value="all">Todos os mapas</option>
                     {trainingMapOptions.map((mapa) => <option key={mapa} value={mapa}>{mapa}</option>)}
-                  </select>
+                  </UiSelect>
                 </label>
                 <label>
                   <span>Período</span>
-                  <select value={trainingPerformancePeriod} onChange={(event) => setTrainingPerformancePeriod(event.target.value as TrainingPerformancePeriod)}>
+                  <UiSelect value={trainingPerformancePeriod} onChange={(event) => setTrainingPerformancePeriod(event.target.value as TrainingPerformancePeriod)}>
                     <option value="5">Últimas 5</option>
                     <option value="10">Últimas 10</option>
                     <option value="20">Últimas 20</option>
                     <option value="all">Tudo</option>
-                  </select>
+                  </UiSelect>
                 </label>
               </div>
             ) : null}
@@ -2174,7 +2201,7 @@ Acesse: ${url}`
                                   <div className="team-training-drop-notes">
                                     {training.configuracao_analise.call_fixa ? (
                                       <Field label="Call">
-                                        <input
+                                        <UiInput
                                           value={drop.call_nome}
                                           onChange={(event) => patchTrainingDrop(training.campeonato_equipe_id, drop.partida_id, { call_nome: event.target.value })}
                                           placeholder="Ex.: Clock Tower"
@@ -2183,7 +2210,7 @@ Acesse: ${url}`
                                     ) : null}
                                     {training.configuracao_analise.primeira_safe ? (
                                       <Field label="1ª safe">
-                                        <input
+                                        <UiInput
                                           value={drop.primeira_safe}
                                           onChange={(event) => patchTrainingDrop(training.campeonato_equipe_id, drop.partida_id, { primeira_safe: event.target.value })}
                                           placeholder="Anote a leitura da 1ª safe"
@@ -2192,7 +2219,7 @@ Acesse: ${url}`
                                     ) : null}
                                     {training.configuracao_analise.segunda_safe ? (
                                       <Field label="2ª safe">
-                                        <input
+                                        <UiInput
                                           value={drop.segunda_safe}
                                           onChange={(event) => patchTrainingDrop(training.campeonato_equipe_id, drop.partida_id, { segunda_safe: event.target.value })}
                                           placeholder="Anote a leitura da 2ª safe"
@@ -2267,11 +2294,11 @@ Acesse: ${url}`
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 {activeManagedTeams.length > 1 ? (
-                  <select value={staffTeamId} onChange={(e) => { setStaffTeamId(e.target.value); setStaffDetail(null) }}>
+                  <UiSelect value={staffTeamId} onChange={(e) => { setStaffTeamId(e.target.value); setStaffDetail(null) }}>
                     {activeManagedTeams.map((team) => (
                       <option key={team.id} value={team.id}>{rowTitle(team)}</option>
                     ))}
-                  </select>
+                  </UiSelect>
                 ) : null}
                 <button type="button" className="button" onClick={openStaffInvite}>
                   <Plus size={16} /> Convidar
@@ -2347,7 +2374,7 @@ Acesse: ${url}`
                               ['pode_gerar_token', 'Gerar tokens'],
                             ] as const).map(([key, label]) => (
                               <label key={key} className="seller-perm-item">
-                                <input
+                                <UiInput
                                   type="checkbox"
                                   checked={Boolean(staffDetailPerms[key])}
                                   onChange={(e) =>
@@ -2422,7 +2449,7 @@ Acesse: ${url}`
                 <div className="mini-grid two">
                   <Field label="Buscar @username ou ID">
                     <div className="staff-search-row">
-                      <input
+                      <UiInput
                         value={staffQuery}
                         onChange={(e) => setStaffQuery(e.target.value)}
                         placeholder="@username ou 123"
@@ -2439,7 +2466,7 @@ Acesse: ${url}`
                     </div>
                   </Field>
                   <Field label="Validade (dias)">
-                    <input
+                    <UiInput
                       type="number"
                       min={1}
                       max={30}
@@ -2467,7 +2494,7 @@ Acesse: ${url}`
                 ) : null}
 
                 <Field label="Mensagem (opcional)">
-                  <input
+                  <UiInput
                     value={staffMessage}
                     onChange={(e) => setStaffMessage(e.target.value)}
                     placeholder="Ex.: Preciso de alguém para escalar e organizar lines."
@@ -2482,7 +2509,7 @@ Acesse: ${url}`
                     ['pode_gerar_token', 'Gerar tokens'],
                   ] as const).map(([key, label]) => (
                     <label key={key} className="seller-perm-item">
-                      <input
+                      <UiInput
                         type="checkbox"
                         checked={Boolean(staffPerms[key])}
                         onChange={(e) => setStaffPerms((c) => ({ ...c, [key]: e.target.checked }))}
@@ -2535,7 +2562,8 @@ Acesse: ${url}`
             ))}
           </div>
         ) : null}
-      </section>
+        </section>
+      </WorkspaceContent>
 
       <SystemModal
         open={Boolean(rosterInvite)}
@@ -2577,10 +2605,10 @@ Acesse: ${url}`
       >
         <div className="form-grid">
           <Field label="Limite de jogadores">
-            <input type="number" min="1" value={inviteLimit} onChange={(event) => setInviteLimit(event.target.value)} />
+            <UiInput type="number" min="1" value={inviteLimit} onChange={(event) => setInviteLimit(event.target.value)} />
           </Field>
           <Field label="Validade do link">
-            <input type="datetime-local" value={inviteExpiresAt} onChange={(event) => setInviteExpiresAt(event.target.value)} />
+            <UiInput type="datetime-local" value={inviteExpiresAt} onChange={(event) => setInviteExpiresAt(event.target.value)} />
           </Field>
         </div>
         <div className="button-row">
@@ -2588,7 +2616,7 @@ Acesse: ${url}`
           <button className="button secondary" type="button" onClick={() => setEditingInvite(null)}>Cancelar</button>
         </div>
       </SystemModal>
-    </div>
+    </WorkspaceShell>
   )
 }
 
@@ -2611,10 +2639,11 @@ function EquipeLinesEditor(props: {
   const [transferLine, setTransferLine] = useState<any>(null)
   const [transferInfo, setTransferInfo] = useState<any>(null)
   const [transferQuery, setTransferQuery] = useState('')
-  const [transferTeams, setTransferTeams] = useState<any[]>([])
+  const transferDirectory = usePagedSearch<any>('/api/equipes/busca-publica')
+  const transferTeams = transferDirectory.items.filter(team => String(team.id) !== String(teamId))
   const [transferTarget, setTransferTarget] = useState<any>(null)
   const [transferLoading, setTransferLoading] = useState(false)
-  const [transferSearching, setTransferSearching] = useState(false)
+  const transferSearching = transferDirectory.loading
   const [lineDetail, setLineDetail] = useState<any | null>(null)
   const [lineDetailToken, setLineDetailToken] = useState('')
 
@@ -2690,7 +2719,7 @@ function EquipeLinesEditor(props: {
   }
 
   async function remove(lineId: string) {
-    if (!window.confirm('Apagar esta line?')) return
+    if (!await confirmAction('Apagar esta line?')) return
     setBusy(true)
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
@@ -2714,7 +2743,7 @@ function EquipeLinesEditor(props: {
     setTransferLine(line)
     setTransferInfo(null)
     setTransferQuery('')
-    setTransferTeams([])
+    transferDirectory.clear()
     setTransferTarget(null)
     setTransferLoading(true)
     setError('')
@@ -2749,24 +2778,9 @@ function EquipeLinesEditor(props: {
 
   async function searchTransferTeams() {
     const query = transferQuery.trim()
-    if (query.length < 2) return setTransferTeams([])
-    setTransferSearching(true)
+    if (query.length < 2) return transferDirectory.clear()
     setError('')
-    try {
-      const token = (await supabase.auth.getSession()).data.session?.access_token
-      if (!token) throw new Error('Sessão expirada.')
-      const res = await fetch(`/api/equipes/busca-publica?q=${encodeURIComponent(query)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.error || 'Erro ao buscar equipes.')
-      setTransferTeams((json.items || []).filter((team: any) => String(team.id) !== String(teamId)))
-    } catch (err: any) {
-      setError(err?.message || 'Erro ao buscar equipes.')
-    } finally {
-      setTransferSearching(false)
-    }
+    await transferDirectory.search(query)
   }
 
   async function confirmTransfer() {
@@ -2815,10 +2829,10 @@ function EquipeLinesEditor(props: {
         <div className="inline-action-panel">
           <div className="mini-grid two">
             <Field label="Nome">
-              <input value={nome} onChange={(e) => setNome(e.target.value)} />
+              <UiInput value={nome} onChange={(e) => setNome(e.target.value)} />
             </Field>
             <Field label="Tag">
-              <input value={tag} onChange={(e) => setTag(e.target.value)} />
+              <UiInput value={tag} onChange={(e) => setTag(e.target.value)} />
             </Field>
           </div>
           <UploadField
@@ -2905,13 +2919,15 @@ function EquipeLinesEditor(props: {
             </div>
             <Field label="Buscar equipe real">
               <div className="inline-search-row">
-                <input value={transferQuery} onChange={(event) => setTransferQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchTransferTeams() } }} placeholder="Nome ou tag da equipe" />
+                <UiInput value={transferQuery} onChange={(event) => { transferDirectory.clear(); setTransferTarget(null); setTransferQuery(event.target.value) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchTransferTeams() } }} placeholder="Nome ou tag da equipe" />
                 <button type="button" className="button secondary" disabled={transferSearching || transferQuery.trim().length < 2} onClick={() => void searchTransferTeams()}>
                   {transferSearching ? <Loader2 className="spin" size={15} /> : <Search size={15} />} Buscar
                 </button>
               </div>
             </Field>
             <div className="transfer-team-results">
+              {transferDirectory.error ? <p role="alert">{transferDirectory.error}</p> : null}
+              {transferDirectory.nextCursor ? <button type="button" disabled={transferSearching} onClick={() => void transferDirectory.more()}>Carregar mais equipes</button> : null}
               {transferTeams.map((team: any) => (
                 <button key={team.id} type="button" className={transferTarget?.id === team.id ? 'selected' : ''} onClick={() => setTransferTarget(team)}>
                   <span>{team.logo_url ? <img src={team.logo_url} alt="" /> : String(team.tag || team.nome || 'E').slice(0, 2)}</span>

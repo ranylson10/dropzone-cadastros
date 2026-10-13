@@ -95,7 +95,7 @@
   color: rgba(255, 255, 255, 0.9);
   font-weight: 900;
   letter-spacing: 0.12em;
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
@@ -225,7 +225,7 @@
   border-radius: 999px;
   background: #2d3947;
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .04em;
 }
@@ -281,7 +281,7 @@
 
   .directory-hero-banner p,
   .directory-rank-hero p {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
@@ -355,7 +355,7 @@
 
   .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-main > small,
   .directory-list-row-compact .directory-list-main > small {
-    font-size: 7px;
+    font-size: 12px;
     line-height: 1.1;
     margin-bottom: 2px;
   }
@@ -369,7 +369,7 @@
   .directory-list-row:not(.directory-list-row-campeonatos) .directory-list-main > span,
   .directory-list-row-compact .directory-list-main > span {
     margin-top: 2px;
-    font-size: 8px;
+    font-size: 12px;
     line-height: 1.1;
   }
 
@@ -396,11 +396,11 @@
   }
 
   .directory-list-row-campeonatos .directory-list-meta em::before {
-    font-size: 6.5px;
+    font-size: 12px;
   }
 
   .directory-list-row-campeonatos .directory-list-meta b {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   /* Ranking segue o exemplo compacto: posição, logo, identidade e pontuação. */
@@ -415,7 +415,7 @@
     align-self: center;
     text-align: center;
     color: #27323d;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 900;
   }
 
@@ -433,7 +433,7 @@
     grid-row: 1;
     align-self: center;
     color: #27323d;
-    font-size: 10px;
+    font-size: 12px;
     white-space: nowrap;
   }
 
@@ -471,7 +471,7 @@
 
 .champ-public-info .champ-public-info-card small {
   color: #756d62;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -509,7 +509,7 @@
   }
 
   .champ-public-info .champ-public-info-card strong {
-    font-size: 11px;
+    font-size: 12px;
   }
 }
 
@@ -591,7 +591,7 @@
     max-width: 100%;
     overflow: hidden;
     color: #17212b;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.08;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -602,7 +602,7 @@
     max-width: 100%;
     overflow: hidden;
     color: #65717d;
-    font-size: 8px;
+    font-size: 12px;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -629,7 +629,7 @@
   .champ-public .champ-stats-table td.total .mobile-total-label {
     display: block;
     color: #7a7165;
-    font-size: 7px;
+    font-size: 12px;
     font-weight: 900;
     letter-spacing: .07em;
     line-height: 1;
@@ -661,7 +661,7 @@
   border:1px solid rgba(255,255,255,.34);
   background:rgba(15,23,32,.58);
   color:#fff;
-  font-size:10px;
+  font-size:12px;
   font-weight:900;
   letter-spacing:.08em;
   text-decoration:none;

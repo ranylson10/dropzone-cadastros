@@ -1,11 +1,22 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { promptAction, confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {useGroupChoiceMutation} from '@/hooks/useGroupChoiceMutation'
+import {PendingGroupChoice} from '@/components/campeonatos/PendingGroupChoice'
+import {useScopedState} from '@/hooks/useScopedState'
+import {useProgressionMutation} from '@/hooks/useProgressionMutation'
+import type {ProgressionReadContract} from '@backend/campeonatos/progression-contract'
+import type {DailyGroupReadContract} from '@backend/campeonatos/daily-group-contract'
+import {DailyGroupPanel} from './DailyGroupPanel'
+import {EditionPanel} from './EditionPanel'
+import type {EditionReadContract} from '@backend/campeonatos/edition-contract'
 import { Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 
 type Row = Record<string, any>
-type Structure = {
+type Structure = ProgressionReadContract & DailyGroupReadContract & EditionReadContract & {
   permission?: { canManage?: boolean }
   edition: Row | null
   franchise: Row | null
@@ -30,11 +41,20 @@ type Structure = {
 const empty: Structure = { edition: null, franchise: null, divisions: [], stages: [], sources: [], progressions: [], prizes: [], dailyHours: [], teams: [], stageTeams: [], phases: [], groups: [], slots: [], groupChoiceConfigs: [], groupChoiceBlocks: [], groupChoiceHistory: [], progressionExecutions: [], progressionExecutionItems: [] }
 
 export function AdvancedStructureTab({ campeonatoId, championshipType }: { campeonatoId: string; championshipType: string }) {
-  const [data, setData] = useState<Structure>(empty)
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-  const [edition, setEdition] = useState({ franchise_name: '', edition_number: '', season: '', public_title: '' })
+  const choiceMutation=useGroupChoiceMutation(campeonatoId,'admin')
+  const progressionMutation=useProgressionMutation(campeonatoId,choiceMutation.actor)
+  const championshipNow=useRef(campeonatoId);championshipNow.current=campeonatoId
+  const resource=JSON.stringify([choiceMutation.actor,campeonatoId,progressionMutation.epoch])
+  const resourceNow=useRef(resource);resourceNow.current=resource
+  const [data, updateData] = useScopedState<Structure>(resource,empty)
+  function setData(next:Structure){updateData(previous=>({...next,permission:next.permission??previous.permission,
+    progression_write_mode:next.progression_write_mode??previous.progression_write_mode,progression_actor_id:next.progression_actor_id??previous.progression_actor_id,
+    daily_group_write_mode:next.daily_group_write_mode??previous.daily_group_write_mode,daily_group_actor_id:next.daily_group_actor_id??previous.daily_group_actor_id,
+    edition_write_mode:next.edition_write_mode??previous.edition_write_mode,edition_actor_id:next.edition_actor_id??previous.edition_actor_id}))}
+  const [loading, setLoading] = useScopedState(resource,true)
+  const [localBusy, setBusy] = useScopedState(resource,false)
+  const busy=localBusy||progressionMutation.busy
+  const [message, setMessage] = useScopedState(resource,'')
   const [division, setDivision] = useState({ name: '', code: '', order: '1' })
   const [stage, setStage] = useState({ division_id: '', name: '', order: '1', type: 'qualificatoria', format: 'mata_mata', capacity: '', direct_sales: '', vacancy_value: '', qualifiers: '', awards_mvp: false })
   const [source, setSource] = useState({ stage_id: '', source_type: 'venda_direta', source_stage_id: '', source_division_id: '', quantity: '' })
@@ -42,9 +62,9 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [prize, setPrize] = useState({ stage_id: '', prize_type: 'colocacao', position: '1', title: '', value: '' })
   const [daily, setDaily] = useState({ hour: '', display_name: '', capacity: '', vacancy_value: '', prize_description: '', prize_value: '', map: '', drops: '1' })
   const [assignment, setAssignment] = useState({ stage_id: '', campeonato_equipe_id: '', source_type: 'manual', source_stage_id: '', source_position: '' })
-  const [progressionPreview, setProgressionPreview] = useState<Row | null>(null)
-  const [selectedProgressionRule, setSelectedProgressionRule] = useState('')
-  const [replaceProgressionConflicts, setReplaceProgressionConflicts] = useState(false)
+  const [progressionPreview, setProgressionPreview] = useScopedState<Row | null>(resource,null)
+  const [selectedProgressionRule, setSelectedProgressionRule] = useScopedState(resource,'')
+  const [replaceProgressionConflicts, setReplaceProgressionConflicts] = useScopedState(resource,false)
   const [groupAssignment, setGroupAssignment] = useState({ campeonato_equipe_id: '', group_id: '', slot_id: '' })
   const [choiceSchedule, setChoiceSchedule] = useState<Record<string, { opens_at: string; closes_at: string }>>({})
   const [choiceBlock, setChoiceBlock] = useState({ phase_id: '', group_id: '', slot_id: '', reason: '' })
@@ -54,6 +74,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
 
   const request = useCallback(async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', body?: Row) => {
     const { data: sessionData } = await supabase.auth.getSession()
+    if(resourceNow.current!==resource||!choiceMutation.actor||sessionData.session?.user.id!==choiceMutation.actor)throw new Error('A conta mudou. Atualize o acompanhamento.')
     const token = sessionData.session?.access_token
     const response = await fetch(`/api/campeonatos/${campeonatoId}/estrutura-avancada`, {
       method,
@@ -61,9 +82,10 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
       body: body ? JSON.stringify(body) : undefined,
     })
     const json = await response.json()
+    if(resourceNow.current!==resource)throw new Error('O campeonato ou a conta mudou. Atualize o acompanhamento.')
     if (!response.ok) throw new Error(json.error || 'Falha na estrutura avançada.')
     return json as Structure
-  }, [campeonatoId])
+  }, [campeonatoId,choiceMutation.actor,resource])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -71,12 +93,6 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
     try {
       const next = await request('GET')
       setData(next)
-      setEdition({
-        franchise_name: next.franchise?.nome || '',
-        edition_number: next.edition?.numero_edicao ? String(next.edition.numero_edicao) : '',
-        season: next.edition?.temporada || '',
-        public_title: next.edition?.titulo_publico || '',
-      })
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Falha ao carregar.')
     } finally { setLoading(false) }
@@ -89,7 +105,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
     setBusy(true)
     setMessage('')
     try {
-      const response = await request('POST', { action: 'preview_progression', rule_id: ruleId }) as any
+      const response = await progressionMutation.run(data, { action: 'preview_progression', rule_id: ruleId })
       setProgressionPreview(response.preview || null)
     } catch (error) {
       setProgressionPreview(null)
@@ -98,46 +114,74 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   }
 
   async function applyProgression() {
-    if (!selectedProgressionRule) return
+    if (!selectedProgressionRule || !progressionPreview || progressionPreview.rule?.id!==selectedProgressionRule) return
     setBusy(true)
     setMessage('')
     try {
-      const response = await request('POST', { action: 'apply_progression', rule_id: selectedProgressionRule, replace_conflicts: replaceProgressionConflicts }) as any
-      setData(response)
-      setProgressionPreview(response.preview || null)
-      setMessage(`${Number(response.applied || 0)} equipe(s) promovida(s).`)
+      const response = await progressionMutation.run(data, { action: 'apply_progression', rule_id: selectedProgressionRule, replace_conflicts: replaceProgressionConflicts, expected:progressionPreview.fence })
+      await showProgressionResult(response)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Falha ao aplicar progressão.')
     } finally { setBusy(false) }
   }
 
   async function reverseProgression(executionId: string) {
-    const reason = window.prompt('Informe o motivo da reversão:')
-    if (reason == null) return
+    const reason = await promptAction('Informe o motivo da reversão:')
+    if (reason == null || resourceNow.current!==resource) return
     setBusy(true)
     setMessage('')
     try {
-      const response = await request('POST', { action: 'reverse_progression', execution_id: executionId, reason }) as any
-      setData(response)
-      setProgressionPreview(null)
-      setMessage(`${Number(response.reversed || 0)} vínculo(s) revertido(s).`)
+      const response = await progressionMutation.run(data, { action: 'reverse_progression', execution_id: executionId, reason })
+      await showProgressionResult(response)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Falha ao reverter progressão.')
     } finally { setBusy(false) }
   }
 
+  async function showProgressionResult(response:Row) {
+    if(resourceNow.current!==resource)return
+    const applied=response.progression_action==='apply'||response.applied!=null
+    const confirmed=applied?`${Number(response.applied||0)} equipe(s) promovida(s).`:`${Number(response.reversed||0)} vínculo(s) revertido(s).`
+    setProgressionPreview(null)
+    if(response.operation_confirmed){
+      setMessage(confirmed)
+      try{setData(await request('GET'))}
+      catch{setMessage(`${confirmed} O resultado foi confirmado; atualize para recarregar a estrutura.`)}
+    }else{setData(response as Structure);setMessage(confirmed)}
+  }
+  async function retryProgression(){try{await showProgressionResult(await progressionMutation.retry())}catch{/* Hook retains and explains the original attempt. */}}
+
   async function act(body: Row) {
+    if(busy||!progressionMutation.ready){setMessage('Aguarde a confirmação da operação em andamento.');return}
+    if(progressionMutation.pending){setMessage('Confirme a progressão pendente antes de alterar a estrutura.');return}
     setBusy(true)
     setMessage('')
     try {
       const method = body.action === 'save_edition' ? 'PATCH' : body.action === 'delete' ? 'DELETE' : 'POST'
-      const next = await request(method, body)
+      const choiceActions:Record<string,'assign'|'cancel'|'restore'>={assign_group_manual:'assign',cancel_group_choice_admin:'cancel',restore_group_choice_admin:'restore'}
+      const action=choiceActions[body.action]
+      let next:Structure
+      if(action){
+        const participation=data.teams.find(row=>row.id===body.campeonato_equipe_id)
+        if(!participation)throw new Error('Atualize o acompanhamento antes de confirmar.')
+        const cancelled=data.groupChoiceHistory.filter(row=>row.campeonato_equipe_id===participation.id&&!row.grupo_novo_id&&row.grupo_anterior_id&&row.slot_anterior_id)
+          .sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||String(b.id).localeCompare(String(a.id)))[0]
+        const result=await choiceMutation.run({action,campeonato_equipe_id:participation.id,source_slot_id:participation.slot_id||null,
+          group_id:action==='assign'?body.group_id:null,slot_id:action==='assign'?body.slot_id:null,history_id:action==='restore'?cancelled?.id||null:null})
+        next=result.operation_confirmed?await request('GET'):result
+      }else next=await request(method, body)
+      if(championshipNow.current!==campeonatoId)return
       setData(next)
       setMessage('Alteração salva.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Falha ao salvar.')
     } finally { setBusy(false) }
   }
+
+  async function confirmPendingChoice(){if(!choiceMutation.pending)return;try{
+    const result=await choiceMutation.run(choiceMutation.pending.body),next=result.operation_confirmed?await request('GET'):result
+    if(championshipNow.current===campeonatoId){setData(next);setMessage('Resultado da escolha confirmado.')}
+  }catch{/* The mutation exposes errors and retains the original intent. */}}
 
   const stagesByDivision = useMemo(() => {
     const map = new Map<string, Row[]>()
@@ -263,10 +307,18 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
 
   if (loading) return <div className="advanced-structure-loading"><Loader2 className="button-spinner" size={18} /> Carregando estrutura avançada…</div>
 
-  const canManage = data.permission?.canManage !== false
+  const canManage = data.permission?.canManage === true
 
   return (
     <div className="advanced-structure-stack">
+      <PendingGroupChoice pending={Boolean(choiceMutation.pending)} busy={choiceMutation.busy} error={choiceMutation.error}
+        onRetry={()=>void confirmPendingChoice()} onDiscard={choiceMutation.discard}/>
+      {progressionMutation.error?<div className="message error" role="alert">{progressionMutation.error}</div>:null}
+      {progressionMutation.pending?<div className="message" role="status">
+        <p>Há uma progressão aguardando confirmação. Confira os vínculos e o histórico antes de iniciar outra alteração.</p>
+        <button type="button" className="button" disabled={busy} onClick={()=>void retryProgression()}>Repetir tentativa original da progressão</button>
+        <button type="button" className="button secondary" disabled={busy} onClick={()=>void confirmAction('Encerrar a tentativa local após conferir os vínculos e o histórico? Isso não desfaz a progressão no servidor.').then(async confirmed=>{if(confirmed&&resourceNow.current===resource&&await progressionMutation.discard()){setProgressionPreview(null);setReplaceProgressionConflicts(false)}})}>Encerrar tentativa após conferir</button>
+      </div>:null}
       <header className="advanced-structure-header">
         <div><p className="eyebrow">Estrutura avançada</p><h3>Edições, séries, etapas e lotes</h3><p>Configure qualificatórias, pontos corridos, promoções e horários independentes sem alterar os campeonatos antigos.</p></div>
         <button className="button secondary" onClick={() => void load()}><RefreshCw size={15} /> Atualizar</button>
@@ -275,19 +327,13 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
 
       <section className="advanced-card">
         <h4>Campeonato histórico e edição</h4>
-        <div className="mini-grid four">
-          <label><span>Nome histórico</span><input value={edition.franchise_name} onChange={(e) => setEdition({ ...edition, franchise_name: e.target.value })} placeholder="Copa ALOE" /></label>
-          <label><span>Nº da edição</span><input type="number" min="1" value={edition.edition_number} onChange={(e) => setEdition({ ...edition, edition_number: e.target.value })} /></label>
-          <label><span>Temporada</span><input value={edition.season} onChange={(e) => setEdition({ ...edition, season: e.target.value })} placeholder="2027" /></label>
-          <label><span>Título público</span><input value={edition.public_title} onChange={(e) => setEdition({ ...edition, public_title: e.target.value })} placeholder="3ª edição" /></label>
-        </div>
-        <button className="button" disabled={!canManage || busy || !edition.franchise_name.trim()} onClick={() => void act({ action: 'save_edition', franchise_id: data.franchise?.id, ...edition })}>{busy ? 'Salvando…' : 'Salvar edição'}</button>
+        <EditionPanel championshipId={campeonatoId} contract={data} edition={data.edition} franchise={data.franchise} canManage={canManage&&!busy} onRefresh={async()=>{try{setData(await request('GET'));return true}catch{return false}}} />
       </section>
 
       {data.edition ? <>
         <section className="advanced-card">
           <h4>Séries ou divisões</h4>
-          <div className="mini-grid three"><label><span>Nome</span><input value={division.name} onChange={(e) => setDivision({ ...division, name: e.target.value })} placeholder="Série C" /></label><label><span>Código</span><input value={division.code} onChange={(e) => setDivision({ ...division, code: e.target.value })} placeholder="C" /></label><label><span>Ordem</span><input type="number" min="1" value={division.order} onChange={(e) => setDivision({ ...division, order: e.target.value })} /></label></div>
+          <div className="mini-grid three"><label><span>Nome</span><UiInput value={division.name} onChange={(e) => setDivision({ ...division, name: e.target.value })} placeholder="Série C" /></label><label><span>Código</span><UiInput value={division.code} onChange={(e) => setDivision({ ...division, code: e.target.value })} placeholder="C" /></label><label><span>Ordem</span><UiInput type="number" min="1" value={division.order} onChange={(e) => setDivision({ ...division, order: e.target.value })} /></label></div>
           <button className="button" disabled={!canManage || busy || !division.name.trim()} onClick={() => void act({ action: 'create_division', edition_id: data.edition?.id, ...division })}><Plus size={15} /> Adicionar série</button>
           <div className="advanced-chip-row">{data.divisions.map((row) => <span className="advanced-chip" key={row.id}>{row.codigo || row.nome} · {row.nome}<button title="Excluir" onClick={() => void act({ action: 'delete', table: 'campeonato_divisoes', row_id: row.id })}><Trash2 size={13} /></button></span>)}</div>
         </section>
@@ -295,16 +341,16 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         <section className="advanced-card">
           <h4>Etapas operacionais</h4>
           <div className="mini-grid four">
-            <label><span>Série</span><select value={stage.division_id} onChange={(e) => setStage({ ...stage, division_id: e.target.value })}><option value="">Sem série</option>{data.divisions.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label>
-            <label><span>Nome</span><input value={stage.name} onChange={(e) => setStage({ ...stage, name: e.target.value })} placeholder="Qualificatória" /></label>
-            <label><span>Tipo</span><select value={stage.type} onChange={(e) => setStage({ ...stage, type: e.target.value })}><option value="qualificatoria">Qualificatória</option><option value="pontos_corridos">Pontos corridos</option><option value="mata_mata">Mata-mata</option><option value="final">Grande Final</option><option value="outra">Outra</option></select></label>
-            <label><span>Formato</span><select value={stage.format} onChange={(e) => setStage({ ...stage, format: e.target.value })}><option value="mata_mata">Mata-mata</option><option value="pontos_corridos">Pontos corridos</option><option value="jogo_unico">Jogo único</option><option value="misto">Misto</option><option value="outro">Outro</option></select></label>
-            <label><span>Capacidade</span><input type="number" min="1" value={stage.capacity} onChange={(e) => setStage({ ...stage, capacity: e.target.value })} /></label>
-            <label><span>Vagas vendidas</span><input type="number" min="0" value={stage.direct_sales} onChange={(e) => setStage({ ...stage, direct_sales: e.target.value })} /></label>
-            <label><span>Valor por vaga</span><input type="number" min="0" step="0.01" value={stage.vacancy_value} onChange={(e) => setStage({ ...stage, vacancy_value: e.target.value })} /></label>
-            <label><span>{stage.type === 'final' ? 'Destino' : 'Classificam'}</span><input type="number" min="0" disabled={stage.type === 'final'} value={stage.type === 'final' ? '' : stage.qualifiers} onChange={(e) => setStage({ ...stage, qualifiers: e.target.value })} placeholder={stage.type === 'final' ? 'Campeão' : undefined} /></label>
+            <label><span>Série</span><UiSelect value={stage.division_id} onChange={(e) => setStage({ ...stage, division_id: e.target.value })}><option value="">Sem série</option>{data.divisions.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label>
+            <label><span>Nome</span><UiInput value={stage.name} onChange={(e) => setStage({ ...stage, name: e.target.value })} placeholder="Qualificatória" /></label>
+            <label><span>Tipo</span><UiSelect value={stage.type} onChange={(e) => setStage({ ...stage, type: e.target.value })}><option value="qualificatoria">Qualificatória</option><option value="pontos_corridos">Pontos corridos</option><option value="mata_mata">Mata-mata</option><option value="final">Grande Final</option><option value="outra">Outra</option></UiSelect></label>
+            <label><span>Formato</span><UiSelect value={stage.format} onChange={(e) => setStage({ ...stage, format: e.target.value })}><option value="mata_mata">Mata-mata</option><option value="pontos_corridos">Pontos corridos</option><option value="jogo_unico">Jogo único</option><option value="misto">Misto</option><option value="outro">Outro</option></UiSelect></label>
+            <label><span>Capacidade</span><UiInput type="number" min="1" value={stage.capacity} onChange={(e) => setStage({ ...stage, capacity: e.target.value })} /></label>
+            <label><span>Vagas vendidas</span><UiInput type="number" min="0" value={stage.direct_sales} onChange={(e) => setStage({ ...stage, direct_sales: e.target.value })} /></label>
+            <label><span>Valor por vaga</span><UiInput type="number" min="0" step="0.01" value={stage.vacancy_value} onChange={(e) => setStage({ ...stage, vacancy_value: e.target.value })} /></label>
+            <label><span>{stage.type === 'final' ? 'Destino' : 'Classificam'}</span><UiInput type="number" min="0" disabled={stage.type === 'final'} value={stage.type === 'final' ? '' : stage.qualifiers} onChange={(e) => setStage({ ...stage, qualifiers: e.target.value })} placeholder={stage.type === 'final' ? 'Campeão' : undefined} /></label>
           </div>
-          <label className="checkbox-row"><input type="checkbox" checked={stage.awards_mvp} onChange={(e) => setStage({ ...stage, awards_mvp: e.target.checked })} /> Premia MVP nesta etapa</label>
+          <label className="checkbox-row"><UiInput type="checkbox" checked={stage.awards_mvp} onChange={(e) => setStage({ ...stage, awards_mvp: e.target.checked })} /> Premia MVP nesta etapa</label>
           <button className="button" disabled={!canManage || busy || !stage.name.trim()} onClick={() => void act({ action: 'create_stage', edition_id: data.edition?.id, ...stage, qualifiers: stage.type === 'final' ? '' : stage.qualifiers })}><Plus size={15} /> Adicionar etapa</button>
           <div className="advanced-stage-list">{data.divisions.concat([{ id: 'geral', nome: 'Sem série' }]).map((divisionRow) => {
             const rows = stagesByDivision.get(String(divisionRow.id)) || []
@@ -314,9 +360,9 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         </section>
 
         {data.stages.length ? <section className="advanced-card advanced-three-columns">
-          <div><h4>Composição de vagas</h4><label><span>Etapa destino</span><select value={source.stage_id} onChange={(e) => setSource({ ...source, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label><label><span>Origem</span><select value={source.source_type} onChange={(e) => setSource({ ...source, source_type: e.target.value })}><option value="venda_direta">Venda direta</option><option value="qualificatoria">Qualificatória</option><option value="promocao">Promoção</option><option value="convite">Convite</option><option value="manual">Manual</option><option value="outra_etapa">Outra etapa</option></select></label><label><span>Etapa origem</span><select value={source.source_stage_id} onChange={(e) => setSource({ ...source, source_stage_id: e.target.value })}><option value="">Nenhuma</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label><label><span>Quantidade</span><input type="number" min="1" value={source.quantity} onChange={(e) => setSource({ ...source, quantity: e.target.value })} /></label><button className="button" disabled={!source.stage_id || !source.quantity || busy} onClick={() => void act({ action: 'create_source', ...source })}>Adicionar origem</button></div>
-          <div><h4>Progressão</h4><label><span>Etapa origem</span><select value={progression.stage_id} onChange={(e) => setProgression({ ...progression, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label><label><span>Destino</span><select value={progression.progression_type} onChange={(e) => setProgression({ ...progression, progression_type: e.target.value })}><option value="promocao">Promoção</option><option value="avanco">Avanço</option><option value="eliminacao">Eliminação</option><option value="premiacao">Premiação</option><option value="permanencia">Permanência</option><option value="rebaixamento">Rebaixamento</option></select></label><label><span>Etapa destino</span><select value={progression.destination_stage_id} onChange={(e) => setProgression({ ...progression, destination_stage_id: e.target.value })}><option value="">Nenhuma</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label><div className="mini-grid two"><label><span>Posição inicial</span><input type="number" min="1" value={progression.position_start} onChange={(e) => setProgression({ ...progression, position_start: e.target.value })} /></label><label><span>Posição final</span><input type="number" min="1" value={progression.position_end} onChange={(e) => setProgression({ ...progression, position_end: e.target.value })} /></label></div><button className="button" disabled={!progression.stage_id || busy} onClick={() => void act({ action: 'create_progression', ...progression })}>Adicionar regra</button></div>
-          <div><h4>Premiação</h4><label><span>Etapa</span><select value={prize.stage_id} onChange={(e) => setPrize({ ...prize, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label><label><span>Tipo</span><select value={prize.prize_type} onChange={(e) => setPrize({ ...prize, prize_type: e.target.value })}><option value="colocacao">Colocação</option><option value="mvp">MVP</option><option value="outro">Outro</option></select></label><label><span>Posição</span><input type="number" min="1" value={prize.position} onChange={(e) => setPrize({ ...prize, position: e.target.value })} /></label><label><span>Título</span><input value={prize.title} onChange={(e) => setPrize({ ...prize, title: e.target.value })} placeholder="Campeão" /></label><label><span>Valor</span><input type="number" min="0" step="0.01" value={prize.value} onChange={(e) => setPrize({ ...prize, value: e.target.value })} /></label><button className="button" disabled={!prize.stage_id || busy} onClick={() => void act({ action: 'create_prize', ...prize })}>Adicionar prêmio</button></div>
+          <div><h4>Composição de vagas</h4><label><span>Etapa destino</span><UiSelect value={source.stage_id} onChange={(e) => setSource({ ...source, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><label><span>Origem</span><UiSelect value={source.source_type} onChange={(e) => setSource({ ...source, source_type: e.target.value })}><option value="venda_direta">Venda direta</option><option value="qualificatoria">Qualificatória</option><option value="promocao">Promoção</option><option value="convite">Convite</option><option value="manual">Manual</option><option value="outra_etapa">Outra etapa</option></UiSelect></label><label><span>Etapa origem</span><UiSelect value={source.source_stage_id} onChange={(e) => setSource({ ...source, source_stage_id: e.target.value })}><option value="">Nenhuma</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><label><span>Quantidade</span><UiInput type="number" min="1" value={source.quantity} onChange={(e) => setSource({ ...source, quantity: e.target.value })} /></label><button className="button" disabled={!source.stage_id || !source.quantity || busy} onClick={() => void act({ action: 'create_source', ...source })}>Adicionar origem</button></div>
+          <div><h4>Progressão</h4><label><span>Etapa origem</span><UiSelect value={progression.stage_id} onChange={(e) => setProgression({ ...progression, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><label><span>Destino</span><UiSelect value={progression.progression_type} onChange={(e) => setProgression({ ...progression, progression_type: e.target.value })}><option value="promocao">Promoção</option><option value="avanco">Avanço</option><option value="eliminacao">Eliminação</option><option value="premiacao">Premiação</option><option value="permanencia">Permanência</option><option value="rebaixamento">Rebaixamento</option></UiSelect></label><label><span>Etapa destino</span><UiSelect value={progression.destination_stage_id} onChange={(e) => setProgression({ ...progression, destination_stage_id: e.target.value })}><option value="">Nenhuma</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><div className="mini-grid two"><label><span>Posição inicial</span><UiInput type="number" min="1" value={progression.position_start} onChange={(e) => setProgression({ ...progression, position_start: e.target.value })} /></label><label><span>Posição final</span><UiInput type="number" min="1" value={progression.position_end} onChange={(e) => setProgression({ ...progression, position_end: e.target.value })} /></label></div><button className="button" disabled={!progression.stage_id || busy} onClick={() => void act({ action: 'create_progression', ...progression })}>Adicionar regra</button></div>
+          <div><h4>Premiação</h4><label><span>Etapa</span><UiSelect value={prize.stage_id} onChange={(e) => setPrize({ ...prize, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label><label><span>Tipo</span><UiSelect value={prize.prize_type} onChange={(e) => setPrize({ ...prize, prize_type: e.target.value })}><option value="colocacao">Colocação</option><option value="mvp">MVP</option><option value="outro">Outro</option></UiSelect></label><label><span>Posição</span><UiInput type="number" min="1" value={prize.position} onChange={(e) => setPrize({ ...prize, position: e.target.value })} /></label><label><span>Título</span><UiInput value={prize.title} onChange={(e) => setPrize({ ...prize, title: e.target.value })} placeholder="Campeão" /></label><label><span>Valor</span><UiInput type="number" min="0" step="0.01" value={prize.value} onChange={(e) => setPrize({ ...prize, value: e.target.value })} /></label><button className="button" disabled={!prize.stage_id || busy} onClick={() => void act({ action: 'create_prize', ...prize })}>Adicionar prêmio</button></div>
         </section> : null}
       </> : <div className="message">Cadastre primeiro o campeonato histórico e sua edição para liberar séries e etapas.</div>}
 
@@ -324,10 +370,10 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         <h4>Operação por etapa</h4>
         <p className="advanced-help">Distribua as participações reais entre as etapas. A capacidade é bloqueada no servidor e cada vínculo registra a origem da vaga.</p>
         <div className="mini-grid four">
-          <label><span>Etapa</span><select value={assignment.stage_id} onChange={(e) => setAssignment({ ...assignment, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label>
-          <label><span>Equipe/line</span><select value={assignment.campeonato_equipe_id} onChange={(e) => setAssignment({ ...assignment, campeonato_equipe_id: e.target.value })}><option value="">Selecione</option>{data.teams.map((row) => <option value={row.id} key={row.id}>{teamName(row)}</option>)}</select></label>
-          <label><span>Origem</span><select value={assignment.source_type} onChange={(e) => setAssignment({ ...assignment, source_type: e.target.value })}><option value="manual">Manual</option><option value="venda_direta">Venda direta</option><option value="qualificatoria">Qualificatória</option><option value="promocao">Promoção</option><option value="convite">Convite</option><option value="outra_etapa">Outra etapa</option></select></label>
-          <label><span>Etapa de origem</span><select value={assignment.source_stage_id} onChange={(e) => setAssignment({ ...assignment, source_stage_id: e.target.value })}><option value="">Nenhuma</option>{data.stages.filter((row) => row.id !== assignment.stage_id).map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</select></label>
+          <label><span>Etapa</span><UiSelect value={assignment.stage_id} onChange={(e) => setAssignment({ ...assignment, stage_id: e.target.value })}><option value="">Selecione</option>{data.stages.map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label>
+          <label><span>Equipe/line</span><UiSelect value={assignment.campeonato_equipe_id} onChange={(e) => setAssignment({ ...assignment, campeonato_equipe_id: e.target.value })}><option value="">Selecione</option>{data.teams.map((row) => <option value={row.id} key={row.id}>{teamName(row)}</option>)}</UiSelect></label>
+          <label><span>Origem</span><UiSelect value={assignment.source_type} onChange={(e) => setAssignment({ ...assignment, source_type: e.target.value })}><option value="manual">Manual</option><option value="venda_direta">Venda direta</option><option value="qualificatoria">Qualificatória</option><option value="promocao">Promoção</option><option value="convite">Convite</option><option value="outra_etapa">Outra etapa</option></UiSelect></label>
+          <label><span>Etapa de origem</span><UiSelect value={assignment.source_stage_id} onChange={(e) => setAssignment({ ...assignment, source_stage_id: e.target.value })}><option value="">Nenhuma</option>{data.stages.filter((row) => row.id !== assignment.stage_id).map((row) => <option value={row.id} key={row.id}>{row.nome}</option>)}</UiSelect></label>
         </div>
         <button className="button" disabled={!canManage || busy || !assignment.stage_id || !assignment.campeonato_equipe_id} onClick={() => void act({ action: 'assign_team', ...assignment })}><Plus size={15} /> Vincular equipe à etapa</button>
         <div className="advanced-operational-grid">{data.stages.map((row) => {
@@ -335,7 +381,7 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
           const capacity = Number(row.capacidade_total || 0)
           return <article key={row.id} className="advanced-operation-stage"><div className="advanced-operation-stage-head"><div><b>{row.nome}</b><small>{linked.length}/{capacity || '∞'} ocupadas · {Math.max(0, capacity - linked.length) || (capacity ? 0 : '∞')} disponíveis</small></div></div><div className="advanced-assignment-list">{linked.length ? linked.map((link) => { const team = data.teams.find((item) => item.id === link.campeonato_equipe_id); return <span key={link.id}>{team ? teamName(team) : 'Equipe'}<small>{link.tipo_origem}</small><button title="Retirar da etapa" onClick={() => void act({ action: 'remove_team', stage_team_id: link.id })}><Trash2 size={12} /></button></span> }) : <small>Nenhuma equipe vinculada.</small>}</div></article>
         })}</div>
-        {data.phases.length ? <div className="advanced-link-list"><h5>Vincular fases existentes</h5>{data.phases.map((phase) => <label key={phase.id}><span>{phase.nome}</span><select value={phase.etapa_id || ''} onChange={(e) => void act({ action: 'link_phase', phase_id: phase.id, stage_id: e.target.value })}><option value="">Sem etapa</option>{data.stages.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>)}</div> : null}
+        {data.phases.length ? <div className="advanced-link-list"><h5>Vincular fases existentes</h5>{data.phases.map((phase) => <label key={phase.id}><span>{phase.nome}</span><UiSelect value={phase.etapa_id || ''} onChange={(e) => void act({ action: 'link_phase', phase_id: phase.id, stage_id: e.target.value })}><option value="">Sem etapa</option>{data.stages.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</UiSelect></label>)}</div> : null}
       </section> : null}
 
       {data.phases.length && data.groups.length ? <section className="advanced-card">
@@ -344,45 +390,45 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         <div className="advanced-group-choice-grid">
           <div>
             <h5>Distribuição manual</h5>
-            <label><span>Equipe/line</span><select value={groupAssignment.campeonato_equipe_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, campeonato_equipe_id: e.target.value })}><option value="">Selecione</option>{data.teams.map((row) => <option key={row.id} value={row.id}>{teamName(row)}</option>)}</select></label>
-            <label><span>Grupo</span><select value={groupAssignment.group_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, group_id: e.target.value, slot_id: '' })}><option value="">Selecione</option>{data.groups.map((group) => { const free = data.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} vaga(s)</option> })}</select></label>
-            <label><span>Slot</span><select value={groupAssignment.slot_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, slot_id: e.target.value })} disabled={!groupAssignment.group_id}><option value="">Selecione o slot</option>{data.slots.filter((slot) => slot.grupo_id === groupAssignment.group_id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</select></label>
+            <label><span>Equipe/line</span><UiSelect value={groupAssignment.campeonato_equipe_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, campeonato_equipe_id: e.target.value })}><option value="">Selecione</option>{data.teams.map((row) => <option key={row.id} value={row.id}>{teamName(row)}</option>)}</UiSelect></label>
+            <label><span>Grupo</span><UiSelect value={groupAssignment.group_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, group_id: e.target.value, slot_id: '' })}><option value="">Selecione</option>{data.groups.map((group) => { const free = data.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} vaga(s)</option> })}</UiSelect></label>
+            <label><span>Slot</span><UiSelect value={groupAssignment.slot_id} onChange={(e) => setGroupAssignment({ ...groupAssignment, slot_id: e.target.value })} disabled={!groupAssignment.group_id}><option value="">Selecione o slot</option>{data.slots.filter((slot) => slot.grupo_id === groupAssignment.group_id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id).map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</UiSelect></label>
             <button className="button" disabled={busy || !groupAssignment.campeonato_equipe_id || !groupAssignment.group_id || !groupAssignment.slot_id} onClick={() => void act({ action: 'assign_group_manual', ...groupAssignment })}>Confirmar grupo e slot</button>
           </div>
           <div>
             <h5>Escolha pelas equipes</h5>
-            <div className="advanced-choice-config-list">{data.phases.map((phase) => { const config = data.groupChoiceConfigs.find((row) => row.fase_id === phase.id); const groups = data.groups.filter((row) => row.fase_id === phase.id); if (!groups.length) return null; const draft = choiceSchedule[phase.id] || { opens_at: config?.abre_em ? String(config.abre_em).slice(0, 16) : '', closes_at: config?.fecha_em ? String(config.fecha_em).slice(0, 16) : '' }; return <article key={phase.id}><div><b>{phase.nome}</b><small>{groups.length} grupo(s) disponíveis</small></div><label className="checkbox-row"><input type="checkbox" checked={Boolean(config?.aberta)} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: e.target.checked, allow_change: config?.permite_troca !== false, opens_at: draft.opens_at, closes_at: draft.closes_at })} /> Escolha habilitada</label><label className="checkbox-row"><input type="checkbox" checked={config?.permite_troca !== false} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: Boolean(config?.aberta), allow_change: e.target.checked, opens_at: draft.opens_at, closes_at: draft.closes_at })} /> Permitir troca</label><div className="mini-grid two"><label><span>Abre em</span><input type="datetime-local" value={draft.opens_at} onChange={(e) => setChoiceSchedule({ ...choiceSchedule, [phase.id]: { ...draft, opens_at: e.target.value } })} /></label><label><span>Fecha em</span><input type="datetime-local" value={draft.closes_at} onChange={(e) => setChoiceSchedule({ ...choiceSchedule, [phase.id]: { ...draft, closes_at: e.target.value } })} /></label></div><button className="button secondary" onClick={() => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: Boolean(config?.aberta), allow_change: config?.permite_troca !== false, opens_at: draft.opens_at, closes_at: draft.closes_at })}>Salvar prazo</button></article> })}</div>
+            <div className="advanced-choice-config-list">{data.phases.map((phase) => { const config = data.groupChoiceConfigs.find((row) => row.fase_id === phase.id); const groups = data.groups.filter((row) => row.fase_id === phase.id); if (!groups.length) return null; const draft = choiceSchedule[phase.id] || { opens_at: config?.abre_em ? String(config.abre_em).slice(0, 16) : '', closes_at: config?.fecha_em ? String(config.fecha_em).slice(0, 16) : '' }; return <article key={phase.id}><div><b>{phase.nome}</b><small>{groups.length} grupo(s) disponíveis</small></div><label className="checkbox-row"><UiInput type="checkbox" checked={Boolean(config?.aberta)} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: e.target.checked, allow_change: config?.permite_troca !== false, opens_at: draft.opens_at, closes_at: draft.closes_at })} /> Escolha habilitada</label><label className="checkbox-row"><UiInput type="checkbox" checked={config?.permite_troca !== false} onChange={(e) => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: Boolean(config?.aberta), allow_change: e.target.checked, opens_at: draft.opens_at, closes_at: draft.closes_at })} /> Permitir troca</label><div className="mini-grid two"><label><span>Abre em</span><UiInput type="datetime-local" value={draft.opens_at} onChange={(e) => setChoiceSchedule({ ...choiceSchedule, [phase.id]: { ...draft, opens_at: e.target.value } })} /></label><label><span>Fecha em</span><UiInput type="datetime-local" value={draft.closes_at} onChange={(e) => setChoiceSchedule({ ...choiceSchedule, [phase.id]: { ...draft, closes_at: e.target.value } })} /></label></div><button className="button secondary" onClick={() => void act({ action: 'save_group_choice_config', phase_id: phase.id, open: Boolean(config?.aberta), allow_change: config?.permite_troca !== false, opens_at: draft.opens_at, closes_at: draft.closes_at })}>Salvar prazo</button></article> })}</div>
           </div>
           <div className="advanced-choice-blocks">
             <h5>Bloqueios manuais</h5>
-            <label><span>Fase</span><select value={choiceBlock.phase_id} onChange={(e) => setChoiceBlock({ phase_id: e.target.value, group_id: '', slot_id: '', reason: choiceBlock.reason })}><option value="">Selecione</option>{data.phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</select></label>
-            <label><span>Grupo</span><select value={choiceBlock.group_id} onChange={(e) => setChoiceBlock({ ...choiceBlock, group_id: e.target.value, slot_id: '' })}><option value="">Nenhum</option>{data.groups.filter((group) => !choiceBlock.phase_id || group.fase_id === choiceBlock.phase_id).map((group) => <option key={group.id} value={group.id}>{group.nome}</option>)}</select></label>
-            <label><span>Slot</span><select value={choiceBlock.slot_id} onChange={(e) => setChoiceBlock({ ...choiceBlock, slot_id: e.target.value, group_id: '' })}><option value="">Nenhum</option>{data.slots.filter((slot) => !choiceBlock.phase_id || slot.fase_id === choiceBlock.phase_id).map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</select></label>
-            <label><span>Motivo</span><input value={choiceBlock.reason} onChange={(e) => setChoiceBlock({ ...choiceBlock, reason: e.target.value })} placeholder="Ex.: reservado para convidada" /></label>
+            <label><span>Fase</span><UiSelect value={choiceBlock.phase_id} onChange={(e) => setChoiceBlock({ phase_id: e.target.value, group_id: '', slot_id: '', reason: choiceBlock.reason })}><option value="">Selecione</option>{data.phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</UiSelect></label>
+            <label><span>Grupo</span><UiSelect value={choiceBlock.group_id} onChange={(e) => setChoiceBlock({ ...choiceBlock, group_id: e.target.value, slot_id: '' })}><option value="">Nenhum</option>{data.groups.filter((group) => !choiceBlock.phase_id || group.fase_id === choiceBlock.phase_id).map((group) => <option key={group.id} value={group.id}>{group.nome}</option>)}</UiSelect></label>
+            <label><span>Slot</span><UiSelect value={choiceBlock.slot_id} onChange={(e) => setChoiceBlock({ ...choiceBlock, slot_id: e.target.value, group_id: '' })}><option value="">Nenhum</option>{data.slots.filter((slot) => !choiceBlock.phase_id || slot.fase_id === choiceBlock.phase_id).map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</UiSelect></label>
+            <label><span>Motivo</span><UiInput value={choiceBlock.reason} onChange={(e) => setChoiceBlock({ ...choiceBlock, reason: e.target.value })} placeholder="Ex.: reservado para convidada" /></label>
             <button className="button secondary" disabled={!choiceBlock.phase_id || (!choiceBlock.group_id && !choiceBlock.slot_id)} onClick={() => void act({ action: 'set_group_choice_block', ...choiceBlock })}>Bloquear opção</button>
             <div className="advanced-chip-row">{data.groupChoiceBlocks.map((row) => { const group = data.groups.find((item) => item.id === row.grupo_id); const slot = data.slots.find((item) => item.id === row.slot_id); return <span className="advanced-chip" key={row.id}>{group?.nome || slot?.slot_letra || `Slot ${slot?.slot_numero || ''}`} {row.motivo ? `· ${row.motivo}` : ''}<button title="Remover bloqueio" onClick={() => void act({ action: 'remove_group_choice_block', block_id: row.id })}><Trash2 size={13} /></button></span> })}</div>
           </div>
         </div>
         <div className="advanced-choice-operations">
           <div className="advanced-choice-operations-head"><div><h5>Painel operacional das escolhas</h5><small>{choiceOperationalRows.filter((row) => row.status === 'chosen').length} escolhidas · {choiceOperationalRows.filter((row) => row.status === 'pending').length} pendentes · {data.slots.filter((row) => row.status === 'livre' && !row.equipe_id && !row.line_id).length} slots livres · {data.groupChoiceBlocks.length} bloqueios</small></div><button className="button secondary" onClick={exportChoiceCsv}>Exportar CSV</button></div>
-          <div className="advanced-choice-notices"><label><span>Tipo de aviso</span><select value={choiceNoticeType} onChange={(e) => setChoiceNoticeType(e.target.value)}><option value="pending">Escolha pendente</option><option value="deadline">Prazo próximo</option><option value="general">Aviso geral</option></select></label><button className="button secondary" disabled={busy || !filteredChoiceRows.length} onClick={() => void sendChoiceNotifications(false)}>Avisar filtradas</button><button className="button" disabled={busy || !filteredChoiceRows.some((row) => row.status === 'pending')} onClick={() => void sendChoiceNotifications(true)}>Avisar apenas pendentes</button></div>
+          <div className="advanced-choice-notices"><label><span>Tipo de aviso</span><UiSelect value={choiceNoticeType} onChange={(e) => setChoiceNoticeType(e.target.value)}><option value="pending">Escolha pendente</option><option value="deadline">Prazo próximo</option><option value="general">Aviso geral</option></UiSelect></label><button className="button secondary" disabled={busy || !filteredChoiceRows.length} onClick={() => void sendChoiceNotifications(false)}>Avisar filtradas</button><button className="button" disabled={busy || !filteredChoiceRows.some((row) => row.status === 'pending')} onClick={() => void sendChoiceNotifications(true)}>Avisar apenas pendentes</button></div>
           <div className="mini-grid four">
-            <label><span>Busca</span><input value={choiceOpsFilter.query} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, query: e.target.value })} placeholder="Nome ou tag" /></label>
-            <label><span>Fase</span><select value={choiceOpsFilter.phase_id} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, phase_id: e.target.value, group_id: '' })}><option value="">Todas</option>{data.phases.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
-            <label><span>Grupo</span><select value={choiceOpsFilter.group_id} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, group_id: e.target.value })}><option value="">Todos</option>{data.groups.filter((row) => !choiceOpsFilter.phase_id || row.fase_id === choiceOpsFilter.phase_id).map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
-            <label><span>Status</span><select value={choiceOpsFilter.status} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, status: e.target.value })}><option value="all">Todos</option><option value="chosen">Escolhidas</option><option value="pending">Pendentes</option><option value="cancelled">Canceladas</option></select></label>
+            <label><span>Busca</span><UiInput value={choiceOpsFilter.query} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, query: e.target.value })} placeholder="Nome ou tag" /></label>
+            <label><span>Fase</span><UiSelect value={choiceOpsFilter.phase_id} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, phase_id: e.target.value, group_id: '' })}><option value="">Todas</option>{data.phases.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</UiSelect></label>
+            <label><span>Grupo</span><UiSelect value={choiceOpsFilter.group_id} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, group_id: e.target.value })}><option value="">Todos</option>{data.groups.filter((row) => !choiceOpsFilter.phase_id || row.fase_id === choiceOpsFilter.phase_id).map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</UiSelect></label>
+            <label><span>Status</span><UiSelect value={choiceOpsFilter.status} onChange={(e) => setChoiceOpsFilter({ ...choiceOpsFilter, status: e.target.value })}><option value="all">Todos</option><option value="chosen">Escolhidas</option><option value="pending">Pendentes</option><option value="cancelled">Canceladas</option></UiSelect></label>
           </div>
           <div className="advanced-choice-operations-list">{filteredChoiceRows.length ? filteredChoiceRows.map((row) => <article key={row.team.id} className={`is-${row.status}`}><div><b>{teamName(row.team)}</b><small>{row.phase?.nome || 'Sem fase'} · {row.group?.nome || 'Sem grupo'} · {row.slot?.slot_letra || (row.slot?.slot_numero ? `Slot ${row.slot.slot_numero}` : 'Sem slot')}</small></div><span>{row.status === 'chosen' ? 'Escolhida' : row.status === 'cancelled' ? 'Cancelada' : 'Pendente'}</span><div className="advanced-choice-row-actions">{row.status === 'chosen' ? <><button className="button secondary" onClick={() => setGroupAssignment({ campeonato_equipe_id: row.team.id, group_id: row.group?.id || '', slot_id: '' })}>Mover</button><button className="button secondary danger" onClick={() => void act({ action: 'cancel_group_choice_admin', campeonato_equipe_id: row.team.id })}>Cancelar</button></> : row.status === 'cancelled' ? <button className="button secondary" onClick={() => void act({ action: 'restore_group_choice_admin', campeonato_equipe_id: row.team.id })}>Restaurar</button> : <button className="button secondary" onClick={() => setGroupAssignment({ campeonato_equipe_id: row.team.id, group_id: '', slot_id: '' })}>Definir</button>}</div></article>) : <div className="message">Nenhuma equipe encontrada com esses filtros.</div>}</div>
         </div>
         {data.groupChoiceHistory.length ? <div className="advanced-choice-audit">
           <div className="advanced-choice-audit-head"><div><h5>Histórico e logs das escolhas</h5><small>{filteredGroupChoiceHistory.length} registro(s) exibido(s) de {data.groupChoiceHistory.length}</small></div><button className="button secondary" onClick={exportChoiceHistoryCsv}>Exportar logs CSV</button></div>
           <div className="mini-grid three">
-            <label><span>Equipe/line</span><select value={choiceHistoryFilter.team_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, team_id: e.target.value })}><option value="">Todas</option>{data.teams.map((row) => <option key={row.id} value={row.id}>{teamName(row)}</option>)}</select></label>
-            <label><span>Ação</span><select value={choiceHistoryFilter.action} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, action: e.target.value })}><option value="all">Todas</option><option value="created">Confirmada</option><option value="changed">Movida/trocada</option><option value="cancelled">Cancelada</option><option value="restored">Restaurada</option></select></label>
-            <label><span>Fase</span><select value={choiceHistoryFilter.phase_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, phase_id: e.target.value, group_id: '' })}><option value="">Todas</option>{data.phases.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
-            <label><span>Grupo</span><select value={choiceHistoryFilter.group_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, group_id: e.target.value })}><option value="">Todos</option>{data.groups.filter((row) => !choiceHistoryFilter.phase_id || row.fase_id === choiceHistoryFilter.phase_id).map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</select></label>
-            <label><span>De</span><input type="date" value={choiceHistoryFilter.date_from} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, date_from: e.target.value })} /></label>
-            <label><span>Até</span><input type="date" value={choiceHistoryFilter.date_to} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, date_to: e.target.value })} /></label>
+            <label><span>Equipe/line</span><UiSelect value={choiceHistoryFilter.team_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, team_id: e.target.value })}><option value="">Todas</option>{data.teams.map((row) => <option key={row.id} value={row.id}>{teamName(row)}</option>)}</UiSelect></label>
+            <label><span>Ação</span><UiSelect value={choiceHistoryFilter.action} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, action: e.target.value })}><option value="all">Todas</option><option value="created">Confirmada</option><option value="changed">Movida/trocada</option><option value="cancelled">Cancelada</option><option value="restored">Restaurada</option></UiSelect></label>
+            <label><span>Fase</span><UiSelect value={choiceHistoryFilter.phase_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, phase_id: e.target.value, group_id: '' })}><option value="">Todas</option>{data.phases.map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</UiSelect></label>
+            <label><span>Grupo</span><UiSelect value={choiceHistoryFilter.group_id} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, group_id: e.target.value })}><option value="">Todos</option>{data.groups.filter((row) => !choiceHistoryFilter.phase_id || row.fase_id === choiceHistoryFilter.phase_id).map((row) => <option key={row.id} value={row.id}>{row.nome}</option>)}</UiSelect></label>
+            <label><span>De</span><UiInput type="date" value={choiceHistoryFilter.date_from} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, date_from: e.target.value })} /></label>
+            <label><span>Até</span><UiInput type="date" value={choiceHistoryFilter.date_to} onChange={(e) => setChoiceHistoryFilter({ ...choiceHistoryFilter, date_to: e.target.value })} /></label>
           </div>
           <div className="advanced-choice-timeline">{filteredGroupChoiceHistory.length ? filteredGroupChoiceHistory.map((item) => <article key={item.row.id} className={`is-${item.action}`}><span className="advanced-choice-timeline-dot" /><div className="advanced-choice-timeline-main"><div><b>{item.team ? teamName(item.team) : 'Equipe removida'}</b><strong>{choiceActionLabel(item.action)}</strong></div><small>{new Date(item.row.created_at).toLocaleString('pt-BR')} · {item.phase?.nome || 'Fase não informada'} · {item.row.origem === 'administrador' ? 'Administração' : item.row.origem === 'equipe' ? 'Equipe' : item.row.origem || 'Sistema'}</small><p><span>Anterior: {choicePosition(item.previousGroup, item.previousSlot)}</span><span>Novo: {choicePosition(item.nextGroup, item.nextSlot)}</span></p>{item.row.observacao ? <em>Motivo/observação: {item.row.observacao}</em> : null}<small>Responsável: {item.row.alterado_por_nome || item.row.alterado_por || 'Sistema'}</small></div></article>) : <div className="message">Nenhum registro encontrado com esses filtros.</div>}</div>
         </div> : null}
@@ -392,23 +438,23 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         <h4>Progressão automática</h4>
         <p className="advanced-help">Gere a lista de classificadas usando o ranking da etapa de origem. O grupo de destino permanece sem distribuição automática.</p>
         <div className="mini-grid two">
-          <label><span>Regra</span><select value={selectedProgressionRule} onChange={(e) => { setSelectedProgressionRule(e.target.value); setProgressionPreview(null) }}><option value="">Selecione</option>{data.progressions.filter((row) => row.etapa_destino_id).map((row) => { const sourceStage = data.stages.find((stageRow) => stageRow.id === row.etapa_origem_id); const destinationStage = data.stages.find((stageRow) => stageRow.id === row.etapa_destino_id); return <option key={row.id} value={row.id}>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'} · {row.posicao_inicio || 1}º a {row.posicao_fim || row.quantidade || '?' }º</option> })}</select></label>
-          <div className="advanced-progression-actions"><button className="button secondary" disabled={!selectedProgressionRule || busy} onClick={() => void previewProgression(selectedProgressionRule)}>Gerar prévia</button>{progressionPreview ? <button className="button" disabled={busy || (!progressionPreview.summary?.canApply && !replaceProgressionConflicts) || (!progressionPreview.summary?.newCount && !progressionPreview.summary?.conflictCount)} onClick={() => void applyProgression()}>Aplicar progressão</button> : null}</div>
+          <label><span>Regra</span><UiSelect value={selectedProgressionRule} onChange={(e) => { setSelectedProgressionRule(e.target.value); setProgressionPreview(null) }}><option value="">Selecione</option>{data.progressions.filter((row) => row.etapa_destino_id).map((row) => { const sourceStage = data.stages.find((stageRow) => stageRow.id === row.etapa_origem_id); const destinationStage = data.stages.find((stageRow) => stageRow.id === row.etapa_destino_id); return <option key={row.id} value={row.id}>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'} · {row.posicao_inicio || 1}º a {row.posicao_fim || row.quantidade || '?' }º</option> })}</UiSelect></label>
+          <div className="advanced-progression-actions"><button className="button secondary" disabled={!canManage || !progressionMutation.ready || progressionMutation.pending!=null || !selectedProgressionRule || busy} onClick={() => void previewProgression(selectedProgressionRule)}>Gerar prévia</button>{progressionPreview ? <button className="button" disabled={!canManage || !progressionMutation.ready || progressionMutation.pending!=null || busy || (!progressionPreview.summary?.canApply && !replaceProgressionConflicts) || (!progressionPreview.summary?.newCount && !progressionPreview.summary?.conflictCount)} onClick={() => void applyProgression()}>Aplicar progressão</button> : null}</div>
         </div>
         {progressionPreview ? <div className="advanced-progression-preview">
           <div className="advanced-progression-summary"><span><b>{progressionPreview.summary?.selected || 0}</b> selecionadas</span><span><b>{progressionPreview.summary?.newCount || 0}</b> novas</span><span><b>{progressionPreview.summary?.conflictCount || 0}</b> conflitos</span><span><b>{progressionPreview.summary?.alreadyApplied || 0}</b> já aplicadas</span><span><b>{progressionPreview.summary?.available ?? '∞'}</b> vagas disponíveis</span></div>
-          {progressionPreview.summary?.conflictCount ? <label className="advanced-progression-replace"><input type="checkbox" checked={replaceProgressionConflicts} onChange={(e) => setReplaceProgressionConflicts(e.target.checked)} /><span>Substituir vínculos conflitantes e preservar o estado anterior no histórico</span></label> : null}
+          {progressionPreview.summary?.conflictCount ? <label className="advanced-progression-replace"><UiInput type="checkbox" checked={replaceProgressionConflicts} onChange={(e) => setReplaceProgressionConflicts(e.target.checked)} /><span>Substituir vínculos conflitantes e preservar o estado anterior no histórico</span></label> : null}
           {!progressionPreview.summary?.canApply && !progressionPreview.summary?.conflictCount ? <div className="message">A etapa de destino não possui vagas suficientes.</div> : null}
           <div className="advanced-progression-list">{(progressionPreview.candidates || []).map((row: Row) => <article key={row.campeonato_equipe_id} className={row.conflict ? 'has-conflict' : ''}><b>{row.colocacao}º · {row.tag ? `${row.tag} — ` : ''}{row.nome}</b><small>{row.pontos_total || 0} pontos · {row.booyahs || 0} booyah(s) · {row.abates || 0} abates</small><span>{row.alreadyApplied ? 'Já aplicada por esta regra' : row.conflict ? 'Conflito com outra origem' : 'Pronta para aplicar'}</span></article>)}</div>
         </div> : null}
-        {data.progressionExecutions.length ? <div className="advanced-progression-history"><h5>Histórico de execuções</h5>{data.progressionExecutions.map((execution) => { const rule = data.progressions.find((row) => row.id === execution.regra_id); const sourceStage = data.stages.find((row) => row.id === rule?.etapa_origem_id); const destinationStage = data.stages.find((row) => row.id === rule?.etapa_destino_id); const items = data.progressionExecutionItems.filter((row) => row.execucao_id === execution.id); return <article key={execution.id}><div><b>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'}</b><small>{new Date(execution.aplicada_em || execution.created_at).toLocaleString('pt-BR')} · {items.length} equipe(s) · {execution.status}</small>{execution.motivo_reversao ? <small>Motivo: {execution.motivo_reversao}</small> : null}</div>{execution.status === 'aplicada' ? <button className="button secondary" disabled={busy} onClick={() => void reverseProgression(execution.id)}>Reverter</button> : null}</article> })}</div> : null}
+        {data.progressionExecutions.length ? <div className="advanced-progression-history"><h5>Histórico de execuções</h5>{data.progressionExecutions.map((execution) => { const rule = data.progressions.find((row) => row.id === execution.regra_id); const sourceStage = data.stages.find((row) => row.id === rule?.etapa_origem_id); const destinationStage = data.stages.find((row) => row.id === rule?.etapa_destino_id); const items = data.progressionExecutionItems.filter((row) => row.execucao_id === execution.id); return <article key={execution.id}><div><b>{sourceStage?.nome || 'Etapa'} → {destinationStage?.nome || 'Destino'}</b><small>{new Date(execution.aplicada_em || execution.created_at).toLocaleString('pt-BR')} · {items.length} equipe(s) · {execution.status}</small>{execution.motivo_reversao ? <small>Motivo: {execution.motivo_reversao}</small> : null}</div>{execution.status === 'aplicada' ? <button className="button secondary" disabled={!canManage || !progressionMutation.ready || progressionMutation.pending!=null || busy} onClick={() => void reverseProgression(execution.id)}>Reverter</button> : null}</article> })}</div> : null}
       </section> : null}
 
       {championshipType === 'diario' ? <section className="advanced-card">
         <h4>Horários independentes do Diário</h4>
-        <div className="mini-grid four"><label><span>Horário</span><input type="time" value={daily.hour} onChange={(e) => setDaily({ ...daily, hour: e.target.value })} /></label><label><span>Nome exibido</span><input value={daily.display_name} onChange={(e) => setDaily({ ...daily, display_name: e.target.value })} placeholder="19:00" /></label><label><span>Capacidade</span><input type="number" min="1" value={daily.capacity} onChange={(e) => setDaily({ ...daily, capacity: e.target.value })} /></label><label><span>Valor da vaga</span><input type="number" min="0" step="0.01" value={daily.vacancy_value} onChange={(e) => setDaily({ ...daily, vacancy_value: e.target.value })} /></label><label><span>Premiação</span><input value={daily.prize_description} onChange={(e) => setDaily({ ...daily, prize_description: e.target.value })} /></label><label><span>Valor da premiação</span><input type="number" min="0" step="0.01" value={daily.prize_value} onChange={(e) => setDaily({ ...daily, prize_value: e.target.value })} /></label><label><span>Mapa</span><input value={daily.map} onChange={(e) => setDaily({ ...daily, map: e.target.value })} /></label><label><span>Quedas</span><input type="number" min="1" value={daily.drops} onChange={(e) => setDaily({ ...daily, drops: e.target.value })} /></label></div>
+        <div className="mini-grid four"><label><span>Horário</span><UiInput type="time" value={daily.hour} onChange={(e) => setDaily({ ...daily, hour: e.target.value })} /></label><label><span>Nome exibido</span><UiInput value={daily.display_name} onChange={(e) => setDaily({ ...daily, display_name: e.target.value })} placeholder="19:00" /></label><label><span>Capacidade</span><UiInput type="number" min="1" value={daily.capacity} onChange={(e) => setDaily({ ...daily, capacity: e.target.value })} /></label><label><span>Valor da vaga</span><UiInput type="number" min="0" step="0.01" value={daily.vacancy_value} onChange={(e) => setDaily({ ...daily, vacancy_value: e.target.value })} /></label><label><span>Premiação</span><UiInput value={daily.prize_description} onChange={(e) => setDaily({ ...daily, prize_description: e.target.value })} /></label><label><span>Valor da premiação</span><UiInput type="number" min="0" step="0.01" value={daily.prize_value} onChange={(e) => setDaily({ ...daily, prize_value: e.target.value })} /></label><label><span>Mapa</span><UiInput value={daily.map} onChange={(e) => setDaily({ ...daily, map: e.target.value })} /></label><label><span>Quedas</span><UiInput type="number" min="1" value={daily.drops} onChange={(e) => setDaily({ ...daily, drops: e.target.value })} /></label></div>
         <button className="button" disabled={!daily.hour || busy} onClick={() => void act({ action: 'create_daily_hour', ...daily })}><Plus size={15} /> Adicionar horário</button>
-        <div className="advanced-stage-list">{data.dailyHours.map((row) => <article key={row.id}><div><b>{row.nome_exibicao || String(row.horario).slice(0, 5)}</b><small>{row.capacidade || 0} vagas · {row.numero_quedas} queda(s) · {row.mapa || 'Mapa não definido'}</small><select value={row.grupo_id || ''} onChange={(e) => e.target.value && void act({ action: 'link_daily_group', daily_hour_id: row.id, group_id: e.target.value })}><option value="">Vincular grupo</option>{data.groups.map((group) => <option key={group.id} value={group.id}>{group.nome}</option>)}</select></div><button className="icon-action-button danger" onClick={() => void act({ action: 'delete', table: 'campeonato_diario_horarios', row_id: row.id })}><Trash2 size={14} /></button></article>)}</div>
+        <DailyGroupPanel championshipId={campeonatoId} contract={data} hours={data.dailyHours} groups={data.groups} canManage={canManage&&!busy} onRefresh={async()=>{try{setData(await request('GET'));return true}catch{return false}}} onDelete={hour=>void act({action:'delete',table:'campeonato_diario_horarios',row_id:hour})} />
       </section> : null}
     </div>
   )

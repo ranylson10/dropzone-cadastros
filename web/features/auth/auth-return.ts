@@ -1,4 +1,5 @@
 import { isWebProfileType, type ProfileType, type WebProfileType } from '@/lib/types'
+import { isDirectTokenAuthReturnPath } from '@/features/token-flow/routes'
 
 export const SOCIAL_PROVIDERS = ['google', 'facebook', 'discord'] as const
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
@@ -23,7 +24,7 @@ export function safeInternalPath(value: string | null | undefined, fallback = '/
  */
 export function isDirectAuthReturnPath(value: string | null | undefined) {
   const path = safeInternalPath(value)
-  return path.startsWith('/equipe/reivindicar/') || path.startsWith('/convite/produtora/')
+  return isDirectTokenAuthReturnPath(path)
 }
 
 export function parseProfileType(value: string | null | undefined): WebProfileType | null {

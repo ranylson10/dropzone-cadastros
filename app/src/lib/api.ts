@@ -1,4 +1,6 @@
 import { apiUrl } from '@/config/env'
+import type { ParticipationReadContract } from '../../../backend/src/campeonatos/participation-contract'
+import type { SlotMovementReadContract } from '../../../backend/src/campeonatos/slot-movement-contract'
 
 type RequestOptions = RequestInit & {
   accessToken?: string | null
@@ -13,26 +15,33 @@ export async function dropzoneFetch<T>(path: string, options: RequestOptions = {
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   if (options.accessToken) headers.set('Authorization', `Bearer ${options.accessToken}`)
 
+  const { signal, timeoutMs, accessToken: _accessToken, ...request } = options
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs || DEFAULT_TIMEOUT_MS)
-  let response: Response
+  const cancel = () => controller.abort()
+  if (signal?.aborted) cancel()
+  else signal?.addEventListener('abort', cancel, { once: true })
+  let timedOut = false
+  const timeout = setTimeout(() => { timedOut = true; controller.abort() }, timeoutMs || DEFAULT_TIMEOUT_MS)
   try {
-    response = await fetch(apiUrl(path), {
-      ...options,
-      signal: options.signal || controller.signal,
+    const response = await fetch(apiUrl(path), {
+      ...request,
+      signal: controller.signal,
       headers,
     })
+    const json = await response.json().catch(error => {
+      if (controller.signal.aborted) throw error
+      return null
+    })
+    if (!response.ok) throw new Error(json?.error || json?.message || 'Não foi possível concluir a ação.')
+    return json as T
   } catch (error: any) {
-    if (error?.name === 'AbortError') throw new Error('Tempo esgotado ao conectar com o DropZone. Verifique sua internet e tente novamente.')
+    if (timedOut) throw new Error('Tempo esgotado ao conectar com o DropZone. Verifique sua internet e tente novamente.')
+    if (signal?.aborted) throw error
     throw new Error(error?.message || 'Não foi possível conectar com o DropZone.')
   } finally {
     clearTimeout(timeout)
+    signal?.removeEventListener('abort', cancel)
   }
-  const json = await response.json().catch(() => null)
-  if (!response.ok) {
-    throw new Error(json?.error || json?.message || 'Não foi possível concluir a ação.')
-  }
-  return json as T
 }
 
 export const mobileApi = {
@@ -368,11 +377,26 @@ export const mobileApi = {
   championshipStructureAction: (id:string, method:'POST'|'PATCH'|'DELETE', body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/estrutura`, {method,accessToken,body:JSON.stringify(body)}),
   championshipAdminTeams: (id:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/equipes`, {accessToken,cache:'no-store'}),
   searchChampionshipTeams: (id:string, query:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/equipes/busca?q=${encodeURIComponent(query)}`, {accessToken,cache:'no-store'}),
-  addChampionshipTeamToSlot: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/equipes`, {method:'POST',accessToken,body:JSON.stringify(body)}),
-  moveChampionshipSlot: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/equipes`, {method:'PATCH',accessToken,body:JSON.stringify(body)}),
-  removeChampionshipParticipation: (id:string, participationId:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/equipes?participacao_id=${encodeURIComponent(participationId)}`, {method:'DELETE',accessToken}),
-  requestChampionshipEntry: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/equipes`, {method:'POST',accessToken,headers:{'X-Profile-Type':'equipe'},body:JSON.stringify({...body,mode:'request'})}),
-  reviewChampionshipEntry: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/equipes`, {method:'PATCH',accessToken,body:JSON.stringify({...body,mode:'review_request'})}),
+  addChampionshipTeamToSlot: async (id:string, body:Record<string,unknown>, contract:ParticipationReadContract, accessToken?:string|null, actorId?:string) => {
+    const { writeMobileParticipation } = await import('./participation-write')
+    return writeMobileParticipation(id,contract,'POST',body,accessToken,actorId)
+  },
+  moveChampionshipSlot: async (id:string, body:Record<string,unknown>, contract:SlotMovementReadContract, accessToken?:string|null, actorId?:string) => {
+    const { writeMobileSlotTransfer } = await import('./slot-transfer-write')
+    return writeMobileSlotTransfer(id,contract,body,accessToken,actorId)
+  },
+  removeChampionshipParticipation: async (id:string, participationId:string, contract:ParticipationReadContract, expected:unknown, accessToken?:string|null, actorId?:string) => {
+    const { writeMobileParticipation } = await import('./participation-write')
+    return writeMobileParticipation(id,contract,'DELETE',{expected},accessToken,actorId,participationId)
+  },
+  requestChampionshipEntry: async (id:string, body:Record<string,unknown>, contract:ParticipationReadContract, accessToken?:string|null, actorId?:string) => {
+    const { writeMobileParticipation } = await import('./participation-write')
+    return writeMobileParticipation(id,contract,'POST',{...body,mode:'request'},accessToken,actorId)
+  },
+  reviewChampionshipEntry: async (id:string, body:Record<string,unknown>, contract:ParticipationReadContract, accessToken?:string|null, actorId?:string) => {
+    const { writeMobileParticipation } = await import('./participation-write')
+    return writeMobileParticipation(id,contract,'PATCH',{...body,mode:'review_request'},accessToken,actorId)
+  },
   createChampionshipGame: (id:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/jogos`, {method:'POST',accessToken,body:JSON.stringify(body)}),
   updateChampionshipGame: (id:string, gameId:string, body:Record<string,unknown>, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/jogos/${encodeURIComponent(gameId)}`, {method:'PATCH',accessToken,body:JSON.stringify(body)}),
   deleteChampionshipGame: (id:string, gameId:string, accessToken?:string|null) => dropzoneFetch<any>(`/api/campeonatos/${encodeURIComponent(id)}/jogos/${encodeURIComponent(gameId)}`, {method:'DELETE',accessToken}),
@@ -577,13 +601,23 @@ export async function executeDetailedQuickTokenAction(
   result:QuickTokenResult,
   body:Record<string,unknown>,
   accessToken:string,
+  actorId?:string,
 ){
   if(!supportsDetailedQuickTokenAction(result.kind)) throw new Error('Este token não usa o formulário detalhado.')
-  return dropzoneFetch<any>(quickTokenApiPath(result),{
+  const enrollment = result.kind === 'team_championship_invite' || result.kind === 'group_registration'
+    ? await import('./enrollment-attempt') : null
+  const attempt = enrollment ? await enrollment.prepareMobileEnrollmentAttempt(actorId || '', result.kind === 'group_registration' ? 'group' : 'team', result.token, body) : null
+  const response = await dropzoneFetch<any>(quickTokenApiPath(result),{
     method:'POST',
     accessToken,
+    ...(attempt ? { headers: { 'Idempotency-Key': attempt.requestId } } : {}),
     body:JSON.stringify(body),
   })
+  if (attempt && enrollment) {
+    if (response?.ok !== true) throw new Error('Não foi possível confirmar o resultado. Confira o acompanhamento e repita com os mesmos dados.')
+    await enrollment.completeMobileEnrollmentAttempt(attempt)
+  }
+  return response
 }
 
 export async function resolveQuickToken(value: string, accessToken?: string | null): Promise<QuickTokenResult> {

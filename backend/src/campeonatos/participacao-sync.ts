@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../shared/supabase-admin'
+import { readPagedRows, readRowsByIds } from '../shared/paginated-query'
 
 /**
  * Modelo enxuto (escrita):
@@ -29,12 +30,12 @@ export function friendlyParticipacaoUniqueError(
     return 'Esta line ja esta inscrita neste campeonato. Cada vaga exige uma line diferente.'
   }
   if (details.includes('equipe_id') && !details.includes('line')) {
-    return 'Este campeonato ainda bloqueia multiplas vagas por equipe no banco. Aplique a migration de lines/slot_id.'
+    return 'Esta equipe já possui uma participação incompatível com a vaga. Peça à produtora para revisar a inscrição.'
   }
   if (details.includes('equipe_lines') || details.includes('equipe_nome')) {
     return 'Ja existe uma line com esse nome nesta equipe. Selecione a line livre na lista.'
   }
-  return error?.message || 'Conflito ao salvar a participacao.'
+  return 'Conflito ao salvar a participação. Atualize e tente novamente.'
 }
 
 /** Marca lines já usadas no campeonato (por line_id e por nome de exibição). */
@@ -59,28 +60,26 @@ export function markLinesJaInscritas<T extends { id: string; nome?: string | nul
 
 /** Participações ativas da equipe (e das lines dela) neste campeonato. */
 export async function loadParticipacoesLineNoCampeonato(equipeId: string, campeonatoId: string) {
-  const { data: lines, error: linesError } = await supabaseAdmin
+  const lines = await readPagedRows<any>(supabaseAdmin
     .from('equipe_lines')
     .select('id,nome,tag,logo_url,status')
     .eq('equipe_id', equipeId)
     .neq('status', 'inativo')
-    .order('created_at', { ascending: true })
-  if (linesError) throw linesError
+    .order('created_at', { ascending: true }).order('id', { ascending: true }))
 
   const lineIds = (lines || []).map((l) => l.id).filter(Boolean)
-  const { data: parts, error: partsError } = await supabaseAdmin
+  const parts = await readPagedRows<any>(supabaseAdmin
     .from('campeonato_equipes')
     .select('id,line_id,grupo_id,slot_numero,nome_exibicao,equipe_id,status')
     .eq('campeonato_id', campeonatoId)
     .eq('status', 'ativo')
-    .or(
-      lineIds.length
-        ? `equipe_id.eq.${equipeId},line_id.in.(${lineIds.join(',')})`
-        : `equipe_id.eq.${equipeId}`,
-    )
-  if (partsError) throw partsError
+    .eq('equipe_id', equipeId).order('id', { ascending: true }))
+  const byLine = await readRowsByIds<any>(lineIds, batch => supabaseAdmin
+    .from('campeonato_equipes').select('id,line_id,grupo_id,slot_numero,nome_exibicao,equipe_id,status')
+    .eq('campeonato_id', campeonatoId).eq('status', 'ativo')
+    .in('line_id', batch).order('id', { ascending: true }))
 
-  return { lines: lines || [], parts: parts || [] }
+  return { lines, parts: [...new Map([...parts, ...byLine].map(row => [String(row.id), row])).values()] }
 }
 
 export async function listLinesDisponiveisNoCampeonato(equipeId: string, campeonatoId: string) {
@@ -137,16 +136,26 @@ export async function assertSlotLivreNoGrupo(params: {
 }
 
 /** Soft-remove participação e libera slot de forma segura. */
-export async function softRemoveParticipacao(participacaoId: string) {
+export type ParticipationRemovalExpectation = Partial<Record<
+  'campeonato_id' | 'grupo_id' | 'slot_numero' | 'slot_id' | 'line_id' | 'equipe_id' | 'criado_por' | 'origem_entrada',
+  string | number | null
+>>
+
+export async function softRemoveParticipacao(participacaoId: string, expected?: ParticipationRemovalExpectation) {
   const { data: part, error } = await supabaseAdmin
     .from('campeonato_equipes')
-    .select('id,campeonato_id,grupo_id,slot_numero,slot_id,line_id,equipe_id')
+    .select('id,campeonato_id,grupo_id,slot_numero,slot_id,line_id,equipe_id,status,criado_por,origem_entrada')
     .eq('id', participacaoId)
     .maybeSingle()
-  if (error && !['42703', 'PGRST204'].includes(error.code || '')) throw error
-  if (!part) return
+  if (error) throw error
+  if (!part || part.status !== 'ativo') return
+  for (const column of ['campeonato_id', 'grupo_id', 'slot_numero', 'slot_id', 'line_id', 'equipe_id', 'criado_por', 'origem_entrada'] as const) {
+    if (expected && column in expected && (part[column] ?? null) !== (expected[column] ?? null)) {
+      throw new Error('A participação mudou durante a operação. Atualize e tente novamente.')
+    }
+  }
 
-  const { error: upErr } = await supabaseAdmin
+  let removal = supabaseAdmin
     .from('campeonato_equipes')
     .update({
       status: 'removido',
@@ -155,32 +164,32 @@ export async function softRemoveParticipacao(participacaoId: string) {
       grupo_id: null,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', participacaoId)
+    .eq('id', participacaoId).eq('status', 'ativo').eq('campeonato_id', part.campeonato_id)
+  for (const column of ['slot_id', 'grupo_id', 'slot_numero', 'line_id', 'equipe_id', 'criado_por', 'origem_entrada'] as const) {
+    removal = part[column] == null ? removal.is(column, null) : removal.eq(column, part[column])
+  }
+  const { data: removed, error: upErr } = await removal.select('id').maybeSingle()
   if (upErr) throw upErr
+  if (!removed) throw new Error('A participação mudou durante a operação. Atualize e tente novamente.')
 
-  if (part.slot_id) {
-    await supabaseAdmin
+  let mirror = supabaseAdmin
       .from('campeonato_slots')
       .update({
         equipe_id: null,
         line_id: null,
         status: 'livre',
         updated_at: new Date().toISOString(),
-      })
-      .eq('id', part.slot_id)
-  } else if (part.grupo_id && part.slot_numero != null) {
-    await supabaseAdmin
-      .from('campeonato_slots')
-      .update({
-        equipe_id: null,
-        line_id: null,
-        status: 'livre',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('campeonato_id', part.campeonato_id)
+      }).eq('campeonato_id', part.campeonato_id)
+  if (part.slot_id) mirror = mirror.eq('id', part.slot_id)
+  else if (part.grupo_id && part.slot_numero != null) mirror = mirror
       .eq('grupo_id', part.grupo_id)
       .eq('slot_numero', part.slot_numero)
+  else return
+  for (const column of ['line_id', 'equipe_id'] as const) {
+    mirror = part[column] == null ? mirror.is(column, null) : mirror.eq(column, part[column])
   }
+  const { error: mirrorError } = await mirror
+  if (mirrorError) throw mirrorError
 }
 
 /** Resolve line por id ou cria/reutiliza por nome (somente se livre no campeonato). */
@@ -219,11 +228,10 @@ export async function resolveLineForInscricao(params: {
     throw new Error('Informe um nome real para a line (ex.: ALOE ELITE 2), não "Nova Line".')
   }
 
-  const { data: existingLines, error: listError } = await supabaseAdmin
+  const existingLines = await readPagedRows<any>(supabaseAdmin
     .from('equipe_lines')
     .select('id,nome,status')
-    .eq('equipe_id', params.equipeId)
-  if (listError) throw listError
+    .eq('equipe_id', params.equipeId).order('id', { ascending: true }))
 
   const existing = (existingLines || []).find((row) => String(row.nome || '').trim().toLowerCase() === target)
   if (existing) {
@@ -317,6 +325,11 @@ export async function inserirParticipacaoNoSlot(params: {
   if (slotError) throw slotError
   if (!slot) throw new Error('Slot nao encontrado.')
   if (slot.equipe_id || slot.line_id) throw new Error('Este slot ja esta ocupado.')
+  const { data: line, error: lineError } = await supabaseAdmin.from('equipe_lines')
+    .select('id,status').eq('id', params.lineId).eq('equipe_id', params.equipeId).maybeSingle()
+  if (lineError) throw lineError
+  if (!line) throw new Error('A line selecionada nao pertence a sua equipe.')
+  if (String(line.status || '').toLowerCase() === 'inativo') throw new Error('A line selecionada esta inativa.')
 
   await assertSlotLivreNoGrupo({
     campeonatoId: params.campeonatoId,
@@ -367,11 +380,17 @@ export async function inserirParticipacaoNoSlot(params: {
       status: 'ocupado',
       updated_at: new Date().toISOString(),
     })
-    .eq('id', params.slotId)
+    .eq('id', params.slotId).eq('campeonato_id', params.campeonatoId)
+    .is('equipe_id', null)
     .is('line_id', null)
 
-  if (slotUpError) {
-    await softRemoveParticipacao(participacao.id)
+  const { data: ownedMirror, error: mirrorReadError } = slotUpError
+    ? { data: null, error: slotUpError }
+    : await supabaseAdmin.from('campeonato_slots').select('id')
+      .eq('id', params.slotId).eq('campeonato_id', params.campeonatoId)
+      .eq('line_id', params.lineId).eq('equipe_id', params.equipeId).maybeSingle()
+  if (mirrorReadError || !ownedMirror) {
+    await softRemoveParticipacao(participacao.id, participacao)
     throw new Error('O slot foi preenchido por outra line. Atualize e tente novamente.')
   }
 
@@ -390,16 +409,20 @@ export async function listSlotsLinesView(campeonatoId: string, opts?: { grupoId?
 
   if (opts?.grupoId) query = query.eq('grupo_id', opts.grupoId)
 
-  const { data, error } = await query
+  try {
+    const data = await readPagedRows<any>(query
     .order('fase_ordem', { ascending: true, nullsFirst: true })
     .order('grupo_nome', { ascending: true, nullsFirst: true })
-    .order('slot_numero', { ascending: true })
+    .order('slot_numero', { ascending: true }).order('slot_id', { ascending: true }))
 
-  if (!error && data) return { rows: data, source: 'view' as const }
+    return { rows: data, source: 'view' as const }
+  } catch (cause) {
+    const error = cause as { code?: string; message?: string }
 
   // Fallback se a view ainda nao existir no Supabase
-  if (error && (error.code === '42P01' || error.code === 'PGRST205' || /vw_campeonato_slots_lines/i.test(error.message || ''))) {
+  if (error && (error.code === '42P01' || error.code === 'PGRST205')) {
     return { rows: null, source: 'fallback' as const, error }
   }
   throw error
+  }
 }

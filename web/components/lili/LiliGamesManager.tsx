@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, CheckSquare, Clock3, Copy, Layers3, Loader2, Pencil, Plus, Save, Swords, Trash2, WandSparkles, X } from 'lucide-react'
 
@@ -157,11 +159,11 @@ export function LiliGamesManager({ championshipId, phases, groups, games, canMan
   }
 
   async function remove(game: RecordItem) {
-    if (!window.confirm(`Excluir ${game.nome || 'este jogo'}?`)) return
+    if (!await confirmAction(`Excluir ${game.nome || 'este jogo'}?`)) return
     setAction(`delete:${game.id}`)
     try { await request(`/api/campeonatos/${championshipId}/jogos/${game.id}`, { method: 'DELETE' }); onFeedback('Jogo excluído com sucesso.'); await onChanged() }
     catch (error: any) {
-      const force = window.confirm(`${error?.message || 'O jogo possui dados vinculados.'}\n\nDeseja tentar a exclusão definitiva?`)
+      const force = await confirmAction(`${error?.message || 'O jogo possui dados vinculados.'}\n\nDeseja tentar a exclusão definitiva?`)
       if (force) try { await request(`/api/campeonatos/${championshipId}/jogos/${game.id}?force=1`, { method: 'DELETE' }); onFeedback('Jogo excluído definitivamente.'); await onChanged() } catch (forceError: any) { onFeedback(forceError?.message || 'Não foi possível excluir o jogo.') }
     } finally { setAction(null) }
   }
@@ -195,16 +197,16 @@ export function LiliGamesManager({ championshipId, phases, groups, games, canMan
       {bulkOpen ? <form className="lili-game-form lili-bulk-game-form" onSubmit={generateBulk}>
         <div className="lili-game-form-title"><div><strong>Gerar jogos automaticamente</strong><span>Um jogo por grupo, com horários sequenciais e a mesma programação de mapas.</span></div><button type="button" onClick={() => setBulkOpen(false)} aria-label="Fechar"><X size={16} /></button></div>
         <div className="lili-game-grid lili-bulk-grid">
-          <label>Fase<select value={bulk.fase_id} onChange={(event) => setBulk((current) => ({ ...current, fase_id: event.target.value, grupos_ids: [] }))}><option value="">Selecione</option>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</select></label>
-          <label>Nome-base<input value={bulk.prefixo} onChange={(event) => setBulk((current) => ({ ...current, prefixo: event.target.value }))} placeholder="Ex.: Rodada 1" /></label>
-          <label>Data<input type="date" value={bulk.data_jogo} onChange={(event) => setBulk((current) => ({ ...current, data_jogo: event.target.value }))} /></label>
-          <label>Primeiro horário<input type="time" value={bulk.horario_inicial} onChange={(event) => setBulk((current) => ({ ...current, horario_inicial: event.target.value }))} /></label>
-          <label>Intervalo (min)<input type="number" min="0" max="720" value={bulk.intervalo_minutos} onChange={(event) => setBulk((current) => ({ ...current, intervalo_minutos: Number(event.target.value) }))} /></label>
-          <label>Quedas<input type="number" min="1" max="12" value={bulk.numero_partidas} onChange={(event) => changeBulkNumber(Number(event.target.value))} /></label>
-          <label>Status<select value={bulk.status} onChange={(event) => setBulk((current) => ({ ...current, status: event.target.value }))}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select></label>
+          <label>Fase<UiSelect value={bulk.fase_id} onChange={(event) => setBulk((current) => ({ ...current, fase_id: event.target.value, grupos_ids: [] }))}><option value="">Selecione</option>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</UiSelect></label>
+          <label>Nome-base<UiInput value={bulk.prefixo} onChange={(event) => setBulk((current) => ({ ...current, prefixo: event.target.value }))} placeholder="Ex.: Rodada 1" /></label>
+          <label>Data<UiInput type="date" value={bulk.data_jogo} onChange={(event) => setBulk((current) => ({ ...current, data_jogo: event.target.value }))} /></label>
+          <label>Primeiro horário<UiInput type="time" value={bulk.horario_inicial} onChange={(event) => setBulk((current) => ({ ...current, horario_inicial: event.target.value }))} /></label>
+          <label>Intervalo (min)<UiInput type="number" min="0" max="720" value={bulk.intervalo_minutos} onChange={(event) => setBulk((current) => ({ ...current, intervalo_minutos: Number(event.target.value) }))} /></label>
+          <label>Quedas<UiInput type="number" min="1" max="12" value={bulk.numero_partidas} onChange={(event) => changeBulkNumber(Number(event.target.value))} /></label>
+          <label>Status<UiSelect value={bulk.status} onChange={(event) => setBulk((current) => ({ ...current, status: event.target.value }))}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></UiSelect></label>
         </div>
-        <fieldset><legend>Grupos que receberão um jogo</legend><div className="lili-game-checks"><label><input type="checkbox" checked={bulkGroups.length > 0 && bulkGroups.every((group) => bulk.grupos_ids.includes(String(group.id)))} onChange={() => setBulk((current) => ({ ...current, grupos_ids: bulkGroups.every((group) => current.grupos_ids.includes(String(group.id))) ? [] : bulkGroups.map((group) => String(group.id)) }))} /> Selecionar todos</label>{bulkGroups.map((group) => <label key={group.id}><input type="checkbox" checked={bulk.grupos_ids.includes(String(group.id))} onChange={() => toggleBulkGroup(String(group.id))} /> {group.nome}</label>)}</div></fieldset>
-        <fieldset><legend>Sequência de mapas</legend><div className="lili-game-maps">{bulk.mapas.map((map, index) => <label key={index}>Queda {index + 1}<select value={map} onChange={(event) => setBulk((current) => ({ ...current, mapas: current.mapas.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))}><option value="">Selecione</option>{maps.map((item) => <option key={item.id || item.codigo} value={item.codigo}>{item.nome}</option>)}</select></label>)}</div></fieldset>
+        <fieldset><legend>Grupos que receberão um jogo</legend><div className="lili-game-checks"><label><UiInput type="checkbox" checked={bulkGroups.length > 0 && bulkGroups.every((group) => bulk.grupos_ids.includes(String(group.id)))} onChange={() => setBulk((current) => ({ ...current, grupos_ids: bulkGroups.every((group) => current.grupos_ids.includes(String(group.id))) ? [] : bulkGroups.map((group) => String(group.id)) }))} /> Selecionar todos</label>{bulkGroups.map((group) => <label key={group.id}><UiInput type="checkbox" checked={bulk.grupos_ids.includes(String(group.id))} onChange={() => toggleBulkGroup(String(group.id))} /> {group.nome}</label>)}</div></fieldset>
+        <fieldset><legend>Sequência de mapas</legend><div className="lili-game-maps">{bulk.mapas.map((map, index) => <label key={index}>Queda {index + 1}<UiSelect value={map} onChange={(event) => setBulk((current) => ({ ...current, mapas: current.mapas.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))}><option value="">Selecione</option>{maps.map((item) => <option key={item.id || item.codigo} value={item.codigo}>{item.nome}</option>)}</UiSelect></label>)}</div></fieldset>
         <div className="lili-bulk-preview"><Clock3 size={16} /><span>{bulk.grupos_ids.length || 0} jogo(s) · início {bulk.horario_inicial || '--:--'} · intervalo de {bulk.intervalo_minutos || 0} min</span></div>
         <button className="lili-game-save" type="submit" disabled={bulkSaving}>{bulkSaving ? <Loader2 className="spin" size={16} /> : <WandSparkles size={16} />} {bulkSaving ? 'Gerando jogos…' : `Gerar ${bulk.grupos_ids.length || 0} jogo(s)`}</button>
       </form> : null}
@@ -212,21 +214,21 @@ export function LiliGamesManager({ championshipId, phases, groups, games, canMan
       {open ? <form className="lili-game-form" onSubmit={save}>
         <div className="lili-game-form-title"><strong>{draft.id ? 'Editar jogo' : 'Novo jogo'}</strong><button type="button" onClick={() => setOpen(false)} aria-label="Fechar"><X size={16} /></button></div>
         <div className="lili-game-grid">
-          <label>Nome<input value={draft.nome} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} placeholder="Ex.: Rodada 1 — Grupo A" required /></label>
-          <label>Fase<select value={draft.fase_id} onChange={(event) => setDraft((current) => ({ ...current, fase_id: event.target.value, grupos_ids: [] }))} required><option value="">Selecione</option>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</select></label>
-          <label>Data<input type="date" value={draft.data_jogo} onChange={(event) => setDraft((current) => ({ ...current, data_jogo: event.target.value }))} /></label>
-          <label>Horário<input type="time" value={draft.horario} onChange={(event) => setDraft((current) => ({ ...current, horario: event.target.value }))} /></label>
-          <label>Quedas<input type="number" min="1" max="12" value={draft.numero_partidas} onChange={(event) => changeNumber(Number(event.target.value))} /></label>
-          <label>Status<select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select></label>
+          <label>Nome<UiInput value={draft.nome} onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))} placeholder="Ex.: Rodada 1 — Grupo A" required /></label>
+          <label>Fase<UiSelect value={draft.fase_id} onChange={(event) => setDraft((current) => ({ ...current, fase_id: event.target.value, grupos_ids: [] }))} required><option value="">Selecione</option>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</UiSelect></label>
+          <label>Data<UiInput type="date" value={draft.data_jogo} onChange={(event) => setDraft((current) => ({ ...current, data_jogo: event.target.value }))} /></label>
+          <label>Horário<UiInput type="time" value={draft.horario} onChange={(event) => setDraft((current) => ({ ...current, horario: event.target.value }))} /></label>
+          <label>Quedas<UiInput type="number" min="1" max="12" value={draft.numero_partidas} onChange={(event) => changeNumber(Number(event.target.value))} /></label>
+          <label>Status<UiSelect value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></UiSelect></label>
         </div>
-        <fieldset><legend>Grupos do jogo</legend><div className="lili-game-checks">{phaseGroups.map((group) => <label key={group.id}><input type="checkbox" checked={draft.grupos_ids.includes(String(group.id))} onChange={() => toggleGroup(String(group.id))} /> {group.nome}</label>)}</div></fieldset>
-        <fieldset><legend>Mapa de cada queda</legend><div className="lili-game-maps">{draft.mapas.map((map, index) => <label key={index}>Queda {index + 1}<select value={map} onChange={(event) => setDraft((current) => ({ ...current, mapas: current.mapas.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))}><option value="">Selecione</option>{maps.map((item) => <option key={item.id || item.codigo} value={item.codigo}>{item.nome}</option>)}</select></label>)}</div></fieldset>
+        <fieldset><legend>Grupos do jogo</legend><div className="lili-game-checks">{phaseGroups.map((group) => <label key={group.id}><UiInput type="checkbox" checked={draft.grupos_ids.includes(String(group.id))} onChange={() => toggleGroup(String(group.id))} /> {group.nome}</label>)}</div></fieldset>
+        <fieldset><legend>Mapa de cada queda</legend><div className="lili-game-maps">{draft.mapas.map((map, index) => <label key={index}>Queda {index + 1}<UiSelect value={map} onChange={(event) => setDraft((current) => ({ ...current, mapas: current.mapas.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))}><option value="">Selecione</option>{maps.map((item) => <option key={item.id || item.codigo} value={item.codigo}>{item.nome}</option>)}</UiSelect></label>)}</div></fieldset>
         <button className="lili-game-save" type="submit" disabled={saving}>{saving ? <Loader2 className="spin" size={16} /> : <Save size={16} />} {saving ? 'Salvando…' : 'Salvar jogo'}</button>
       </form> : null}
 
       {games.length ? <div className="lili-games-toolbar">
-        <div className="lili-games-filter"><Layers3 size={15} /><select value={phaseFilter} onChange={(event) => setPhaseFilter(event.target.value)}><option value="all">Todas as fases</option>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</select></div>
-        {canManage ? <div className="lili-games-bulk-actions"><button type="button" onClick={selectAllVisible}><CheckSquare size={15} /> {selectedGames.length ? `${selectedGames.length} selecionado(s)` : 'Selecionar visíveis'}</button><select value={bulkStatus} onChange={(event) => setBulkStatus(event.target.value)}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select><button type="button" onClick={() => void applyBulkStatus()} disabled={!selectedGames.length || action === 'bulk-status'}>{action === 'bulk-status' ? <Loader2 className="spin" size={15} /> : <Save size={15} />} Aplicar status</button></div> : null}
+        <div className="lili-games-filter"><Layers3 size={15} /><UiSelect value={phaseFilter} onChange={(event) => setPhaseFilter(event.target.value)}><option value="all">Todas as fases</option>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</UiSelect></div>
+        {canManage ? <div className="lili-games-bulk-actions"><button type="button" onClick={selectAllVisible}><CheckSquare size={15} /> {selectedGames.length ? `${selectedGames.length} selecionado(s)` : 'Selecionar visíveis'}</button><UiSelect value={bulkStatus} onChange={(event) => setBulkStatus(event.target.value)}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></UiSelect><button type="button" onClick={() => void applyBulkStatus()} disabled={!selectedGames.length || action === 'bulk-status'}>{action === 'bulk-status' ? <Loader2 className="spin" size={15} /> : <Save size={15} />} Aplicar status</button></div> : null}
       </div> : null}
 
       <div className="lili-games-list compact">{visibleGames.map((game) => {
@@ -235,7 +237,7 @@ export function LiliGamesManager({ championshipId, phases, groups, games, canMan
         const expanded = expandedGameId === String(game.id)
         return <article key={game.id} className={`${selected ? 'is-selected' : ''} ${expanded ? 'is-expanded' : ''}`}>
           <div className="lili-game-row-top compact-row">
-            {canManage ? <label className="lili-game-select"><input type="checkbox" checked={selected} onChange={() => setSelectedGames((current) => selected ? current.filter((id) => id !== String(game.id)) : [...current, String(game.id)])} /><span /></label> : null}
+            {canManage ? <label className="lili-game-select"><UiInput type="checkbox" checked={selected} onChange={() => setSelectedGames((current) => selected ? current.filter((id) => id !== String(game.id)) : [...current, String(game.id)])} /><span /></label> : null}
             <button type="button" className="lili-game-summary" onClick={() => setExpandedGameId(expanded ? null : String(game.id))}>
               <span className="lili-game-icon"><Swords size={16} /></span>
               <span className="lili-game-copy"><strong>{game.nome || 'Jogo'}</strong><small>{game.data_jogo ? new Date(`${game.data_jogo}T12:00:00`).toLocaleDateString('pt-BR') : 'Sem data'}{game.horario ? ` · ${String(game.horario).slice(0, 5)}` : ''} · {game.numero_partidas || 0} quedas</small><em>{gameGroups.map((group) => group.nome).join(', ') || 'Sem grupo'} · {String(game.status || 'agendado').replace('_', ' ')}</em></span>

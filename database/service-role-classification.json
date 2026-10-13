@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-09-25",
+  "updated_at": "2026-10-04",
   "routes": {
     "api/admin/aprovacoes": {
       "decision": "system-admin",
@@ -125,6 +125,10 @@
     "api/me/account": {
       "decision": "self-scoped-account",
       "reason": "PATCH exige bearer via getBearerUser e atualiza somente o próprio usuário autenticado usando updateUserById(user.id)."
+    },
+    "api/site/home": {
+      "decision": "public-read-admin-write",
+      "reason": "GET entrega apenas a configuração visual pública da Home. PUT exige requireSystemAdmin antes de gravar a configuração."
     }
   }
 }

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase-admin'
 import { isMissingRelation } from './manager-invites'
+import { readPagedRows, readRowsByIds } from '../shared/paginated-query'
 
 export type ControllableEquipe = {
   id: string
@@ -46,20 +47,25 @@ export async function listControllableEquipes(
   let staff: ControllableEquipe[] = []
 
   if (managerIds.length) {
-    const { data: links, error } = await supabaseAdmin
-      .from('manager_equipe')
-      .select('id,manager_id,equipe_id,pode_ver,pode_editar,pode_escalar,pode_gerar_token,status')
-      .in('manager_id', managerIds)
-      .eq('status', 'ativo')
-    if (error && !isMissingRelation(error)) throw error
+    let links: any[] = []
+    try {
+      links = await readPagedRows(supabaseAdmin
+        .from('manager_equipe')
+        .select('id,manager_id,equipe_id,pode_ver,pode_editar,pode_escalar,pode_gerar_token,status')
+        .in('manager_id', managerIds)
+        .eq('status', 'ativo')
+        .order('id'))
+    } catch (error) {
+      const cause = error && typeof error === 'object' ? error as { code?: string; message?: string } : null
+      if (!isMissingRelation(cause)) throw error
+    }
 
     const equipeIds = [...new Set((links || []).map((l) => l.equipe_id).filter(Boolean))]
-    const { data: equipes } = equipeIds.length
-      ? await supabaseAdmin
+    const equipes = await readRowsByIds<any>(equipeIds, batch => supabaseAdmin
           .from('equipes')
           .select('id,nome,username,logo_url,tag,status')
-          .in('id', equipeIds)
-      : { data: [] as any[] }
+          .in('id', batch)
+          .order('id'))
     const eqMap = new Map((equipes || []).map((e) => [e.id, e]))
 
     staff = (links || [])
@@ -95,23 +101,21 @@ export async function listControllableEquipes(
   let provisoria: ControllableEquipe[] = []
 
   if (producerIds.length) {
-    const { data: tokens, error } = await supabaseAdmin
+    const tokens = await readPagedRows<any>(supabaseAdmin
       .from('tokens')
       .select('equipe_id,produtora_id,status,usado')
       .eq('tipo', 'reivindicacao_equipe_historica')
       .in('produtora_id', producerIds)
       .eq('status', 'ativo')
       .eq('usado', false)
-    if (error) throw error
+      .order('id'))
 
     const equipeIds = [...new Set((tokens || []).map((row) => row.equipe_id).filter(Boolean))]
-    const { data: equipes, error: equipesError } = equipeIds.length
-      ? await supabaseAdmin
+    const equipes = await readRowsByIds<any>(equipeIds, batch => supabaseAdmin
           .from('equipes')
           .select('id,nome,username,logo_url,tag,status,auth_user_id,dono_auth_user_id')
-          .in('id', equipeIds)
-      : { data: [] as any[], error: null }
-    if (equipesError) throw equipesError
+          .in('id', batch)
+          .order('id'))
 
     provisoria = (equipes || [])
       .filter((e: any) => e.status === 'ativo' && !e.auth_user_id && !e.dono_auth_user_id)

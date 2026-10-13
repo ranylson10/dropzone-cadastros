@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase-admin'
 import { getProducerWorkspaceAccess } from '../produtora/workspace-access'
+import { readPagedRows, readRowsByIds } from '../shared/paginated-query'
 
 /**
  * Modelo de permissões do campeonato
@@ -26,10 +27,10 @@ export type SellerPermissions = {
   adicionar_equipes: boolean
   /**
    * Remover line de qualquer slot do campeonato.
-   * Mantém alias legado `remover_proprias_equipes` na normalização.
+   * A permissão legada remover_proprias_equipes conserva o escopo de autoria.
    */
   remover_equipes: boolean
-  /** @deprecated use remover_equipes — mantido na leitura de JSON antigo */
+  /** Remover somente participações adicionadas pelo próprio vendedor. */
   remover_proprias_equipes: boolean
   gerar_convites_equipe: boolean
   ver_estrutura: boolean
@@ -71,6 +72,8 @@ export type CampeonatoPermission = {
   role: 'owner' | 'workspace' | 'manager' | 'seller' | 'none'
   produtoraId: string | null
   sellerPermissions: SellerPermissions | null
+  /** Server-only identity of the selected actual seller grant; null for legacy tokens. */
+  sellerRowId?: string | null
 }
 
 export function canUseLocalStudio(permission: CampeonatoPermission) {
@@ -90,23 +93,16 @@ function missingRelation(error: any) {
 }
 
 export function normalizeSellerPermissions(raw: unknown): SellerPermissions {
-  const value = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const value = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
   const bool = (key: string, fallback: boolean) => {
     if (!(key in value)) return fallback
-    return Boolean(value[key])
+    return value[key] === true
   }
-  // remoção: flag nova ou legada; default restritivo (opt-in)
-  const remover = 'remover_equipes' in value
-    ? Boolean(value.remover_equipes)
-    : 'remover_proprias_equipes' in value
-      ? Boolean(value.remover_proprias_equipes)
-      : DEFAULT_SELLER_PERMISSIONS.remover_equipes
-
   return {
     vendedor_vagas: bool('vendedor_vagas', DEFAULT_SELLER_PERMISSIONS.vendedor_vagas),
     adicionar_equipes: bool('adicionar_equipes', DEFAULT_SELLER_PERMISSIONS.adicionar_equipes),
-    remover_equipes: remover,
-    remover_proprias_equipes: remover,
+    remover_equipes: bool('remover_equipes', false),
+    remover_proprias_equipes: bool('remover_proprias_equipes', false),
     gerar_convites_equipe: bool('gerar_convites_equipe', DEFAULT_SELLER_PERMISSIONS.gerar_convites_equipe),
     ver_estrutura: bool('ver_estrutura', DEFAULT_SELLER_PERMISSIONS.ver_estrutura),
     organizar_grupos: bool('organizar_grupos', DEFAULT_SELLER_PERMISSIONS.organizar_grupos),
@@ -208,30 +204,28 @@ export async function getCampeonatoPermission(userId: string, campeonatoId: stri
     }
   }
 
-  const { data: managers, error: managerError } = await supabaseAdmin
+  const managers = await readPagedRows<any>(supabaseAdmin
     .from('managers')
     .select('id')
     .eq('auth_user_id', userId)
-    .eq('status', 'ativo')
-
-  if (managerError) throw managerError
+    .eq('status', 'ativo').order('id', { ascending: true }))
   const managerIds = (managers || []).map((row) => String(row.id)).filter(Boolean)
   if (!managerIds.length) {
     return nonePermission(produtoraId)
   }
 
-  // Staff da produtora (manager operacional). Suporta mais de um perfil manager
-  // ligado ao mesmo login sem depender de maybeSingle().
+  // Leitura completa e ordenada conserva compatibilidade com catálogos legados.
+  // O catálogo auditado também possui o índice managers_auth_user_unique.
   if (produtoraId) {
-    const { data: vínculos, error: vínculoError } = await supabaseAdmin
+    let vínculos: any[] = []
+    try { vínculos = await readRowsByIds<any>(managerIds, batch => supabaseAdmin
       .from('manager_produtora')
-      .select('pode_ver, pode_gerenciar_campeonato, pode_gerar_token, status')
-      .in('manager_id', managerIds)
+      .select('id,pode_ver, pode_gerenciar_campeonato, pode_gerar_token, status')
+      .in('manager_id', batch)
       .eq('produtora_id', produtoraId)
-      .eq('status', 'ativo')
-
-    if (vínculoError && !missingRelation(vínculoError)) throw vínculoError
-    const vínculo = (vínculos || []).find((row) => Boolean(row.pode_ver) || Boolean(row.pode_gerenciar_campeonato))
+      .eq('status', 'ativo').order('id', { ascending: true }))
+    } catch (error) { if (!missingRelation(error)) throw error }
+    const vínculo = vínculos.sort((a,b) => String(a.id).localeCompare(String(b.id))).find((row) => row.pode_ver === true || row.pode_gerenciar_campeonato === true)
     if (vínculo) {
       const manage = Boolean(vínculo.pode_gerenciar_campeonato)
       return {
@@ -250,30 +244,30 @@ export async function getCampeonatoPermission(userId: string, campeonatoId: stri
   }
 
   // Vendedor liberado no campeonato
-  const { data: vendedores, error: vendedorError } = await supabaseAdmin
+  let vendedores: any[] = []
+  try { vendedores = await readRowsByIds<any>(managerIds, batch => supabaseAdmin
     .from('campeonato_vendedores')
     .select('id, status, permissoes, limite_vagas')
     .eq('campeonato_id', campeonatoId)
-    .in('manager_id', managerIds)
-    .eq('status', 'ativo')
-
-  if (vendedorError && !missingRelation(vendedorError)) throw vendedorError
-  const vendedor = (vendedores || [])[0]
+    .in('manager_id', batch)
+    .eq('status', 'ativo').order('id', { ascending: true }))
+  } catch (error) { if (!missingRelation(error)) throw error }
+  const vendedor = vendedores.sort((a,b) => String(a.id).localeCompare(String(b.id)))[0]
   if (vendedor) {
-    return sellerPermissionFromRow(produtoraId, vendedor.permissoes)
+    return sellerPermissionFromRow(produtoraId, vendedor.permissoes, vendedor.id)
   }
 
   // Fallback legado: token manager_invite
-  const { data: tokensVendedor, error: tokenError } = await supabaseAdmin
+  let tokensVendedor: any[] = []
+  try { tokensVendedor = await readRowsByIds<any>(managerIds, batch => supabaseAdmin
     .from('tokens')
     .select('id, manager_permissoes')
     .eq('tipo', 'manager_invite')
     .eq('campeonato_id', campeonatoId)
-    .in('manager_id', managerIds)
-    .eq('status', 'ativo')
-
-  if (tokenError && !missingRelation(tokenError)) throw tokenError
-  const tokenVendedor = (tokensVendedor || [])[0]
+    .in('manager_id', batch)
+    .eq('status', 'ativo').order('id', { ascending: true }))
+  } catch (error) { if (!missingRelation(error)) throw error }
+  const tokenVendedor = tokensVendedor.sort((a,b) => String(a.id).localeCompare(String(b.id)))[0]
   if (tokenVendedor) {
     return sellerPermissionFromRow(produtoraId, tokenVendedor.manager_permissoes)
   }
@@ -281,7 +275,7 @@ export async function getCampeonatoPermission(userId: string, campeonatoId: stri
   return nonePermission(produtoraId)
 }
 
-function sellerPermissionFromRow(produtoraId: string | null, rawPerms: unknown): CampeonatoPermission {
+function sellerPermissionFromRow(produtoraId: string | null, rawPerms: unknown, sellerRowId: string | null = null): CampeonatoPermission {
   const sellerPermissions = normalizeSellerPermissions(rawPerms)
   return {
     canView: true,
@@ -294,6 +288,7 @@ function sellerPermissionFromRow(produtoraId: string | null, rawPerms: unknown):
     role: 'seller',
     produtoraId,
     sellerPermissions,
+    sellerRowId,
   }
 }
 

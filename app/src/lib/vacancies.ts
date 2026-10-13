@@ -24,10 +24,23 @@ export const fallbackVacancies: VacancyApiItem[] = [
   { id: 'centavos', nome: 'COPA CENTAVOS', tipo: 'copa', valor_inscricao: 1, premiacao: 1000, vagas_livres: 95, total_vagas: 96, tem_live: false },
 ]
 
+const amount = (value?: number | string | null) => {
+  if ((typeof value !== 'number' && typeof value !== 'string') || (typeof value === 'string' && !value.trim())) return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : null
+}
+
 export const money = (value?: number | string | null) => {
-  const numeric = Number(value || 0)
-  if (!numeric) return 'Grátis'
+  const numeric = amount(value)
+  if (numeric == null) return 'Sob consulta'
+  if (numeric === 0) return 'Grátis'
   return numeric.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+export const prizeLabel = (item: VacancyApiItem) => {
+  if (item.descricao_premiacao?.trim()) return item.descricao_premiacao.trim()
+  const numeric = amount(item.premiacao)
+  return numeric == null || numeric === 0 ? 'Sem premiação informada' : money(numeric)
 }
 
 export const dateLabel = (item: VacancyApiItem) => {
@@ -44,7 +57,7 @@ export const toChampionshipCard = (item: VacancyApiItem): ChampionshipCard => ({
   logoUrl: item.logo_url || null,
   bannerUrl: item.banner_url || null,
   priceLabel: money(item.valor_inscricao),
-  prizeLabel: item.descricao_premiacao || money(item.premiacao),
+  prizeLabel: prizeLabel(item),
   freeSlots: Number(item.vagas_livres || 0),
   nextMatchLabel: dateLabel(item),
   hasLive: Boolean(item.tem_live),

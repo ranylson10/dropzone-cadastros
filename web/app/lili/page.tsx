@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot } from 'lucide-react'
@@ -7,6 +8,8 @@ import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_RETURN_KEY } from '@/features/auth/SocialLogin'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
 import { clientText, normalizeLocale } from '@/features/lili/i18n'
+import styles from '@/features/lili/chat.module.css'
+import { prepareEnrollmentAttempt, completeEnrollmentAttempt } from '@/features/token-flow/enrollment-attempt'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { isWebProfileType, type DropZoneRow } from '@/lib/types'
 import {
@@ -331,6 +334,8 @@ export default function LiliPage() {
     abortRef.current = controller
 
     const nextContext = { ...context, ...(actionContext || {}) }
+    const confirmingInvite = ['confirmar_convite_grupo', 'verificar_pagamento_convite_grupo', 'capturar_paypal_convite_grupo'].includes(intent || '')
+      || (!intent && nextContext.currentFlow === 'group_invite' && ['confirm', 'payment_wait'].includes(nextContext.currentStep || ''))
     if (echo && clean) {
       setMessages((current) => [
         ...current,
@@ -342,12 +347,18 @@ export default function LiliPage() {
 
     try {
       const activeProfileType = String(account?.profile_type || localStorage.getItem('dropzone_active_profile_type') || '')
+      const attempt = confirmingInvite && session?.access_token ? await prepareEnrollmentAttempt(session.user.id || '', 'group', nextContext.inviteToken || '', {
+        equipe_id: nextContext.selectedTeamId, line_id: nextContext.selectedLineId || null,
+        nome_line: nextContext.selectedLineId ? null : nextContext.selectedLineName || null, slot_id: nextContext.selectedSlotId,
+      }) : null
+      if (controller.signal.aborted) return
       const response = await fetch('/api/lili/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
           ...(activeProfileType ? { 'x-profile-type': activeProfileType } : {}),
+          ...(attempt ? { 'Idempotency-Key': attempt.requestId } : {}),
         },
         body: JSON.stringify({ message: clean, intent, context: nextContext }),
         signal: controller.signal,
@@ -357,6 +368,7 @@ export default function LiliPage() {
       if (requestId !== requestIdRef.current) return
 
       const result = json as LiliChatResponse
+      if (attempt && result.enrollmentConfirmed === true) completeEnrollmentAttempt(attempt)
       if (!silent) await new Promise((resolve) => setTimeout(resolve, 850))
       if (requestId !== requestIdRef.current) return
 
@@ -390,6 +402,11 @@ export default function LiliPage() {
             id: crypto.randomUUID(),
             role: 'assistant',
             text: error?.message || ui.genericError,
+            ...(confirmingInvite ? { actions: [{
+              id: 'retry-group-enrollment', label: 'Tentar confirmar inscrição novamente',
+              intent: intent || (nextContext.reservationId ? 'verificar_pagamento_convite_grupo' : 'confirmar_convite_grupo'),
+              context: nextContext, variant: 'primary' as const,
+            }] } : {}),
           },
         ])
       }
@@ -576,7 +593,7 @@ export default function LiliPage() {
   }, [automaticPaymentCheck?.messageId, automaticPaymentCheck?.expiresAt, session?.access_token])
 
   return (
-    <main className="lili-hub-page">
+    <main className={`lili-hub-page ${styles.scope}`}>
       <header className="lili-hub-header">
         <div className="lili-hub-identity">
           <div className="lili-hub-avatar" aria-hidden="true"><Bot size={22} strokeWidth={2.4} /></div>
@@ -690,7 +707,7 @@ export default function LiliPage() {
       </section>
 
       <form className="lili-hub-composer" onSubmit={submit}>
-        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={ui.placeholder} maxLength={1000} disabled={typing} />
+        <UiInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={ui.placeholder} aria-label={ui.placeholder} maxLength={1000} disabled={typing} />
         <button type="submit" disabled={typing || !input.trim()} aria-label={ui.send}><Send size={20} /></button>
       </form>
 

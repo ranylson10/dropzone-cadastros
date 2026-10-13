@@ -1,0 +1,378 @@
+/*
+ * DROPZONE R06 — Operação de campeonatos, estatísticas e pontuador.
+ * Camada visual isolada. Não modifica dados, eventos nem regras competitivas.
+ * Importar após os estilos R05 no app/layout.tsx.
+ */
+
+/* 1. Central do campeonato: visão geral, indicadores e alertas. */
+.championship-central-page .championship-central-shell {
+  width: min(1440px, calc(100% - 48px)) !important;
+  padding-block: 20px 48px !important;
+}
+.championship-central-page .championship-central-header {
+  min-height: 108px;
+  padding: 20px 24px !important;
+  gap: 16px;
+}
+.championship-central-page .championship-central-header h1 {
+  font-size: clamp(22px, 2.4vw, 30px) !important;
+  line-height: 1.16;
+  letter-spacing: -.035em;
+}
+.championship-central-page .championship-central-header select {
+  min-height: 44px !important;
+  max-width: 100%;
+  font-size: 13px;
+}
+.championship-central-page .championship-central-overview,
+.championship-central-page .championship-central-alerts,
+.championship-central-page .championship-central-logs,
+.championship-central-page .championship-choice-panel {
+  border-radius: 10px !important;
+  box-shadow: 0 4px 16px rgba(20, 29, 42, .045) !important;
+}
+.championship-central-page .championship-central-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4,minmax(0,1fr)) !important;
+  gap: 10px !important;
+}
+.championship-central-page .championship-central-grid article {
+  display: grid !important;
+  min-width: 0;
+  min-height: 90px;
+  grid-template-columns: 24px minmax(0,1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 14px !important;
+  border: 1px solid #e0e5ea !important;
+  border-radius: 8px;
+  background: #f7f9fb;
+}
+.championship-central-page .championship-central-grid article + article,
+.championship-central-page .championship-central-grid article:nth-child(even) {
+  border-left: 1px solid #e0e5ea !important;
+}
+.championship-central-page .championship-central-grid small {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.championship-central-page .championship-central-grid strong {
+  font-size: clamp(20px, 1.7vw, 26px);
+  line-height: 1.08;
+  font-variant-numeric: tabular-nums;
+}
+.championship-central-page .championship-central-grid span {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.championship-central-page .championship-central-alert-filters button,
+.championship-central-page .championship-central-log-filters button {
+  min-height: 42px;
+  padding-inline: 12px;
+  font-size: 12px;
+}
+.championship-central-page .championship-central-alert-advanced input,
+.championship-central-page .championship-central-alert-advanced select,
+.championship-central-page .championship-choice-form select {
+  min-height: 42px;
+  font-size: 12px;
+}
+.championship-central-page .championship-central-alerts .smart-alert {
+  border-radius: 8px;
+}
+.championship-central-page .smart-alert-copy p,
+.championship-central-page .championship-central-log-list p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.championship-central-page :is(button,select,input,a):focus-visible {
+  outline: 2px solid #c09d00 !important;
+  outline-offset: 2px;
+}
+
+/* 2. Gestão de séries, etapas e vagas no workspace da produtora. */
+.producer-layout-ref .advanced-structure-stack { gap: 14px !important; }
+.producer-layout-ref .advanced-structure-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  min-height: 82px;
+  border-radius: 9px;
+}
+.producer-layout-ref .advanced-structure-header h3 {
+  font-size: clamp(19px, 1.65vw, 24px);
+  line-height: 1.2;
+}
+.producer-layout-ref .advanced-structure-header p:not(.eyebrow) {
+  max-width: 780px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.producer-layout-ref .advanced-card {
+  min-width: 0;
+  gap: 14px;
+  padding: 18px !important;
+  border-radius: 9px !important;
+}
+.producer-layout-ref .advanced-card h4 { font-size: 16px; line-height: 1.3; color: #20252c !important; }
+.producer-layout-ref .advanced-structure-header h3 { color: #20252c !important; }
+.producer-layout-ref .advanced-card label { min-width: 0; font-size: 12px; }
+.producer-layout-ref .advanced-card .mini-grid { min-width: 0; gap: 10px; }
+.producer-layout-ref .advanced-card input:not([type=checkbox]):not([type=radio]),
+.producer-layout-ref .advanced-card select {
+  min-height: 42px !important;
+  font-size: 12px;
+}
+.producer-layout-ref .advanced-three-columns {
+  gap: 12px;
+}
+.producer-layout-ref .advanced-three-columns > div,
+.producer-layout-ref .advanced-operation-stage,
+.producer-layout-ref .advanced-stage-list article {
+  min-width: 0;
+  border: 1px solid #dce2e8;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+.producer-layout-ref .advanced-three-columns > div { padding: 14px; }
+.producer-layout-ref .advanced-chip { border-radius: 6px; }
+.producer-layout-ref .advanced-stage-list article { padding: 12px; }
+.producer-layout-ref .advanced-card :is(button,select,input):focus-visible {
+  outline: 2px solid #bc9a00 !important;
+  outline-offset: 2px;
+}
+
+/* 3. Jogos: KPIs, controles, fases e lista de partidas. */
+.producer-layout-ref .champ-games { gap: 14px !important; }
+.producer-layout-ref .champ-games-head {
+  min-height: 82px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-radius: 9px !important;
+}
+.producer-layout-ref .champ-games-head h2 { font-size: 22px; line-height: 1.15; }
+.producer-layout-ref .champ-games-head-actions { flex-wrap: wrap; }
+.producer-layout-ref .champ-games-head-actions select,
+.producer-layout-ref .champ-games-new { min-height: 42px; font-size: 12px; }
+.producer-layout-ref .champ-games-summary {
+  display: grid !important;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 10px;
+  min-height: unset;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.producer-layout-ref .champ-games-summary span {
+  display: grid !important;
+  min-width: 0;
+  min-height: 76px;
+  align-content: center;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #dce2e8;
+  border-radius: 8px;
+  background: #fff;
+}
+.producer-layout-ref .champ-games-summary strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.producer-layout-ref .champ-games-summary small { font-size: 12px; color: #64707c; }
+.producer-layout-ref .champ-games-form { padding: 18px; border-radius: 9px; }
+.producer-layout-ref .champ-games-form .mini-grid { gap: 10px; }
+.producer-layout-ref .champ-games-form .field > label,
+.producer-layout-ref .champ-games-form .game-groups-field > span { font-size: 12px; }
+.producer-layout-ref .champ-games-form :is(input,select) { min-height: 42px; font-size: 12px; }
+.producer-layout-ref .champ-games-phase { border-radius: 9px !important; }
+.producer-layout-ref .champ-games-phase > header { min-height: 52px; padding-inline: 16px; }
+.producer-layout-ref .champ-games-phase h3 { font-size: 14px; }
+.producer-layout-ref .champ-game-main { min-height: 64px; padding: 9px 14px; }
+.producer-layout-ref .champ-game-date strong { font-size: 12px; }
+.producer-layout-ref .champ-game-copy strong { font-size: 13px; }
+.producer-layout-ref .champ-game-copy small,
+.producer-layout-ref .champ-game-date small { font-size: 12px; }
+.producer-layout-ref .champ-game-status { font-size: 12px; padding: 4px 8px; white-space: nowrap; }
+.producer-layout-ref .champ-game-actions button { min-height: 38px; padding-inline: 12px; font-size: 12px; }
+
+/* 4. Estatísticas: filtros, abas, classificação e MVP com leitura real. */
+.producer-layout-ref .champ-stats { gap: 14px !important; }
+.producer-layout-ref .champ-stats-head { min-height: 82px; align-items: center; border-radius: 9px !important; }
+.producer-layout-ref .champ-stats-head h2 { font-size: 22px; line-height: 1.15; }
+.producer-layout-ref .champ-stats-refresh { min-width: 42px; height: 42px; }
+.producer-layout-ref .champ-stats-summary {
+  display: grid !important;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 10px;
+  min-height: unset;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.producer-layout-ref .champ-stats-summary span {
+  display: grid !important;
+  min-width: 0;
+  min-height: 76px;
+  align-content: center;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #dce2e8;
+  border-radius: 8px;
+  background: #fff;
+}
+.producer-layout-ref .champ-stats-summary strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.producer-layout-ref .champ-stats-summary small { font-size: 12px; color: #64707c; }
+.producer-layout-ref .champ-stats-tabs { gap: 4px !important; }
+.producer-layout-ref .champ-stats-tabs button { min-height: 44px; padding-inline: 14px !important; font-size: 12px; }
+.producer-layout-ref .champ-stats-filter-grid { gap: 10px; padding: 12px; }
+.producer-layout-ref .champ-stats-filter-grid select,
+.producer-layout-ref .champ-stats-scorer select { min-height: 42px; font-size: 12px; }
+.producer-layout-ref .champ-stats-filters > summary,
+.producer-layout-ref .champ-stats-share > summary { min-height: 44px; font-size: 12px; }
+.producer-layout-ref .champ-stats-ranking,
+.producer-layout-ref .champ-stats-mvp-list {
+  max-width: 100%;
+  overflow-x: auto !important;
+  overscroll-behavior-x: contain;
+  border: 1px solid #dfe4e9;
+  border-radius: 9px !important;
+  background: #fff;
+}
+.producer-layout-ref .champ-stats-ranking-head,
+.producer-layout-ref .champ-stats-ranking-row { min-width: 600px; }
+.producer-layout-ref .champ-stats-ranking-head { min-height: 42px; font-size: 12px; }
+.producer-layout-ref .champ-stats-ranking-row { min-height: 62px; }
+.producer-layout-ref .champ-stats-ranking-row > span { font-size: 12px; }
+.producer-layout-ref .champ-stats-team strong,
+.producer-layout-ref .champ-stats-player strong { font-size: 12px; }
+.producer-layout-ref .champ-stats-team small,
+.producer-layout-ref .champ-stats-player small { font-size: 12px; }
+.producer-layout-ref .champ-stats-rank > strong { font-size: 17px; }
+.producer-layout-ref .champ-stats-points { font-size: 15px; color: #7a6200 !important; }
+.producer-layout-ref .champ-stats-mvp-list > article { min-width: 550px; min-height: 62px; }
+.producer-layout-ref .champ-stats-mvp-list > article > span strong { font-size: 12px; }
+.producer-layout-ref .champ-stats-scorer { border-radius: 9px; padding: 16px; }
+.producer-layout-ref .champ-stats-scorer-games button { min-height: 54px; }
+.producer-layout-ref .champ-stats-scorer-games strong { font-size: 12px; }
+.producer-layout-ref .champ-stats-open-scorer,
+.producer-layout-ref .champ-stats-actions button { min-height: 42px; font-size: 12px; }
+.producer-layout-ref .champ-stats :is(button,select):focus-visible { outline: 2px solid #bc9a00 !important; outline-offset: 2px; }
+
+
+/* Contraste explícito para componentes que herdavam títulos claros da skin antiga. */
+.producer-layout-ref .champ-games :is(h2,h3,h4),
+.producer-layout-ref .champ-stats :is(h2,h3,h4),
+.producer-layout-ref .champ-games .champ-game-main,
+.producer-layout-ref .champ-games .champ-game-copy strong,
+.producer-layout-ref .champ-stats .champ-stats-ranking-row,
+.producer-layout-ref .champ-stats .champ-stats-team strong,
+.producer-layout-ref .champ-stats .champ-stats-player strong,
+.producer-layout-ref .champ-stats .champ-stats-summary strong,
+.producer-layout-ref .champ-games .champ-games-summary strong {
+  color: #20252c !important;
+}
+.producer-layout-ref .champ-games-head p,
+.producer-layout-ref .champ-stats-head p { color: #8b7400 !important; }
+.producer-layout-ref .champ-games-summary small,
+.producer-layout-ref .champ-stats-summary small { color: #64707c !important; }
+.producer-layout-ref .champ-stats-ranking-head,
+.producer-layout-ref .champ-stats-ranking-row { display: grid !important; }
+.producer-layout-ref .champ-stats-ranking-head > *,
+.producer-layout-ref .champ-stats-ranking-row > * { min-width: 0; }
+.producer-layout-ref .champ-stats-team,
+.producer-layout-ref .champ-stats-player { color: #20252c !important; }
+.producer-layout-ref .champ-game-copy small,
+.producer-layout-ref .champ-game-date small { color: #65717c !important; }
+.producer-layout-ref .champ-game-date strong,
+.producer-layout-ref .champ-stats-mvp-kills strong { color: #816800 !important; }
+
+/* 5. Pontuador / integração com o Engine: priorizar dados e ações. */
+.scorer-workspace.scorer-sheet-workspace { min-width: 0; }
+.scorer-workspace.scorer-sheet-workspace .scorer-sheet-toolbar {
+  gap: 8px;
+  align-items: center;
+  border-radius: 9px;
+}
+.scorer-workspace.scorer-sheet-workspace .scorer-sheet-toolbar button,
+.scorer-workspace.scorer-sheet-workspace .scorer-scope-switch select { min-height: 40px; }
+.scorer-workspace.scorer-sheet-workspace .scorer-drop-tabs {
+  display: flex;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  gap: 6px;
+  padding-block: 2px 5px;
+}
+.scorer-workspace.scorer-sheet-workspace .scorer-drop-tab-item {
+  flex: 0 0 auto;
+  min-width: 86px;
+  border-radius: 7px;
+}
+.scorer-workspace.scorer-sheet-workspace .scorer-drop-tab-item > button { min-height: 42px; }
+.scorer-workspace.scorer-sheet-workspace .scorer-drop-tab-item > label { min-height: 25px; font-size: 12px; }
+.scorer-workspace.scorer-sheet-workspace .scorer-match-strip { border-radius: 8px; }
+.scorer-workspace.scorer-sheet-workspace .scorer-edit-table-wrap,
+.scorer-workspace.scorer-sheet-workspace .scorer-sheet-table-wrap {
+  max-width: 100%;
+  overflow-x: auto !important;
+  overscroll-behavior-x: contain;
+  border-radius: 9px !important;
+}
+.scorer-workspace.scorer-sheet-workspace .scorer-edit-table th,
+.scorer-workspace.scorer-sheet-workspace .scorer-sheet-table th { font-size: 12px; }
+.scorer-workspace.scorer-sheet-workspace .scorer-edit-table td { font-size: 12px; }
+.scorer-workspace.scorer-sheet-workspace :is(button,input,select):focus-visible {
+  outline: 2px solid #b89800 !important;
+  outline-offset: 2px;
+}
+
+@media(max-width:1100px) {
+  .championship-central-page .championship-central-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .producer-layout-ref .advanced-three-columns { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .producer-layout-ref .champ-games-summary,
+  .producer-layout-ref .champ-stats-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:760px) {
+  .championship-central-page .championship-central-shell { width: calc(100% - 20px) !important; padding-block: 12px 32px !important; }
+  .championship-central-page .championship-central-header { flex-direction: column; align-items: stretch !important; min-height: unset; padding: 16px !important; }
+  .championship-central-page .championship-central-header select { width: 100% !important; }
+  .championship-central-page .championship-central-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 8px !important; }
+  .championship-central-page .championship-central-grid article { grid-template-columns: minmax(0,1fr); gap: 6px; min-height: 104px; padding: 10px !important; }
+  .championship-central-page .championship-central-grid article:nth-child(3) { border-left: 1px solid #e0e5ea !important; padding-left: 10px !important; }
+  .championship-central-page .championship-central-overview,
+  .championship-central-page .championship-central-alerts,
+  .championship-central-page .championship-central-logs,
+  .championship-central-page .championship-choice-panel { padding: 12px !important; }
+  .producer-layout-ref .advanced-card { padding: 12px !important; }
+  .producer-layout-ref .advanced-three-columns { grid-template-columns: minmax(0,1fr); }
+  .producer-layout-ref .champ-games-head,
+  .producer-layout-ref .champ-stats-head { padding: 12px !important; }
+  .producer-layout-ref .champ-games-head-actions { width: 100%; }
+  .producer-layout-ref .champ-games-head-actions select { min-width: 136px !important; width: auto !important; max-width: calc(100vw - 84px); padding: 0 12px !important; color: #1d2126 !important; background-image: none; }
+  .producer-layout-ref .champ-games-new { width: auto !important; min-width: 42px; padding: 0 12px !important; font-size: 12px !important; }
+  .producer-layout-ref .champ-games-summary span,
+  .producer-layout-ref .champ-stats-summary span { min-height: 70px; padding: 10px; }
+  .producer-layout-ref .champ-games-summary strong,
+  .producer-layout-ref .champ-stats-summary strong { font-size: 20px; }
+  .producer-layout-ref .champ-games-form { padding: 12px; }
+  .producer-layout-ref .champ-game-main { grid-template-columns: 50px minmax(0,1fr) auto 16px; gap: 7px; padding: 8px; }
+  .producer-layout-ref .champ-game-details { padding: 10px !important; }
+  .producer-layout-ref .champ-game-status { font-size: 12px; padding: 3px 5px; }
+  .producer-layout-ref .champ-stats-filter-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .producer-layout-ref .champ-stats-ranking-head { display: grid !important; }
+  .producer-layout-ref .champ-stats-ranking-head,
+  .producer-layout-ref .champ-stats-ranking-row { min-width: 600px; grid-template-columns: 60px minmax(180px,1fr) 48px 48px 58px 66px; gap: 6px; }
+  .producer-layout-ref .champ-stats-mvp-list > article { grid-template-columns: 60px minmax(180px,1fr) 64px 64px 72px; gap: 7px; }
+  .scorer-workspace.scorer-sheet-workspace .scorer-sheet-toolbar { align-items: stretch; }
+  .scorer-workspace.scorer-sheet-workspace .scorer-edit-table,
+  .scorer-workspace.scorer-sheet-workspace .scorer-sheet-table { min-width: 760px; }
+}
+@media(max-width:420px) {
+  .championship-central-page .championship-central-grid strong { font-size: 20px; }
+  .producer-layout-ref .champ-stats-filter-grid { grid-template-columns: minmax(0,1fr); }
+  .producer-layout-ref .champ-games-summary,
+  .producer-layout-ref .champ-stats-summary { gap: 7px; }
+  .producer-layout-ref .champ-games-summary small,
+  .producer-layout-ref .champ-stats-summary small { font-size: 12px; }
+  .producer-layout-ref .champ-game-status { max-width: 84px; overflow: hidden; text-overflow: ellipsis; }
+}

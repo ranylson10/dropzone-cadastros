@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
 import { isWebProfileType, type DropZoneRow, type WebProfileType } from '@/lib/types'
 import { AppHeader } from './AppHeader'
+import { StorefrontHeader } from './StorefrontHeader'
 import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 
@@ -32,6 +33,8 @@ export type AppShellProps = {
    * never = sem header (login custom etc.)
    */
   header?: 'always' | 'auto' | 'never'
+  /** Visual do cabeçalho: sistema interno ou vitrine pública. */
+  headerVariant?: 'system' | 'storefront'
   forceHeader?: boolean
   /** Conta já resolvida (painel) — evita segundo /api/me */
   account?: DropZoneRow | null
@@ -57,6 +60,7 @@ export function AppShell({
   mainClassName = '',
   mainId,
   header = 'always',
+  headerVariant = 'system',
   forceHeader = false,
   account: accountProp,
   identity: identityProp,
@@ -200,6 +204,17 @@ export function AppShell({
     if (pathname !== '/') window.location.href = '/'
   }
 
+  // A mesma moldura visual do catálogo R13 também atende às páginas públicas.
+  // Não substituímos o cabeçalho de painéis operacionais nem o de fluxos isolados.
+  const unifiedPublicRoutes = new Set([
+    '/agenda', '/carteira', '/lili', '/afiliados',
+    '/termos-de-servico', '/politica-de-privacidade', '/exclusao-de-dados',
+  ])
+  const unifiedPublicHeader = header !== 'never'
+    && unifiedPublicRoutes.has(pathname)
+    && !mainClassName.includes('dashboard')
+    && !mainClassName.includes('affiliate-dashboard')
+  const resolvedHeaderVariant = unifiedPublicHeader ? 'storefront' : headerVariant
   const resolvedActive = activeLabel || resolveActiveNavLabel(pathname)
   const showHeader =
     header === 'always'
@@ -208,9 +223,11 @@ export function AppShell({
 
   const mainClasses = useMemo(() => {
     const parts = ['app-shell-main', mainClassName]
-    if (showHeader && withAuthOffset) parts.push('page-authenticated')
+    if (showHeader && withAuthOffset && resolvedHeaderVariant !== 'storefront') parts.push('page-authenticated')
+    if (showHeader && resolvedHeaderVariant === 'storefront') parts.push('storefront-public-main', 'dz-unified-public-page')
+    if (showHeader && resolvedHeaderVariant === 'system' && mainClassName.includes('page-authenticated')) parts.push('dz-unified-workspace-page')
     return parts.filter(Boolean).join(' ')
-  }, [mainClassName, showHeader, withAuthOffset])
+  }, [mainClassName, showHeader, withAuthOffset, resolvedHeaderVariant])
 
   const resolvedMainId = mainId || 'main-content'
 
@@ -218,30 +235,34 @@ export function AppShell({
     <>
       <a className="app-skip-link" href={`#${resolvedMainId}`}>Pular para o conteúdo</a>
       {showHeader ? (
-        <AppHeader
-          navItems={navItems}
-          activeLabel={resolvedActive}
-          profileName={identity?.name || account?.name || account?.username || 'Conta DropZone'}
-          profileSubtitle={
-            identity?.username
-              ? `@${identity.username}`
-              : account?.username
-                ? `@${account.username}`
-                : 'Conta DropZone'
-          }
-          profileImage={identity?.avatar_url || mediaFor(account) || undefined}
-          accounts={accounts}
-          activeAccountId={activeAccountId || account?.id}
-          switchingAccountId={switchingAccountId}
-          onSwitchAccount={onSwitchAccount || (loadSession ? defaultSwitch : undefined)}
-          onCreateLinkedProfile={onCreateLinkedProfile}
-          onSignOut={account || identity ? (onSignOutProp || defaultSignOut) : undefined}
-          loginHref={loginHref}
-          showWallet={
-            Boolean(account)
-            && (account?.profile_type === 'produtora' || account?.profile_type === 'manager')
-          }
-        />
+        resolvedHeaderVariant === 'storefront' ? (
+          <StorefrontHeader authenticated={Boolean(account || identity)} />
+        ) : (
+          <AppHeader
+            navItems={navItems}
+            activeLabel={resolvedActive}
+            profileName={identity?.name || account?.name || account?.username || 'Conta DropZone'}
+            profileSubtitle={
+              identity?.username
+                ? `@${identity.username}`
+                : account?.username
+                  ? `@${account.username}`
+                  : 'Conta DropZone'
+            }
+            profileImage={identity?.avatar_url || mediaFor(account) || undefined}
+            accounts={accounts}
+            activeAccountId={activeAccountId || account?.id}
+            switchingAccountId={switchingAccountId}
+            onSwitchAccount={onSwitchAccount || (loadSession ? defaultSwitch : undefined)}
+            onCreateLinkedProfile={onCreateLinkedProfile}
+            onSignOut={account || identity ? (onSignOutProp || defaultSignOut) : undefined}
+            loginHref={loginHref}
+            showWallet={
+              Boolean(account)
+              && (account?.profile_type === 'produtora' || account?.profile_type === 'manager')
+            }
+          />
+        )
       ) : null}
       <main className={mainClasses} id={resolvedMainId} tabIndex={-1}>
         {children}

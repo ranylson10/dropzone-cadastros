@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useMemo, useState } from 'react'
 import { Loader2, RefreshCw, Search, UserRound, Users } from 'lucide-react'
 import { useCampeonatoJogadores } from '../hooks/useCampeonatoJogadores'
@@ -157,8 +158,8 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
         </div>
 
         <div className="teams-toolbar-right" style={{ gap: 8, flexWrap: 'wrap' }}>
-          <label className="teams-inline-search"><Search size={14} /><input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Pesquisar jogador" /></label>
-          <select
+          <label className="teams-inline-search"><Search size={14} /><UiInput value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Pesquisar jogador" /></label>
+          <UiSelect
             value={filtroEquipeId}
             onChange={(e) => {
               setFiltroEquipeId(e.target.value)
@@ -171,8 +172,8 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
             {equipesOpts.map(([id, nome]) => (
               <option key={id} value={id}>{nome}</option>
             ))}
-          </select>
-          <select
+          </UiSelect>
+          <UiSelect
             value={filtroLineId}
             onChange={(e) => setFiltroLineId(e.target.value)}
             aria-label="Filtrar por line"
@@ -182,7 +183,7 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
             {linesOpts.map(([id, nome]) => (
               <option key={id} value={id}>{nome}</option>
             ))}
-          </select>
+          </UiSelect>
           <button className="teams-refresh-button" type="button" onClick={reload} title="Atualizar">
             <RefreshCw size={15} />
           </button>

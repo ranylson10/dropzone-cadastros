@@ -16,6 +16,7 @@ import { ManagerContextsView, type StaffVinculo } from './ManagerContextsView'
 import { ManagerVendasView } from './ManagerVendasView'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { dataText } from '../../utils'
+import { WorkspaceContent, WorkspaceHeader, WorkspaceNav, WorkspaceShell } from '@/components/workspace'
 
 const contextIcons: Record<Exclude<ManagerPanelMode, 'hub'>, typeof Trophy> = {
   produtora: Trophy,
@@ -222,33 +223,44 @@ export function ManagerPanel(props: {
   }
 
   return (
-    <div className="dashboard manager-dashboard">
+    <WorkspaceShell kind="manager" className="dashboard manager-dashboard">
       {/* Afiliado não administra o campeonato. Esta central mostra somente
-          campanhas liberadas, vendas e o próprio perfil comercial. */}
-      <section className="panel span-3 manager-hub-header manager-hub-header-compact">
-        <nav className="manager-mode-nav manager-mode-nav-main" aria-label="Áreas do manager">
-          <span className="manager-mode-chip active" aria-current="page">
-            <Trophy size={15} />
-            <span>Afiliados</span>
-          </span>
-          <div className="manager-subnav">
-            <a
-              href="/carteira"
-              className="manager-mode-chip manager-mode-chip-sm"
-              style={{ textDecoration: 'none' }}
-            >
-              <Wallet size={13} /> Carteira
-            </a>
-            <button
-              type="button"
-              className={`manager-mode-chip manager-mode-chip-sm ${showManagerPerfil ? 'active' : ''}`}
-              onClick={() => setShowManagerPerfil((v) => !v)}
-            >
-              Perfil
-            </button>
-          </div>
-        </nav>
-      </section>
+          campanhas liberadas, vínculos e o próprio perfil comercial. */}
+      <WorkspaceHeader
+        eyebrow="Manager"
+        title="Painel do manager"
+        description="Campeonatos para venda, equipes e jogadores vinculados no mesmo workspace."
+        icon={<Trophy size={18} />}
+        actions={<a href="/carteira"><Wallet size={14} /> Carteira</a>}
+      />
+      <WorkspaceNav
+        ariaLabel="Áreas do manager"
+        activeId={showManagerPerfil ? 'perfil' : mode}
+        onChange={(id) => {
+          if (id === 'perfil') {
+            setShowManagerPerfil(true)
+            return
+          }
+          setShowManagerPerfil(false)
+          openMode(id as Exclude<ManagerPanelMode, 'hub'>)
+        }}
+        items={[
+          ...MANAGER_CONTEXT_CARDS.map((item) => {
+            const Icon = contextIcons[item.id]
+            return { id: item.id, label: item.title, icon: <Icon size={15} />, badge: modeCount(item.id) }
+          }),
+          { id: 'perfil', label: 'Perfil', icon: <UserRound size={15} /> },
+        ]}
+      />
+      <WorkspaceContent>
+
+      {mode === 'produtora' && !showManagerPerfil ? (
+        <section className="manager-guide-grid span-3" aria-label="Resumo do afiliado">
+          <article><Trophy size={18}/><span><strong>{countCampeonatos}</strong><small>campeonatos liberados para venda</small></span></article>
+          <article><MessageCircle size={18}/><span><strong>{ativos.filter((item) => item.anunciando).length}</strong><small>campanhas anunciadas agora</small></span></article>
+          <a href="/carteira"><Wallet size={18}/><span><strong>Carteira</strong><small>saldo, comissões e histórico</small></span></a>
+        </section>
+      ) : null}
 
       {mode === 'produtora' && showManagerPerfil ? (
         <section className="panel span-3">
@@ -277,7 +289,7 @@ export function ManagerPanel(props: {
       ) : null}
 
       {/* ——— CAMPEONATOS (antes: produtora) ——— */}
-      {mode === 'produtora' ? (
+      {mode === 'produtora' && !showManagerPerfil ? (
         <>
           <ManagerVendasView
               accountId={props.account.id}
@@ -322,6 +334,7 @@ export function ManagerPanel(props: {
           onCreateLinkedProfile={props.onCreateLinkedProfile}
         />
       ) : null}
-    </div>
+      </WorkspaceContent>
+    </WorkspaceShell>
   )
 }

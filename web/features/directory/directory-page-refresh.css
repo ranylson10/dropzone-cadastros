@@ -1,0 +1,292 @@
+/* DROPZONE — R168/R171/R173/R175/R177/R178
+   Revisão explícita dos diretórios públicos e perfis. */
+
+/* =========================================================
+   R168 /equipes + R171 /jogadores + R173 /produtoras + R175 /managers
+   ========================================================= */
+.directory-page:not(.directory-market-page){min-height:100dvh;background:transparent!important;color:var(--dz-text,#171a1f)!important}
+.directory-page:not(.directory-market-page) .directory-page-body,
+.directory-page:not(.directory-market-page) .directory-page-body-with-banner{gap:14px!important;padding:28px 0 64px!important;background:transparent!important}
+.directory-page:not(.directory-market-page) .directory-hero-banner{
+  position:relative!important;isolation:isolate!important;overflow:hidden!important;
+  width:min(1480px,calc(100% - 48px))!important;
+  min-height:228px!important;margin:0 auto!important;padding:0!important;
+  border:1px solid #32373e!important;border-radius:10px!important;
+  background:linear-gradient(108deg,#22262c 0%,#30353c 70%,#3a4048 100%)!important;
+  color:#fff!important;box-shadow:0 9px 26px rgba(24,28,33,.10)!important;
+}
+.directory-page:not(.directory-market-page) .directory-hero-banner::before{
+  position:absolute!important;inset:0!important;z-index:-2!important;content:''!important;
+  opacity:.62!important;background:url('/ui/texture-brush.svg') right center/auto 100% no-repeat!important;
+}
+.directory-page:not(.directory-market-page) .directory-hero-banner::after{
+  position:absolute!important;inset:0 0 0 auto!important;z-index:-1!important;width:44%!important;content:''!important;
+  opacity:.5!important;background:url('/ui/texture-halftone.svg') right top/340px 240px repeat!important;
+}
+.directory-page:not(.directory-market-page) .directory-hero-character{display:none!important}
+.directory-page:not(.directory-market-page) .directory-hero-inner{width:100%!important;min-height:228px!important;padding:34px!important;display:grid!important;align-content:center!important;justify-items:start!important}
+.directory-page:not(.directory-market-page) .directory-hero-banner small{color:var(--dz-yellow,#f2c900)!important;font-size:12px!important;font-weight:950!important;letter-spacing:.13em!important}
+.directory-page:not(.directory-market-page) .directory-hero-banner h1{margin:4px 0 7px!important;color:#fff!important;font-size:clamp(34px,4.2vw,58px)!important;line-height:.96!important;letter-spacing:-.05em!important;text-transform:uppercase!important}
+.directory-page:not(.directory-market-page) .directory-hero-banner p{max-width:760px!important;margin:0!important;color:#d3d8de!important;font-size:13px!important;line-height:1.55!important}
+.directory-page:not(.directory-market-page) .directory-context-action{margin-top:16px!important;border-radius:6px!important;background:var(--dz-yellow,#f2c900)!important;color:#171a1f!important}
+
+.directory-page:not(.directory-market-page) .directory-toolbar,
+.directory-page:not(.directory-market-page) .directory-list-head,
+.directory-page:not(.directory-market-page) .directory-list:not(.directory-rank-list),
+.directory-page:not(.directory-market-page) .directory-empty{
+  width:min(1480px,calc(100% - 48px))!important;margin-left:auto!important;margin-right:auto!important;
+}
+.directory-page:not(.directory-market-page) .directory-toolbar{margin-top:2px!important;margin-bottom:0!important}
+.directory-page:not(.directory-market-page) .directory-search{
+  min-height:48px!important;padding:0 14px!important;
+  border:1px solid #cbd1d8!important;border-radius:7px!important;background:#fff!important;color:#69717c!important;
+  box-shadow:0 4px 14px rgba(24,28,33,.04)!important;
+}
+.directory-page:not(.directory-market-page) .directory-search input{color:#171a1f!important;font-size:13px!important}.directory-page:not(.directory-market-page) .directory-search input::placeholder{color:#9098a1!important}
+.directory-page:not(.directory-market-page) .directory-search:focus-within{border-color:#b39700!important;outline:3px solid rgba(242,201,0,.15)!important}
+.directory-page:not(.directory-market-page) .directory-list-head{
+  margin-top:0!important;padding:9px 14px!important;border:1px solid #d6dbe1!important;border-bottom:0!important;border-radius:8px 8px 0 0!important;background:#eef0f2!important;color:#69717c!important;
+}
+.directory-page:not(.directory-market-page) .directory-list:not(.directory-rank-list){gap:0!important;border:1px solid #d6dbe1!important;border-radius:0 0 8px 8px!important;background:#fff!important;overflow:hidden!important;box-shadow:0 6px 20px rgba(24,28,33,.05)!important}
+.directory-page:not(.directory-market-page) .directory-list-row,
+.directory-page:not(.directory-market-page) .directory-list-row:nth-child(even){
+  min-height:78px!important;padding:10px 14px!important;border:0!important;border-bottom:1px solid #e2e6ea!important;border-radius:0!important;background:#fff!important;color:#171a1f!important;box-shadow:none!important;
+}
+.directory-page:not(.directory-market-page) .directory-list-row:last-child{border-bottom:0!important}
+.directory-page:not(.directory-market-page) .directory-list-row:hover{border-bottom-color:#d6dbe1!important;background:#fafbfc!important;box-shadow:inset 4px 0 0 var(--dz-yellow,#f2c900)!important;transform:none!important}
+.directory-page:not(.directory-market-page) .directory-list-media{width:52px!important;height:52px!important;border:1px solid #d4d9de!important;border-radius:8px!important;background:#eef0f2!important;color:#8d7600!important}
+.directory-page:not(.directory-market-page) .directory-list-media img{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:7px!important}
+.directory-page:not(.directory-market-page) .directory-list-main>small{color:#8b7400!important;font-size:12px!important}.directory-page:not(.directory-market-page) .directory-list-main>strong{color:#171a1f!important;font-size:15px!important}.directory-page:not(.directory-market-page) .directory-list-main>span{color:#737b85!important;font-size:12px!important}
+.directory-page:not(.directory-market-page) .directory-list-meta{color:#69717c!important}.directory-page:not(.directory-market-page) .directory-list-meta b{color:#30363f!important}.directory-page:not(.directory-market-page) .directory-list-arrow{color:#838b94!important}
+.directory-page:not(.directory-market-page) .directory-empty{padding:28px!important;border:1px dashed #c8ced5!important;border-radius:8px!important;background:#fff!important;color:#69717c!important}
+
+/* R22 — Perfis públicos: preservar o tema escuro da vitrine aprovada.
+   Corrige na origem as sobrescritas claras de R177. Aplica-se apenas aos
+   perfis /equipes/[id], /jogadores/[id], /produtoras/[id], /managers/[id]. */
+.profile-command-page {
+  --profile-bg: transparent;
+  --profile-surface: #1b3446;
+  --profile-surface-raised: #234157;
+  --profile-ink: #f3f8fc;
+  --profile-muted: #b8ccdc;
+  --profile-line: #38566c;
+  --profile-accent: #f1cc25;
+  background: transparent !important;
+  color: var(--profile-ink) !important;
+}
+.profile-command-hero {
+  position: relative !important;
+  isolation: isolate !important;
+  width: min(1480px,calc(100% - 48px)) !important;
+  margin: 28px auto 0 !important;
+  border: 1px solid #365572 !important;
+  border-radius: 10px !important;
+  background: linear-gradient(112deg,#1a486b,#102d47 75%) !important;
+  color: #f6fbff !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+.profile-command-hero::after {
+  position: absolute;right: 0;top: 0;z-index: -1;
+  width: 44%;height: 100%;content: '';opacity: .25;
+  background: url('/ui/texture-halftone.svg') right top/340px 240px repeat;
+}
+.profile-command-inner { width:100% !important;padding:18px 22px 0 !important; }
+.profile-command-inner .directory-back { color:#c5d5e2 !important; }
+.profile-command-inner .directory-back:hover { color:var(--profile-accent) !important; }
+.profile-command-main { padding:18px 0 20px !important; }
+.profile-command-avatar { border:2px solid var(--profile-accent) !important;border-radius:10px !important;background:#152838 !important;color:#fff !important; }
+.profile-command-copy small { color:var(--profile-accent) !important; }
+.profile-command-copy h1 { color:#fff !important; }
+.profile-command-copy strong { color:#e2ebf3 !important; }
+.profile-command-copy p { color:#cad9e5 !important; }
+.profile-command-facts,.profile-command-more-facts,.profile-command-actions { border-color:#45647b !important; }
+.profile-command-facts div,.profile-command-more-facts dl,.profile-command-more-facts dl>div { border-color:#45647b !important; }
+.profile-command-facts dt,.profile-command-more-facts dt { color:#b7cada !important; }
+.profile-command-facts dd,.profile-command-more-facts dd { color:#fff !important; }
+.profile-command-more-facts summary { color:#d8e8f2 !important; }
+.profile-command-more-facts summary span { background:#25455a !important;color:#fff !important; }
+.profile-command-actions a,.profile-command-actions .directory-report-button {
+  border-color:#48657b !important;background:#254458 !important;color:#f2f8fc !important;
+}
+.profile-command-actions a:hover,.profile-command-actions .directory-report-button:hover {
+  background:#31566d !important;color:#fff !important;
+}
+.profile-command-actions a.primary { border-color:#d9b72b !important;background:#f1cc25 !important;color:#122635 !important; }
+
+/* O conteúdo é centralizado no mesmo eixo do catálogo; R14 limita a 960px. */
+.profile-command-page .directory-profile-tabs-shell,
+.profile-command-page .directory-profile-tab-panel,
+.profile-command-page .team-lines-site-workspace {
+  width:min(1480px,calc(100% - 48px)) !important;
+  margin-left:auto !important;margin-right:auto !important;
+  box-sizing:border-box;
+}
+.profile-command-page .directory-profile-tabs-shell {
+  margin-top:16px !important;padding:5px !important;
+  border:1px solid #38566c !important;border-radius:9px !important;
+  background:#1d394d !important;box-shadow:none !important;
+}
+.profile-command-page .directory-profile-tabs {
+  display:flex !important;align-items:stretch !important;
+  gap:5px !important;overflow-x:auto !important;
+  border:0 !important;background:transparent !important;
+  scrollbar-width:thin;
+}
+.profile-command-page .directory-profile-tabs button,
+.profile-command-page .directory-profile-tab-link {
+  min-height:42px !important;padding:0 14px !important;
+  border:1px solid transparent !important;border-radius:6px !important;
+  background:transparent !important;color:#c1d3df !important;
+  font-size:12px !important;font-weight:800 !important;
+  letter-spacing:0 !important;text-transform:none !important;
+  white-space:nowrap;
+}
+.profile-command-page .directory-profile-tabs button:hover,
+.profile-command-page .directory-profile-tab-link:hover {
+  border-color:#496981 !important;background:#2b4b61 !important;color:#fff !important;
+}
+.profile-command-page .directory-profile-tabs button.active {
+  border-color:#60849a !important;background:#31556b !important;color:#fff !important;
+  box-shadow:inset 0 -3px 0 var(--profile-accent) !important;
+}
+.profile-command-page .directory-profile-tabs button.active span { background:#486d83 !important;color:#fff !important; }
+.profile-command-page .directory-profile-tab-panel,
+.profile-command-page .team-lines-site-workspace {
+  margin-top:10px !important;padding:16px !important;
+  border:1px solid #38566c !important;border-radius:9px !important;
+  background:#1b3446 !important;color:#f3f8fc !important;
+  box-shadow:none !important;
+}
+.profile-command-page .directory-related-list,
+.profile-command-page .directory-public-slots,
+.profile-command-page .championship-vagas-list.directory-public-slots {
+  display:grid !important;gap:0 !important;
+  border:1px solid #345269 !important;border-radius:8px !important;
+  background:#162d40 !important;overflow:hidden !important;
+  box-shadow:none !important;
+}
+.profile-command-page .directory-related-list > a,
+.profile-command-page .directory-related-list > article,
+.profile-command-page .directory-public-slot,
+.profile-command-page .directory-public-slots .championship-vaga-row {
+  min-height:66px !important;padding:10px 12px !important;
+  border:0 !important;border-bottom:1px solid #304c60 !important;
+  border-radius:0 !important;background:#172f42 !important;
+  color:#f3f8fc !important;box-shadow:none !important;
+}
+.profile-command-page .directory-related-list > :is(a,article):nth-child(even),
+.profile-command-page .directory-public-slots > :nth-child(even) {
+  background:#1d394d !important;
+}
+.profile-command-page .directory-related-list > :is(a,article):last-child,
+.profile-command-page .directory-public-slots > :last-child { border-bottom:0 !important; }
+.profile-command-page .directory-related-list > :is(a,article):hover,
+.profile-command-page .directory-public-slots .championship-vaga-row:hover {
+  background:#294b61 !important;border-left:0 !important;
+  transform:none !important;box-shadow:none !important;
+}
+.profile-command-page .directory-related-list > :is(a,article) > span {
+  border:1px solid #4b6a80 !important;border-radius:9px !important;
+  background:#274a60 !important;color:#e9f3fa !important;
+}
+.profile-command-page .directory-related-list strong,
+.profile-command-page .directory-public-slots .vaga-row-identity strong { color:#f4faff !important; }
+.profile-command-page .directory-related-list small,
+.profile-command-page .directory-related-list em,
+.profile-command-page .directory-public-slots .vaga-row-identity small { color:#aec8da !important; }
+.profile-command-page .directory-related-list svg { color:#e5c94f !important; }
+.profile-command-page .directory-empty { background:#182e40 !important;border-color:#3b586e !important;color:#c2d5e2 !important; }
+
+/* Estrutura aninhada, slots e formações; pode aparecer em outros perfis. */
+.profile-command-page .directory-structure,
+.profile-command-page .directory-structure-node,
+.profile-command-page .directory-structure-children { background:transparent !important;border-color:#36546a !important; }
+.profile-command-page .directory-structure-row,
+.profile-command-page .directory-structure-row.is-open,
+.profile-command-page .directory-structure-node.status-livre .directory-structure-row,
+.profile-command-page .directory-structure-node.status-ocupada .directory-structure-row {
+  background:#1e3a4d !important;color:#f2f8fc !important;border-color:#36546a !important;
+}
+.profile-command-page .directory-structure-row:hover { background:#2a4b61 !important; }
+.profile-command-page .directory-structure-copy strong { color:#fff !important; }
+.profile-command-page .directory-structure-copy small { color:#b7ccdd !important; }
+.profile-command-page .directory-structure-count { color:#e9d06a !important; }
+.profile-command-page .team-lines-site-head strong,
+.profile-command-page .team-lines-site-grid strong { color:#f5faff !important; }
+.profile-command-page .team-lines-site-head span,
+.profile-command-page .team-lines-site-grid small { color:#b8cbdb !important; }
+.profile-command-page .team-lines-site-grid > button {
+  border:0 !important;border-bottom:1px solid #3b576b !important;
+  border-radius:0 !important;background:#1a3548 !important;
+  color:#f3f8fc !important;
+}
+.profile-command-page .team-lines-site-grid > button:nth-child(even) { background:#203d50 !important; }
+.profile-command-page .team-lines-site-grid > button:hover { background:#2a4b61 !important; }
+.profile-command-page .team-lines-site-grid > button > span:first-child {
+  border:1px solid #47697e !important;border-radius:8px !important;
+  background:#254b60 !important;color:#f1cc25 !important;
+}
+/* Só no gerenciador de line embutido no perfil da equipe. */
+.profile-command-page .line-roster-manager {
+  --card:#1b3446;--surface:#254358;--surface-2:#2c4b60;
+  --text:#f4f9fc;--muted:#afc5d5;--border:#436075;
+  color:#f4f9fc;
+}
+.profile-command-page .line-roster-block,
+.profile-command-page .line-event-editor,
+.profile-command-page .line-formation-list > div > button {
+  border-color:#426075 !important;background:#203d51 !important;color:#f4f9fc !important;
+}
+.profile-command-page .line-roster-manager :is(input,select) {
+  border-color:#4c6b80 !important;background:#142e40 !important;
+  color:#f4f9fc !important;color-scheme:dark;
+}
+@media (max-width:900px) {
+  .profile-command-hero,
+  .profile-command-page .directory-profile-tabs-shell,
+  .profile-command-page .directory-profile-tab-panel,
+  .profile-command-page .team-lines-site-workspace { width:calc(100% - 20px) !important; }
+  .profile-command-page .directory-profile-tab-panel { padding:12px !important; }
+  .profile-command-page .directory-profile-tabs button,
+  .profile-command-page .directory-profile-tab-link { flex:0 0 auto !important; }
+}
+
+/* =========================================================
+   R177 /rank
+   ========================================================= */
+.directory-rank-hero{width:min(1480px,calc(100% - 48px))!important;margin:28px auto 0!important;min-height:210px!important;border:1px solid #32373e!important;border-radius:10px!important;background:linear-gradient(108deg,#22262c,#30353c)!important;color:#fff!important;box-shadow:0 9px 26px rgba(24,28,33,.10)!important}
+.directory-rank-hero::after{opacity:.52!important;background:url('/ui/texture-halftone.svg') right top/340px 240px repeat!important}
+.directory-rank-hero h1{color:#fff!important}.directory-rank-hero small{color:var(--dz-yellow,#f2c900)!important}.directory-rank-hero p{color:#d0d5db!important}
+.directory-rank-content{width:min(1480px,calc(100% - 48px))!important;margin:0 auto!important;padding:14px 0 64px!important}
+.directory-rank-table{border:1px solid #d5dae0!important;border-radius:8px!important;background:#fff!important;box-shadow:0 6px 20px rgba(24,28,33,.05)!important;overflow:hidden!important}
+.directory-rank-table .directory-list-head{border:0!important;border-bottom:1px solid #dce1e6!important;background:#eef0f2!important}
+.directory-rank-list .directory-rank-row{border-color:#e1e5e9!important;background:#fff!important;color:#171a1f!important}.directory-rank-list .directory-rank-row:hover{background:#fafbfc!important}.directory-rank-list .directory-list-main>strong{color:#171a1f!important}.directory-rank-list .directory-list-main>small,.directory-rank-list .directory-list-main>span{color:#69717c!important}
+
+/* =========================================================
+   R178 /comunidade
+   ========================================================= */
+.community-hub-hero{width:min(1480px,calc(100% - 48px))!important;margin:28px auto 14px!important;padding:30px!important;border:1px solid #32373e!important;border-radius:10px!important;background:linear-gradient(108deg,#22262c,#30353c)!important;color:#fff!important;box-shadow:0 9px 26px rgba(24,28,33,.10)!important;position:relative!important;overflow:hidden!important}
+.community-hub-hero::after{position:absolute;right:0;top:0;width:44%;height:100%;content:'';opacity:.5;background:url('/ui/texture-halftone.svg') right top/340px 240px repeat}
+.community-hub-hero>*{position:relative;z-index:1}.community-hub-hero small{color:var(--dz-yellow,#f2c900)!important}.community-hub-hero h1{color:#fff!important}.community-hub-hero p{color:#d0d5db!important}
+.community-hub-grid{width:min(1480px,calc(100% - 48px))!important;margin:0 auto 64px!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.community-hub-card{min-height:150px!important;padding:18px!important;border:1px solid #d5dae0!important;border-radius:8px!important;background:#fff!important;color:#171a1f!important;box-shadow:0 5px 18px rgba(24,28,33,.05)!important}.community-hub-card:hover{border-color:#aeb5bd!important;background:#fafbfc!important;transform:translateY(-1px)!important}.community-hub-icon{border-radius:7px!important;background:#24282e!important;color:var(--dz-yellow,#f2c900)!important}.community-hub-copy strong{color:#171a1f!important}.community-hub-copy span{color:#69717c!important}.community-hub-arrow{color:#8a7300!important}
+
+@media(max-width:900px){
+  .directory-page:not(.directory-market-page) .directory-hero-banner,
+  .directory-page:not(.directory-market-page) .directory-toolbar,
+  .directory-page:not(.directory-market-page) .directory-list-head,
+  .directory-page:not(.directory-market-page) .directory-list:not(.directory-rank-list),
+  .directory-page:not(.directory-market-page) .directory-empty,
+  .profile-command-hero,
+  .profile-command-page .directory-profile-tabs-shell,
+  .profile-command-page .directory-profile-tab-panel,
+  .profile-command-page .team-lines-site-workspace,
+  .directory-rank-hero,.directory-rank-content,.community-hub-hero,.community-hub-grid{width:calc(100% - 20px)!important}
+  .directory-page:not(.directory-market-page) .directory-page-body,.directory-page:not(.directory-market-page) .directory-page-body-with-banner{padding-top:14px!important}
+  .directory-page:not(.directory-market-page) .directory-hero-inner{min-height:200px!important;padding:22px!important}.directory-page:not(.directory-market-page) .directory-hero-banner{min-height:200px!important}.directory-page:not(.directory-market-page) .directory-hero-banner h1{font-size:36px!important}
+  .directory-page:not(.directory-market-page) .directory-list-head{display:none!important}.directory-page:not(.directory-market-page) .directory-list:not(.directory-rank-list){border-radius:8px!important}
+  .directory-page:not(.directory-market-page) .directory-list-row,.directory-page:not(.directory-market-page) .directory-list-row:nth-child(even){grid-template-columns:48px minmax(0,1fr) auto!important;min-height:72px!important;padding:9px!important}.directory-page:not(.directory-market-page) .directory-list-meta{display:none!important}.directory-page:not(.directory-market-page) .directory-list-media{width:46px!important;height:46px!important}
+  .profile-command-hero{margin-top:14px!important}.profile-command-main{grid-template-columns:64px minmax(0,1fr)!important}.profile-command-avatar{width:64px!important;height:64px!important}.profile-command-copy h1{font-size:27px!important}.profile-command-facts{grid-column:1/-1!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}.profile-command-page .directory-profile-tab-panel{padding:12px!important}.profile-command-page .directory-profile-tabs{overflow-x:auto!important;flex-wrap:nowrap!important}.profile-command-page .directory-profile-tabs button,.profile-command-page .directory-profile-tab-link{flex:0 0 auto!important}
+  .community-hub-grid{grid-template-columns:1fr!important}.community-hub-hero{margin-top:14px!important;padding:22px!important}.directory-rank-hero{margin-top:14px!important}
+}

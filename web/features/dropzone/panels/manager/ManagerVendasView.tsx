@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useState } from 'react'
 import { Copy, CreditCard, ExternalLink, MessageCircle, RefreshCw, ShieldCheck, Trash2, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -275,7 +276,7 @@ export function ManagerVendasView(props: {
         <div className="mini-grid two">
           <label className="field">
             <span>Nome público</span>
-            <input
+            <UiInput
               value={props.nomePublico}
               onChange={(e) => props.setNomePublico(e.target.value)}
               placeholder="Ex.: Paulo Vagas"
@@ -503,17 +504,17 @@ export function ManagerVendasView(props: {
             <div className="mini-grid two">
               <label className="field">
                 <span>Referência da venda</span>
-                <input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Ex.: ALOE, cliente João, vaga 01" />
+                <UiInput value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Ex.: ALOE, cliente João, vaga 01" />
               </label>
               <label className="field">
                 <span>Quantidade de vagas</span>
-                <input type="number" min={1} max={20} value={saleQuantity} onChange={(e) => setSaleQuantity(e.target.value)} />
+                <UiInput type="number" min={1} max={20} value={saleQuantity} onChange={(e) => setSaleQuantity(e.target.value)} />
               </label>
               <label className="field">
                 <span>Canal do link</span>
-                <select value={saleChannel} onChange={(event) => setSaleChannel(event.target.value as typeof saleChannel)}>
+                <UiSelect value={saleChannel} onChange={(event) => setSaleChannel(event.target.value as typeof saleChannel)}>
                   <option value="whatsapp">WhatsApp</option><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="link">Outro link</option>
-                </select>
+                </UiSelect>
               </label>
             </div>
 

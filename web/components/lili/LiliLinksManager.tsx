@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Clock3, Copy, ExternalLink, Link2, Loader2, Pause, Play, RefreshCw, Settings2, Trash2 } from 'lucide-react'
 
@@ -97,7 +99,7 @@ export function LiliLinksManager({ championshipId, phases, groups, slots, canMan
   }
 
   async function removeLink(link: LinkRow) {
-    if (!window.confirm('Excluir este link? O histórico ficará preservado, mas novas entradas serão bloqueadas.')) return
+    if (!await confirmAction('Excluir este link? O histórico ficará preservado, mas novas entradas serão bloqueadas.')) return
     setActionId(link.id)
     try {
       await request('/api/dropzone', {
@@ -171,9 +173,9 @@ export function LiliLinksManager({ championshipId, phases, groups, slots, canMan
             <button type="button" className="danger" onClick={() => void removeLink(link)} disabled={busy}><Trash2 size={15} /> Excluir</button>
           </div>
           {editingId === link.id ? <div className="lili-link-edit">
-            <label>Título<input value={draft.titulo} onChange={(event) => setDraft((current) => ({ ...current, titulo: event.target.value }))} /></label>
-            <label>Limite de vagas<input type="number" min="1" max={Math.max(1, groupSlots)} value={draft.limite_vagas} onChange={(event) => setDraft((current) => ({ ...current, limite_vagas: Math.max(1, Number(event.target.value || 1)) }))} /></label>
-            <label>Encerramento<input type="datetime-local" value={draft.expira_em} onChange={(event) => setDraft((current) => ({ ...current, expira_em: event.target.value }))} /></label>
+            <label>Título<UiInput value={draft.titulo} onChange={(event) => setDraft((current) => ({ ...current, titulo: event.target.value }))} /></label>
+            <label>Limite de vagas<UiInput type="number" min="1" max={Math.max(1, groupSlots)} value={draft.limite_vagas} onChange={(event) => setDraft((current) => ({ ...current, limite_vagas: Math.max(1, Number(event.target.value || 1)) }))} /></label>
+            <label>Encerramento<UiInput type="datetime-local" value={draft.expira_em} onChange={(event) => setDraft((current) => ({ ...current, expira_em: event.target.value }))} /></label>
             <div><button type="button" onClick={() => setEditingId(null)}>Cancelar</button><button type="button" onClick={() => void patchLink(link, { titulo: draft.titulo, limite_vagas: draft.limite_vagas, expira_em: draft.expira_em ? new Date(draft.expira_em).toISOString() : null }, 'Link atualizado com sucesso.')} disabled={busy}>{busy ? <Loader2 className="spin" size={15} /> : <Settings2 size={15} />} Salvar ajustes</button></div>
           </div> : null}
         </article>

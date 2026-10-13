@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -27,6 +27,9 @@ import { ChampionshipScorerPanel } from "@/screens/ChampionshipScorerPanel";
 import { ChampionshipFinalizationPanel } from "@/screens/ChampionshipFinalizationPanel";
 import { ChampionshipStreamPanel } from "@/screens/ChampionshipStreamPanel";
 import { ChampionshipCallsPanel } from "@/screens/ChampionshipCallsPanel";
+import { MobileStructureGroupPanel } from "@/screens/MobileStructureGroupPanel";
+import { useMobileLifecycleScope } from "../hooks/useMobileLifecycleScope";
+import { championshipSession } from "../lib/championship-session";
 
 type Tab =
   | "overview"
@@ -40,10 +43,18 @@ type Tab =
   | "stream"
   | "calls";
 const types = ["copa", "liga", "diario", "xtreino", "confronto"];
-export function ChampionshipManagementScreen({
+export function ChampionshipManagementScreen(props: ScreenProps) {
+  const auth = useAuth();
+  const accountScope = useMobileLifecycleScope(JSON.stringify([props.selectedAdminChampionshipId || '__admin__', auth.activeAccount?.id || null, auth.activeProfileType]));
+  return accountScope.ready && accountScope.actor
+    ? <ManagementContent key={accountScope.key} {...props} accountScope={accountScope} />
+    : <Text>Entre para administrar campeonatos.</Text>;
+}
+function ManagementContent({
   selectedAdminChampionshipId,
   onSelectChampionship,
-}: ScreenProps) {
+  accountScope,
+}: ScreenProps & {accountScope: ReturnType<typeof useMobileLifecycleScope>}) {
   const auth = useAuth(),
     token = auth.session?.access_token;
   const [items, setItems] = useState<any[]>([]),
@@ -52,8 +63,7 @@ export function ChampionshipManagementScreen({
         ? null
         : selectedAdminChampionshipId || null,
     ),
-    [structure, setStructure] = useState<any>(null),
-    [summary, setSummary] = useState<any>(null),
+    [detail, setDetail] = useState<{key:string;structure:any;summary:any} | null>(null),
     [tab, setCurrentTab] = useState<Tab>("overview"),
     [loading, setLoading] = useState(true),
     [refreshing, setRefreshing] = useState(false),
@@ -73,10 +83,14 @@ export function ChampionshipManagementScreen({
     [server, setServer] = useState("Brasil");
   const [phaseName, setPhaseName] = useState(""),
     [phaseFinal, setPhaseFinal] = useState(false),
-    [finalSlots, setFinalSlots] = useState("12"),
-    [groupName, setGroupName] = useState(""),
-    [groupSlots, setGroupSlots] = useState("12"),
-    [phaseId, setPhaseId] = useState("");
+    [finalSlots, setFinalSlots] = useState("12");
+  const scope = useMobileLifecycleScope(selectedId || '__list__');
+  const latestSelection = useRef(selectedId); latestSelection.current = selectedId;
+  const listGeneration = useRef(0), detailGeneration = useRef(0), mutation = useRef(false), dialog = useRef<object | null>(null);
+  const detailCurrent = detail?.key === scope.key;
+  const structure = detailCurrent ? detail.structure : null, summary = detailCurrent ? detail.summary : null;
+  const current = () => { if (!accountScope.isCurrent() || !scope.actor || !scope.isCurrent()) throw new Error('A conta ou o campeonato mudou. Atualize o painel.'); };
+  useEffect(() => { setCurrentTab('overview'); setPhaseName(''); setPhaseFinal(false); setFinalSlots('12'); setError(''); setFeedback(''); setBusy(false); dialog.current = null; }, [scope.key]);
   const tipo = type;
   function setTab(next: Tab) {
     const permission =
@@ -109,67 +123,64 @@ export function ChampionshipManagementScreen({
   }
   const loadList = useCallback(
     async (refresh = false) => {
-      refresh ? setRefreshing(true) : setLoading(true);
+      const request = ++listGeneration.current;
+      if (!latestSelection.current) { refresh ? setRefreshing(true) : setLoading(true); }
       try {
-        const result = await mobileApi.championshipAdminList(token);
+        const session = await championshipSession(accountScope.actor!);
+        if (!accountScope.isCurrent()) return;
+        const result = await mobileApi.championshipAdminList(session.token);
+        await championshipSession(accountScope.actor!);
+        if (!accountScope.isCurrent() || request !== listGeneration.current) return;
         setItems(result.items || []);
-        setError("");
+        if (!latestSelection.current) setError("");
       } catch (err: any) {
-        setError(err?.message || "Não foi possível carregar os campeonatos.");
+        if (!accountScope.isCurrent() || request !== listGeneration.current) return;
+        if (!latestSelection.current) setError(err?.message || "Não foi possível carregar os campeonatos.");
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (accountScope.isCurrent() && request === listGeneration.current && !latestSelection.current) { setLoading(false); setRefreshing(false); }
       }
     },
-    [token],
+    [accountScope.key],
   );
   const loadDetail = useCallback(
     async (id: string, refresh = false) => {
+      if (!scope.actor || id !== selectedId || !accountScope.isCurrent() || !scope.isCurrent()) return;
+      const request = ++detailGeneration.current;
       refresh ? setRefreshing(true) : setLoading(true);
       try {
+        const session = await championshipSession(scope.actor); current();
         const [s, d] = await Promise.all([
-          mobileApi.championshipStructure(id, token),
-          mobileApi.championshipAdminSummary(id, token),
+          mobileApi.championshipStructure(id, session.token),
+          mobileApi.championshipAdminSummary(id, session.token),
         ]);
-        setStructure(s);
-        setSummary(d);
-        setPhaseId((current) => current || String(s.fases?.[0]?.id || ""));
+        await championshipSession(scope.actor); current();
+        if (request !== detailGeneration.current) return;
+        setDetail({key:scope.key,structure:s,summary:d});
         setError("");
       } catch (err: any) {
+        if (!accountScope.isCurrent() || !scope.isCurrent() || request !== detailGeneration.current) return;
         setError(err?.message || "Não foi possível carregar a administração.");
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (accountScope.isCurrent() && scope.isCurrent() && request === detailGeneration.current) { setLoading(false); setRefreshing(false); }
       }
     },
-    [token],
+    [scope.key, accountScope.key, selectedId],
   );
   useEffect(() => {
     void loadList();
+    return () => { listGeneration.current++; };
   }, [loadList]);
   useEffect(() => {
     if (selectedId) void loadDetail(selectedId);
+    return () => { detailGeneration.current++; };
   }, [selectedId, loadDetail]);
-  useEffect(() => {
-    if (selectedAdminChampionshipId === "__create__") {
-      setSelectedId(null);
-      setCreating(true);
-      if (auth.activeProfileType !== "produtora")
-        setError(
-          "Você ainda não tem uma produtora. Toque no seu perfil, no topo do app, e crie uma produtora para então criar o campeonato.",
-        );
-      return;
-    }
-    if (
-      selectedAdminChampionshipId &&
-      selectedAdminChampionshipId !== selectedId
-    ) {
-      setSelectedId(selectedAdminChampionshipId);
-      setCreating(false);
-    }
-  }, [selectedAdminChampionshipId, selectedId, auth.activeProfileType]);
   async function chooseLogo() {
+    if (mutation.current || !accountScope.isCurrent() || !scope.isCurrent()) return;
+    mutation.current = true; setBusy(true);
+    try {
+    current();
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    current();
     if (!permission.granted) {
       setError("Permita acesso à galeria.");
       return;
@@ -180,9 +191,8 @@ export function ChampionshipManagementScreen({
       aspect: [1, 1],
       quality: 0.9,
     });
+    current();
     if (pick.canceled) return;
-    setBusy(true);
-    try {
       const png = await ImageManipulator.manipulateAsync(
         pick.assets[0].uri,
         [{ resize: { width: 900 } }],
@@ -192,18 +202,21 @@ export function ChampionshipManagementScreen({
           base64: true,
         },
       );
+      current();
       if (!png.base64) throw new Error("Falha ao preparar a imagem.");
       setLogo(`data:image/png;base64,${png.base64}`);
       setFeedback(
         "Logo pronta. Ela será enviada somente ao criar o campeonato.",
       );
     } catch (err: any) {
-      setError(err?.message || "Não foi possível preparar a logo.");
+      if (accountScope.isCurrent() && scope.isCurrent()) setError(err?.message || "Não foi possível preparar a logo.");
     } finally {
-      setBusy(false);
+      mutation.current = false;
+      if (accountScope.isCurrent() && scope.isCurrent()) setBusy(false);
     }
   }
   async function create() {
+    if (mutation.current || !accountScope.isCurrent() || !scope.isCurrent()) return;
     if (auth.activeProfileType !== "produtora") {
       setError(
         "Você ainda não tem um perfil de produtora. Crie ou selecione uma produtora antes de criar campeonatos.",
@@ -214,17 +227,20 @@ export function ChampionshipManagementScreen({
       setError("Informe o nome e escolha a logo.");
       return;
     }
-    setBusy(true);
+    mutation.current = true; setBusy(true);
     try {
+      const session = await championshipSession(scope.actor!); current();
       let logoUrl = logo;
       if (logoUrl.startsWith("data:image/")) {
         const uploaded = await mobileApi.uploadChampionshipImage(
           { file_name: "campeonato.png", data_url: logoUrl },
-          token,
+          session.token,
         );
+        current();
         logoUrl = uploaded.url;
         setLogo(logoUrl);
       }
+      const writeSession = await championshipSession(scope.actor!); current();
       await mobileApi.createChampionship(
         {
           nome: name.trim(),
@@ -280,8 +296,9 @@ export function ChampionshipManagementScreen({
           liga_nome_agrupamento: "Divisões",
           liga_divisoes: [],
         },
-        token,
+        writeSession.token,
       );
+      await championshipSession(scope.actor!); current();
       setCreating(false);
       setName("");
       setLogo("");
@@ -290,9 +307,10 @@ export function ChampionshipManagementScreen({
       );
       await loadList(true);
     } catch (err: any) {
-      setError(err?.message || "Não foi possível criar o campeonato.");
+      if (accountScope.isCurrent() && scope.isCurrent()) setError(err?.message || "Não foi possível criar o campeonato.");
     } finally {
-      setBusy(false);
+      mutation.current = false;
+      if (accountScope.isCurrent() && scope.isCurrent()) setBusy(false);
     }
   }
   async function structureAction(
@@ -300,7 +318,7 @@ export function ChampionshipManagementScreen({
     body: any,
     message: string,
   ) {
-    if (!selectedId) return;
+    if (!selectedId || !detailCurrent || mutation.current || !accountScope.isCurrent() || !scope.isCurrent()) return;
     if (
       !summary?.permission?.canOrganizeGroups &&
       !structure?.permission?.canOrganizeGroups
@@ -310,21 +328,32 @@ export function ChampionshipManagementScreen({
       );
       return;
     }
-    setBusy(true);
+    mutation.current = true; setBusy(true);
     try {
+      const session = await championshipSession(scope.actor!); current();
       await mobileApi.championshipStructureAction(
         selectedId,
         method,
         body,
-        token,
+        session.token,
       );
+      await championshipSession(scope.actor!); current();
       setFeedback(message);
       await loadDetail(selectedId, true);
     } catch (err: any) {
-      setError(err?.message || "Não foi possível alterar a estrutura.");
+      if (accountScope.isCurrent() && scope.isCurrent()) setError(err?.message || "Não foi possível alterar a estrutura.");
     } finally {
-      setBusy(false);
+      mutation.current = false;
+      if (accountScope.isCurrent() && scope.isCurrent()) setBusy(false);
     }
+  }
+  function confirmDelete(entity: 'phase' | 'group', id: string, name: string) {
+    if (busy || mutation.current || !detailCurrent || !accountScope.isCurrent() || !scope.isCurrent()) return;
+    const confirmation = {}; dialog.current = confirmation;
+    Alert.alert(entity === 'phase' ? 'Excluir fase?' : 'Excluir grupo?', name, [
+      {text:'Cancelar',style:'cancel',onPress:()=>{if(dialog.current===confirmation)dialog.current=null;}},
+      {text:'Excluir',style:'destructive',onPress:()=>{if(dialog.current!==confirmation||!accountScope.isCurrent()||!scope.isCurrent())return;dialog.current=null;void structureAction('DELETE',{entity,id},entity==='phase'?'Fase excluída.':'Grupo excluído.');}},
+    ]);
   }
   if (!selectedId)
     return (
@@ -361,6 +390,9 @@ export function ChampionshipManagementScreen({
           <View style={styles.form}>
             <TouchableOpacity
               style={styles.logoPicker}
+              accessibilityRole="button"
+              accessibilityLabel="Escolher logo do campeonato"
+              disabled={busy}
               onPress={() => void chooseLogo()}
             >
               {logo ? (
@@ -441,6 +473,8 @@ export function ChampionshipManagementScreen({
             <TouchableOpacity
               key={String(item.id)}
               style={styles.row}
+              accessibilityRole="button"
+              accessibilityLabel={`Administrar ${item.nome}`}
               onPress={() => {
                 setSelectedId(String(item.id));
                 setTab("overview");
@@ -496,9 +530,11 @@ export function ChampionshipManagementScreen({
       <View style={styles.detailHeader}>
         <TouchableOpacity
           style={styles.back}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar à lista de campeonatos"
           onPress={() => {
             setSelectedId(null);
-            setStructure(null);
+            setDetail(null);
           }}
         >
           <Ionicons name="arrow-back" size={20} color={colors.ink} />
@@ -557,7 +593,7 @@ export function ChampionshipManagementScreen({
       {error ? <Message text={error} error /> : null}
       {feedback ? <Message text={feedback} /> : null}
       {loading ? <Loading /> : null}
-      {!loading && tab === "overview" ? (
+      {!loading && detailCurrent && tab === "overview" ? (
         <View style={styles.section}>
           <View style={styles.metrics}>
             <Metric
@@ -582,17 +618,17 @@ export function ChampionshipManagementScreen({
           />
         </View>
       ) : null}
-      {!loading && tab === "settings" ? (
+      {!loading && detailCurrent && tab === "settings" ? (
         <ChampionshipSettingsPanel
           championshipId={selectedId}
           token={token}
           onSaved={() => void loadDetail(selectedId, true)}
         />
       ) : null}
-      {!loading && tab === "rulebook" ? (
+      {!loading && detailCurrent && tab === "rulebook" ? (
         <ChampionshipRulebookPanel championshipId={selectedId} token={token} />
       ) : null}
-      {!loading && tab === "structure" ? (
+      {!loading && detailCurrent && tab === "structure" ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>NOVA FASE</Text>
           <Field
@@ -675,91 +711,16 @@ export function ChampionshipManagementScreen({
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() =>
-                  Alert.alert("Excluir fase?", phase.nome, [
-                    { text: "Cancelar" },
-                    {
-                      text: "Excluir",
-                      style: "destructive",
-                      onPress: () =>
-                        void structureAction(
-                          "DELETE",
-                          { entity: "phase", id: phase.id },
-                          "Fase excluída.",
-                        ),
-                    },
-                  ])
-                }
+                accessibilityRole="button"
+                accessibilityLabel={`Excluir fase ${phase.nome}`}
+                disabled={busy}
+                onPress={() => confirmDelete('phase', phase.id, phase.nome)}
               >
                 <Ionicons name="trash-outline" size={18} color="#b42318" />
               </TouchableOpacity>
             </View>
           ))}
-          <Text style={styles.sectionTitle}>NOVO GRUPO</Text>
-          <Text style={styles.meta}>
-            A Grande Final usa somente o Grupo da Final, criado automaticamente.
-            Grupos manuais ficam disponíveis nas demais fases.
-          </Text>
-          <Field
-            label="Nome do grupo"
-            value={groupName}
-            onChangeText={setGroupName}
-          />
-          <Field
-            label="Quantidade de slots"
-            value={groupSlots}
-            onChangeText={setGroupSlots}
-          />
-          <Text style={styles.label}>FASE</Text>
-          <View style={styles.options}>
-            {phases
-              .filter((phase: any) => phase.tipo !== "grande_final")
-              .map((phase: any) => (
-                <TouchableOpacity
-                  key={phase.id}
-                  style={[
-                    styles.option,
-                    phaseId === String(phase.id) && styles.optionActive,
-                  ]}
-                  onPress={() => setPhaseId(String(phase.id))}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      phaseId === String(phase.id) && styles.optionTextActive,
-                    ]}
-                  >
-                    {phase.nome}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-          </View>
-          <TouchableOpacity
-            style={styles.primary}
-            disabled={
-              !phaseId ||
-              !groupName.trim() ||
-              busy ||
-              phases.some(
-                (phase: any) =>
-                  String(phase.id) === phaseId && phase.tipo === "grande_final",
-              )
-            }
-            onPress={() =>
-              void structureAction(
-                "POST",
-                {
-                  action: "create_group",
-                  nome: groupName,
-                  fase_id: phaseId,
-                  slots: Number(groupSlots || 12),
-                },
-                "Grupo e slots criados.",
-              )
-            }
-          >
-            <Text style={styles.primaryText}>Criar grupo</Text>
-          </TouchableOpacity>
+          <MobileStructureGroupPanel championshipId={selectedId} />
           {groups.map((group: any) => (
             <View key={group.id} style={styles.entity}>
               <View style={styles.copy}>
@@ -770,21 +731,10 @@ export function ChampionshipManagementScreen({
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() =>
-                  Alert.alert("Excluir grupo?", group.nome, [
-                    { text: "Cancelar" },
-                    {
-                      text: "Excluir",
-                      style: "destructive",
-                      onPress: () =>
-                        void structureAction(
-                          "DELETE",
-                          { entity: "group", id: group.id },
-                          "Grupo excluído.",
-                        ),
-                    },
-                  ])
-                }
+                accessibilityRole="button"
+                accessibilityLabel={`Excluir grupo ${group.nome}`}
+                disabled={busy}
+                onPress={() => confirmDelete('group', group.id, group.nome)}
               >
                 <Ionicons name="trash-outline" size={18} color="#b42318" />
               </TouchableOpacity>
@@ -792,7 +742,7 @@ export function ChampionshipManagementScreen({
           ))}
         </View>
       ) : null}
-      {!loading && tab === "games" ? (
+      {!loading && detailCurrent && tab === "games" ? (
         <ChampionshipGamesPanel
           championshipId={selectedId}
           phases={phases}
@@ -801,26 +751,27 @@ export function ChampionshipManagementScreen({
           onChanged={() => loadDetail(selectedId, true)}
         />
       ) : null}
-      {!loading && tab === "scorer" ? (
+      {!loading && detailCurrent && tab === "scorer" ? (
         <ChampionshipScorerPanel championshipId={selectedId} token={token} />
       ) : null}
-      {!loading && tab === "teams" ? (
+      {!loading && detailCurrent && tab === "teams" ? (
         <ChampionshipTeamsPanel
           championshipId={selectedId}
           token={token}
+          actorId={auth.user?.id}
           onChanged={() => loadDetail(selectedId, true)}
         />
       ) : null}
-      {!loading && tab === "final" ? (
+      {!loading && detailCurrent && tab === "final" ? (
         <ChampionshipFinalizationPanel
           championshipId={selectedId}
           token={token}
         />
       ) : null}
-      {!loading && tab === "stream" ? (
+      {!loading && detailCurrent && tab === "stream" ? (
         <ChampionshipStreamPanel championshipId={selectedId} token={token} />
       ) : null}
-      {!loading && tab === "calls" ? (
+      {!loading && detailCurrent && tab === "calls" ? (
         <ChampionshipCallsPanel championshipId={selectedId} token={token} />
       ) : null}
     </ScrollView>
@@ -855,6 +806,7 @@ function Field(props: any) {
       <Text style={styles.label}>{props.label}</Text>
       <TextInput
         {...props}
+        accessibilityLabel={props.label}
         style={styles.input}
         placeholderTextColor="#8a857e"
       />

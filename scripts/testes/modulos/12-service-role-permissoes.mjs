@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { REPORT_DIR, ROOT, ensureReportDir, normalizePath, result, safeRead, walk } from '../lib/util.mjs';
+import { backendServiceEvidence } from '../lib/backend-service-evidence.mjs';
 
 const API_ROOT = path.join(ROOT, 'web', 'app', 'api');
 const CLASSIFICATION_FILE = path.join(ROOT, 'database', 'service-role-classification.json');
@@ -11,7 +12,7 @@ const AUTH_RE = /auth\.getUser\s*\(|getCurrentUser\s*\(|requireUser\s*\(|require
 const PERMISSION_RE = /denunciante_auth_user_id\s*:\s*user\.id|requireCampeonato|requireSistemaAdmin|require.*(?:Manage|Write|Permission|Access|Owner|Admin|Score|Structure)|getCampeonatoPermission\s*\(|canManage|assert.*(?:Permission|Access|Owner)|manager.*access|equipe.*access|getAccountsForUser\s*\(|getAccountsByUserId\s*\(|getCampeonatoAdminAuthUserId\s*\(|getActiveAccount\s*\(|requireUploadAccess\s*\(|fn_solicitar_saque|fn_resgatar_stream_overlay_code|dono_auth_user_id|auth_user_id\.eq/i;
 const PUBLIC_RE = /\/public\/|\/webhooks?\/|\/auth\/|\/obs\/|\/stream\/public|\/vendedores\/convite|\/convites?\/|\/escala\//i;
 const TOKEN_RE = /\btoken\b|authorization|bearer|x-webhook|signature|secret/i;
-const ID_SCOPE_RE = /\.(?:eq|in)\(\s*['"](?:id|equipe_id|campeonato_id|produtora_id|manager_id|auth_user_id|dono_auth_user_id|token)['"]|requireUploadAccess\s*\(|fn_solicitar_saque|fn_resgatar_stream_overlay_code|getOrCreateWallet\s*\(|denunciante_auth_user_id\s*:\s*user\.id/;
+const ID_SCOPE_RE = /\.(?:eq|in)\(\s*['"](?:id|equipe_id|campeonato_id|produtora_id|manager_id|auth_user_id|dono_auth_user_id|token)['"]|requireUploadAccess\s*\(|requireCampeonatoScore\s*\(|fn_solicitar_saque|fn_resgatar_stream_overlay_code|getOrCreateWallet\s*\(|denunciante_auth_user_id\s*:\s*user\.id/;
 
 function methods(source) {
   const write = [...source.matchAll(WRITE_METHOD_RE)].map((m) => m[1]);
@@ -28,10 +29,12 @@ export async function executar() {
   const rows = [];
 
   for (const file of files) {
-    const source = safeRead(file);
+    const routeSource = safeRead(file);
+    const evidence = backendServiceEvidence(routeSource, file);
+    const source = evidence.source;
     if (!ADMIN_RE.test(source)) continue;
     const route = normalizePath(path.relative(path.join(ROOT, 'web', 'app'), file)).replace(/\/route\.(?:ts|js)$/, '');
-    const routeMethods = methods(source);
+    const routeMethods = methods(routeSource);
     const hasWrite = routeMethods.some((method) => method !== 'GET');
     const authEvidence = AUTH_RE.test(source);
     const permissionEvidence = PERMISSION_RE.test(source);
@@ -75,6 +78,7 @@ export async function executar() {
     rows.push({
       route,
       file: normalizePath(path.relative(ROOT, file)),
+      evidenceFiles: evidence.files,
       methods: routeMethods,
       hasWrite,
       authEvidence,

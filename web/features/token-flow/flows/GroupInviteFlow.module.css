@@ -1,0 +1,29 @@
+.page:global(.invite-page) {
+  padding-bottom: 92px;
+}
+
+.page:global(.invite-page-normal) :global(.invite-card) {
+  height: auto;
+  min-height: 0;
+}
+
+.header {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.header > :is(h1, p, svg, img) {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  /* Keep the floating assistant beside actions at any scroll position. */
+  .page:global(.invite-page-normal) :global(.button) {
+    width: calc(100% - 72px) !important;
+    min-height: 44px;
+    height: auto;
+    white-space: normal;
+  }
+}

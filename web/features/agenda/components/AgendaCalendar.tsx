@@ -1,5 +1,7 @@
 'use client'
 
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Input as UiInput } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, RefreshCw, Search } from 'lucide-react'
 import {
@@ -625,17 +627,17 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
             </div>
 
             <div className="agenda-sheet-scroll">
-              <table className="agenda-sheet-table">
-                <thead>
-                  <tr>
-                    <th className="sticky-meta">Dia</th>
-                    <th className="sticky-meta">Nº</th>
+              <DataTable className="agenda-sheet-table">
+                <DataTableHead>
+                  <DataTableRow>
+                    <DataTableHeaderCell className="sticky-meta">Dia</DataTableHeaderCell>
+                    <DataTableHeaderCell className="sticky-meta">Nº</DataTableHeaderCell>
                     {AGENDA_TIME_SLOTS.map((slot) => (
-                      <th key={slot}>{slot}h</th>
+                      <DataTableHeaderCell key={slot}>{slot}h</DataTableHeaderCell>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </DataTableRow>
+                </DataTableHead>
+                <DataTableBody>
                   {days.map((row) => {
                     const placementByStart = new Map(row.placements.map((p) => [p.startIndex, p]))
                     const covered = new Set<number>()
@@ -644,18 +646,18 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
                     })
 
                     return (
-                      <tr
+                      <DataTableRow
                         key={row.date}
                         className={`${row.isWeekend ? 'is-weekend' : ''} ${row.isToday ? 'is-today' : ''}`}
                       >
-                        <td className="day-name">{row.weekdayLabel}</td>
-                        <td className="day-num">{row.day}</td>
+                        <DataTableCell className="day-name">{row.weekdayLabel}</DataTableCell>
+                        <DataTableCell className="day-num">{row.day}</DataTableCell>
                         {AGENDA_TIME_SLOTS.map((slot, slotIndex) => {
                           if (covered.has(slotIndex)) return null
                           const placement = placementByStart.get(slotIndex)
                           if (placement) {
                             return (
-                              <td
+                              <DataTableCell
                                 key={slot}
                                 className="slot-cell is-occupied"
                                 colSpan={placement.span}
@@ -669,25 +671,25 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
                                 >
                                   {placement.item.titulo}
                                 </button>
-                              </td>
+                              </DataTableCell>
                             )
                           }
 
                           return (
-                            <td
+                            <DataTableCell
                               key={slot}
                               className={`slot-cell ${canCreate ? 'is-selectable' : ''}`}
                               onClick={() => canCreate && openCreate(row.date, slot)}
                             >
                               {slot}
-                            </td>
+                            </DataTableCell>
                           )
                         })}
-                      </tr>
+                      </DataTableRow>
                     )
                   })}
-                </tbody>
-              </table>
+                </DataTableBody>
+              </DataTable>
             </div>
 
           </>
@@ -704,7 +706,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
         </header>
         <label className="agenda-event-search">
           <Search size={14} />
-          <input value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} placeholder="Pesquisar campeonato" />
+          <UiInput value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} placeholder="Pesquisar campeonato" />
         </label>
         <div className="agenda-event-list-items">
           {championshipGroups.length ? championshipGroups.map((group) => <section key={group.id} className="agenda-championship-group">
@@ -729,8 +731,8 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
             <h3>{editingGame.titulo}</h3>
             <p>{editingGame.meta.campeonato_nome}</p>
           </div>
-          <label>Data<input type="date" value={gameDate} onChange={(event) => setGameDate(event.target.value)} /></label>
-          <label>Horário<input type="time" value={gameTime} onChange={(event) => setGameTime(event.target.value)} /></label>
+          <label>Data<UiInput type="date" value={gameDate} onChange={(event) => setGameDate(event.target.value)} /></label>
+          <label>Horário<UiInput type="time" value={gameTime} onChange={(event) => setGameTime(event.target.value)} /></label>
           <div className="agenda-game-editor-actions">
             <button type="button" className="button secondary" onClick={() => setEditingGame(null)} disabled={saving}>Cancelar</button>
             <button type="button" className="button" onClick={() => void saveGameSchedule()} disabled={saving || !gameDate || !gameTime}>{saving ? 'Salvando...' : 'Salvar jogo'}</button>

@@ -12,7 +12,7 @@
     "package:win": "electron-builder --win nsis --publish never"
   },
   "devDependencies": {
-    "electron": "43.4.0",
+    "electron": "43.7.9",
     "electron-builder": "26.15.3"
   },
   "build": {
@@ -21,7 +21,9 @@
     "protocols": [
       {
         "name": "DropZone Live",
-        "schemes": ["dropzone-live"]
+        "schemes": [
+          "dropzone-live"
+        ]
       }
     ],
     "asar": true,
@@ -31,7 +33,9 @@
       "renderer/**/*"
     ],
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "artifactName": "DropZone-Live-Local-Setup-${version}.${ext}"
     },
     "nsis": {

@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ChevronRight, ExternalLink, Plus, RefreshCw, Shield, Swords, UserPlus, Users } from 'lucide-react'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
@@ -144,7 +145,7 @@ export function LiliTeamHub({ accessToken }: { accessToken?: string | null }) {
 
       {detail && section === 'lines' ? selectedLine ? <LineRosterManager accessToken={accessToken || ''} equipeId={team.id} line={selectedLine} compact onBack={() => setSelectedLine(null)} onChanged={() => void openTeam(selected)} /> : <div className="lili-team-section">
         <div className="lili-team-section-title"><div><strong>Lines</strong><span>{counts.lines} time(s) da equipe</span></div>{team.permissoes?.pode_editar ? <button onClick={() => setCreatingLine((v) => !v)}><Plus size={15}/> Nova</button> : null}</div>
-        {creatingLine ? <div className="lili-team-inline-form"><input value={lineName} onChange={(e) => setLineName(e.target.value)} placeholder="Nome da line"/><button onClick={() => void createLine()}>Criar</button></div> : null}
+        {creatingLine ? <div className="lili-team-inline-form"><UiInput value={lineName} onChange={(e) => setLineName(e.target.value)} placeholder="Nome da line"/><button onClick={() => void createLine()}>Criar</button></div> : null}
         <div className="lili-team-rows clickable">{detail.overview.lines.map((line: any) => <button type="button" key={line.id} onClick={() => setSelectedLine(line)}><span className="lili-team-avatar">{line.logo_url ? <img src={line.logo_url} alt=""/> : String(line.tag || line.nome || 'L').slice(0,2)}</span><div><strong>{line.nome}</strong><small>{line.tag || 'Sem tag'} · toque para abrir jogadores e formações</small></div><ChevronRight size={17}/></button>)}</div>
       </div> : null}
 

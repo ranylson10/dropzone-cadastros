@@ -82,7 +82,8 @@ mustInclude(
 
 // 6) Capacidade / limite
 mustInclude('backend/src/campeonatos/capacidade.ts', ['assertPodeCriarSlots', 'numero_vagas', 'slots_criados', 'isFaseDeEntrada'], 'capacidade')
-mustInclude('web/app/api/dropzone/route.ts', ['assertPodeCriarSlots', 'faseId'], 'dropzone-limite')
+mustInclude('backend/src/dropzone/entities/create-entity.ts', ['assertPodeCriarSlots', 'faseId'], 'dropzone-limite-criacao')
+mustInclude('backend/src/dropzone/entities/update-entity.ts', ['assertPodeCriarSlots', 'faseId'], 'dropzone-limite-edicao')
 mustInclude(
   'database/migrations/20260719_limite_vagas_somente_fase_entrada.sql',
   ['fn_enforce_limite_ao_criar_slot', 'fase de entrada', 'ordem_min'],

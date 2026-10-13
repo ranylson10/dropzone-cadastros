@@ -3,8 +3,15 @@
 import { useEffect, useState } from 'react'
 import { Building2, CheckCircle2, LockKeyhole, LogIn, Users } from 'lucide-react'
 import { useParams } from 'next/navigation'
-import { buildLoginHref, currentInternalPath } from '@/features/auth/auth-return'
-import { supabase } from '@/lib/supabase-browser'
+import { buildLoginHref } from '@/features/auth/auth-return'
+import {
+  getTokenFlowAccessToken,
+  requireTokenFlowAccessToken,
+  tokenFlowPath,
+  TokenFlowCard,
+  TokenFlowPage,
+  TokenFlowStatus,
+} from '@/features/token-flow'
 import './invite.css'
 
 type InvitePreview = {
@@ -19,7 +26,8 @@ type InvitePreview = {
 
 export default function ProducerInvitePage() {
   const params = useParams<{ token: string }>()
-  const token = String(params?.token || '')
+  const token = String(params?.token || '').trim()
+  const returnTo = tokenFlowPath('conviteProdutora', token)
   const [invite, setInvite] = useState<InvitePreview | null>(null)
   const [authenticated, setAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -28,6 +36,7 @@ export default function ProducerInvitePage() {
   const [accepted, setAccepted] = useState(false)
 
   useEffect(() => {
+    if (!token) return
     let active = true
     Promise.all([
       fetch(`/api/produtora/convites/${encodeURIComponent(token)}`, { cache: 'no-store' }).then(async (response) => {
@@ -35,12 +44,12 @@ export default function ProducerInvitePage() {
         if (!response.ok) throw new Error(payload.error || 'Convite inválido.')
         return payload.convite as InvitePreview
       }),
-      supabase.auth.getSession(),
+      getTokenFlowAccessToken(),
     ])
-      .then(([preview, session]) => {
+      .then(([preview, accessToken]) => {
         if (!active) return
         setInvite(preview)
-        setAuthenticated(Boolean(session.data.session?.access_token))
+        setAuthenticated(Boolean(accessToken))
       })
       .catch((cause: any) => { if (active) setError(cause?.message || 'Não foi possível carregar o convite.') })
       .finally(() => { if (active) setLoading(false) })
@@ -51,12 +60,8 @@ export default function ProducerInvitePage() {
     setBusy(true)
     setError('')
     try {
-      const { data } = await supabase.auth.getSession()
-      const accessToken = data.session?.access_token
-      if (!accessToken) {
-        window.location.assign(buildLoginHref(null, currentInternalPath()))
-        return
-      }
+      const accessToken = await requireTokenFlowAccessToken(null, returnTo)
+      if (!accessToken) return
       const response = await fetch(`/api/produtora/convites/${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -78,15 +83,15 @@ export default function ProducerInvitePage() {
   const creation = invite?.tipo === 'criacao'
 
   return (
-    <main className="producer-invite-page">
-      <section className="producer-invite-card">
+    <TokenFlowPage className="producer-invite-page">
+      <TokenFlowCard className="producer-invite-card">
         <header>
           <span className="producer-invite-logo"><Building2 size={26} /></span>
           <div><small>DROPZONE · ACESSO PRIVADO</small><h1>{creation ? 'Criar workspace' : 'Entrar na produtora'}</h1></div>
         </header>
 
-        {loading ? <div className="producer-invite-state">Carregando convite…</div> : null}
-        {error ? <div className="producer-invite-state error">{error}</div> : null}
+        {loading ? <TokenFlowStatus>Carregando convite…</TokenFlowStatus> : null}
+        {error ? <TokenFlowStatus tone="error">{error}</TokenFlowStatus> : null}
 
         {!loading && invite ? (
           <>
@@ -106,18 +111,18 @@ export default function ProducerInvitePage() {
             {accepted ? (
               <div className="producer-invite-success"><CheckCircle2 size={22} /><span><strong>Acesso confirmado</strong><small>Abrindo o workspace da produtora…</small></span></div>
             ) : unavailable ? (
-              <div className="producer-invite-state error">Este convite está {invite.status} e não pode mais ser utilizado.</div>
+              <TokenFlowStatus tone="error">Este convite está {invite.status} e não pode mais ser utilizado.</TokenFlowStatus>
             ) : authenticated ? (
               <button className="producer-invite-primary" type="button" disabled={busy} onClick={() => void acceptInvite()}>
                 <CheckCircle2 size={18} /> {busy ? 'Confirmando…' : creation ? 'Criar minha produtora' : 'Aceitar acesso'}
               </button>
             ) : (
-              <a className="producer-invite-primary" href={buildLoginHref(null, currentInternalPath())}><LogIn size={18} /> Entrar para aceitar</a>
+              <a className="producer-invite-primary" href={buildLoginHref(null, returnTo)}><LogIn size={18} /> Entrar para aceitar</a>
             )}
             <p className="producer-invite-note">Entre com o mesmo e-mail que recebeu o convite. O acesso só funciona para a conta autorizada.</p>
           </>
         ) : null}
-      </section>
-    </main>
+      </TokenFlowCard>
+    </TokenFlowPage>
   )
 }

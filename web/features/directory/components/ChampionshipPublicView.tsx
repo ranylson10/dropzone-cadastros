@@ -1,5 +1,9 @@
 'use client'
 
+import { DataList, DataListItem } from '@/components/ui/DataList'
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Select as UiSelect } from '@/components/ui/Field'
+import statisticsStyles from './PublicStatistics.module.css'
 import {
   ArrowLeft,
   BarChart3,
@@ -16,7 +20,6 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
-import { PixIcon, WhatsAppIcon } from '@/features/billing/BrandIcons'
 import { ReportButton } from '@/features/reports/ReportButton'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import { supabase } from '@/lib/supabase-browser'
@@ -28,6 +31,7 @@ import {
 import '@/app/vagas/vagas.css'
 import './championship-public.css'
 import './championship-profile.css'
+import './championship-simple-r24.css'
 
 type TabId = 'info' | 'equipes' | 'jogadores' | 'estatisticas'
 
@@ -132,6 +136,7 @@ export function ChampionshipPublicView({
       || (enrollment?.contatos_whatsapp?.length || 0) > 0
     ),
   )
+  const statusDetail = visibleDetails.find((item) => item.label.toLowerCase() === 'status')
   const valorLabel = moneyLabel(enrollment?.valor_inscricao)
   const isFreeEnrollment = enrollment?.valor_inscricao != null && Number(enrollment.valor_inscricao) <= 0
   const enrollmentActionLabel = valorLabel ? 'Comprar vaga' : isFreeEnrollment ? 'Inscrição grátis' : 'Solicitar vaga'
@@ -215,63 +220,41 @@ export function ChampionshipPublicView({
 
   return (
     <div
-      className="directory-page-body directory-page-body-with-banner directory-immersive-shell champ-public champ-theme"
+      className="directory-page-body directory-page-body-with-banner directory-immersive-shell champ-public champ-theme champ-public-simple"
       style={themeStyle}
     >
-      <section className="directory-profile-banner directory-immersive-profile-hero theme-campeonatos is-compact champ-public-banner" data-theme="campeonatos">
-        <span className="directory-hero-character" aria-hidden="true" />
-        <div className="directory-profile-banner-inner directory-immersive-profile-content">
-          <a className="directory-back on-banner" href={`/${kindLabel}`}>
-            <ArrowLeft size={15} /> Voltar para {kindLabel}
-          </a>
-          <div className="directory-profile-hero compact on-banner champ-public-hero">
-            <span className="directory-profile-avatar">
-              {profile.image ? (
-                <img src={profile.image} alt="" decoding="async" />
-              ) : (
-                <b>{profile.name.slice(0, 2).toUpperCase()}</b>
-              )}
-            </span>
-            <div className="directory-profile-copy">
-              <small>{profile.eyebrow || 'Campeonato'}</small>
-              <h1>{profile.name}</h1>
-              {profile.description ? <p className="directory-profile-desc">{profile.description}</p> : null}
-              {canEnroll ? (
-                <div className="champ-public-enroll">
-                  <div className="champ-public-enroll-meta">
-                    {valorLabel || isFreeEnrollment ? (
-                      <span>
-                        <Ticket size={13} /> {isFreeEnrollment ? 'Inscrição gratuita' : `Inscrição ${valorLabel}`}
-                      </span>
-                    ) : null}
-                    {enrollment?.vagas_livres != null && enrollment.vagas_livres > 0 ? (
-                      <span>
-                        <Users size={13} /> {enrollment.vagas_livres} vaga
-                        {enrollment.vagas_livres === 1 ? '' : 's'} livre
-                        {enrollment.vagas_livres === 1 ? '' : 's'}
-                      </span>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    className="button champ-public-enroll-btn"
-                    onClick={() => setBuyOpen(true)}
-                  >
-                    <PixIcon size={16} />
-                    <WhatsAppIcon size={16} />
-                    {enrollmentActionLabel}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <dl className="champ-public-profile-facts">
-              {profile.details.filter((item) => ['Tipo', 'Formato', 'Premiação', 'Vagas livres'].includes(item.label)).map((item) => (
-                <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>
+      <header className="dz-champ-simple-header">
+        <a className="dz-champ-simple-back" href={`/${kindLabel}`}>
+          <ArrowLeft size={17} aria-hidden="true" /> Campeonatos
+        </a>
+        <div className="dz-champ-simple-heading">
+          <span className="dz-champ-simple-logo">
+            {profile.image ? <img src={profile.image} alt="" decoding="async" /> : <span>{profile.name.slice(0, 2).toUpperCase()}</span>}
+          </span>
+          <div className="dz-champ-simple-identity">
+            <small>{profile.producerName ? `Competição ${profile.producerName}` : (profile.eyebrow || 'Competição Free Fire')}</small>
+            <h1>{profile.name}</h1>
+            {profile.description ? <p>{profile.description}</p> : null}
+            <div className="dz-champ-simple-tags">
+              {statusDetail ? <span className="dz-champ-simple-status">{statusDetail.value}</span> : null}
+              {visibleDetails.filter((item) => ['Tipo', 'Formato'].includes(item.label)).map((item) => (
+                <span key={item.label}>{item.value}</span>
               ))}
-            </dl>
+            </div>
           </div>
-
-          <nav className="champ-public-nav" aria-label="Seções do campeonato">
+          {canEnroll ? (
+            <div className="dz-champ-simple-enroll">
+              {enrollment?.vagas_livres != null ? <small>{enrollment.vagas_livres} vagas livres</small> : null}
+              {valorLabel || isFreeEnrollment ? <strong>{isFreeEnrollment ? 'Grátis' : valorLabel}</strong> : null}
+              <button type="button" className="button champ-public-enroll-btn" onClick={() => setBuyOpen(true)}>
+                <Ticket size={16} aria-hidden="true" /> {enrollmentActionLabel}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </header>
+      <div className="dz-champ-simple-tabs">
+          <nav className="champ-public-nav" role="tablist" aria-label="Seções do campeonato">
             {visibleTabs.map((item) => {
               const Icon = item.icon
               const active = tab === item.id
@@ -279,8 +262,23 @@ export function ChampionshipPublicView({
                 <button
                   key={item.id}
                   type="button"
+                  role="tab"
+                  id={`champ-public-tab-${item.id}`}
+                  aria-selected={active}
+                  aria-controls="champ-public-tab-panel"
+                  tabIndex={active ? 0 : -1}
                   className={`champ-public-nav-btn ${active ? 'active' : ''}`}
                   onClick={() => setTab(item.id)}
+                  onKeyDown={(event) => {
+                    const index = TABS.findIndex((value) => value.id === item.id)
+                    const next = event.key === 'ArrowRight' ? (index + 1) % TABS.length
+                      : event.key === 'ArrowLeft' ? (index + TABS.length - 1) % TABS.length
+                      : event.key === 'Home' ? 0 : event.key === 'End' ? TABS.length - 1 : -1
+                    if (next < 0) return
+                    event.preventDefault()
+                    setTab(TABS[next].id)
+                    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus()
+                  }}
                 >
                   <Icon size={15} strokeWidth={2.2} />
                   <span className="champ-public-nav-label">{item.label}</span>
@@ -289,10 +287,9 @@ export function ChampionshipPublicView({
               )
             })}
           </nav>
-        </div>
-      </section>
+      </div>
 
-      <div className="champ-public-panel">
+      <div className="champ-public-panel" id="champ-public-tab-panel" role="tabpanel" aria-labelledby={`champ-public-tab-${tab}`} tabIndex={0}>
         {tab === 'info' ? (
           <div className="champ-public-info">
             <header className="champ-public-panel-head">
@@ -305,16 +302,6 @@ export function ChampionshipPublicView({
             <div className="champ-public-info-summary" aria-label="Resumo do campeonato">
               {highlightedDetails.map((item) => <div key={item.label}><small>{item.label}</small><strong>{item.value}</strong></div>)}
             </div>
-            <section className="champ-public-journey" aria-label="Jornada para participar">
-              <header><strong>Da vaga ao resultado</strong><small>O DropZone mantém cada etapa no mesmo fluxo.</small></header>
-              <div>
-                <span><b>01</b><strong>Escolha</strong><small>Compare preço, premiação e data.</small></span>
-                <span><b>02</b><strong>Garanta a vaga</strong><small>Compre ou use a inscrição disponível.</small></span>
-                <span><b>03</b><strong>Monte a escalação</strong><small>A equipe confirma quem vai jogar.</small></span>
-                <span><b>04</b><strong>Acompanhe a agenda</strong><small>Jogo, grupo, horário e compromissos.</small></span>
-                <span><b>05</b><strong>Veja resultados</strong><small>Classificação, MVP e estatísticas.</small></span>
-              </div>
-            </section>
             <div className="champ-public-info-groups">
               {detailGroups.map((group) => (
                 <section key={group.title}>
@@ -363,17 +350,17 @@ export function ChampionshipPublicView({
             <div className="champ-list-filters" aria-label="Filtros das equipes">
               <label>
                 <span>Fase</span>
-                <select value={faseId} onChange={(event) => setFaseId(event.target.value)}>
+                <UiSelect value={faseId} onChange={(event) => setFaseId(event.target.value)}>
                   <option value="">Todas</option>
                   {structure.phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.title}</option>)}
-                </select>
+                </UiSelect>
               </label>
               <label>
                 <span>Grupo</span>
-                <select value={grupoId} onChange={(event) => setGrupoId(event.target.value)}>
+                <UiSelect value={grupoId} onChange={(event) => setGrupoId(event.target.value)}>
                   <option value="">Todos</option>
                   {groupsForFase.map((group) => <option key={group.id} value={group.id}>{group.title}</option>)}
-                </select>
+                </UiSelect>
               </label>
             </div>
 
@@ -698,7 +685,7 @@ function StatsDashboard({
   }, [faseId, grupoId, jogoId, partidaId, mapaCodigo])
 
   return (
-    <section className="champ-public-section champ-stats-section">
+    <section className={`champ-public-section champ-stats-section ${statisticsStyles.statistics}`}>
       <header className="champ-public-panel-head champ-stats-head">
         <BarChart3 size={16} />
         <div>
@@ -728,19 +715,19 @@ function StatsDashboard({
         <>
           <div className="champ-stats-filters champ-stats-filters-desktop">
             {filters?.phases.length ? (
-              <label><span>Fase</span><select value={faseId} onChange={(event) => setFaseId(event.target.value)}><option value="">Todas</option>{filters.phases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Fase</span><UiSelect value={faseId} onChange={(event) => setFaseId(event.target.value)}><option value="">Todas</option>{filters.phases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
             {filters?.groups.length ? (
-              <label><span>Grupo</span><select value={grupoId} onChange={(event) => setGrupoId(event.target.value)}><option value="">Todos</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Grupo</span><UiSelect value={grupoId} onChange={(event) => setGrupoId(event.target.value)}><option value="">Todos</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
             {filters?.games.length ? (
-              <label><span>Jogo</span><select value={jogoId} onChange={(event) => setJogoId(event.target.value)}><option value="">Todos</option>{filters.games.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Jogo</span><UiSelect value={jogoId} onChange={(event) => setJogoId(event.target.value)}><option value="">Todos</option>{filters.games.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
             {filters?.rounds.length ? (
-              <label><span>Queda</span><select value={partidaId} onChange={(event) => setPartidaId(event.target.value)}><option value="">Todas</option>{availableRounds.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Queda</span><UiSelect value={partidaId} onChange={(event) => setPartidaId(event.target.value)}><option value="">Todas</option>{availableRounds.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
             {filters?.maps.length ? (
-              <label><span>Mapa</span><select value={mapaCodigo} onChange={(event) => setMapaCodigo(event.target.value)}><option value="">Todos</option>{filters.maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Mapa</span><UiSelect value={mapaCodigo} onChange={(event) => setMapaCodigo(event.target.value)}><option value="">Todos</option>{filters.maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
           </div>
           <div className="champ-stats-mobile-filterbar">
@@ -757,19 +744,19 @@ function StatsDashboard({
           </div>
           <div className="champ-stats-filters-mobile">
             {filters?.phases.length ? (
-              <label><span>Fase</span><select value={faseId} onChange={(event) => { setFaseId(event.target.value); setGrupoId(''); setJogoId(''); setPartidaId('') }}><option value="">Todas</option>{filters.phases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Fase</span><UiSelect value={faseId} onChange={(event) => { setFaseId(event.target.value); setGrupoId(''); setJogoId(''); setPartidaId('') }}><option value="">Todas</option>{filters.phases.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
             {filters?.groups.length ? (
-              <label><span>Grupo</span><select value={grupoId} onChange={(event) => { setGrupoId(event.target.value); setJogoId(''); setPartidaId('') }}><option value="">Todos</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Grupo</span><UiSelect value={grupoId} onChange={(event) => { setGrupoId(event.target.value); setJogoId(''); setPartidaId('') }}><option value="">Todos</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
             {filters?.games.length ? (
-              <label><span>Jogo</span><select value={jogoId} onChange={(event) => { setJogoId(event.target.value); setPartidaId('') }}><option value="">Todos</option>{filters.games.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Jogo</span><UiSelect value={jogoId} onChange={(event) => { setJogoId(event.target.value); setPartidaId('') }}><option value="">Todos</option>{filters.games.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
             {filters?.rounds.length ? (
-              <label><span>Queda</span><select value={partidaId} onChange={(event) => setPartidaId(event.target.value)}><option value="">Todas</option>{availableRounds.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Queda</span><UiSelect value={partidaId} onChange={(event) => setPartidaId(event.target.value)}><option value="">Todas</option>{availableRounds.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
             {filters?.maps.length ? (
-              <label><span>Mapa</span><select value={mapaCodigo} onChange={(event) => setMapaCodigo(event.target.value)}><option value="">Todos</option>{filters.maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+              <label><span>Mapa</span><UiSelect value={mapaCodigo} onChange={(event) => setMapaCodigo(event.target.value)}><option value="">Todos</option>{filters.maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</UiSelect></label>
             ) : null}
           </div>
           {filtersOpen ? (
@@ -883,23 +870,23 @@ function StatsDashboard({
       {view !== 'campeao' ? <div className="champ-stats-table-wrap champ-stats-desktop-table">
         {view === 'tabela' ? (
           teams.length ? (
-            <table className="champ-stats-table champ-stats-team-table">
-              <thead><tr><th className="pos">#</th><th className="identity">Equipe</th><th>GP</th><th>QD</th><th>B!</th><th>Kill</th><th className="total">Pts</th></tr></thead>
-              <tbody>{teams.map((row) => <tr key={row.campeonato_equipe_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong></span></td><td className="stat-group"><b>{groupName(row.grupo_id)}</b></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary">{row.booyahs}</td><td className="stat-secondary">{row.abates}</td><td className="total"><b>{row.pontos_total}</b></td></tr>)}</tbody>
-            </table>
+            <DataTable className="champ-stats-table champ-stats-team-table">
+              <DataTableHead><DataTableRow><DataTableHeaderCell className="pos">#</DataTableHeaderCell><DataTableHeaderCell className="identity">Equipe</DataTableHeaderCell><DataTableHeaderCell>GP</DataTableHeaderCell><DataTableHeaderCell>QD</DataTableHeaderCell><DataTableHeaderCell>B!</DataTableHeaderCell><DataTableHeaderCell>Kill</DataTableHeaderCell><DataTableHeaderCell className="total">Pts</DataTableHeaderCell></DataTableRow></DataTableHead>
+              <DataTableBody>{teams.map((row) => <DataTableRow key={row.campeonato_equipe_id}><DataTableCell className="pos"><b>{row.colocacao}</b></DataTableCell><DataTableCell className="identity"><span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span><span><strong>{row.nome}</strong></span></DataTableCell><DataTableCell className="stat-group"><b>{groupName(row.grupo_id)}</b></DataTableCell><DataTableCell className="stat-secondary">{row.quedas}</DataTableCell><DataTableCell className="stat-secondary">{row.booyahs}</DataTableCell><DataTableCell className="stat-secondary">{row.abates}</DataTableCell><DataTableCell className="total"><b>{row.pontos_total}</b></DataTableCell></DataTableRow>)}</DataTableBody>
+            </DataTable>
           ) : <div className="directory-empty compact">A organização ainda não publicou classificação neste recorte.</div>
         ) : players.length ? (
-          <table className="champ-stats-table champ-stats-mvp-table">
-            <thead><tr><th className="pos">#</th><th className="identity">Jogador</th><th>QD</th><th>K/Q</th><th className="total">Kill</th></tr></thead>
-            <tbody>{players.map((row) => <tr key={row.campeonato_jogador_id}><td className="pos"><b>{row.colocacao}</b></td><td className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong></span></td><td className="stat-secondary">{row.quedas}</td><td className="stat-secondary"><b>{killsPerDropLabel(row)}</b></td><td className="total"><b>{row.abates}</b></td></tr>)}</tbody>
-          </table>
+          <DataTable className="champ-stats-table champ-stats-mvp-table">
+            <DataTableHead><DataTableRow><DataTableHeaderCell className="pos">#</DataTableHeaderCell><DataTableHeaderCell className="identity">Jogador</DataTableHeaderCell><DataTableHeaderCell>QD</DataTableHeaderCell><DataTableHeaderCell>K/Q</DataTableHeaderCell><DataTableHeaderCell className="total">Kill</DataTableHeaderCell></DataTableRow></DataTableHead>
+            <DataTableBody>{players.map((row) => <DataTableRow key={row.campeonato_jogador_id}><DataTableCell className="pos"><b>{row.colocacao}</b></DataTableCell><DataTableCell className="identity"><span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span><span><strong>{row.nick}</strong></span></DataTableCell><DataTableCell className="stat-secondary">{row.quedas}</DataTableCell><DataTableCell className="stat-secondary"><b>{killsPerDropLabel(row)}</b></DataTableCell><DataTableCell className="total"><b>{row.abates}</b></DataTableCell></DataTableRow>)}</DataTableBody>
+          </DataTable>
         ) : <div className="directory-empty compact">A organização ainda não publicou MVP neste recorte.</div>}
       </div> : null}
 
-      {view !== 'campeao' ? <div className="champ-stats-mobile-list">
+      {view !== 'campeao' ? <DataList className="champ-stats-mobile-list">
         {view === 'tabela' ? (
           teams.length ? teams.map((row) => (
-            <article key={row.campeonato_equipe_id} className="champ-stats-mobile-row">
+            <DataListItem as="article" key={row.campeonato_equipe_id} className="champ-stats-mobile-row">
               <span className="champ-stats-mobile-position">{row.colocacao}</span>
               <span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span>
               <span className="champ-stats-mobile-copy">
@@ -907,10 +894,10 @@ function StatsDashboard({
                 <small>Grupo {groupName(row.grupo_id)} · {row.quedas} quedas · {row.booyahs} B! · {row.abates} kills</small>
               </span>
               <span className="champ-stats-mobile-primary"><small>Pontos</small><b>{row.pontos_total}</b></span>
-            </article>
+            </DataListItem>
           )) : <div className="directory-empty compact">A organização ainda não publicou classificação neste recorte.</div>
         ) : players.length ? players.map((row) => (
-          <article key={row.campeonato_jogador_id} className="champ-stats-mobile-row">
+          <DataListItem as="article" key={row.campeonato_jogador_id} className="champ-stats-mobile-row">
             <span className="champ-stats-mobile-position">{row.colocacao}</span>
             <span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span>
             <span className="champ-stats-mobile-copy">
@@ -918,9 +905,9 @@ function StatsDashboard({
               <small>{teamName(row.campeonato_equipe_id)} · {row.quedas} quedas · K/Q {killsPerDropLabel(row)} · {row.dano} dano · {row.assistencias} AST · {row.revives} rev</small>
             </span>
             <span className="champ-stats-mobile-primary"><small>Kills</small><b>{row.abates}</b></span>
-          </article>
+          </DataListItem>
         )) : <div className="directory-empty compact">A organização ainda não publicou MVP neste recorte.</div>}
-      </div> : null}
+      </DataList> : null}
     </section>
   )
 }
@@ -974,7 +961,7 @@ function PlayersDirectoryPanel({ players, teams }: { players: PublicPlayerRow[];
         <div><strong>Jogadores</strong><small>Elenco inscrito no campeonato</small></div>
       </header>
       <div className="champ-list-filters single">
-        <label><span>Equipe</span><select value={teamId} onChange={(event) => setTeamId(event.target.value)}><option value="">Todas</option>{teamOptions.map((team) => <option key={team.id} value={team.id}>{team.nome}</option>)}</select></label>
+        <label><span>Equipe</span><UiSelect value={teamId} onChange={(event) => setTeamId(event.target.value)}><option value="">Todas</option>{teamOptions.map((team) => <option key={team.id} value={team.id}>{team.nome}</option>)}</UiSelect></label>
       </div>
       {filtered.length ? <div className="champ-public-player-list">{filtered.map((player) => (
         <article key={player.id} className="champ-public-player-row">

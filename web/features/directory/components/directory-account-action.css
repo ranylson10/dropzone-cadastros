@@ -1,0 +1,22 @@
+/* Ações de cadastro/acesso dos diretórios — R17. Não altera formulários ou autorizações. */
+.dz-unified-public-page .dz-directory-account-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 9px; min-width: 0; margin: 0;
+}
+.dz-unified-public-page .dz-directory-account-action {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; max-width: 100%; padding: 0 16px; border-radius: 7px;
+  text-decoration: none !important; font-size: 13px !important; font-weight: 800 !important;
+  line-height: 1.2; white-space: normal; border: 1px solid #f1cc25;
+}
+.dz-unified-public-page .dz-directory-account-action.primary { background: #f1cc25 !important; color: #162536 !important; }
+.dz-unified-public-page .dz-directory-account-action.secondary { background: #203b4f !important; color: #f5f9fc !important; border-color: #416078; }
+.dz-unified-public-page .dz-directory-account-action:hover { filter: brightness(1.12); }
+.dz-unified-public-page .dz-directory-account-action:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+/* Campeonatos: ações no fluxo central, logo abaixo dos atalhos. */
+.directory-market-page > .directory-page-body > .dz-directory-account-actions { justify-content: flex-start; }
+/* Diretórios: a ação acompanha o título, sem deslocar cards ou filtros. */
+.dz-unified-public-page .directory-hero-inner .dz-directory-account-actions { margin-top: 12px; }
+@media (max-width: 580px) {
+  .dz-unified-public-page .dz-directory-account-actions { width: 100%; }
+  .dz-unified-public-page .dz-directory-account-action { min-height: 42px; }
+}

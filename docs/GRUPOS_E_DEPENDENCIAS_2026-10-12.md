@@ -1,0 +1,41 @@
+# Grupo com slots e dependências móveis — 12/10/2026
+
+Este lote trata duas pendências conhecidas: a criação de grupo e slots em operações separadas e as dependências móveis reportadas em D03. As correções estão locais; nenhuma flag, SQL ou configuração remota foi ativada. Os 26 achados originais permanecem em 20 corrigidos e seis parciais, sem porcentagem de prontidão.
+
+## Grupo e slots
+
+O [candidato SQL](E:/dropzone-cadastros/docs/sql/20261012_structure_group_candidate.sql) cria grupo, todos os slots livres e recibo na mesma transação. O ensaio reproduziu a sequência de duas gravações nativas do legado: a criação de slots falhou por capacidade, e o grupo ficou sem slots. Não se trata de execução de um handler HTTP histórico congelado.
+
+A RPC faz conferência de fase/capacidade e aplicação com revisão/hash opacos. Recibo por ator/UUID/intenção permite repetir a operação original após alteração posterior do grupo/fase, sem recriar registros. A autorização de estrutura mantém as permissões de proprietário, workspace, staff e vendedor com `organizar_grupos`; não exige a permissão diferente de adicionar equipes. Foram ensaiadas a concessão por `pode_operar` e a precedência de um vínculo workspace somente de leitura sobre a permissão de vendedor.
+
+Cinco guards coordenam DML ordinário de campeonato, configuração, fases, grupos e slots. A capacidade conta slots sem fase e das fases empatadas na menor ordem; fases posteriores não consomem a meta de entrada. Grande Final continua recusando grupos arbitrários. Reparenting inconsistente é recusado; pós-condições verificam slots, estrutura e alterações tardias após recibo. Há limites de tamanho e timeout. Locks podem causar abortos/deadlocks entre escritores com ordens diferentes; o transporte só repete automaticamente uma transação reconhecidamente abortada, com a intenção original. [Documentação PostgreSQL](https://www.postgresql.org/docs/17/explicit-locking.html).
+
+O principal tem EXECUTE exclusivo do serviço; helpers e escrita direta das duas tabelas privadas são revogados, e RLS está ativo. O ensaio simulou grants padrão permissivos para conferir os revokes, sem certificar owners/ACLs reais do serviço gerenciado. A revisão segue a orientação de [funções Supabase](https://supabase.com/docs/guides/database/functions).
+
+O cliente web usa o endpoint dedicado, sessão fresca, journal com UUID/corpo originais, isolamento de conta/campeonato/epoch e bloqueio compartilhado de operação. Tentativa pendente pode ser retomada sem nova conferência, mesmo com downgrade da leitura; o servidor continua recusando se sua flag estiver desligada. Callback antigo de retry não cria nova UUID após completar o recibo. A interface confirma o sucesso mesmo se a recarga falhar. Descartar a tentativa é uma ação local; não desfaz uma criação confirmada no banco.
+
+O writer legado de `create_group` foi removido da rota canônica. `STRUCTURE_GROUP_WRITE_MODE` ausente/legacy mantém a ação indisponível; não há fallback. A criação individual mobile permanece desativada, pois não recebeu o novo cliente de grupo neste recorte. O hub antigo da Lili, sem import ativo encontrado, também deixa de enviar a ação sem UUID. Fase/Grande Final, criação em lote, resize e exclusão continuam como fluxos separados e pendentes de revisão transacional; este candidato não torna esses fluxos atômicos.
+
+**Evidência:** 40 testes nativos do candidato e quatro verificações adicionais, incluindo uma sequência histórica nativa; 52 verificações HTTP/cliente e 18 cenários React de hook/recuperação em Chromium, 390/1280 px. Banco novo, dados fictícios, PostgreSQL17.6 sem rede/portas e 15 candidatos anteriores co-instalados. Quatro corpos de função, cinco guards, duas tabelas privadas e ACLs foram conferidos. Os 17 hashes SQL anteriores e o corpo original do gatilho de capacidade ficaram iguais. Há agora **18 SQLs datados: 17 candidatos de alteração e um preflight**, sem aplicação remota nesta etapa.
+
+As três falhas nativas iniciais usavam `excluido`/`bloqueado` e ordem0, proibidos pelas constraints reais. As fixtures foram corrigidas sem relaxar constraints; a ideia inicial de alterar o gatilho para excluir um estado que não pode existir foi retirada. O final foi compilado/testado em banco novo e verificado por corpo exato. O laboratório e volume próprios foram removidos, Docker restaurado parado. O runtime teve erros do adaptador fictício de Auth e uma Promise pendente no harness; foram corrigidos mantendo as expectativas. O contrato estático antigo esperava um rótulo de aba já substituído por “Estrutura”; a conferência passou a exigir também sua posição no workspace Operação.
+
+## Dependências móveis
+
+O audit **online do app** passou de **36 pacotes reportados (23 altos/13 moderados) para 23 altos/zero moderados**, sem críticos. São contagens de pacotes afetados na árvore, não quantidade de CVEs distintos ou prova de exploração do bundle instalado.
+
+Ficaram duas substituições por ancestral: `xcode → uuid11.1.1` e `@istanbuljs/load-nyc-config → js-yaml4.3.2`. Os consumidores reais passaram em 19 verificações: geração de IDs Xcode, chamadas CommonJS e carregamento de configurações YAML/extends, inclusive rejeição de tags JavaScript inseguras. Expo54.0.37, React Native0.81.5, React19.1.0 e demais dependências diretas não foram trocados. Lockfile atualizado, verificação Expo online e tipos móveis aprovados.
+
+A tentativa `Metro → image-size2.0.4` foi retirada: embora o teste Buffer inicial passasse, a exportação completa mostrou que o consumidor Metro também exige API por caminho de arquivo, removida na versão2. O pacote1.2.1 permanece sinalizado; eliminar o alerta exige migração compatível do consumidor, não mero override. A exportação também detectou que o Metro não enxergava `backend/src/shared`, necessário aos contratos puros móveis já importados. Esse caminho foi incluído explicitamente em watchFolders; isso permite resolver imports, sem importar automaticamente seus demais módulos. A exportação JavaScript Android final passou. Isso não equivale a APK/iOS assinado, compilação nativa, SecureStore físico ou teste de dispositivo.
+
+Os altos restantes incluem as cadeias de [braces](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), [image-size](https://github.com/advisories/GHSA-5p2g-fcmc-qvqq) e [node-forge](https://github.com/advisories/GHSA-86w9-cpqp-85rv). Expo CLI/Metro e ferramentas podem aparecer no conjunto npm de produção porque são dependências do pacote Expo; a classificação não prova que as 23 ocorrências estão executando no bundle do aparelho. D03 permanece parcial.
+
+## Validação e limite do audit
+
+A validação conjunta usa `check:code` com 42 suítes, tipos web, lint web/backend e build, sem audit online da raiz; o resultado final consta do JSON de verificação. Também foram ensaiados seis contratos estáticos afetados e os tipos móveis após a mudança do controle de grupo. Não foi feita nova certificação visual integral de subpáginas ou dispositivos.
+
+O npm estava configurado offline. **Zeros obtidos anteriormente por audit offline não certificam ausência de advisories.** O audit online do workspace web confirmou zero alertas de produção. A consulta online da raiz foi rejeitada pela revisão automática, e o usuário escolheu “Manter sem essa consulta”; não foi executada nem contornada. A guarda de release agora só lê configuração local e retorna audit não verificado. `check:code` pode passar; `check:release` continua pendente dessa validação. Os primeiros modelos da guarda foram bloqueados e substituídos pela versão sem qualquer consulta de registro.
+
+Nenhum SQL/MCP foi enviado ao projeto, nem houve alteração remota, Auth/env, commit, push, PR ou deploy. O build normal pode consultar diretório/cache externo; esse tráfego de leitura não foi instrumentado. Staging/dump atual, backup/restauração, advisors, owners/ACLs, coordenação dos demais escritores, aplicação revisada, cliente mobile de grupo e QA físico seguem no [registro de fechamento](E:/dropzone-cadastros/docs/PENDENCIAS_FECHAMENTO_2026-10-12.md).
+
+[Verificação do lote](E:/dropzone-cadastros/relatorios-testes/lote-estrutura-deps-2026-10-12/final-verification.json) · [Evidências PostgreSQL](E:/dropzone-cadastros/relatorios-testes/estrutura-grupo-2026-10-12/native-structure-group.json).

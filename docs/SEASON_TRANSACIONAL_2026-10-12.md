@@ -1,0 +1,52 @@
+# Temporada da Liga — preparação transacional
+
+12/10/2026, America/Sao_Paulo. Implementação e ensaio locais concluídos no escopo deste documento. O candidato não foi aplicado no Supabase; `LEAGUE_SEASON_WRITE_MODE` continua `legacy`. GitHub e Vercel não foram atualizados. A auditoria geral continua com 20 achados originais corrigidos e seis parciais.
+
+## Falhas concretas e mudança preparada
+
+**SE01/P2 — inscrições parciais no lote.** A rota anterior recalculava as sugestões no envio e chamava a inclusão de cada equipe separadamente. Uma falha posterior podia deixar as anteriores inscritas, sem vincular o lote à prévia revisada. O novo [candidato SQL](E:/dropzone-cadastros/docs/sql/20261012_league_season_candidate.sql) calcula a classificação, confere a prévia e inclui todas as participações, espelhos, auditorias e recibos na mesma transação. Usa o helper transacional de participação já preparado, sem duplicar suas regras de line, equipe, slot, cotas e permissões.
+
+**SE02/P2 — acesso à edição anterior e agrupamentos ambíguos.** O leitor antigo consultava configuração e classificação da edição anterior sem verificar a permissão de gerenciamento daquela edição. Também lia grupos sem paginação e escolhia o primeiro nome correspondente. O [leitor extraído](E:/dropzone-cadastros/backend/src/campeonatos/league-season-read.ts) verifica o acesso antes desses dados privados, pagina grupos filtrados pela edição e recusa correspondência ausente ou ambígua. Sem acesso à edição anterior, retorna ausência de sugestão e mantém a grade atual utilizável. Erros internos não expõem diagnósticos do banco. O leitor comum continua usando consultas separadas; somente a prévia nativa coordena a confirmação transacional.
+
+O código local **bloqueia o lote legado com HTTP 503**, inclusive na URL canônica. Não conserva o loop inseguro como alternativa. Portanto, publicar este código sem preparar e ativar o candidato suspenderia a confirmação em lote da temporada; a configuração precisa ser revisada na etapa de staging. As inclusões manuais mantêm seus caminhos existentes. Nada foi alterado no serviço publicado nesta continuação.
+
+## Banco, seleção e concorrência
+
+A seleção preserva a ordem anterior de promovidas, mantidas e rebaixadas, com classificação autoritativa pelo detalhe público salvo e comparação complementar com o JavaScript. Quantidades devem ser inteiros seguros não negativos; valores fracionários, negativos, inválidos ou excessivos são recusados. A edição anterior é localizada por franquia e número, com desempate estável. Plano, grupos, classificação, equipes/lines selecionadas, slots, bloqueios e participações entram na comparação da prévia. Configurações arbitrárias e credenciais não são serializadas.
+
+Destinos com equipes ativas ou slots reservados não aceitam o preenchimento automático. Slots precisam estar livres, sem ocupantes e sem bloqueio ativo. Equipe ou line repetida, destino ambíguo e falta de capacidade recusam o lote. Cotas com classificação insuficiente são recusadas também no servidor, preservando a regra que a interface já aplicava. A inscrição administrativa por temporada segue a política do helper de inclusão manual; não transforma convites em exceção ao fechamento/prazo geral.
+
+O recibo mestre pertence à conta/UUID/campeonato e ao conteúdo original. A repetição consulta o recibo antes de recalcular a prévia, mas exige novamente acesso aos dois campeonatos. Chaves internas determinísticas não podem reutilizar um recibo de participação preexistente. Pós-condições conferem a classificação, a estrutura e cada participação/espelho; uma alteração interna inesperada reverte todo o lote.
+
+Oito gatilhos coordenam DML em participações, slots, grupos, fases, configurações, resultados, edições e bloqueios. Escritores comuns de resultado, slot, bloqueio e edição foram observados esperando travas advisory durante a transação de prévia. Isso não prova coordenação de todos os escritores do inventário nem ausência de deadlocks. Há timeout de lock de três segundos; o transporte repete apenas `40P01` uma vez, com os mesmos argumentos. Outras falhas ou prévia obsoleta não provocam novo lote automático.
+
+Limites explícitos: 100 divisões, 100 entradas por divisão, 1.000 grupos por temporada, 5.000 slots/participações no destino, 50.000 detalhes de resultado na origem, 1.000 classificados por origem e 1.000 equipes selecionadas. Excesso falha explicitamente. A tabela privada de recibos tem RLS; clientes não leem nem executam os helpers. `service_role` lê recibos e executa somente a RPC principal, sem DML direto nessa tabela. São quatro funções com `SECURITY DEFINER` e uma função de quantidade invoker, todas com `search_path` fixo.
+
+## Transporte e interface
+
+A [rota dedicada](E:/dropzone-cadastros/web/app/api/campeonatos/[id]/equipes/temporada-atomica/route.ts) autentica e exige gerenciamento antes do corpo. A URL canônica verifica a permissão antes de encaminhar a temporada. Respostas usam `no-store`; diagnósticos privados são mapeados para erros públicos. O contrato exclusivo de participação não aceita ações de temporada. A flag desativada ou RPC ausente recusa a operação, sem encaminhar ao lote antigo.
+
+O [painel extraído](E:/dropzone-cadastros/web/features/campeonatos/equipes/components/LeagueSeasonPanel.tsx) exige atualizar a prévia e confirmá-la explicitamente. Guarda UUID e corpo antes do HTTP e permite repetir a tentativa original após resposta perdida, remontagem ou flag desativada. A repetição sempre usa a rota dedicada. Falha de armazenamento impede o envio. O timeout é de 25 segundos no transporte RPC e 35 segundos no cliente; timeout não presume rollback do servidor. Confirmação conhecida permanece confirmada se a recarga da grade falhar.
+
+Troca de conta, troca de campeonato ou desmontagem invalida o contexto da confirmação. Eventos A–B–A incrementam a revisão imediatamente. A leitura da grade também oculta o snapshot anterior e ignora respostas atrasadas. A tentativa persiste por conta/campeonato e aba; encerrá-la exige confirmação após conferir o acompanhamento e não desfaz inscrições.
+
+O armazenamento contém a prévia projetada, sem token de sessão ou credencial. Checksum detecta corrupção/cópia acidental; não protege contra código malicioso na mesma origem. Fechar a aba ou limpar o armazenamento perde a recuperação local, embora o recibo continue no servidor. Retenção e recuperação operacional continuam pendentes. A trava local coordena chamadas simultâneas; a temporada verifica tentativas pendentes de participação, movimentação e progressão. Isso não certifica bloqueio recíproco por todas as famílias, outras abas ou clientes antigos.
+
+## Validação e limites
+
+- **35 cenários nativos PostgreSQL 17.6 aprovados:** lote, replay, prévia obsoleta, reserva/bloqueio, nomes ambíguos, ACL, acesso à origem, falhas tardias, pós-condições, cotas insuficientes, chave interna ocupada e sessões concorrentes. Instalação final em banco novo, junto com o candidato de progressão.
+- **Conferência nativa complementar:** cinco corpos compilados iguais ao SQL final, oito gatilhos habilitados e ACLs privadas; seleção JavaScript/SQL idêntica e aplicação conjunta de três origens em um lote.
+- **25 checks do leitor/seleção e 41 HTTP/cliente aprovados**, usando SDK Supabase e handlers Next reais com HTTP, Auth e armazenamento fictícios. Sem acesso ao projeto remoto.
+- **28 cenários de navegador aprovados:** 16 da temporada e 12 de regressão da progressão, em desktop e viewport móvel. Componentes/hooks reais; Auth, HTTP, feedback e serviço da grade adaptados. Navegação da fixture é efetivamente concluída antes de liberar a confirmação pendente. Não certifica aparência integral, dispositivo físico ou site publicado.
+- **18 contratos estáticos aprovados**, sobre temporada/origem e quatro regressões de progressão/histórico. Conferência do código, não interação visual.
+- **Gate completo aprovado:** 35 suítes de segurança/contratos, tipos web, lint web/backend, build e auditoria npm de produção com zero vulnerabilidades. Dependências completas de desenvolvimento, mobile e desktop não foram auditadas novamente nesta continuação.
+
+O catálogo público salvo foi reconstruído com 118 tabelas, 14 views exatas, gatilhos/restrições e corpos históricos conferidos por MD5 atual. Auth/JWT/Realtime e infraestrutura são fictícios; não é backup completo, cópia dos owners/ACL de produção, réplica de dados reais ou staging Supabase/PostgREST. Os 324 cenários nativos anteriores e os 53 nativos da progressão permanecem históricos; não foram integralmente repetidos aqui.
+
+Falhas iniciais foram preservadas: chamada incorreta do paginador e tipo de callback; fixtures com valores/campos proibidos pelo esquema; alias SQL que deixava selecionar slot bloqueado, corrigido; escaping da fixture de gatilho; capacidade insuficiente na fixture mista; expectativa antiga de família de operação; fixture de navegação que ainda não havia concluído o render; import acima de `use client`, corrigido após o build apontar o erro. As restrições publicadas não foram relaxadas para obter aprovação.
+
+Contêiner e volume próprios removidos; Docker restaurado parado. São 13 candidatos de alteração e um preflight sem aplicação remota; os 13 hashes SQL anteriores permanecem iguais. Os manifests da fase anterior são registros históricos e não foram regravados para ocultar alterações posteriores em utilitários compartilhados.
+
+O fechamento geral ainda exige backup/restauração e staging, revisão de owners/ACL e rollout, demais gravações de estrutura, escritores/permissões concorrentes, recibos/reconciliação/notificações/pagamentos, acessibilidade/layout na matriz integral e QA mobile/desktop. [Pendências concretas](E:/dropzone-cadastros/docs/PENDENCIAS_FECHAMENTO_2026-10-12.md) · [Evidência final](E:/dropzone-cadastros/relatorios-testes/season-transacao-2026-10-12/final-verification.json).
+
+Referências oficiais conferidas no fechamento: [funções e privilégios](https://supabase.com/docs/guides/database/functions), [segurança da Data API](https://supabase.com/docs/guides/api/securing-your-api) e [changelog](https://supabase.com/changelog). O acesso à função depende de EXECUTE, além da autorização explícita dentro da RPC privilegiada; RLS da tabela não substitui essa verificação. O aviso PostgreSQL 17.11 já registrado na auditoria continua pendência de infraestrutura, sem upgrade neste ensaio 17.6. Não foi criada migration na história Supabase; este arquivo é candidato para revisão/staging.

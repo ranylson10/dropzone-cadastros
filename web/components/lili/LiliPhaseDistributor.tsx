@@ -1,6 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { confirmAction } from '@/components/feedback'
+import { Select as UiSelect } from '@/components/ui/Field'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { slotMovementBoardExpected, slotMovementMode, type SlotMovementReadContract } from '@backend/campeonatos/slot-movement-contract'
 import { Check, Copy, Download, Loader2, Shuffle, Users, X } from 'lucide-react'
 
 type Props = {
@@ -9,12 +12,15 @@ type Props = {
   groups: Array<Record<string, any>>
   slots: Array<Record<string, any>>
   canManage: boolean
-  request: (url: string, options?: RequestInit) => Promise<any>
-  onChanged: () => Promise<void>
+  contract: SlotMovementReadContract
+  busy: boolean
+  execute: (body: Record<string, unknown>) => Promise<void>
   onFeedback: (message: string) => void
 }
 
-export function LiliPhaseDistributor({ championshipId, phases, groups, slots, canManage, request, onChanged, onFeedback }: Props) {
+export function LiliPhaseDistributor({ championshipId, phases, groups, slots, contract, canManage, busy, execute, onFeedback }: Props) {
+  const active = useRef(false), locked = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [championshipId])
   const [open, setOpen] = useState(false)
   const [phaseId, setPhaseId] = useState('')
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
@@ -24,6 +30,7 @@ export function LiliPhaseDistributor({ championshipId, phases, groups, slots, ca
   const phaseGroups = useMemo(() => groups.filter((group) => String(group.fase_id) === phaseId), [groups, phaseId])
   const selectedSlots = useMemo(() => slots.filter((slot) => selectedGroups.includes(String(slot.grupo_id))), [slots, selectedGroups])
   const occupied = selectedSlots.filter((slot) => slot.equipe_id || slot.line_id)
+  const usableSlots = selectedSlots.filter(slot => ['livre', 'disponivel', 'ocupado', 'ocupada'].includes(String(slot.status || 'livre')))
 
   useEffect(() => {
     if (!phaseId && phases.length) setPhaseId(String(phases[0].id))
@@ -69,22 +76,21 @@ export function LiliPhaseDistributor({ championshipId, phases, groups, slots, ca
   }
 
   async function distribute() {
+    if (busy || locked.current) return
     if (selectedGroups.length < 2) return onFeedback('Selecione pelo menos dois grupos.')
     if (occupied.length < 2) return onFeedback('É necessário ter pelo menos duas equipes nos grupos selecionados.')
-    const label = strategy === 'balanced' ? 'equilibradamente' : 'aleatoriamente'
-    if (!window.confirm(`Distribuir ${occupied.length} equipes ${label} entre ${selectedGroups.length} grupos? A posição atual será substituída.`)) return
+    locked.current = true
     setRunning(true)
     try {
-      const payload = await request(`/api/campeonatos/${championshipId}/equipes`, {
-        method: 'PATCH',
-        body: JSON.stringify({ mode: 'distribute_phase', phase_id: phaseId, group_ids: selectedGroups, strategy }),
-      })
-      onFeedback(payload?.mensagem || 'Equipes distribuídas com sucesso.')
-      await onChanged()
+      const expected = slotMovementMode(contract) === 'atomic' ? slotMovementBoardExpected(selectedSlots) : undefined
+      const label = strategy === 'balanced' ? 'equilibradamente' : 'aleatoriamente'
+      if (!await confirmAction(`Distribuir ${occupied.length} equipes ${label} entre ${selectedGroups.length} grupos? A posição atual será substituída.`) || !active.current) return
+      await execute({ mode: 'distribute_phase', phase_id: phaseId, group_ids: selectedGroups, strategy, ...(expected ? { expected } : {}) })
     } catch (error: any) {
-      onFeedback(error?.message || 'Não foi possível distribuir as equipes.')
+      if (active.current) onFeedback(error?.message || 'Não foi possível distribuir as equipes.')
     } finally {
-      setRunning(false)
+      locked.current = false
+      if (active.current) setRunning(false)
     }
   }
 
@@ -93,17 +99,17 @@ export function LiliPhaseDistributor({ championshipId, phases, groups, slots, ca
     {open ? <div className="lili-phase-distributor-panel">
       <div className="lili-phase-distributor-head"><div><strong>Distribuição automática</strong><span>Organize todas as equipes de uma fase entre vários grupos em uma única ação.</span></div><div className="lili-phase-export"><button type="button" onClick={() => void copyDistribution()}><Copy size={15} /> Copiar lista</button><button type="button" onClick={exportDistribution}><Download size={15} /> Exportar</button></div></div>
       <div className="lili-phase-distributor-controls">
-        <label>Fase<select value={phaseId} onChange={(event) => setPhaseId(event.target.value)}>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</select></label>
-        <label>Método<select value={strategy} onChange={(event) => setStrategy(event.target.value as 'balanced' | 'random')}><option value="balanced">Equilibrado entre grupos</option><option value="random">Totalmente aleatório</option></select></label>
+        <label>Fase<UiSelect value={phaseId} disabled={running || busy} onChange={(event) => setPhaseId(event.target.value)}>{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.nome}</option>)}</UiSelect></label>
+        <label>Método<UiSelect value={strategy} disabled={running || busy} onChange={(event) => setStrategy(event.target.value as 'balanced' | 'random')}><option value="balanced">Equilibrado entre grupos</option><option value="random">Totalmente aleatório</option></UiSelect></label>
       </div>
       <div className="lili-phase-groups-select">{phaseGroups.map((group) => {
         const groupId = String(group.id)
         const groupSlots = slots.filter((slot) => String(slot.grupo_id) === groupId)
         const count = groupSlots.filter((slot) => slot.equipe_id || slot.line_id).length
         const active = selectedGroups.includes(groupId)
-        return <button type="button" key={groupId} className={active ? 'active' : ''} onClick={() => toggleGroup(groupId)}><span>{active ? <Check size={14} /> : null}{group.nome}</span><small>{count}/{groupSlots.length || group.slots || 0}</small></button>
+        return <button type="button" key={groupId} disabled={running || busy} className={active ? 'active' : ''} onClick={() => toggleGroup(groupId)}><span>{active ? <Check size={14} /> : null}{group.nome}</span><small>{count}/{groupSlots.length || group.slots || 0}</small></button>
       })}</div>
-      <div className="lili-phase-distributor-summary"><div><Users size={17} /><span><strong>{occupied.length}</strong> equipes</span></div><div><span><strong>{selectedGroups.length}</strong> grupos</span></div><div><span><strong>{selectedSlots.length}</strong> slots disponíveis</span></div><button type="button" onClick={() => void distribute()} disabled={running || selectedGroups.length < 2 || occupied.length < 2}>{running ? <Loader2 className="spin" size={16} /> : <Shuffle size={16} />} {running ? 'Distribuindo…' : 'Executar distribuição'}</button></div>
+      <div className="lili-phase-distributor-summary"><div><Users size={17} /><span><strong>{occupied.length}</strong> equipes</span></div><div><span><strong>{selectedGroups.length}</strong> grupos</span></div><div><span><strong>{usableSlots.length}</strong> posições utilizáveis</span></div><button type="button" onClick={() => void distribute()} disabled={running || busy || selectedGroups.length < 2 || occupied.length < 2}>{running ? <Loader2 className="spin" size={16} /> : <Shuffle size={16} />} {running ? 'Distribuindo…' : 'Executar distribuição'}</button></div>
     </div> : null}
   </section>
 }

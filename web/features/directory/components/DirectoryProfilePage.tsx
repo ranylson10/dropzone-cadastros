@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
 import { AppShell } from '@/components/layout'
+import { EntityProfileHero } from '@/components/entities'
 import { ReportButton } from '@/features/reports/ReportButton'
 import { DIRECTORY_CONFIG } from '../config'
 import { getDirectoryProfile } from '../server'
@@ -35,7 +35,9 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
       <AppShell
         activeLabel={config.title}
         loadSession
-        mainClassName={`directory-profile-page compact-profile directory-theme-${kind} page page-authenticated`}
+        headerVariant="storefront"
+        withAuthOffset={false}
+        mainClassName={`directory-profile-page directory-v1-profile compact-profile directory-theme-${kind} page`}
       >
         <ChampionshipPublicView profile={profile} kindLabel={kind} />
       </AppShell>
@@ -46,38 +48,30 @@ export async function DirectoryProfilePage({ kind, id }: { kind: DirectoryKind; 
     <AppShell
       activeLabel={config.title}
       loadSession
-      mainClassName={`directory-profile-page compact-profile directory-theme-${kind} page page-authenticated`}
+      headerVariant="storefront"
+      withAuthOffset={false}
+      mainClassName={`directory-profile-page directory-v1-profile compact-profile directory-theme-${kind} page`}
     >
       <div className="directory-page-body directory-page-body-with-banner directory-immersive-shell profile-command-page">
-        <section className={`profile-command-hero theme-${kind}`} data-theme={kind}>
-          <div className="profile-command-inner">
-            <a className="directory-back" href={`/${kind}`}>
-              <ArrowLeft size={15} /> Voltar para {config.title.toLowerCase()}
-            </a>
-            <div className="profile-command-main">
-              <span className="profile-command-avatar">
-                {profile.image ? <img src={profile.image} alt="" decoding="async" /> : <b>{profile.name.slice(0, 2).toUpperCase()}</b>}
-              </span>
-              <div className="profile-command-copy">
-                <small>{profile.eyebrow || config.singular}</small>
-                <h1>{profile.name}</h1>
-                {profile.username ? <strong>@{profile.username}</strong> : null}
-                {profile.description ? <p>{profile.description}</p> : null}
-              </div>
-              <dl className="profile-command-facts">
-              {primaryDetails.map((item) => (
-                <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>
-              ))}
-              </dl>
-              {extraDetails.length ? <details className="profile-command-more-facts"><summary>Ver todos os dados <span>{extraDetails.length}</span></summary><dl>{extraDetails.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl></details> : null}
-            </div>
-            <div className="profile-command-actions">
+        <EntityProfileHero
+          kind={kind as 'equipes' | 'jogadores' | 'produtoras' | 'managers'}
+          backHref={`/${kind}`}
+          backLabel={`Voltar para ${config.title.toLowerCase()}`}
+          name={profile.name}
+          image={profile.image}
+          eyebrow={profile.eyebrow || config.singular}
+          username={profile.username}
+          description={profile.description}
+          primaryDetails={primaryDetails}
+          extraDetails={extraDetails}
+          actions={
+            <>
               {profile.competitive ? <a href="#desempenho">Desempenho</a> : null}
               {profile.actions?.map((action) => <a key={action.label} className={action.variant === 'primary' ? 'primary' : ''} href={action.href}>{action.label}</a>)}
               <ReportButton targetType={reportType} targetId={id} targetName={profile.name} />
-            </div>
-          </div>
-        </section>
+            </>
+          }
+        />
         <CompetitiveProfilePanel profile={profile} />
         <DirectoryProfileTabs
           sections={profile.sections}

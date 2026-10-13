@@ -1,7 +1,9 @@
 'use client'
 
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Copy, Link2, Loader2, Lock, RefreshCw, Save, Search, Send, Trash2, UserMinus, UserPlus, Users, X } from 'lucide-react'
+import { usePagedSearch } from '@/hooks/usePagedSearch'
 
 type Props = {
   accessToken: string
@@ -23,9 +25,10 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
   const [drafts, setDrafts] = useState<Record<string, Array<{ equipe_jogador_id: string; tipo_formacao: 'titular' | 'reserva' }>>>({})
   const [transferOpen, setTransferOpen] = useState(false)
   const [transferQuery, setTransferQuery] = useState('')
-  const [transferTeams, setTransferTeams] = useState<any[]>([])
+  const transferDirectory = usePagedSearch<any>('/api/equipes/busca-publica')
+  const transferTeams = transferDirectory.items.filter(team => String(team.id) !== String(equipeId))
   const [transferTarget, setTransferTarget] = useState<any>(null)
-  const [transferSearching, setTransferSearching] = useState(false)
+  const transferSearching = transferDirectory.loading
 
   async function request(options?: RequestInit) {
     const response = await fetch(`/api/equipes/${equipeId}/lines/${line.id}`, {
@@ -128,23 +131,11 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
   async function searchTransferTeams() {
     const query = transferQuery.trim()
     if (query.length < 2) {
-      setTransferTeams([])
+      transferDirectory.clear()
       return
     }
-    setTransferSearching(true); setMessage('')
-    try {
-      const response = await fetch(`/api/equipes/busca-publica?q=${encodeURIComponent(query)}`, {
-        cache: 'no-store',
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(payload?.error || 'Não foi possível buscar equipes.')
-      setTransferTeams((payload.items || []).filter((team: any) => String(team.id) !== String(equipeId)))
-    } catch (error: any) {
-      setMessage(error?.message || 'Não foi possível buscar equipes.')
-    } finally {
-      setTransferSearching(false)
-    }
+    setMessage('')
+    await transferDirectory.search(query)
   }
 
   async function transferLine() {
@@ -211,7 +202,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
           <strong>Transferir para equipe real</strong>
           <span>Mova esta mesma line sem perder grupo, slot, resultados, estatísticas ou MVP.</span>
         </div>
-        {data.transfer.allowed && data.permissions?.pode_editar ? <button type="button" className="line-small-action" onClick={() => { setTransferOpen(true); setTransferTarget(null); setTransferTeams([]); setTransferQuery('') }}><Send size={14}/> Transferir line</button> : null}
+        {data.transfer.allowed && data.permissions?.pode_editar ? <button type="button" className="line-small-action" onClick={() => { setTransferOpen(true); setTransferTarget(null); transferDirectory.clear(); setTransferQuery('') }}><Send size={14}/> Transferir line</button> : null}
       </div>
 
     {formationExcesses.length ? <div className="line-roster-message warning"><span>{formationExcesses.map((item: any) => `${item.championship}: ${item.excess} excedente(s) registrado(s)`).join(' · ')}. Os jogadores permanecem no elenco e na line; ajuste somente a formação quando necessário.</span></div> : null}
@@ -276,7 +267,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
                     <button type="button" disabled={!event.pode_alterar} onClick={() => toggleFormation(event.id, String(player.id))}>
                       <span>{selected ? <Check size={14}/> : null}</span><strong>{player.nick || 'Jogador'}</strong>
                     </button>
-                    {selected ? <select disabled={!event.pode_alterar} value={row?.tipo_formacao || 'titular'} onChange={(e) => changeType(event.id, String(player.id), e.target.value as any)}><option value="titular">Titular</option><option value="reserva">Reserva</option></select> : null}
+                    {selected ? <UiSelect disabled={!event.pode_alterar} value={row?.tipo_formacao || 'titular'} onChange={(e) => changeType(event.id, String(player.id), e.target.value as any)}><option value="titular">Titular</option><option value="reserva">Reserva</option></UiSelect> : null}
                   </div>
                 })}
               </div>
@@ -296,7 +287,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
           <button type="button" className="icon-action" disabled={Boolean(busy)} onClick={() => setTransferOpen(false)}><X size={17}/></button>
         </header>
         <div className="line-transfer-search">
-          <input value={transferQuery} onChange={(event) => setTransferQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void searchTransferTeams() }} placeholder="Nome, tag ou ID da equipe" />
+          <UiInput value={transferQuery} onChange={(event) => { transferDirectory.clear(); setTransferTarget(null); setTransferQuery(event.target.value) }} onKeyDown={(event) => { if (event.key === 'Enter') void searchTransferTeams() }} placeholder="Nome, tag ou ID da equipe" />
           <button type="button" disabled={transferSearching || transferQuery.trim().length < 2} onClick={() => void searchTransferTeams()}>{transferSearching ? <Loader2 className="spin" size={16}/> : <Search size={16}/>} Buscar</button>
         </div>
         <div className="line-transfer-results">
@@ -305,7 +296,9 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
             <div><strong>{team.nome}</strong><small>{team.tag || team.username || `ID ${team.public_id || ''}`}</small></div>
             {String(transferTarget?.id) === String(team.id) ? <Check size={17}/> : <ChevronRight size={17}/>} 
           </button>)}
-          {!transferSearching && transferQuery.trim().length >= 2 && !transferTeams.length ? <small>Nenhuma equipe encontrada.</small> : null}
+          {transferDirectory.error ? <p role="alert">{transferDirectory.error}</p> : null}
+          {transferDirectory.nextCursor ? <button type="button" disabled={transferSearching} onClick={() => void transferDirectory.more()}>Carregar mais equipes</button> : null}
+          {!transferSearching && transferDirectory.term && !transferTeams.length && !transferDirectory.nextCursor && !transferDirectory.error ? <small>Nenhuma equipe encontrada.</small> : null}
         </div>
         {transferTarget ? <div className="line-transfer-confirm">
           <strong>Confirme a transferência</strong>

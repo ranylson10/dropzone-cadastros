@@ -1,0 +1,981 @@
+{
+  "date": "10/10/2026",
+  "timezone": "America/Sao_Paulo",
+  "repository": "https://github.com/ranylson10/dropzone-cadastros",
+  "head": "ef9416e1",
+  "decision": "Corrigir os quatro itens P1 antes de publicar; migração de layout e arquitetura é parcial.",
+  "scope": {
+    "pages": 43,
+    "apiRoutes": 151,
+    "apiMethods": 269,
+    "browserOpenings": 86,
+    "workspaceStates": 111,
+    "responsiveExtra": 24,
+    "publicChampionshipTabs": 4,
+    "tables": 118,
+    "functions": 53,
+    "policies": 47,
+    "views": 14,
+    "buckets": 7
+  },
+  "priorities": {
+    "P1": 4,
+    "P2": 20,
+    "P3": 2
+  },
+  "findings": [
+    {
+      "id": "S01",
+      "priority": "P1",
+      "category": "Segurança",
+      "title": "Contatos privados legíveis pela Data API anônima",
+      "observed": "Com SET LOCAL ROLE anon foi possível contar contatos não vazios em equipes (1), jogadores (1), managers (2) e produtoras (1). As policies publicam linhas ativas e os grants permitem email_contato. Nenhum endereço foi extraído.",
+      "impact": "A filtragem feita pelas APIs da aplicação pode ser contornada pela consulta direta ao Supabase. RLS ativo não restringe colunas.",
+      "recommendation": "Separar dados privados de perfis públicos; revogar SELECT amplo e expor projeções públicas seguras. Manter leitura privada por proprietário e backend autorizado.",
+      "evidence": "supabase/migrations/20260908205236_otimizar_policies_rls.sql:126; relatorios-testes/auditoria-2026-10-10/anon-contacts-proof.json",
+      "acceptance": "Anon não consegue ler email_contato ou campos operacionais; catálogo público permanece funcional; testar anon, dono, outra conta e admin."
+    },
+    {
+      "id": "S02",
+      "priority": "P1",
+      "category": "Segurança",
+      "title": "Ordem PayPal aceita preço e moeda do cliente",
+      "observed": "POST /api/paypal/orders consulta a reserva do usuário, mas repassa body.amountMinor e body.currency. createLiliPayPalOrder apenas exige inteiro positivo; a captura compara com o pagamento criado, não com a cotação original. Em execução isolada uma reserva com quote de 10000 BRL aceitou 1 USD cent e respondeu 200.",
+      "impact": "Permite criar cobrança divergente do preço autorizado. A prova usa mocks e não demonstra uma compra fraudulenta consumada em produção.",
+      "recommendation": "Derivar valor, moeda e descrição de reserva/cotação validada no servidor; validar estado, prazo e cotação; retirar campos comerciais do contrato público ou rejeitar divergência.",
+      "evidence": "web/app/api/paypal/orders/route.ts:12; backend/src/billing/paypal.ts:80; relatorios-testes/auditoria-2026-10-10/security-isolated-proof.json",
+      "acceptance": "Valor/moeda adulterados são recusados antes de qualquer chamada PayPal; reserva vencida é recusada; captura confere referência, cotação e pagador."
+    },
+    {
+      "id": "S03",
+      "priority": "P1",
+      "category": "Segurança",
+      "title": "Proxy de imagens permite acesso a redes privadas",
+      "observed": "O validador de /api/stream/image aceita 10.0.0.1, 192.168.1.1, 169.254.169.254 e [::1]. O fetch segue redirects automaticamente, sem validar DNS ou cada destino. Requer usuário autenticado. Prova executou somente o validador, sem requests a esses hosts.",
+      "impact": "Superfície de SSRF, acesso a serviços internos e consumo de recursos por qualquer conta autenticada.",
+      "recommendation": "Preferir allowlist de origem de assets; validar IP resolvido, IPv4/IPv6 e redirects; limitar bytes durante leitura, tempo e taxa.",
+      "evidence": "web/app/api/stream/image/route.ts:6; web/app/api/stream/image/route.ts:23; relatorios-testes/auditoria-2026-10-10/security-isolated-proof.json",
+      "acceptance": "Hosts privados e redirects privados são bloqueados; DNS rebinding é tratado; imagem sem Content-Length não ultrapassa limite de streaming."
+    },
+    {
+      "id": "S04",
+      "priority": "P1",
+      "category": "Segurança",
+      "title": "Next.js instalado está em faixa com advisories críticos",
+      "observed": "Next 16.3.0. npm audit de produção aponta 4 pacotes vulneráveis: next crítico, sharp e source-map-js altos, dompurify baixo. Advisory de RCE Windows afeta Next <16.3.3; outras correções da série alcançam 16.3.8.",
+      "impact": "Risco depende do ambiente e do recurso usado. O host local é Windows; não extrapolar o advisory Windows para Vercel/Linux. Não encontrei uso de next/og ou next/image no fonte.",
+      "recommendation": "Atualizar para versão corrigida compatível, pelo menos fora de todas as faixas reportadas; revisar dependências transitivas e executar build/regressão. Não usar audit fix --force cegamente.",
+      "evidence": "web/package.json:18; relatorios-testes/auditoria-2026-10-10/npm-audit-production.json",
+      "acceptance": "Lockfile usa versões corrigidas; auditoria de produção sem crítico/alto aplicável; login, build, renderização e redirects aprovados."
+    },
+    {
+      "id": "S05",
+      "priority": "P2",
+      "category": "Segurança",
+      "title": "Proteção contra senhas vazadas está desativada",
+      "observed": "Advisor de segurança do Supabase retorna Leaked Password Protection Disabled. Não há ERROR no advisor, mas esta verificação não cobre privacidade de colunas.",
+      "impact": "Senhas já comprometidas podem ser aceitas pela configuração de Auth.",
+      "recommendation": "Habilitar a proteção quando disponível no plano e revisar os requisitos de senha entre UI e servidor.",
+      "evidence": "relatorios-testes/auditoria-2026-10-10/security-advisors.json",
+      "acceptance": "Cadastro e recuperação rejeitam senha comprometida, preservando o fluxo legítimo."
+    },
+    {
+      "id": "L01",
+      "priority": "P2",
+      "category": "Layout",
+      "title": "Catálogo padrão não usa a linha canônica",
+      "observed": "DirectoryListClient monta ChampionshipListRow apenas com openVacancies=true. Sem esse filtro renderiza article.dz-champ-table-row próprio. Browser: catálogo padrão 3 linhas próprias/0 canônicas; ?vagas=1 0 próprias/3 canônicas.",
+      "impact": "Correções do componente compartilhado não chegam ao estado padrão; aumentam divergências visuais e falsos positivos de auditoria.",
+      "recommendation": "Usar componente canônico com variante explícita para os dois estados; auditar cada branch renderizado.",
+      "evidence": "web/features/directory/components/DirectoryListClient.tsx:353; web/features/directory/components/DirectoryListClient.tsx:484; relatorios-testes/auditoria-2026-10-10/targeted-ui.json",
+      "acceptance": "Lista padrão e filtrada usam a mesma família de componente com métricas, ações e labels equivalentes."
+    },
+    {
+      "id": "L02",
+      "priority": "P2",
+      "category": "Layout",
+      "title": "Métricas do catálogo ficam sem legenda no celular",
+      "observed": "O cabeçalho da tabela desaparece no mobile; as células próprias mostram vagas, inscrição, premiação e data sem label, aria-label ou data-label.",
+      "impact": "Números como 86/96, R$ 30 e R$ 1.000 não ficam associados de forma clara à sua finalidade.",
+      "recommendation": "Adicionar rótulos visíveis no mobile e estrutura semântica acessível em cada métrica.",
+      "evidence": "web/features/directory/components/DirectoryListClient.tsx:499; relatorios-testes/auditoria-2026-10-10/targeted-ui.json",
+      "acceptance": "Cada valor mantém nome compreensível em 320/390 px e na árvore de acessibilidade."
+    },
+    {
+      "id": "L03",
+      "priority": "P2",
+      "category": "Layout",
+      "title": "Microtipografia e ações pequenas permanecem",
+      "observed": "Foram encontrados textos visíveis entre aproximadamente 7 e 11 px e ações do catálogo com 32 px. A proposta V1 recomenda texto essencial >=12 px e alvo de 44 px; essas medidas são alvos propostos, não aprovação presumida.",
+      "impact": "Leitura e toque ficam difíceis; ausência de overflow não prova boa usabilidade.",
+      "recommendation": "Ajustar tokens e densidade com conteúdo real; preservar a identidade visual, aumentar texto essencial e área clicável.",
+      "evidence": "docs/design-system/REFERENCIA_LAYOUT_V1_BASE.md:90; relatorios-testes/auditoria-2026-10-10/browser-pages.json; relatorios-testes/auditoria-2026-10-10/targeted-ui.json",
+      "acceptance": "Valores e labels legíveis em 320 px; ações principais têm área de toque adequada; validar teclado, zoom e contraste."
+    },
+    {
+      "id": "L04",
+      "priority": "P2",
+      "category": "Regras",
+      "title": "Preço desconhecido vira GRÁTIS na home",
+      "observed": "priceLabel usa Number(valor_inscricao || 0) e retorna GRÁTIS para null/ausente. A mesma competição aparece como Sob consulta no catálogo.",
+      "impact": "Mensagem comercial incorreta; usuário pode iniciar jornada esperando gratuidade.",
+      "recommendation": "Unificar formatação monetária e distinguir desconhecido, zero e preço positivo.",
+      "evidence": "web/features/home/AuthenticatedHomeFeed.tsx:29",
+      "acceptance": "null/undefined/vazio exibem Sob consulta; zero exibe Grátis; positivo mantém o mesmo valor em todas as superfícies."
+    },
+    {
+      "id": "L05",
+      "priority": "P2",
+      "category": "Regras",
+      "title": "Categorias da home não filtram o catálogo",
+      "observed": "Links usam ?tipo=copa/liga/sala/x1; DirectoryListClient não lê tipo e ChampFilters não possui este campo. Os quatro links renderizaram os mesmos três IDs. sala e x1 também não correspondem diretamente à enum atual do campeonato.",
+      "impact": "A navegação promete um recorte que não é aplicado.",
+      "recommendation": "Definir categorias oficiais, mapear valores válidos e aplicar filtro de tipo no carregamento/estado do catálogo.",
+      "evidence": "web/features/home/home-config.ts:83; web/features/directory/components/DirectoryListClient.tsx:234; relatorios-testes/auditoria-2026-10-10/targeted-ui.json",
+      "acceptance": "Cada categoria mostra somente seu recorte; filtro ativo é visível; URL, voltar e recarregar preservam a seleção."
+    },
+    {
+      "id": "L06",
+      "priority": "P2",
+      "category": "Regras",
+      "title": "Newsletter tem CTA sem operação",
+      "observed": "O formulário CADASTRAR apenas chama preventDefault, sem persistência, envio ou confirmação.",
+      "impact": "Usuário acredita concluir cadastro que não acontece.",
+      "recommendation": "Implementar a inscrição e os estados de sucesso/erro ou remover a chamada até o recurso existir.",
+      "evidence": "web/features/home/AuthenticatedHomeFeed.tsx:229",
+      "acceptance": "A ação conclui uma inscrição verificável ou deixa de ser apresentada como funcional."
+    },
+    {
+      "id": "L07",
+      "priority": "P2",
+      "category": "Layout",
+      "title": "Saída OBS herda Lili e fundo global",
+      "observed": "Em token inválido e em resposta de espera controlada a saída mostra Lili. O main OBS é transparente, mas body herda textura e fundo opaco global. RootLayout injeta launcher/providers em todas as rotas.",
+      "impact": "A composição capturada pode incluir elementos do site e perder transparência.",
+      "recommendation": "Criar layout de saída isolado sem chrome, launcher ou fundo global; manter somente componentes necessários à transmissão.",
+      "evidence": "web/app/layout.tsx:48; web/components/lili/LiliGlobalLauncher.tsx; relatorios-testes/auditoria-2026-10-10/obs-controlled.json",
+      "acceptance": "OBS em espera, erro e overlay ativo não mostra controles do site; transparência e dimensão de transmissão corretas."
+    },
+    {
+      "id": "L08",
+      "priority": "P2",
+      "category": "Layout",
+      "title": "Migração de fluxos por token é parcial",
+      "observed": "Convite equipe, convite grupo, escala e venda ainda compõem páginas e estados manualmente. Referenciar tokenFlowPath/registro não equivale a adotar TokenFlowPage. Algumas rotas novas já usam a base compartilhada.",
+      "impact": "Erros, espera, login e acompanhamento podem divergir por fluxo; a matriz anterior superestima migração ao procurar imports.",
+      "recommendation": "Migrar composição e estados para a família compartilhada respeitando a regra de cada token; testar sucesso, expirado, consumido e visitante.",
+      "evidence": "web/app/convite/equipe/[token]/page.tsx:330; web/app/convite/grupo/[token]/page.tsx:862; web/app/escala/[token]/page.tsx:382; web/app/vendas/[token]/page.tsx:69",
+      "acceptance": "Todas as dez rotas do registro usam composição e feedback consistentes, incluindo estados alternativos."
+    },
+    {
+      "id": "L09",
+      "priority": "P2",
+      "category": "Layout",
+      "title": "Controles do login ainda ficam com estilo nativo",
+      "observed": "Screenshot mobile mostra Mostrar senha abaixo do campo e Criar conta com botão nativo. CSS do password-control fornece borda/tamanho, mas falta composição que posicione o botão junto ao input.",
+      "impact": "Acabamento e leitura visual inconsistentes em uma jornada essencial.",
+      "recommendation": "Adotar campo composto e variantes de Button/IconButton; conferir login, cadastro e recuperação em mobile/desktop.",
+      "evidence": "web/app/login/page.tsx:859; web/app/login/page.tsx:942; web/styles/auth-invites-density-r08.css:52; relatorios-testes/auditoria-2026-10-10/screenshots/390-_login.png",
+      "acceptance": "Mostrar senha fica integrado ao campo, sem bordas duplicadas; todas as ações usam variantes visuais coerentes."
+    },
+    {
+      "id": "L10",
+      "priority": "P3",
+      "category": "Layout",
+      "title": "Página de stream possui main aninhado",
+      "observed": "AppShell renderiza main e LocalStudioHandoff renderiza outro main. Confirmado nas duas larguras.",
+      "impact": "Landmarks redundantes e regra visual de composição violada.",
+      "recommendation": "Deixar main no shell e usar section/div no conteúdo.",
+      "evidence": "web/components/local-studio/LocalStudioHandoff.tsx:6; web/app/campeonatos/[id]/stream/page.tsx; relatorios-testes/auditoria-2026-10-10/browser-pages.json",
+      "acceptance": "Exatamente um main na página, preservando título e conteúdo."
+    },
+    {
+      "id": "L11",
+      "priority": "P3",
+      "category": "Layout",
+      "title": "Busca da home escapou da migração de inputs",
+      "observed": "Input de busca da home é nativo e audit-form-migration falha no trecho. Screenshot desktop mostra campo branco destoante do contexto.",
+      "impact": "Adoção incompleta dos controles compartilhados.",
+      "recommendation": "Migrar para UiInput e validar o formulário de busca sem alterar o contrato da URL.",
+      "evidence": "web/features/home/AuthenticatedHomeFeed.tsx:142; relatorios-testes/auditoria-2026-10-10/r207-static.log",
+      "acceptance": "Auditoria de controles passa e busca mantém teclado, submit e filtro q."
+    },
+    {
+      "id": "A01",
+      "priority": "P2",
+      "category": "Arquitetura",
+      "title": "Regras e apresentação continuam em módulos muito grandes",
+      "observed": "ProdutoraPanel 3546 linhas; EquipePanel 2960; CampeonatoForm 2711; convite de grupo 2039; Lili chat API 3314; API genérica dropzone 1902. Há domínio/permissão/séries de consultas dentro de route handlers.",
+      "impact": "Mudanças de layout ou regra têm alto raio de regressão e revisão difícil.",
+      "recommendation": "Extrair casos de uso por domínio para backend e seções de UI pequenas; manter handlers como adaptação HTTP; evitar reescrita total.",
+      "evidence": "PROJECT_CONTEXT.md:15; relatorios-testes/auditoria-2026-10-10/source-inventory.json",
+      "acceptance": "Domínios têm serviços/contratos explícitos e componentes focados; permissões são testadas independentemente da UI."
+    },
+    {
+      "id": "A02",
+      "priority": "P2",
+      "category": "Arquitetura",
+      "title": "Cascata CSS continua cumulativa e global",
+      "observed": "globals.css 747682 bytes; inventário registra 5433 !important e 1610 declarações de fonte entre 6 e 11 px. RootLayout importa 27 folhas CSS; home do build liga 9 chunks, 1156951 bytes crus e ~178196 bytes gzip estimado.",
+      "impact": "Estilo de uma área pode alterar outra; uma correção vira mais um override; custo de CSS alto na entrada.",
+      "recommendation": "Consolidar tokens por contexto, remover regras comprovadamente substituídas, isolar estilos de feature e reduzir carregamento global.",
+      "evidence": "web/app/layout.tsx:2; web/app/globals.css; relatorios-testes/auditoria-2026-10-10/home-css-payload.json",
+      "acceptance": "Redução mensurada do CSS por rota e da especificidade; regressão visual aprovada em todas as famílias."
+    },
+    {
+      "id": "A03",
+      "priority": "P2",
+      "category": "Arquitetura",
+      "title": "Consultas amplas e truncamento silencioso",
+      "observed": "Directory server pagina internamente até 10000 linhas e usa select(*); filtros são aplicados no cliente. A API genérica usa select(*) e limite padrão 300, podendo filtrar depois.",
+      "impact": "Custo cresce com o banco; resultados podem ficar incompletos sem paginação visível. Isso não é prova de IDOR.",
+      "recommendation": "Projeções por caso de uso, filtros/autorização antes da consulta e paginação/cursor com contagem explícita; índices só com plano e métricas.",
+      "evidence": "web/features/directory/server.ts:38; web/features/directory/server.ts:252; web/app/api/dropzone/route.ts:129",
+      "acceptance": "Página retorna somente campos e recorte necessário; itens além de 300/10000 não desaparecem silenciosamente."
+    },
+    {
+      "id": "A04",
+      "priority": "P2",
+      "category": "Arquitetura",
+      "title": "Cópias órfãs fora da aplicação oficial",
+      "observed": "Há 8 arquivos em components/ e features/ na raiz duplicando web; DirectoryListClient difere. app/comunidade/page.tsx e app/rank/page.tsx também estão fora do Next e do include de TypeScript do Expo.",
+      "impact": "É possível editar cópia que não é executada, ou publicar lixo/confusão no próximo git add .",
+      "recommendation": "Confirmar origem, consolidar alterações úteis na árvore oficial e remover cópias órfãs na rodada de correção.",
+      "evidence": "features/directory/components/DirectoryListClient.tsx; web/tsconfig.json; app/tsconfig.json",
+      "acceptance": "Uma fonte oficial por componente; buscas, build e typecheck incluem todos os arquivos relevantes."
+    },
+    {
+      "id": "A05",
+      "priority": "P2",
+      "category": "Arquitetura",
+      "title": "Documento central não descreve o estado atual",
+      "observed": "PROJECT_CONTEXT ainda diz que app contém somente documentação, cita tarefas já executadas e painéis /painel/... que não existem como rotas. A proposta visual V1 continua marcada para aprovação.",
+      "impact": "Próxima manutenção pode seguir arquitetura e tarefas obsoletas.",
+      "recommendation": "Atualizar contexto, arquitetura e matriz das 43 rotas; distinguir decisão aprovada, proposta e implementação atual.",
+      "evidence": "PROJECT_CONTEXT.md:35; docs/design-system/REFERENCIA_LAYOUT_V1_BASE.md:3",
+      "acceptance": "Documentação corresponde às árvores web/backend/Expo/Electron e registra pendências reais."
+    },
+    {
+      "id": "T01",
+      "priority": "P2",
+      "category": "Validação",
+      "title": "Auditorias estáticas não garantem a migração completa",
+      "observed": "17 scripts individuais: 13 passaram e 4 falharam. Três falhas esperam padrões antigos; uma revela input não migrado. R207 cumulativo: 13/15. Teste de componente canônico aceita zero linhas, deixando passar o catálogo próprio.",
+      "impact": "Selo de rodada concluída pode coexistir com falha visual ou branch não auditado.",
+      "recommendation": "Trocar presença de string por contrato de renderização; atualizar seletores/breakpoints; testar states de listas e sessões por origin correto.",
+      "evidence": "relatorios-testes/auditoria-2026-10-10/r207-static.log; relatorios-testes/auditoria-2026-10-10/r207-summary.json",
+      "acceptance": "Auditorias atualizadas passam sem tolerar zero componentes esperados; failures de ambiente são separados de bugs."
+    },
+    {
+      "id": "D01",
+      "priority": "P2",
+      "category": "Publicação",
+      "title": "Deploy em lote não possui travas de qualidade",
+      "observed": "deploy.bat faz git add ., commit e push main; não roda checks e imprime sucesso sem verificar o exit code do push. Não há workflow versionado em .github. Estado inicial contém 138 arquivos modificados e 160 novos.",
+      "impact": "Pode incluir cópias/dados indevidos e publicar um pacote amplo sem revisão ou indicar sucesso falso.",
+      "recommendation": "Revisar diff, separar commits/PRs, usar git add por escopo e gate de lint/typecheck/build/testes/audit; conferir resultado real do push e preview.",
+      "evidence": "deploy.bat:21; deploy.bat:45",
+      "acceptance": "Publicação só avança após checks; falha de push interrompe; preview é aprovado antes da promoção."
+    },
+    {
+      "id": "D02",
+      "priority": "P2",
+      "category": "Publicação",
+      "title": "Snapshot e histórico de migrations divergem",
+      "observed": "Auditoria local avisa cinco tabelas ausentes; as cinco existem no banco conectado. Live tem 27 migrations e site_home_config aparece como 20261004051145, enquanto local é 20261004020000. DDL desta migration é equivalente na consulta realizada.",
+      "impact": "Reaplicar por nome de arquivo pode duplicar histórico; snapshot antigo gera alertas falsos e mascara drift real.",
+      "recommendation": "Atualizar snapshot sanitizado e reconciliar versões/histórico com diff do schema; não executar migration repetida cegamente.",
+      "evidence": "supabase/migrations/20261004020000_site_home_config.sql; relatorios-testes/auditoria-2026-10-10/migrations-live.json; relatorios-testes/auditoria-2026-10-10/general-audit.json",
+      "acceptance": "Schema esperado coincide com live; migrations locais e aplicadas têm correspondência documentada."
+    },
+    {
+      "id": "D03",
+      "priority": "P2",
+      "category": "Publicação",
+      "title": "App móvel precisa de revisão própria de dependências",
+      "observed": "npm audit do app retorna 41 pacotes: 1 crítico, 30 altos, 10 moderados. O crítico é shell-quote no ferramental; contagem não prova vulnerabilidade no binário final. Typecheck passa.",
+      "impact": "Toolchain comprometida ou falhas aplicáveis podem afetar builds; o site não valida o app nativo.",
+      "recommendation": "Atualizar dentro da matriz compatível de Expo/RN e separar dependência empacotada de ferramenta; rodar build Android/iOS e regressão em dispositivo.",
+      "evidence": "app/package.json; relatorios-testes/auditoria-2026-10-10/npm-audit-mobile.json",
+      "acceptance": "Audit contextual revisado, builds assinados e fluxos de auth/competições validados no dispositivo."
+    },
+    {
+      "id": "D04",
+      "priority": "P2",
+      "category": "Publicação",
+      "title": "Desktop tem Electron com advisory alto",
+      "observed": "Auditoria desktop: 15 pacotes, 7 altos e 8 moderados. Electron 43.4.0 é runtime empacotado apesar de estar em devDependencies. Main/preload/renderer passam node --check.",
+      "impact": "Excluir devDependencies da auditoria perderia risco do runtime do executável.",
+      "recommendation": "Atualizar Electron e ferramentas compatíveis; validar pacote, IPC, sessão, cache e saída OBS local.",
+      "evidence": "desktop/package.json; relatorios-testes/auditoria-2026-10-10/npm-audit-desktop.json",
+      "acceptance": "Electron fora da faixa vulnerável e pacote real validado; IPC aceita somente operações/destinos previstos."
+    }
+  ],
+  "routes": [
+    {
+      "route": "/",
+      "file": "web/app/page.tsx",
+      "family": "Home e workspaces",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Vitrine nova e quatro workspaces. Preço desconhecido, categorias, newsletter e input de busca pendentes."
+    },
+    {
+      "route": "/admin",
+      "file": "web/app/admin/page.tsx",
+      "family": "Administração",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/login",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Nove abas autenticadas abriram em três larguras. Estrutura própria, botões nativos e CSS legado ainda presentes."
+    },
+    {
+      "route": "/afiliados",
+      "file": "web/app/afiliados/page.tsx",
+      "family": "Comercial",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/afiliados",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/agenda",
+      "file": "web/app/agenda/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/agenda",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/atualizar-senha",
+      "file": "web/app/atualizar-senha/page.tsx",
+      "family": "Autenticação",
+      "status": "Redirecionamento",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/login",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Redirect cliente para login?recovery=1; recuperação real não enviada."
+    },
+    {
+      "route": "/auth/mobile-callback",
+      "file": "web/app/auth/mobile-callback/page.tsx",
+      "family": "Autenticação",
+      "status": "Contexto específico",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/auth/mobile-callback",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Callback mínimo dedicado; retorno ao aplicativo nativo não foi testado em dispositivo."
+    },
+    {
+      "route": "/broadcast/control/[token]",
+      "file": "web/app/broadcast/control/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Contexto específico",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/broadcast/control/[token]",
+      "overflow": false,
+      "mainCount": 0,
+      "note": "Estado de token inválido abre sem chrome de catálogo. Controle autorizado com token real não foi acionado."
+    },
+    {
+      "route": "/broadcast/obs/[token]",
+      "file": "web/app/broadcast/obs/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/broadcast/obs/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Erro e espera controlada mostram Lili/fundo do body. Overlay real ativo permanece pendente."
+    },
+    {
+      "route": "/campeonatos",
+      "file": "web/app/campeonatos/page.tsx",
+      "family": "Campeonatos",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/campeonatos",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Estado padrão usa clone de tabela; ?vagas=1 usa linha canônica. Mobile sem legenda nas métricas."
+    },
+    {
+      "route": "/campeonatos/[id]",
+      "file": "web/app/campeonatos/[id]/page.tsx",
+      "family": "Campeonatos",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/campeonatos/[id]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Perfil público e quatro abas visitados. Tipografia/CTA mobile a revisar; workspace de gestão não foi exercitado com campeonato pertencente à fixture."
+    },
+    {
+      "route": "/campeonatos/[id]/pontuador/[jogoId]",
+      "file": "web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx",
+      "family": "Campeonatos",
+      "status": "Contexto específico",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "jogo inexistente",
+      "finalPath": "/login",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Visitante foi enviado ao login. Fluxo autorizado de pontuação com jogo real permanece pendente; contratos estáticos/engine analisados."
+    },
+    {
+      "route": "/campeonatos/[id]/regulamento",
+      "file": "web/app/campeonatos/[id]/regulamento/page.tsx",
+      "family": "Campeonatos",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/campeonatos/[id]/regulamento",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Página pública abriu com ID real. Edição/publicação não executadas."
+    },
+    {
+      "route": "/campeonatos/[id]/stream",
+      "file": "web/app/campeonatos/[id]/stream/page.tsx",
+      "family": "Campeonatos",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/campeonatos/[id]/stream",
+      "overflow": false,
+      "mainCount": 2,
+      "note": "Handoff para Studio local; dois main. Pacote desktop e live ativa não foram executados."
+    },
+    {
+      "route": "/carrinho",
+      "file": "web/app/carrinho/page.tsx",
+      "family": "Comercial",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/carrinho",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Estado visitante/vazio abriu; provider autenticado consultado. Checkout não acionado."
+    },
+    {
+      "route": "/carteira",
+      "file": "web/app/carteira/page.tsx",
+      "family": "Comercial",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/login",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Visitante cai no login; consultas de carteira dos painéis autenticados funcionam. Saque/PIX/captura não acionados."
+    },
+    {
+      "route": "/central-campeonato",
+      "file": "web/app/central-campeonato/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/login",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Visitante cai no login; fluxo autorizado completo por competição exige fixture de gestão."
+    },
+    {
+      "route": "/comunidade",
+      "file": "web/app/comunidade/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Redirecionamento",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/equipes",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Redirect para /equipes: não existe subpágina independente de comunidade neste build."
+    },
+    {
+      "route": "/convite/equipe/[token]",
+      "file": "web/app/convite/equipe/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/convite/equipe/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Estado indisponível manual; composição compartilhada ainda não aplicada à página inteira."
+    },
+    {
+      "route": "/convite/grupo/[token]",
+      "file": "web/app/convite/grupo/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/convite/grupo/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Página de 2039 linhas e estado indisponível manual. Consumo real de slot/token não executado."
+    },
+    {
+      "route": "/convite/produtora/[token]",
+      "file": "web/app/convite/produtora/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/convite/produtora/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "TokenFlowPage no estado visitado; fluxo de login validado também por mock R205."
+    },
+    {
+      "route": "/equipe/entrar/[token]",
+      "file": "web/app/equipe/entrar/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/equipe/entrar/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "TokenFlowPage no estado visitado e fixture controlada R205. Aceite real não executado."
+    },
+    {
+      "route": "/equipe/reivindicar/[token]",
+      "file": "web/app/equipe/reivindicar/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/equipe/reivindicar/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "TokenFlowPage no estado de link indisponível; reivindicação real não executada."
+    },
+    {
+      "route": "/equipes",
+      "file": "web/app/equipes/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/equipes",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/equipes/[id]",
+      "file": "web/app/equipes/[id]/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/equipes/[id]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/escala/[token]",
+      "file": "web/app/escala/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/escala/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Fluxo manual de escalação; registro de rota centralizado não unifica composição."
+    },
+    {
+      "route": "/exclusao-de-dados",
+      "file": "web/app/exclusao-de-dados/page.tsx",
+      "family": "Institucional",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/exclusao-de-dados",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/i/[token]",
+      "file": "web/app/i/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/i/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "TokenFlowPage no estado inválido e estado visitante controlado R205."
+    },
+    {
+      "route": "/jogadores",
+      "file": "web/app/jogadores/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/jogadores",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/jogadores/[id]",
+      "file": "web/app/jogadores/[id]/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/jogadores/[id]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/lili",
+      "file": "web/app/lili/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Contexto específico",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/lili",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Contexto próprio de conversa; API de 3314 linhas. Ferramentas de escrita e intents financeiros não executados."
+    },
+    {
+      "route": "/login",
+      "file": "web/app/login/page.tsx",
+      "family": "Autenticação",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/login",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Input migrado, composição de senha e ação Criar conta com acabamento incompleto. OTP/OAuth reais não reenviados."
+    },
+    {
+      "route": "/managers",
+      "file": "web/app/managers/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/managers",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/managers/[id]",
+      "file": "web/app/managers/[id]/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/managers/[id]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/politica-de-privacidade",
+      "file": "web/app/politica-de-privacidade/page.tsx",
+      "family": "Institucional",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/politica-de-privacidade",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/produtoras",
+      "file": "web/app/produtoras/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/produtoras",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/produtoras/[id]",
+      "file": "web/app/produtoras/[id]/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/produtoras/[id]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/rank",
+      "file": "web/app/rank/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/rank",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/termos-de-servico",
+      "file": "web/app/termos-de-servico/page.tsx",
+      "family": "Institucional",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/termos-de-servico",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    },
+    {
+      "route": "/vagas",
+      "file": "web/app/vagas/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Redirecionamento",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/campeonatos",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Redirect para /campeonatos?vagas=1 preserva parâmetros; não existe catálogo separado."
+    },
+    {
+      "route": "/vagas/compra/[token]",
+      "file": "web/app/vagas/compra/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/vagas/compra/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Gate de login compartilhado. Compra, captura e consumo do token não executados."
+    },
+    {
+      "route": "/vendas/[token]",
+      "file": "web/app/vendas/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Migração parcial",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/vendas/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Loading/erro manual e conteúdo próprio em AppShell; checkout não executado."
+    },
+    {
+      "route": "/vendedor/[token]",
+      "file": "web/app/vendedor/[token]/page.tsx",
+      "family": "Fluxo por token",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "token inválido",
+      "finalPath": "/vendedor/[token]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "TokenFlowPage e gate de acesso controlado R205. Aceite real não executado."
+    },
+    {
+      "route": "/vendedores/[managerId]",
+      "file": "web/app/vendedores/[managerId]/page.tsx",
+      "family": "Descoberta e utilidades",
+      "status": "Base integrada; revisão global",
+      "coverage": "2/2 aberturas; desktop e mobile",
+      "scenario": "público",
+      "finalPath": "/vendedores/[id]",
+      "overflow": false,
+      "mainCount": 1,
+      "note": "Base de layout/primitivas presente e abertura verificada. Revisar microtipografia/cascata comum; mutações não executadas."
+    }
+  ],
+  "authSummary": [
+    {
+      "role": "produtora",
+      "loaded": true,
+      "checks": 27,
+      "overflow": 0,
+      "errors": 0,
+      "primary": [
+        "Visão geral",
+        "Campeonatos",
+        "Financeiro",
+        "Equipe",
+        "Configurações"
+      ],
+      "secondary": [
+        "Financeiro > Resumo gerencial",
+        "Financeiro > Vendedores",
+        "Equipe > Equipe interna",
+        "Equipe > Cadastros provisórios"
+      ]
+    },
+    {
+      "role": "equipe",
+      "loaded": true,
+      "checks": 30,
+      "overflow": 0,
+      "errors": 0,
+      "primary": [
+        "Início",
+        "Elenco",
+        "Competições",
+        "Desempenho",
+        "Mais"
+      ],
+      "secondary": [
+        "Elenco > Jogadores",
+        "Elenco > Lines",
+        "Elenco > Convites",
+        "Mais > Staff",
+        "Mais > Configurações"
+      ]
+    },
+    {
+      "role": "jogador",
+      "loaded": true,
+      "checks": 15,
+      "overflow": 0,
+      "errors": 0,
+      "primary": [
+        "Início",
+        "Competições",
+        "Equipe",
+        "Desempenho",
+        "Perfil"
+      ],
+      "secondary": []
+    },
+    {
+      "role": "manager",
+      "loaded": true,
+      "checks": 12,
+      "overflow": 0,
+      "errors": 0,
+      "primary": [
+        "Campeonatos 0",
+        "Equipes 0",
+        "Jogadores 0",
+        "Perfil"
+      ],
+      "secondary": []
+    },
+    {
+      "role": "admin",
+      "loaded": true,
+      "checks": 27,
+      "overflow": 0,
+      "errors": 0,
+      "primary": [
+        "VISÃO GERAL",
+        "PÁGINA INICIAL",
+        "PRODUTORAS",
+        "PUBLICAÇÕES",
+        "PREÇOS",
+        "SAQUES",
+        "CONTAS",
+        "DENÚNCIAS0",
+        "AUDITORIA"
+      ],
+      "secondary": []
+    }
+  ],
+  "css": {
+    "measurement": "Somatório dos links CSS da home em build local; gzip estimado por zlib, não transferência medida da Vercel",
+    "rows": [
+      {
+        "url": "/_next/static/chunks/2g3w9b0tpuggt.css",
+        "bytes": 673716,
+        "gzip": 104962
+      },
+      {
+        "url": "/_next/static/chunks/3juhp7iu2du4b.css",
+        "bytes": 59356,
+        "gzip": 9967
+      },
+      {
+        "url": "/_next/static/chunks/40c4ic5qjtccc.css",
+        "bytes": 76900,
+        "gzip": 10891
+      },
+      {
+        "url": "/_next/static/chunks/1tbnxh2by__2s.css",
+        "bytes": 114563,
+        "gzip": 17698
+      },
+      {
+        "url": "/_next/static/chunks/0wnnslc-us1-k.css",
+        "bytes": 117052,
+        "gzip": 16123
+      },
+      {
+        "url": "/_next/static/chunks/03bhm6_clawmf.css",
+        "bytes": 84900,
+        "gzip": 12252
+      },
+      {
+        "url": "/_next/static/chunks/2n1z0ns-l8or1.css",
+        "bytes": 10157,
+        "gzip": 2293
+      },
+      {
+        "url": "/_next/static/chunks/2w4_di2tq3t4m.css",
+        "bytes": 1200,
+        "gzip": 505
+      },
+      {
+        "url": "/_next/static/chunks/02yapdf5o6pmi.css",
+        "bytes": 19107,
+        "gzip": 3505
+      }
+    ],
+    "totalBytes": 1156951,
+    "gzipBytes": 178196
+  },
+  "access": {
+    "checks": 30,
+    "denied": 24,
+    "methodUnavailable": 6
+  },
+  "evidenceDir": "E:\\dropzone-cadastros\\relatorios-testes\\auditoria-2026-10-10"
+}

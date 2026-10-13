@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput } from '@/components/ui/Field'
 import { useCallback, useEffect, useState } from 'react'
 import { Check, CircleAlert, Copy, ExternalLink, Pencil, Plus, Trash2, MonitorPlay, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -130,7 +132,7 @@ export function StreamDashboard(props: { profileName?: string }) {
   }
 
   async function removeLink(id: string) {
-    if (!window.confirm('Remover este campeonato da sua lista?')) return
+    if (!await confirmAction('Remover este campeonato da sua lista?')) return
     setBusy(true)
     try {
       await authFetch(`/api/broadcast/links/${id}`, { method: 'DELETE' })
@@ -175,7 +177,7 @@ export function StreamDashboard(props: { profileName?: string }) {
   return (
     <div className="broadcast-page">
       <header>
-        <p className="eyebrow" style={{ margin: 0, color: 'var(--brand)', fontSize: 10, fontWeight: 900, letterSpacing: '0.12em' }}>
+        <p className="eyebrow" style={{ margin: 0, color: 'var(--brand)', fontSize: 12, fontWeight: 900, letterSpacing: '0.12em' }}>
           BROADCAST · STREAM
         </p>
         <h1>{props.profileName || 'Painel Stream'}</h1>
@@ -279,7 +281,7 @@ export function StreamDashboard(props: { profileName?: string }) {
         <form className="broadcast-row" onSubmit={(e) => void addChampionship(e)}>
           <label className="broadcast-field">
             <span>Chave Stream</span>
-            <input
+            <UiInput
               value={keyToken}
               onChange={(e) => setKeyToken(e.target.value)}
               placeholder="Cole a chave enviada pela produtora"
@@ -289,7 +291,7 @@ export function StreamDashboard(props: { profileName?: string }) {
           </label>
           <label className="broadcast-field">
             <span>Nome na sua lista</span>
-            <input
+            <UiInput
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Ex.: Copa Aloe · Liga Aloe · RW Cup"
@@ -320,7 +322,7 @@ export function StreamDashboard(props: { profileName?: string }) {
                 <div style={{ minWidth: 0, flex: 1 }}>
                   {editingLinkId === link.id ? (
                     <div className="broadcast-row" style={{ alignItems: 'center' }}>
-                      <input
+                      <UiInput
                         value={editingName}
                         onChange={(e) => setEditingName(e.target.value)}
                         maxLength={80}

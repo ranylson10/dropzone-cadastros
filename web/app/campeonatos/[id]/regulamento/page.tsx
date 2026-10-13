@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { BookOpen, Loader2 } from 'lucide-react'
+import { AppShell } from '@/components/layout'
 import { RulebookViewer } from '@/features/campeonatos/rulebook'
 import type { GeneratedDocument } from '@/features/campeonatos/rulebook'
 import '@/features/campeonatos/rulebook/rulebook.css'
@@ -43,8 +44,15 @@ export default function RegulamentoPublicoPage() {
   const champName = documento?.campeonatoNome || 'Regulamento do campeonato'
 
   return (
-    <main className="rulebook-public-page">
-      <div className="rulebook-public-shell">
+    <AppShell
+      activeLabel="Campeonatos"
+      loadSession
+      headerVariant="storefront"
+      withAuthOffset={false}
+      mainClassName="rulebook-public-layout"
+    >
+      <section className="rulebook-public-page">
+        <div className="rulebook-public-shell">
         <header className="rulebook-public-hero no-print">
           {logoUrl ? (
             <img className="rulebook-public-hero-logo" src={logoUrl} alt={`Logo ${champName}`} />
@@ -77,7 +85,8 @@ export default function RegulamentoPublicoPage() {
         ) : null}
 
         {!loading && !error ? <RulebookViewer documento={documento} /> : null}
-      </div>
-    </main>
+        </div>
+      </section>
+    </AppShell>
   )
 }

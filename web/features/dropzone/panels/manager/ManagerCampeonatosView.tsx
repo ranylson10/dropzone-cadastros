@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
@@ -400,7 +401,7 @@ export function ManagerCampeonatosView(props: {
             <label className="field">
               <span>Buscar campeonato</span>
               <div className="staff-search-row">
-                <input
+                <UiInput
                   value={addQuery}
                   onChange={(e) => setAddQuery(e.target.value)}
                   placeholder="Nome do campeonato"
@@ -433,7 +434,7 @@ export function ManagerCampeonatosView(props: {
             ) : null}
             <label className="field" style={{ marginTop: 10 }}>
               <span>Mensagem (opcional)</span>
-              <input
+              <UiInput
                 value={addMessage}
                 onChange={(e) => setAddMessage(e.target.value)}
                 placeholder="Ex.: Posso ajudar a preencher vagas deste evento."

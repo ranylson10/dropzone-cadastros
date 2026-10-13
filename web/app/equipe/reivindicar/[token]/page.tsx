@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, Loader2, LogIn, ShieldCheck, Users } from 'lucide-react'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { buildLoginHref } from '@/features/auth/auth-return'
-import { supabase } from '@/lib/supabase-browser'
+import { getTokenFlowAccessToken, tokenFlowAuthHeaders, tokenFlowPath, TokenFlowCard, TokenFlowPage, TokenFlowStatus } from '@/features/token-flow'
 import './reivindicacao-equipe.css'
 
 export default function ReivindicarEquipePage({ params }: { params: Promise<{ token: string }> }) {
@@ -16,7 +16,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
   const [success, setSuccess] = useState('')
   const [destinoId, setDestinoId] = useState('')
 
-  const returnTo = token ? `/equipe/reivindicar/${encodeURIComponent(token)}` : '/'
+  const returnTo = tokenFlowPath('equipeReivindicar', token)
   const switchAccountHref = buildLoginHref(null, returnTo, true)
   const createAccountHref = `${switchAccountHref}&mode=criar`
 
@@ -32,9 +32,9 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
     setLoading(true)
     setError('')
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = await getTokenFlowAccessToken()
       const response = await fetch(`/api/equipes/reivindicacao/${encodeURIComponent(token)}`, {
-        headers: sessionData.session ? { Authorization: `Bearer ${sessionData.session.access_token}` } : undefined,
+        headers: accessToken ? tokenFlowAuthHeaders(accessToken) : undefined,
         cache: 'no-store',
       })
       const payload = await response.json().catch(() => ({}))
@@ -57,14 +57,13 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
     setError('')
     setSuccess('')
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const accessToken = sessionData.session?.access_token
+      const accessToken = await getTokenFlowAccessToken()
       if (!accessToken) throw new Error('Entre com sua conta para continuar.')
       if (modo === 'incorporar' && !destinoId) throw new Error('Escolha a equipe que receberá o histórico desta equipe.')
 
       const response = await fetch(`/api/equipes/reivindicacao/${encodeURIComponent(token)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: tokenFlowAuthHeaders(accessToken, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({ modo, equipe_destino_id: modo === 'incorporar' ? destinoId : null }),
       })
       const payload = await response.json().catch(() => ({}))
@@ -82,20 +81,20 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
   }
 
   if (loading) {
-    return <main className="invite-page"><div className="invite-card"><Loader2 className="spin" size={34} /><h1>Carregando equipe...</h1></div></main>
+    return <TokenFlowPage><TokenFlowCard><Loader2 className="spin" size={34} /><h1>Carregando equipe...</h1></TokenFlowCard></TokenFlowPage>
   }
 
   if (!data) {
-    return <main className="invite-page"><div className="invite-card"><ShieldCheck size={38} /><h1>Link indisponível</h1><p>{error || 'Não foi possível localizar esta equipe.'}</p></div></main>
+    return <TokenFlowPage><TokenFlowCard><ShieldCheck size={38} /><h1>Link indisponível</h1><TokenFlowStatus tone="error">{error || 'Não foi possível localizar esta equipe.'}</TokenFlowStatus></TokenFlowCard></TokenFlowPage>
   }
 
   if (!data.valido) {
-    return <main className="invite-page"><div className="invite-card"><ShieldCheck size={38} /><p className="eyebrow">Reivindicação de equipe</p><h1>{data.equipe?.nome}</h1><p>Este link já foi utilizado, cancelado ou a equipe já possui responsável.</p>{success ? <div className="message">{success}</div> : null}</div></main>
+    return <TokenFlowPage><TokenFlowCard><ShieldCheck size={38} /><p className="eyebrow">Reivindicação de equipe</p><h1>{data.equipe?.nome}</h1><p>Este link já foi utilizado, cancelado ou a equipe já possui responsável.</p>{success ? <TokenFlowStatus tone="success">{success}</TokenFlowStatus> : null}</TokenFlowCard></TokenFlowPage>
   }
 
   return (
-    <main className="invite-page">
-      <div className="invite-card historical-team-claim-card">
+    <TokenFlowPage>
+      <TokenFlowCard className="historical-team-claim-card">
         <ShieldCheck size={40} />
         <p className="eyebrow">Equipe histórica DropZone</p>
         <h1>{data.equipe?.nome}</h1>
@@ -155,7 +154,7 @@ export default function ReivindicarEquipePage({ params }: { params: Promise<{ to
             </div>
           </div>
         )}
-      </div>
-    </main>
+      </TokenFlowCard>
+    </TokenFlowPage>
   )
 }

@@ -1,0 +1,259 @@
+/* DropZone R08 — Convites, formulários e autenticação.
+ * Ajustes de apresentação apenas. Não modifica permissões, tokens,
+ * ações de aceite, redirecionamentos ou validação de formulários.
+ * Medidas de layout próprias do DropZone, inspiradas na densidade da Stake.
+ */
+
+/* 01. Portal de acesso /login e recuperação de senha. */
+.login-portal .login-portal-stage {
+  padding:clamp(16px,3vw,40px) !important;
+}
+.login-portal .login-portal-content {
+  width:min(1160px,100%);
+  grid-template-columns:minmax(0,1fr) minmax(360px,500px);
+  gap:clamp(24px,4vw,56px);
+}
+.login-portal .login-portal-copy { margin-top:clamp(28px,5vh,62px); }
+.login-portal .login-portal-copy h1 {
+  font-size:clamp(45px,5.2vw,78px);
+  line-height:.96;
+}
+.login-portal .login-portal-copy p { font-size:14px;line-height:1.6; }
+.login-portal .login-live-telemetry { font-size:12px;line-height:1.4; }
+.login-portal .login-portal-panel {
+  min-height:0;
+  border-radius:12px !important;
+  overflow:hidden;
+}
+.login-portal :is(.login-auth-step,.login-profile-step,.login-portal-loading) {
+  padding:clamp(20px,3vw,32px);
+}
+.login-portal .login-portal-loading { min-height:310px; }
+.login-portal .login-auth-step h2,
+.login-portal .login-profile-head h2 {
+  font-size:clamp(26px,3vw,34px);
+  line-height:1.14;
+  color:#1d2126 !important;
+}
+.login-portal .login-auth-step>p,
+.login-portal .login-profile-head p { font-size:13px;color:#606b75 !important; }
+.login-portal .login-panel-step { font-size:12px; }
+.login-portal .login-email-form { gap:12px; }
+.login-portal .login-email-field { gap:6px; }
+.login-portal :is(.login-email-field>span:first-child,.login-otp-field>span,.login-account-avatar-field .field>label) {
+  color:#58616c !important;
+  font-size:12px !important;
+  letter-spacing:.015em;
+}
+.login-portal .login-email-field>input,
+.login-portal .login-email-field .dz-ui-input,
+.login-portal .login-otp-field input,
+.login-portal .login-username-control,
+.login-portal .login-password-control {
+  min-height:44px;
+  border:1px solid #cbd1d7 !important;
+  border-radius:7px !important;
+  background:#fff !important;
+  color:#1d2126 !important;
+}
+.login-portal .login-username-control { grid-template-columns:40px minmax(0,1fr) !important; }
+.login-portal .login-email-field .login-username-control input {
+  min-height:42px;
+  border:0 !important;
+  background:transparent !important;
+}
+.login-portal .login-email-field :is(input,textarea):focus-visible,
+.login-portal .login-otp-field input:focus-visible,
+.login-portal .login-username-control:focus-within,
+.login-portal .login-password-control:focus-within {
+  outline:2px solid #b29a1b;
+  outline-offset:2px;
+}
+.login-portal .login-username-hint,
+.login-portal .login-password-hint,
+.login-portal .login-account-avatar-field .upload-hint-row { color:#5d6771 !important;font-size:12px !important;line-height:1.45; }
+.login-portal .login-account-identity-fields { grid-template-columns:106px minmax(0,1fr);gap:14px; }
+.login-portal .login-account-avatar-field .upload-picker { width:96px;height:96px;border-radius:8px; }
+.login-portal .login-email-primary { min-height:46px;border-radius:7px !important;font-size:13px;letter-spacing:.02em; }
+.login-portal .login-auth-step .social-login-button {
+  min-height:44px;
+  border:1px solid #d4d9de !important;
+  border-radius:7px !important;
+  background:#f8f9fa !important;
+  color:#27313b !important;
+  font-size:12px;
+  letter-spacing:.02em;
+}
+.login-portal .login-create-fast-track,
+.login-portal .login-email-sent,
+.login-portal .login-no-profile {
+  border-radius:8px;
+  background:#f5f7f8;
+  color:#27313b;
+}
+.login-portal .login-create-fast-track { margin:14px 0 10px; }
+.login-portal .login-create-fast-track strong { font-size:12px;color:#716000; }
+.login-portal .login-create-fast-track span { font-size:12px;color:#5a6470; }
+.login-portal .login-email-sent strong { font-size:13px;color:#27313b; }
+.login-portal .login-otp-field input { min-height:54px;font-size:24px;letter-spacing:.22em;text-align:center; }
+.login-portal .login-password-toggle { min-width:44px;min-height:44px; }
+.login-portal .login-password-control { display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;overflow:visible; }
+.login-portal .login-password-control .dz-ui-input { width:100%;min-width:0;min-height:44px;border:0 !important;background:transparent !important;box-shadow:none; }
+.login-portal .login-password-control .dz-ui-input:focus-visible { outline:none; }
+.login-portal .login-password-toggle { display:grid;place-items:center;padding:0;border:0;background:transparent;color:#58616c;cursor:pointer; }
+.login-portal .login-create-account { display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:#58616c; }
+.login-portal .login-create-account button { min-height:44px;padding:6px 10px;border:0;border-radius:7px;background:transparent;color:#716000;font:inherit;font-weight:700;cursor:pointer; }
+.login-portal .login-email-actions { gap:8px; }
+.login-portal .login-account-action,
+.login-portal .login-existing-account-actions button { min-height:44px;border-radius:7px !important;font-size:12px;letter-spacing:0; }
+.login-portal .login-account-action.recovery,
+.login-portal .login-existing-account-actions button { border-color:#cdd2d7;background:#fff;color:#414b56; }
+.login-portal .login-email-link,
+.login-portal .login-email-switch button { font-size:12px;line-height:1.4; }
+.login-portal .login-security-note { font-size:12px;color:#5c6570; }
+.login-portal .login-profile-step { max-height:min(80dvh,720px); }
+.login-portal .login-profile-grid,
+.login-portal .login-create-grid { gap:10px; }
+.login-portal .login-profile-card,
+.login-portal .login-create-grid button {
+  min-height:68px;
+  border:1px solid #d7dde2;
+  border-radius:8px;
+  background:#f8f9fa;
+  color:#242b33;
+}
+.login-portal .login-profile-card:hover,
+.login-portal .login-create-grid button:hover { border-color:#b69b13;background:#fffbea; }
+.login-portal .login-profile-card.admin { background:#f2c900;color:#17191c; }
+.login-portal .login-profile-card-copy small,
+.login-portal .login-create-title { font-size:12px;color:#796800; }
+.login-portal .login-profile-card-copy span,
+.login-portal .login-create-grid span,
+.login-portal .login-no-profile p { font-size:12px;color:#5a6470; }
+.login-portal .login-create-grid strong { font-size:12px; }
+.login-portal .login-change-account { min-height:44px;font-size:12px;color:#54606c; }
+.login-portal :is(button,a,input):focus-visible { outline:2px solid #af9717;outline-offset:2px; }
+
+/* 02. Convites, reivindicação e formulários vinculados a tokens. */
+.invite-page,
+.producer-invite-page { padding:24px 16px 56px !important; }
+.invite-page > .invite-card,
+.producer-invite-page > .producer-invite-card {
+  width:min(760px,100%) !important;
+  min-width:0;
+  padding:22px !important;
+  border-radius:11px !important;
+}
+.invite-page .invite-card :is(h1,h2),
+.producer-invite-page .producer-invite-card h1 { line-height:1.2;overflow-wrap:anywhere; }
+.invite-page .invite-card h1 { font-size:clamp(24px,3vw,30px); }
+.invite-page .invite-card h2 { font-size:clamp(18px,2.4vw,22px); }
+.invite-page .invite-card :is(p,small),
+.producer-invite-page .producer-invite-card p { line-height:1.5;font-size:13px; }
+.invite-page .invite-card .eyebrow,
+.producer-invite-page .producer-invite-card :is(.eyebrow,header small) { font-size:12px; }
+.invite-page .invite-mini-stats,
+.invite-page .invite-details,
+.invite-page .invite-auth-box,
+.invite-page .invite-section,
+.invite-page .historical-team-claim-summary,
+.producer-invite-page .producer-invite-workspace { gap:12px;border-radius:9px !important; }
+.invite-page .invite-details,
+.invite-page .invite-auth-box,
+.producer-invite-page .producer-invite-workspace { padding:14px !important; }
+.invite-page .invite-current-team,
+.invite-page .historical-team-owned-team,
+.invite-page .historical-team-login { border-radius:8px; }
+.invite-page :is(input:not([type='checkbox']):not([type='radio']),select,textarea),
+.producer-invite-page :is(input:not([type='checkbox']):not([type='radio']),select,textarea) {
+  width:100%;min-width:0;min-height:44px;
+  font-size:14px;
+  border-radius:7px !important;
+}
+.invite-page textarea,
+.producer-invite-page textarea { min-height:96px;resize:vertical; }
+.invite-page :is(.field > label,.dz-ui-field__label) { font-size:12px;line-height:1.35; }
+.invite-page :is(.invite-confirm,.button,.invite-chat-option),
+.producer-invite-page .producer-invite-primary { min-height:44px;border-radius:7px !important;font-size:13px; }
+.invite-page :is(.invite-chat-option,.invite-chat-player-result,.invite-player-row),
+.invite-page .invite-normal-list > button { min-width:0;border-radius:8px !important; }
+.invite-page .invite-chat-option { padding:10px 12px; }
+.invite-page .invite-player-row strong { font-size:13px;overflow-wrap:anywhere; }
+.invite-page .invite-player-row small,
+.invite-page .historical-team-claim-summary small { font-size:12px; }
+.invite-page .invite-chat-bubble { max-width:min(92%,560px);font-size:13px;line-height:1.55; }
+.invite-page .invite-chat-actions,
+.invite-page .invite-normal-actions { gap:10px; }
+.invite-page .invite-normal-link code { overflow-wrap:anywhere;word-break:break-word; }
+.invite-page .lineup-slots { min-width:0; }
+.invite-page :is(button,a,input,select,textarea):focus-visible,
+.producer-invite-page :is(button,a,input,select,textarea):focus-visible { outline:2px solid #ae981b;outline-offset:2px; }
+
+/* 03. Convite de produtora / reivindicação de equipe. */
+.producer-invite-page .producer-invite-card { width:min(620px,100%) !important; }
+.producer-invite-page .producer-invite-card>header { gap:12px; }
+.producer-invite-page .producer-invite-card h1 { font-size:clamp(22px,3vw,30px); }
+.producer-invite-page .producer-invite-logo { width:48px;height:48px;flex:none; }
+.producer-invite-page .producer-invite-workspace { grid-template-columns:44px minmax(0,1fr); }
+.producer-invite-page .producer-invite-workspace strong { font-size:18px;line-height:1.25;overflow-wrap:anywhere; }
+.producer-invite-page .producer-invite-meta { border-radius:8px;overflow:hidden; }
+.producer-invite-page .producer-invite-meta :is(dt,dd) { font-size:12px;overflow-wrap:anywhere; }
+.invite-page .historical-team-claim-card { width:min(620px,100%) !important; }
+.invite-page .historical-team-claim-summary { margin:14px 0;padding:12px !important; }
+.invite-page .historical-team-claim-summary strong { font-size:15px; }
+.invite-page .historical-team-action { gap:10px; }
+
+/* 04. Formulários de perfil e cadastro — regras locais reutilizáveis. */
+.profile-edit-form { display:grid;gap:14px;min-width:0; }
+.profile-edit-form :is(.dz-ui-control,input,select,textarea),
+.player-registration-form :is(.dz-ui-control,input,select,textarea) { min-width:0;min-height:44px;font-size:14px; }
+.profile-edit-form :is(.dz-ui-field__label,.field > label),
+.player-registration-form :is(.dz-ui-field__label,.field > label) { font-size:12px;line-height:1.4; }
+.profile-edit-form :is(.form-grid,.dz-ui-form-grid),
+.player-registration-form { gap:12px; }
+.profile-edit-form :is(button,a):focus-visible,
+.player-registration-form :is(button,a,input,select,textarea):focus-visible { outline:2px solid #ad971a;outline-offset:2px; }
+
+/* 05. Ajustes por largura e acessibilidade. */
+@media (max-width:900px) {
+  .login-portal .login-portal-content { width:min(650px,100%);grid-template-columns:minmax(0,1fr);gap:18px; }
+  .login-portal .login-portal-copy { margin-top:20px; }
+  .login-portal .login-portal-copy h1 { font-size:clamp(40px,8vw,60px); }
+  .login-portal .login-portal-panel { width:100%; }
+}
+@media (max-width:640px) {
+  .login-portal .login-portal-stage { padding:12px 12px 24px !important; }
+  .login-portal .login-portal-content { gap:14px; }
+  .login-portal .login-portal-copy { margin-top:16px; }
+  .login-portal .login-portal-copy h1 { margin:8px 0 12px;font-size:clamp(35px,10vw,46px); }
+  .login-portal .login-portal-copy p { font-size:13px; }
+  .login-portal .login-live-telemetry { flex-wrap:wrap;font-size:12px; }
+  .login-portal :is(.login-auth-step,.login-profile-step,.login-portal-loading) { padding:22px 16px; }
+  .login-portal .login-account-identity-fields,
+  .login-portal .login-profile-grid,
+  .login-portal .login-create-grid { grid-template-columns:minmax(0,1fr); }
+  .login-portal .login-email-actions,
+  .login-portal .login-existing-account-actions { grid-template-columns:minmax(0,1fr); }
+  .login-portal .login-profile-step { max-height:none;overflow:visible; }
+  .invite-page,
+  .producer-invite-page { padding:12px 10px 40px !important; }
+  .invite-page > .invite-card,
+  .producer-invite-page > .producer-invite-card { padding:16px !important; }
+  .invite-page .invite-auth-box,
+  .invite-page .invite-details,
+  .producer-invite-page .producer-invite-workspace { padding:12px !important; }
+  .invite-page .invite-normal-actions { display:grid;grid-template-columns:minmax(0,1fr); }
+  .invite-page .invite-normal-actions > :is(button,a) { width:100%; }
+  .invite-page .historical-team-claim-summary { grid-template-columns:repeat(3,minmax(0,1fr));gap:6px; }
+  .invite-page .historical-team-claim-summary strong { font-size:13px; }
+  .producer-invite-page .producer-invite-meta { grid-template-columns:minmax(0,1fr); }
+  .producer-invite-page .producer-invite-meta > div+div { border-left:0;border-top:1px solid #d8dde2; }
+}
+@media (max-width:380px) {
+  .invite-page .historical-team-claim-summary { grid-template-columns:minmax(0,1fr); }
+  .login-portal .login-portal-copy h1 { font-size:34px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .login-portal .login-email-primary,
+  .login-portal .login-profile-card { transition:none; }
+}

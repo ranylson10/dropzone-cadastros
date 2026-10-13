@@ -4,8 +4,8 @@ import { AppShell } from '@/components/layout'
 import { LiliRankHub } from '@/components/lili/LiliRankHub'
 
 export default function RankPage() {
-  return <AppShell activeLabel="Comunidade" loadSession mainClassName="page directory-page directory-theme-rank page-authenticated">
-    <main className="directory-shell">
+  return <AppShell activeLabel="Perfis" loadSession headerVariant="storefront" withAuthOffset={false} mainClassName="page directory-page directory-v1-catalog directory-theme-rank">
+    <div className="directory-shell">
       <div className="directory-page-body directory-page-body-with-banner">
       <section className="directory-hero directory-hero-banner directory-rank-hero theme-rank" data-theme="rank">
         <div className="directory-rank-hero-inner">
@@ -18,6 +18,6 @@ export default function RankPage() {
         <LiliRankHub />
       </div>
       </div>
-    </main>
+    </div>
   </AppShell>
 }

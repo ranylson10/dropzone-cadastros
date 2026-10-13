@@ -24,7 +24,8 @@ test.describe('Rodada 87A — criação guiada e estrutura unificada', () => {
     const panel = read('web/features/dropzone/panels/produtora/ProdutoraPanel.tsx')
     const workspace = read('web/features/campeonatos/estrutura-avancada/CampeonatoStructureWorkspace.tsx')
 
-    expect(tabs).toContain("{ id: 'grupos', label: 'Grupos e slots' }")
+    expect(tabs).toContain("{ id: 'grupos', label: 'Estrutura' }")
+    expect(tabs).toContain("{ id: 'operacao', label: 'Operação', defaultTab: 'grupos', tabs: ['grupos', 'jogos', 'regulamento', 'calls'] }")
     expect(tabs).not.toContain("id: 'estrutura_avancada'")
     expect(panel).toContain("rawSection === 'estrutura' || rawSection === 'estrutura_avancada' ? 'grupos'")
     expect(panel).toContain("tab === 'grupos'")

@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Textarea as UiTextarea } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
@@ -139,7 +141,7 @@ function QuestionField({
   if (question.type === 'number') {
     return (
       <div className={`rulebook-number ${invalid ? 'invalid' : ''}`}>
-        <input
+        <UiInput
           type="number"
           min={question.min}
           max={question.max}
@@ -156,7 +158,7 @@ function QuestionField({
 
   if (question.type === 'long_text') {
     return (
-      <textarea
+      <UiTextarea
         className={`rulebook-textarea ${invalid ? 'invalid' : ''}`}
         rows={4}
         placeholder={question.placeholder}
@@ -167,7 +169,7 @@ function QuestionField({
   }
 
   return (
-    <input
+    <UiInput
       className={`rulebook-input ${invalid ? 'invalid' : ''}`}
       type="text"
       placeholder={question.placeholder}
@@ -278,7 +280,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
     if (q.id === 'premiacao_total') {
       return (
         <div className={`rulebook-number ${invalid ? 'invalid' : ''}`}>
-          <input
+          <UiInput
             inputMode="numeric"
             value={moneyValueToDisplay(String(draftAnswers.premiacao_total ?? ''))}
             placeholder="R$ 0,00"
@@ -306,7 +308,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
       const asNum = parseMoneyNumber(raw)
       return (
         <div className={`rulebook-number ${invalid ? 'invalid' : ''}`}>
-          <input
+          <UiInput
             inputMode="numeric"
             value={asNum > 0 || raw ? moneyValueToDisplay(asNum || moneyInputToValue(raw) || raw) : ''}
             placeholder="R$ 0,00"
@@ -473,7 +475,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
   }
 
   async function resetRulebookDraft() {
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       'Restaurar o regulamento? As respostas e personalizações atuais serão substituídas pelos dados padrão do campeonato. O campeonato, equipes, partidas e resultados não serão apagados.',
     )
     if (!confirmed) return
@@ -853,7 +855,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                       <details key={inf.codigo} className="rulebook-infracao-card" open={inf.enabled}>
                         <summary>
                           <label className="rulebook-infracao-toggle" onClick={(e) => e.stopPropagation()}>
-                            <input
+                            <UiInput
                               type="checkbox"
                               checked={inf.enabled}
                               onChange={(e) => updateInfracao(inf.codigo, { enabled: e.target.checked })}
@@ -878,7 +880,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                             ).map(([field, label]) => (
                               <label key={field}>
                                 {label}
-                                <textarea
+                                <UiTextarea
                                   rows={2}
                                   value={String(inf[field] || '')}
                                   onChange={(e) =>
@@ -889,7 +891,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                             ))}
                             <div className="rulebook-bool-row">
                               <label>
-                                <input
+                                <UiInput
                                   type="checkbox"
                                   checked={inf.direito_defesa}
                                   onChange={(e) =>
@@ -899,7 +901,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                                 Direito de defesa
                               </label>
                               <label>
-                                <input
+                                <UiInput
                                   type="checkbox"
                                   checked={inf.direito_recurso}
                                   onChange={(e) =>
@@ -939,7 +941,7 @@ export function CampeonatoRulebookTab({ campeonatoId }: Props) {
                             <p>{a.message}</p>
                             {a.severity === 'warning' ? (
                               <label className="confirm-alert">
-                                <input
+                                <UiInput
                                   type="checkbox"
                                   checked={Boolean(confirmacoes[a.id])}
                                   onChange={(e) =>

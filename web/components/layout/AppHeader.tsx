@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Search, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { isWebProfileType, type DropZoneRow, type WebProfileType } from '@/lib/types'
@@ -92,7 +93,7 @@ function LockedAvatar({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" width={size} height={size} style={img} />
       ) : (
-        <b style={{ fontSize: Math.max(10, size * 0.32), fontWeight: 900 }}>{fallback}</b>
+        <b style={{ fontSize: Math.max(12, size * 0.32), fontWeight: 900 }}>{fallback}</b>
       )}
     </span>
   )
@@ -160,7 +161,7 @@ export function AppHeader({
           : [
               { label: 'Buscar campeonato', detail: 'Explorar competições', href: '/campeonatos', icon: Search },
               { label: 'Vagas abertas', detail: 'Encontrar uma oportunidade', href: '/campeonatos?vagas=1', icon: Trophy },
-              { label: 'Comunidade', detail: 'Equipes e jogadores', href: '/comunidade', icon: UsersRound },
+              { label: 'Equipes', detail: 'Encontre equipes e jogadores', href: '/equipes', icon: UsersRound },
             ]
 
   useEffect(() => {
@@ -387,9 +388,9 @@ export function AppHeader({
             <span className="app-mobile-quick-icon"><Plus size={23} aria-hidden /></span>
             <span>Ações</span>
           </button>
-          <a href="/comunidade" className={activeLabel === 'Comunidade' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
+          <a href="/equipes" className={activeLabel === 'Equipes' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
             <UsersRound size={19} aria-hidden />
-            <span>Comunidade</span>
+            <span>Equipes</span>
           </a>
           {isAuthenticated ? (
             <button
@@ -520,7 +521,7 @@ export function AppHeader({
                 <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {profileName}
                 </strong>
-                <small style={{ display: 'block', color: 'var(--ui-muted)', fontSize: 10 }}>
+                <small style={{ display: 'block', color: 'var(--ui-muted)', fontSize: 12 }}>
                   {profileSubtitle || 'Conta DropZone'}
                 </small>
               </span>
@@ -547,11 +548,11 @@ export function AppHeader({
               >
                 <div className="app-profile-menu-head" style={{ padding: 14, borderBottom: '1px solid var(--ui-line)', background: 'var(--ui-surface)' }}>
                   <strong>Minha conta</strong>
-                  <span style={{ display: 'block', marginTop: 3, color: 'var(--ui-muted)', fontSize: 11 }}>
+                  <span style={{ display: 'block', marginTop: 3, color: 'var(--ui-muted)', fontSize: 12 }}>
                     {visibleAccounts.length ? 'Cadastros disponíveis nesta conta' : 'Conta DropZone conectada'}
                   </span>
                 </div>
-                <input
+                <UiInput
                   ref={avatarInputRef}
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
@@ -579,7 +580,7 @@ export function AppHeader({
                   {avatarUploading ? <Loader2 className="spin" size={16} /> : <Camera size={16} />}
                   {avatarUploading ? 'Enviando foto...' : accountAvatar ? 'Alterar foto de perfil' : 'Adicionar foto de perfil'}
                 </button>
-                {avatarError ? <span role="alert" style={{ display: 'block', padding: '0 14px 11px', color: 'var(--ui-danger, #d76c6c)', fontSize: 11 }}>{avatarError}</span> : null}
+                {avatarError ? <span role="alert" style={{ display: 'block', padding: '0 14px 11px', color: 'var(--ui-danger, #d76c6c)', fontSize: 12 }}>{avatarError}</span> : null}
                 {visibleAccounts.length ? <a
                   href="/#meus-cadastros"
                   onClick={() => {

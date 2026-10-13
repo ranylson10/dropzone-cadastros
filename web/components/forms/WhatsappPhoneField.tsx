@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Input, Select } from '@/components/ui'
 
 export const WHATSAPP_PHONE_COUNTRIES = [
   { code: 'BR', name: 'Brasil', flag: '🇧🇷', dial: '55', example: '(11) 99999-9999' },
@@ -66,14 +67,14 @@ export function WhatsappPhoneField({ value, onChange, disabled = false, id }: {
     <div className="whatsapp-phone-field">
       <label className="whatsapp-country-select" aria-label="País do WhatsApp">
         <span aria-hidden>{country.flag}</span>
-        <select value={country.code} disabled={disabled} onChange={(event) => selectCountry(event.target.value)}>
+        <Select value={country.code} disabled={disabled} onChange={(event) => selectCountry(event.target.value)}>
           {WHATSAPP_PHONE_COUNTRIES.map((country) => (
             <option key={country.code} value={country.code}>{country.flag} {country.name} (+{country.dial})</option>
           ))}
-        </select>
+        </Select>
       </label>
       <span className="whatsapp-phone-dial">+{country.dial}</span>
-      <input id={id} type="tel" inputMode="tel" autoComplete="tel-national" disabled={disabled}
+      <Input id={id} type="tel" inputMode="tel" autoComplete="tel-national" disabled={disabled}
         value={local} onChange={(event) => onChange(whatsappUrl(country, event.target.value))}
         placeholder={country.example} aria-label="Número do WhatsApp" />
     </div>

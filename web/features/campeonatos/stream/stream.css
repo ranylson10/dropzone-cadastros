@@ -419,6 +419,34 @@ body.stream-editor-scroll-lock {
   grid-template-rows: auto auto auto auto minmax(0, 1fr);
 }
 
+.stream-sheet-dialog {
+  width: min(1280px, 100%);
+  max-width: 1280px;
+}
+
+.stream-sheet-dialog .stream-sheet-modal-panel {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  max-height: none;
+  overflow: visible;
+  grid-template-rows: none;
+}
+
+.stream-sheet-modal-panel .stream-sheet-group-label,
+.stream-sheet-modal-panel .stream-col-letter,
+.stream-sheet-modal-panel .stream-sheet th,
+.stream-sheet-modal-panel .stream-sheet td.stream-sheet-row-head,
+.stream-sheet-modal-panel .stream-sheet-modal-head .eyebrow {
+  color: var(--ui-text-muted);
+  font-size: 12px;
+}
+
+.stream-sheet-modal-panel .stream-sheet-tabs button {
+  min-height: 44px;
+  font-size: 12px;
+}
+
 .stream-sheet-modal-head {
   display: flex;
   flex-wrap: wrap;

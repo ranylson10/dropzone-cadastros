@@ -1,0 +1,16 @@
+.dz-token-flow-page{min-width:0}
+.dz-token-flow-card{min-width:0}
+.dz-token-flow-status{margin:14px 0;padding:12px 14px;border:1px solid var(--ui-line,#d8dde2);border-radius:7px;background:var(--ui-surface-soft,#f7f8f9);color:var(--ui-text,#1d2126);font-size:13px;line-height:1.5}
+.dz-token-flow-status-error{border-color:#e4a4a8;background:#fff4f4;color:#922b32}
+.dz-token-flow-status-success{border-color:#9bc9a7;background:#f3fbf5;color:#26653a}
+.dz-token-flow-status-warning{border-color:#ded08d;background:#fffbea;color:#6f5c00}
+.dz-token-flow-gate{width:min(500px,calc(100vw - 24px))}
+.dz-token-flow-gate .system-modal-header{border-bottom:1px solid var(--ui-line,#d8dde2)}
+.dz-token-flow-gate-content{display:grid;gap:12px;text-align:center}
+.dz-token-flow-gate-logo{width:58px;height:58px;margin:0 auto;object-fit:contain}
+.dz-token-flow-gate-content .eyebrow{margin:0;color:#8a7300;font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.dz-token-flow-gate-description{color:var(--ui-muted,#68717b);font-size:13px;line-height:1.55}
+.dz-token-flow-gate-description p{margin:0}
+.dz-token-flow-gate-content .social-login-stack{display:grid;gap:8px}
+.dz-token-flow-guest,.dz-token-flow-password{width:100%;place-content:center}
+@media(max-width:560px){.dz-token-flow-gate{width:calc(100vw - 16px)}.dz-token-flow-gate-content{gap:10px}}

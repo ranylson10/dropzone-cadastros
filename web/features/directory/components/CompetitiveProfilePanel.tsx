@@ -1,5 +1,6 @@
 import { Activity, Crosshair, Shield, Sparkles, Target } from 'lucide-react'
 import type { DirectoryProfile } from '../types'
+import styles from './CompetitiveProfilePanel.module.css'
 
 function maxTrend(profile: NonNullable<DirectoryProfile['competitive']>) {
   return Math.max(1, ...profile.trend.map((item) => Math.max(item.abates, item.assistencias, item.dano / 100)))
@@ -11,7 +12,7 @@ export function CompetitiveProfilePanel({ profile }: { profile: DirectoryProfile
   const maximum = maxTrend(competitive)
 
   return (
-    <section className="competitive-profile-panel" id="desempenho">
+    <section className={`competitive-profile-panel ${styles.panel}`} id="desempenho">
       <header className="competitive-profile-head">
         <span className="competitive-profile-mark"><Activity size={18} /></span>
         <div>

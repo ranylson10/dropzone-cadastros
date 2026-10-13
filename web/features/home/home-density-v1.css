@@ -1,0 +1,111 @@
+/* DropZone Discovery Layout — R02. Homepage only: same data, denser visual hierarchy. */
+.store-home { --store-width: 1600px; }
+.store-home .store-home-width { width: min(var(--store-width),calc(100% - 2 * var(--dz-v1-content-gap))); }
+.store-home > .store-home-body { min-width: 0; }
+.store-home .store-home-hero { height: var(--dz-v1-hero-home-h); border-bottom-width: 2px; }
+.store-home .store-home-hero::before,.store-home .store-home-hero::after { opacity: .25; }
+.store-home .store-home-hero-inner { gap: 20px; }
+.store-home .store-home-hero-copy { width: min(560px,65%); }
+.store-home .store-home-hero-copy h1 { font-size: clamp(30px,3vw,49px); line-height: .95; }
+.store-home .store-home-hero-copy > small { font-size: 12px; margin-bottom: 9px; }
+.store-home .store-home-hero-copy > p { margin-top: 12px; max-width: 480px; font-size: 13px; line-height: 1.45; }
+.store-home .store-home-hero-buttons { margin-top: 15px; }
+.store-home .store-home-hero-buttons a { height: 42px; min-width: 136px; font-size: 12px; }
+.store-home .store-home-hero-dots { margin-top: 13px; gap: 7px; }
+.store-home .store-home-hero-dots button { min-height: 24px; height: 24px; width: 35px; background: transparent; position: relative; }
+.store-home .store-home-hero-dots button::before { content: ''; position: absolute; top: 10px; left: 0; right: 0; height: 4px; border-radius: 4px; background: #89909a; }
+.store-home .store-home-hero-dots button.active::before { background: var(--store-accent); }
+.store-home .store-home-hero-sidecopy { width: 205px; padding: 14px; margin-bottom: 22px; }
+.store-home .store-home-hero-sidecopy strong { font-size: 13px; }
+.store-home .store-home-hero-sidecopy p { font-size: 12px; }
+.store-home .store-home-content { padding-top: 22px; padding-bottom: 26px; }
+.store-home .store-home-section { margin-bottom: var(--dz-v1-section-gap); }
+.store-home .store-home-section-head { margin-bottom: 12px; padding-bottom: 9px; }
+.store-home .store-home-section-head h2 { font-size: 20px; }
+.store-home .store-home-section-head a { min-height: 32px; padding: 0 4px; font-size: 12px; }
+.store-home .store-home-categories { gap: var(--dz-v1-card-gap); }
+.store-home .store-home-categories > a { min-height: 104px; gap: 8px; border-radius: var(--dz-v1-card-radius); }
+.store-home .store-home-category-media { width: 46px; height: 46px; }
+.store-home .store-home-category-media svg { width: 23px; height: 23px; }
+.store-home .store-home-category-copy strong { font-size: 12px; }
+.store-home .store-home-category-copy small { font-size: 12px; line-height: 1.25; }
+.store-home .store-home-products { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: var(--dz-v1-card-gap); }
+.store-home .store-home-product-skeleton { height: 245px; }
+.store-home .store-home-products .dz-champ-card { align-self: stretch; border-radius: var(--dz-v1-card-radius); background: #fff; color: #1a2026; }
+.store-home .store-home-products .dz-champ-card-media { display: flex; flex-direction: column; min-height: 100%; background: #fff; }
+.store-home .store-home-products .dz-champ-card-media::after { display: none; }
+.store-home .store-home-products .dz-champ-card-art { display: block; aspect-ratio: 16/9; overflow: hidden; background: #19242f; }
+.store-home .store-home-products .dz-champ-card-art > img { display: block; width: 100%; height: 100%!important; object-fit: contain; background: #19242f; }
+.store-home .store-home-products .dz-champ-card-fallback { aspect-ratio: 16/9; }
+.store-home .store-home-products .dz-champ-card-caption {
+  position: relative!important; inset: auto!important; flex: 1 1 auto;
+  display: flex!important; align-items: flex-end; gap: 10px;
+  min-height: 90px; padding: 14px 12px 12px!important; border: 0!important;
+  background: #fff!important; color: #1a2026!important;
+}
+.store-home .store-home-products .dz-champ-card-copy strong { color: #19232d; font-size: 15px; line-height: 1.25; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.store-home .store-home-products .dz-champ-card-copy small,
+.store-home .store-home-products .dz-champ-card-copy em { color: #5e6a76; font-size: 12px; }
+.store-home .store-home-products .dz-champ-card-commerce b { font-size: 12px; color: #846900; }
+.store-home .store-home-products .dz-champ-card-commerce small { font-size: 12px; color: #5e6a76; }
+.store-home .store-home-products .dz-champ-card-badges > span { font-size: 12px; min-height: 25px; }
+.store-home .store-home-products .dz-champ-card-actions .dz-ui-icon-button,
+.store-home .store-home-products .dz-champ-card-info { min-width: 35px; width: 35px; height: 35px; }
+.store-home .store-home-promos { gap: var(--dz-v1-card-gap); }
+.store-home .store-home-promo { min-height: 180px; }
+.store-home .store-home-promo-copy { min-height: 180px; padding: 19px; }
+.store-home .store-home-promo-copy h3 { font-size: 23px; }
+.store-home .store-home-promo-copy p { font-size: 12px; }
+.store-home .store-home-footer-grid { gap: 24px; }
+.store-home .store-home-footer-grid > div > a,
+.store-home .store-home-footer-grid > div > button { font-size: 12px; min-height: 24px; }
+.store-home .store-home-footer-grid > div > strong { font-size: 12px; }
+.store-home .store-home-footer-brand p,.store-home .store-home-footer-bottom { font-size: 12px; }
+/* Mobile discovery already has a dedicated, keyboard-accessible search in the header drawer. */
+.store-home .store-home-mobile-search { display: none; }
+
+@media (min-width: 1024px) and (max-width: 1340px) {
+  .store-home .store-home-categories { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .store-home .store-home-products { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .store-home .store-home-products { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .store-home .store-home-categories { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+@media (max-width: 767px) {
+  .store-home { padding-bottom: 0; }
+  .store-home .store-home-hero { height: auto; min-height: var(--dz-v1-hero-home-h); }
+  .store-home .store-home-hero-inner { height: auto; min-height: var(--dz-v1-hero-home-h); padding-block: 22px; }
+  .store-home .store-home-hero-copy { width: 100%; }
+  .store-home .store-home-hero-copy h1 { font-size: clamp(28px,8vw,40px); }
+  .store-home .store-home-hero-copy > p { font-size: 12px; margin-top: 10px; }
+  .store-home .store-home-hero-buttons { margin-top: 12px; }
+  .store-home .store-home-hero-buttons a { font-size: 12px; min-width: 0; }
+  .store-home .store-home-hero-sidecopy { display: none; }
+  .store-home .store-home-section-head h2 { font-size: 17px; }
+  .store-home .store-home-categories { display: flex; overflow-x: auto; scroll-snap-type: x proximity; gap: 10px; padding-bottom: 6px; }
+  .store-home .store-home-categories > a { flex: 0 0 min(44%,170px); min-height: 100px; scroll-snap-align: start; }
+  .store-home .store-home-category-copy small { font-size: 12px; }
+  .store-home .store-home-products { grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--dz-v1-card-gap); }
+  .store-home .store-home-products .dz-champ-card-caption { display: grid!important; gap: 8px; min-height: 98px; padding: 9px!important; }
+  .store-home .store-home-products .dz-champ-card-copy strong { font-size: 13px; }
+  .store-home .store-home-products .dz-champ-card-copy small,
+  .store-home .store-home-products .dz-champ-card-copy em { font-size: 12px; }
+  .store-home .store-home-products .dz-champ-card-commerce { display: flex; justify-content: space-between; gap: 5px; text-align: left; }
+  .store-home .store-home-products .dz-champ-card-commerce b,
+  .store-home .store-home-products .dz-champ-card-commerce small { font-size: 12px; }
+  .store-home .store-home-products .dz-champ-card-badges { max-width: calc(100% - 80px); }
+  .store-home .store-home-products .dz-champ-card-badges > span { font-size: 12px; min-height: 22px; }
+  .store-home .store-home-products .dz-champ-card-actions .dz-ui-icon-button,
+  .store-home .store-home-products .dz-champ-card-info { width: 30px; height: 30px; min-width: 30px; }
+  .store-home .store-home-promos { grid-template-columns: 1fr; }
+  .store-home .store-home-footer-grid { gap: 18px; }
+}
+@media (max-width: 360px) {
+  .store-home .store-home-products .dz-champ-card-actions { gap: 1px; }
+  .store-home .store-home-products .dz-champ-card-actions .dz-ui-icon-button,
+  .store-home .store-home-products .dz-champ-card-info { width: 28px; height: 28px; min-width: 28px; }
+  .store-home .store-home-products .dz-champ-card-caption { padding: 7px!important; }
+}
+/* clip does not create a scroll container, so the sticky public header can work. */
+@supports (overflow: clip) { .store-home { overflow: clip; } }

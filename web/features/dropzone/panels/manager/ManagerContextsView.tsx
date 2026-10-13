@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   ExternalLink,
@@ -472,7 +474,7 @@ function EquipeManagerDetail(props: {
   }
 
   async function deleteLine(lineId: string) {
-    if (!window.confirm('Apagar esta line?')) return
+    if (!await confirmAction('Apagar esta line?')) return
     setBusy(true)
     setError('')
     try {
@@ -576,10 +578,10 @@ function EquipeManagerDetail(props: {
             <div className="inline-action-panel">
               <div className="mini-grid two">
                 <Field label="Nome da line">
-                  <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: ALOE BASE" />
+                  <UiInput value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: ALOE BASE" />
                 </Field>
                 <Field label="Tag (opcional)">
-                  <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Ex.: ALOE" />
+                  <UiInput value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Ex.: ALOE" />
                 </Field>
               </div>
               <UploadField

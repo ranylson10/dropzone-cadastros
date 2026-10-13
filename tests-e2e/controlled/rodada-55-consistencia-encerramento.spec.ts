@@ -7,27 +7,31 @@ function source(rel: string) {
 }
 
 test.describe('Rodada 55 — consistência e encerramento', () => {
-  test('painel normal encerra e reabre usando backend existente', () => {
+  test('painel mostra estado da edição e indisponibilidade das ações inseguras', () => {
     const panel = source('web/features/dropzone/panels/produtora/ProdutoraPanel.tsx')
-    expect(panel).toContain("updateEditionLifecycle(action: 'publish_final' | 'reopen_final')")
-    expect(panel).toContain('Encerrar campeonato')
-    expect(panel).toContain('Reabrir season')
-    expect(panel).toContain('/estrutura-avancada')
+    const status = source('web/features/campeonatos/estrutura-avancada/EditionLifecycleStatus.tsx')
+    expect(panel).toContain('<EditionLifecycleStatus championshipId={selectedChamp.id} />')
+    expect(panel).not.toContain('updateEditionLifecycle(')
+    expect(status).toContain('Encerrar campeonato')
+    expect(status).toContain('Reabrir season')
+    expect(status).toContain('disabled={!atomic || busy || !mutation.ready || Boolean(mutation.pending)}')
   })
 
-  test('encerramento fecha inscrições sem criar agenda ou ranking paralelo', () => {
+  test('servidor recusa encerramento antes dos escritores legados', () => {
     const route = source('web/app/api/campeonatos/[id]/estrutura-avancada/route.ts')
-    expect(route).toContain("action === 'publish_final'")
-    expect(route).toContain("aceita_novas_inscricoes_equipes: false")
-    expect(route).toContain("String(championship.tipo || '').toLowerCase() === 'liga'")
-    expect(route).toContain("listarEstatisticasEquipes(campeonatoId, { grupoId: String(group.id) })")
+    expect(route).toContain('assertLifecycleActionSafe(action)')
+    expect(route).not.toContain('final_publicado_em')
+    expect(route).not.toContain('aceita_novas_inscricoes_equipes: false')
   })
 
-  test('liga exige classificação de cada agrupamento para encerrar', () => {
-    const route = source('web/app/api/campeonatos/[id]/estrutura-avancada/route.ts')
-    expect(route).toContain('A Liga ainda não possui agrupamentos para encerrar.')
-    expect(route).toContain('ainda não possui classificação calculada.')
-    expect(route).toContain('final_campeao_campeonato_equipe_id: isLeague ? null')
+  test('não existe flag que reative as gravações paralelas do lifecycle', () => {
+    const safety = source('backend/src/campeonatos/lifecycle-safety.ts')
+    expect(safety).toContain("lifecycleWriteMode = 'unavailable'")
+    expect(safety).toContain("action === 'publish_final' || action === 'reopen_final'")
+    expect(safety).not.toContain('process.env')
+    const transport = source('backend/src/campeonatos/lifecycle-transport.ts')
+    expect(transport).toContain("rpc('fn_lifecycle_atomico', args)")
+    expect(transport).not.toContain('.from(')
   })
 
   test('desempate do cálculo e regulamento usam a mesma ordem objetiva', () => {

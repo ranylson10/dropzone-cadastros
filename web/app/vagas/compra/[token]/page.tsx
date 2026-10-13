@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   CheckCircle2,
@@ -16,7 +17,7 @@ import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { buildProfileCreationHref } from '@/features/auth/auth-return'
 import { PixIcon } from '@/features/billing/BrandIcons'
-import { supabase } from '@/lib/supabase-browser'
+import { getTokenFlowAccessToken, tokenFlowAuthHeaders, tokenFlowPath, TokenFlowCard, TokenFlowPage, TokenFlowStatus } from '@/features/token-flow'
 import '../../vagas.css'
 
 type SlotOpt = { id: string; slot_numero: number | null; slot_letra: string | null }
@@ -39,7 +40,7 @@ export default function CompraVagaPage() {
   const params = useParams<{ token: string }>()
   const searchParams = useSearchParams()
   const token = String(params?.token || '').trim().toUpperCase()
-  const returnTo = `/vagas/compra/${encodeURIComponent(token)}`
+  const returnTo = tokenFlowPath('vagaCompra', token)
 
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -58,8 +59,7 @@ export default function CompraVagaPage() {
     async (opts?: { equipeId?: string }) => {
       setError('')
       try {
-        const { data: session } = await supabase.auth.getSession()
-        const access = session.session?.access_token
+        const access = await getTokenFlowAccessToken()
         setAuthenticated(Boolean(access))
         if (!access) {
           setData(null)
@@ -119,12 +119,11 @@ export default function CompraVagaPage() {
       try {
         setBusy(true)
         setMessage('Confirmando pagamento PayPal...')
-        const { data: session } = await supabase.auth.getSession()
-        const access = session.session?.access_token
+        const access = await getTokenFlowAccessToken()
         if (!access) throw new Error('Entre novamente para confirmar o PayPal.')
         const res = await fetch(`/api/paypal/orders/${encodeURIComponent(orderId)}/capture`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access}` },
+          headers: tokenFlowAuthHeaders(access, { 'Content-Type': 'application/json' }),
           body: JSON.stringify({ purchaseId }),
         })
         const json = await res.json().catch(() => ({}))
@@ -174,8 +173,7 @@ export default function CompraVagaPage() {
     setError('')
     setMessage('')
     try {
-      const { data: session } = await supabase.auth.getSession()
-      const access = session.session?.access_token
+      const access = await getTokenFlowAccessToken()
       if (!access) throw new Error('Entre novamente para confirmar a vaga.')
       if (!equipeId) throw new Error('Selecione a equipe.')
       if (!slotId) throw new Error('Selecione o slot.')
@@ -183,10 +181,7 @@ export default function CompraVagaPage() {
 
       const res = await fetch('/api/pagamentos/vaga/claim', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${access}`,
-        },
+        headers: tokenFlowAuthHeaders(access, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           token,
           equipe_id: equipeId,
@@ -265,16 +260,16 @@ export default function CompraVagaPage() {
 
   if (!authenticated) {
     return (
-      <main className="invite-page">
-        <div className="invite-card">
+      <TokenFlowPage>
+        <TokenFlowCard>
           <Shield size={42} />
           <p className="eyebrow">Compra de vaga</p>
           <h1>Entre para continuar</h1>
           <p>Use a mesma conta com a qual iniciou o pagamento para liberar o grupo e escolher o slot.</p>
-          {error ? <p className="invite-message" style={{ color: '#b4232d' }}>{error}</p> : null}
+          {error ? <TokenFlowStatus tone="error">{error}</TokenFlowStatus> : null}
           <SocialLogin profileType="equipe" returnTo={returnTo} />
-        </div>
-      </main>
+        </TokenFlowCard>
+      </TokenFlowPage>
     )
   }
 
@@ -294,7 +289,7 @@ export default function CompraVagaPage() {
   }
 
   return (
-    <AppShell activeLabel="Competições" loadSession mainClassName="vacancies-page page">
+    <AppShell activeLabel="Competições" loadSession headerVariant="storefront" withAuthOffset={false} mainClassName="vacancies-page page">
       <section className="vacancies-hero" style={{ marginBottom: 12 }}>
         <div>
           <p className="eyebrow">Compra de vaga</p>
@@ -484,18 +479,18 @@ export default function CompraVagaPage() {
 
               <label className="field">
                 <span>Equipe que vai jogar</span>
-                <select value={equipeId} onChange={(e) => void onChangeEquipe(e.target.value)}>
+                <UiSelect value={equipeId} onChange={(e) => void onChangeEquipe(e.target.value)}>
                   {equipes.map((eq) => (
                     <option key={eq.id} value={eq.id}>
                       {eq.nome}
                     </option>
                   ))}
-                </select>
+                </UiSelect>
               </label>
 
               <label className="field">
                 <span>Elenco / line</span>
-                <select
+                <UiSelect
                   value={lineId || (lines.length ? '' : '__create__')}
                   onChange={(e) => setLineId(e.target.value)}
                 >
@@ -505,13 +500,13 @@ export default function CompraVagaPage() {
                     </option>
                   ))}
                   <option value="__create__">+ Criar novo elenco</option>
-                </select>
+                </UiSelect>
               </label>
 
               {needsNewLine ? (
                 <label className="field">
                   <span>Nome do novo elenco</span>
-                  <input
+                  <UiInput
                     value={nomeNovaLine}
                     onChange={(e) => setNomeNovaLine(e.target.value)}
                     placeholder="Ex.: ALOE ELITE 2"
@@ -521,7 +516,7 @@ export default function CompraVagaPage() {
 
               <label className="field">
                 <span>Vaga no grupo</span>
-                <select value={slotId} onChange={(e) => setSlotId(e.target.value)}>
+                <UiSelect value={slotId} onChange={(e) => setSlotId(e.target.value)}>
                   {slots.length === 0 ? (
                     <option value="">Nenhuma vaga livre</option>
                   ) : (
@@ -531,7 +526,7 @@ export default function CompraVagaPage() {
                       </option>
                     ))
                   )}
-                </select>
+                </UiSelect>
               </label>
 
               <div className="vacancy-slot-chips">

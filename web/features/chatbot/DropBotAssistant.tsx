@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { useMemo, useState } from 'react'
 import { DropBotChat, type DropBotMessage, type DropBotOption } from './DropBotChat'
 import {
@@ -232,7 +233,7 @@ export function DropBotAssistant({
           ))}
         </div>
         <div className="dropbot-input-row">
-          <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={placeholder || UI[currentLanguage].placeholder} disabled={!language} />
+          <UiInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={placeholder || UI[currentLanguage].placeholder} disabled={!language} />
           <button type="submit" disabled={!language || !input.trim() || isTyping}>{UI[currentLanguage].send}</button>
         </div>
       </form>

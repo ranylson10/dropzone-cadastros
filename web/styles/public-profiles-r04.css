@@ -1,0 +1,336 @@
+/* R04 — Perfis públicos em formato modular, baseado no design system DropZone.
+ * Exige .directory-v1-profile: não interfere na operação, pagamentos ou Engine.
+ * A cor de tema de cada campeonato continua configurável.
+ */
+.directory-profile-page.directory-v1-profile {
+  --dz-r04-surface: #19252f;
+  --dz-r04-surface-alt: #202e3a;
+  --dz-r04-border: rgba(217, 232, 244, .12);
+  --dz-r04-text: #f1f5f9;
+  --dz-r04-muted: #adbcca;
+  --dz-r04-radius: 12px;
+  --dz-r04-gap: 16px;
+  background: #101a23;
+  color: var(--dz-r04-text);
+  min-width: 0;
+}
+.directory-v1-profile .directory-page-body { min-width: 0; }
+
+/* Perfis de equipe, jogador, produtora e manager. */
+.directory-v1-profile .profile-command-page {
+  --profile-bg: #101a23;
+  --profile-surface: var(--dz-r04-surface);
+  --profile-surface-raised: var(--dz-r04-surface-alt);
+  --profile-line: var(--dz-r04-border);
+  --profile-muted: var(--dz-r04-muted);
+  --profile-ink: var(--dz-r04-text);
+  max-width: 1480px;
+  padding: 20px 24px 52px;
+  margin-inline: auto;
+}
+.directory-v1-profile .profile-command-hero {
+  padding: 0 22px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: var(--dz-r04-radius);
+  background: var(--dz-r04-surface);
+  overflow: hidden;
+}
+.directory-v1-profile .profile-command-inner,
+.directory-v1-profile .competitive-profile-panel,
+.directory-v1-profile .profile-command-page .directory-profile-tabs-shell,
+.directory-v1-profile .profile-command-page .team-lines-site-workspace {
+  width: 100%;
+  max-width: 100%;
+}
+.directory-v1-profile .profile-command-inner { padding-top: 16px; }
+.directory-v1-profile .profile-command-inner .directory-back {
+  min-height: 32px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.directory-v1-profile .profile-command-main {
+  grid-template-columns: 96px minmax(0, 1fr) minmax(300px, 390px);
+  min-height: 136px;
+  gap: 20px;
+  padding-bottom: 18px;
+}
+.directory-v1-profile .profile-command-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+}
+.directory-v1-profile.directory-theme-jogadores .profile-command-avatar,
+.directory-v1-profile.directory-theme-managers .profile-command-avatar { border-radius: 50%; }
+.directory-v1-profile .profile-command-copy small,
+.directory-v1-profile .profile-command-copy strong {
+  font-size: 12px;
+  letter-spacing: .025em;
+}
+.directory-v1-profile .profile-command-copy h1 {
+  font-size: clamp(25px, 2.7vw, 38px);
+  line-height: 1.12;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.directory-v1-profile .profile-command-copy p {
+  max-width: 650px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.directory-v1-profile .profile-command-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  border-left: 0;
+}
+.directory-v1-profile .profile-command-facts div {
+  min-height: 62px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--dz-r04-surface-alt);
+}
+.directory-v1-profile .profile-command-facts dt,
+.directory-v1-profile .profile-command-more-facts dt { font-size: 12px; letter-spacing: .02em; }
+.directory-v1-profile .profile-command-facts dd,
+.directory-v1-profile .profile-command-more-facts dd { font-size: 13px; }
+.directory-v1-profile .profile-command-more-facts summary { min-height: 44px; font-size: 12px; }
+.directory-v1-profile .profile-command-actions { gap: 8px; padding: 10px 0; flex-wrap: wrap; }
+.directory-v1-profile .profile-command-actions a,
+.directory-v1-profile .profile-command-actions .directory-report-button {
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: 8px;
+  background: var(--dz-r04-surface-alt);
+  color: var(--dz-r04-text);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.directory-v1-profile .profile-command-actions a.primary { border-color: var(--profile-accent); }
+.directory-v1-profile .profile-command-actions :is(a,button):focus-visible,
+.directory-v1-profile .directory-profile-tabs button:focus-visible,
+.directory-v1-profile .champ-public-nav-btn:focus-visible { outline: 2px solid #f6ca63; outline-offset: 2px; }
+
+/* Painel competitivo: KPIs iguais, histórico preservado sem truncar dados. */
+.directory-v1-profile .competitive-profile-panel,
+.directory-v1-profile .profile-command-page .directory-profile-tabs-shell,
+.directory-v1-profile .profile-command-page .team-lines-site-workspace {
+  margin-top: var(--dz-r04-gap);
+  padding: 18px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: var(--dz-r04-radius);
+  background: var(--dz-r04-surface);
+}
+.directory-v1-profile .competitive-profile-head { min-height: 48px; }
+.directory-v1-profile .competitive-profile-head h2 { font-size: 18px; }
+.directory-v1-profile .competitive-profile-head small,
+.directory-v1-profile .competitive-kpi-grid small,
+.directory-v1-profile .competitive-average-grid small { font-size: 12px; }
+.directory-v1-profile .competitive-kpi-grid { gap: 8px; border: 0; margin-top: 14px; }
+.directory-v1-profile .competitive-kpi-grid article {
+  min-height: 96px;
+  padding: 15px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: 8px;
+  background: var(--dz-r04-surface-alt);
+}
+.directory-v1-profile .competitive-kpi-grid strong { font-variant-numeric: tabular-nums; }
+.directory-v1-profile .profile-command-page .directory-profile-tabs { min-height: 44px; }
+.directory-v1-profile .profile-command-page .directory-profile-tabs button {
+  min-height: 44px;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.directory-v1-profile .profile-command-page .directory-profile-tabs button span { font-size: 12px; }
+.directory-v1-profile .profile-command-page .directory-profile-tab-link { min-height: 44px; font-size: 12px; text-transform: none; }
+.directory-v1-profile .profile-command-page .directory-profile-tab-panel { width: 100%; padding: 14px 0 4px; }
+.directory-v1-profile .profile-command-page .directory-related-list > :is(a,article) { min-height: 66px; }
+.directory-v1-profile .profile-command-page .directory-related-list strong { font-size: 14px; }
+.directory-v1-profile .profile-command-page .directory-related-list small,
+.directory-v1-profile .profile-command-page .directory-related-list em { font-size: 12px; }
+
+/* Perfil do campeonato: hero independente, cards de informação e abas compactas. */
+.directory-v1-profile .champ-public {
+  --champ-ink: var(--dz-r04-text);
+  --champ-muted: var(--dz-r04-muted);
+  --champ-line: var(--dz-r04-border);
+  --champ-surface: var(--dz-r04-surface);
+  padding: 20px 24px 54px;
+  max-width: 1480px;
+  margin-inline: auto;
+  background: transparent;
+}
+body .directory-v1-profile .champ-public .champ-public-banner {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: var(--dz-r04-radius) !important;
+  background: var(--dz-r04-surface) !important;
+}
+.directory-v1-profile .champ-public .directory-profile-banner-inner {
+  width: 100%;
+  padding: 16px 22px 0;
+}
+.directory-v1-profile .champ-public .directory-back.on-banner {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.directory-v1-profile .champ-public .champ-public-hero {
+  grid-template-columns: 88px minmax(0,1fr) minmax(260px,400px) !important;
+  min-height: 126px;
+  align-items: center !important;
+  gap: 20px;
+  padding-bottom: 18px;
+}
+.directory-v1-profile .champ-public .champ-public-hero .directory-profile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 12px !important;
+}
+.directory-v1-profile .champ-public .directory-profile-copy small { font-size: 12px; letter-spacing: .03em; }
+.directory-v1-profile .champ-public .directory-profile-copy h1 {
+  font-size: clamp(25px, 2.7vw, 38px);
+  line-height: 1.13;
+  overflow-wrap: anywhere;
+}
+.directory-v1-profile .champ-public .directory-profile-copy > .directory-profile-desc { font-size: 13px; line-height: 1.5; }
+.directory-v1-profile .champ-public .champ-public-profile-facts {
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 8px;
+  border: 0;
+}
+.directory-v1-profile .champ-public .champ-public-profile-facts div {
+  padding: 9px 12px;
+  min-height: 60px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: 8px;
+  background: var(--dz-r04-surface-alt);
+}
+.directory-v1-profile .champ-public .champ-public-profile-facts dt { font-size: 12px; letter-spacing: 0; }
+.directory-v1-profile .champ-public .champ-public-profile-facts dd { font-size: 13px; font-variant-numeric: tabular-nums; }
+body .directory-v1-profile .champ-public .champ-public-nav {
+  display: flex;
+  min-height: 44px;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 0;
+  border-top: 1px solid var(--dz-r04-border);
+  border-radius: 0;
+  background: rgba(10, 17, 24, .25);
+}
+body .directory-v1-profile .champ-public .champ-public-nav-btn {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px !important;
+  background: transparent !important;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+body .directory-v1-profile .champ-public .champ-public-nav-btn.active {
+  border-color: var(--dz-r04-border);
+  border-bottom-color: var(--champ-gold);
+  background: var(--dz-r04-surface-alt) !important;
+  color: var(--dz-r04-text);
+}
+.directory-v1-profile .champ-public .champ-public-nav-count { min-width: 20px; height: 20px; padding: 0 5px; font-size: 12px; }
+body .directory-v1-profile .champ-public .champ-public-panel { width: 100%; max-width: 100%; margin-top: 16px; padding: 0; }
+body .directory-v1-profile .champ-public .champ-public-info,
+body .directory-v1-profile .champ-public .champ-public-section {
+  padding: 18px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: var(--dz-r04-radius);
+  background: var(--dz-r04-surface);
+}
+.directory-v1-profile .champ-public .champ-public-panel-head { min-height: 40px; }
+.directory-v1-profile .champ-public .champ-public-panel-head strong { font-size: 16px; }
+.directory-v1-profile .champ-public .champ-public-panel-head small { font-size: 12px; }
+.directory-v1-profile .champ-public .champ-public-info-summary { gap: 8px; border: 0; }
+.directory-v1-profile .champ-public .champ-public-info-summary > div {
+  min-width: 0;
+  flex: 1 1 180px;
+  min-height: 80px;
+  padding: 12px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: 8px;
+  background: var(--dz-r04-surface-alt);
+}
+.directory-v1-profile .champ-public .champ-public-info-summary small,
+.directory-v1-profile .champ-public .champ-public-info-groups dt { font-size: 12px; }
+.directory-v1-profile .champ-public .champ-public-info-summary strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.directory-v1-profile .champ-public .champ-public-info-groups { gap: var(--dz-r04-gap); }
+.directory-v1-profile .champ-public .champ-public-info-groups > section {
+  padding: 14px;
+  border: 1px solid var(--dz-r04-border);
+  border-radius: 8px;
+  background: var(--dz-r04-surface-alt);
+}
+.directory-v1-profile .champ-public .champ-public-info-groups dd { font-size: 13px; }
+.directory-v1-profile .champ-public .champ-public-team-row,
+.directory-v1-profile .champ-public .champ-public-player-row { min-height: 64px; }
+
+@media (max-width: 1060px) {
+  .directory-v1-profile .profile-command-main { grid-template-columns: 84px minmax(0, 1fr); }
+  .directory-v1-profile .profile-command-avatar { width: 84px; height: 84px; }
+  .directory-v1-profile .profile-command-facts { grid-column: 1 / -1; grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .directory-v1-profile .champ-public .champ-public-hero { grid-template-columns: 78px minmax(0,1fr) !important; }
+  .directory-v1-profile .champ-public .champ-public-hero .directory-profile-avatar { width: 78px; height: 78px; }
+  .directory-v1-profile .champ-public .champ-public-profile-facts { grid-column: 1/-1; grid-template-columns: repeat(4,minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  .directory-v1-profile .profile-command-page,
+  .directory-v1-profile .champ-public { padding: 12px 12px calc(85px + env(safe-area-inset-bottom, 0px)); }
+  .directory-v1-profile .profile-command-hero { padding: 0 12px; }
+  .directory-v1-profile .profile-command-main { grid-template-columns: 64px minmax(0,1fr); gap: 12px; min-height: 0; }
+  .directory-v1-profile .profile-command-avatar { width: 64px; height: 64px; }
+  .directory-v1-profile .profile-command-copy h1 { font-size: clamp(21px,5.2vw,28px); }
+  .directory-v1-profile .profile-command-facts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .directory-v1-profile .profile-command-facts div { min-height: 58px; padding: 9px; }
+  .directory-v1-profile .profile-command-facts dt,
+  .directory-v1-profile .profile-command-facts dd { font-size: 12px; }
+  .directory-v1-profile .profile-command-actions { gap: 6px; }
+  .directory-v1-profile .competitive-profile-panel,
+  .directory-v1-profile .profile-command-page .directory-profile-tabs-shell,
+  .directory-v1-profile .profile-command-page .team-lines-site-workspace { padding: 12px; }
+  .directory-v1-profile .competitive-kpi-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .directory-v1-profile .competitive-kpi-grid article { min-height: 84px; padding: 11px; }
+  .directory-v1-profile .champ-public .directory-profile-banner-inner { padding: 12px 12px 0; }
+  .directory-v1-profile .champ-public .champ-public-hero {
+    display: grid;
+    grid-template-columns: 62px minmax(0,1fr) !important;
+    align-items: start !important;
+    gap: 10px;
+    min-height: 0;
+  }
+  .directory-v1-profile .champ-public .champ-public-hero .directory-profile-avatar { width: 62px; height: 62px; }
+  /* Undo the old mobile display:contents + grid row assignments; keep description accessible. */
+  .directory-v1-profile .champ-public .champ-public-hero .directory-profile-copy { display: block; grid-column: 2; }
+  .directory-v1-profile .champ-public .champ-public-hero .directory-profile-copy > :is(small,h1,p) {
+    display: block; grid-column: auto; grid-row: auto; width: auto;
+  }
+  .directory-v1-profile .champ-public .champ-public-hero .directory-profile-copy h1 { font-size: clamp(21px,5.2vw,28px); }
+  .directory-v1-profile .champ-public .champ-public-profile-facts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .directory-v1-profile .champ-public .champ-public-nav { padding: 5px; }
+  .directory-v1-profile .champ-public .champ-public-nav-btn { padding: 0 11px; }
+  body .directory-v1-profile .champ-public .champ-public-info,
+  body .directory-v1-profile .champ-public .champ-public-section { padding: 12px; }
+  .directory-v1-profile .champ-public .champ-public-info-summary > div { flex: 1 1 calc(50% - 8px); }
+  .directory-v1-profile .champ-public .champ-public-info-groups > section { padding: 12px; }
+}
+@media (max-width: 420px) {
+  .directory-v1-profile .profile-command-facts { grid-template-columns: minmax(0,1fr); }
+  .directory-v1-profile .champ-public .champ-public-profile-facts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .directory-v1-profile .champ-public .champ-public-info-summary > div { flex-basis: 100%; }
+}

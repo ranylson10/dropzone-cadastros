@@ -1,6 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { promptAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {useGroupChoiceMutation} from '@/hooks/useGroupChoiceMutation'
+import {PendingGroupChoice} from './PendingGroupChoice'
+import {useScopedState} from '@/hooks/useScopedState'
 import { Activity, AlertCircle, AlertTriangle, CheckCircle2, Clock3, ExternalLink, Gamepad2, Info, LoaderCircle, MapPin, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
@@ -47,16 +52,19 @@ async function authHeaders() {
 }
 
 export function ChampionshipCentral() {
-  const [items, setItems] = useState<Championship[]>([])
   const [selected, setSelected] = useState('')
-  const [summary, setSummary] = useState<Summary | null>(null)
-  const [choice, setChoice] = useState<ChoicePayload | null>(null)
+  const selectedNow=useRef(selected);selectedNow.current=selected
+  const choiceMutation=useGroupChoiceMutation(selected,'team')
+  const resource=JSON.stringify([choiceMutation.actor,selected])
+  const [items,setItems]=useScopedState<Championship[]>(choiceMutation.actor,[])
+  const [summary, setSummary] = useScopedState<Summary | null>(resource,null)
+  const [choice, setChoice] = useScopedState<ChoicePayload | null>(resource,null)
   const [choiceForm, setChoiceForm] = useState({ campeonato_equipe_id: '', grupo_id: '', slot_id: '' })
   const [loading, setLoading] = useState(true)
   const [savingChoice, setSavingChoice] = useState(false)
   const [choiceAction, setChoiceAction] = useState<{ participationId: string; kind: 'cancel' | 'restore' } | null>(null)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [error, setError] = useScopedState(resource,'')
+  const [success, setSuccess] = useScopedState(resource,'')
   const [logFilter, setLogFilter] = useState('all')
   const [alertFilter, setAlertFilter] = useState('active')
   const [alertAdvancedFilter, setAlertAdvancedFilter] = useState({ severity: 'all', category: 'all', scope: 'all', query: '', date_from: '', date_to: '' })
@@ -87,7 +95,7 @@ export function ChampionshipCentral() {
       }
     })()
     return () => { active = false }
-  }, [])
+  }, [choiceMutation.actor])
 
   useEffect(() => {
     if (!selected || !selectedItem) { setSummary(null); setChoice(null); return }
@@ -118,7 +126,7 @@ export function ChampionshipCentral() {
       }
     })()
     return () => { active = false }
-  }, [selected, selectedItem, participantMode])
+  }, [selected, selectedItem, participantMode,choiceMutation.actor])
 
   const availableGroups = useMemo(() => {
     if (!choice) return []
@@ -137,14 +145,12 @@ export function ChampionshipCentral() {
     setError('')
     setSuccess('')
     try {
-      const headers = await authHeaders()
-      const response = await fetch(`/api/campeonatos/${encodeURIComponent(selected)}/escolha-grupo`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(choiceForm),
-      })
-      const body = await response.json()
-      if (!response.ok) throw new Error(body.error || 'Não foi possível confirmar o grupo e o slot.')
+      const participation=choice?.participations.find(row=>row.id===choiceForm.campeonato_equipe_id)
+      if(!participation)throw new Error('Atualize o acompanhamento antes de confirmar.')
+      const result=await choiceMutation.run({action:'assign',campeonato_equipe_id:participation.id,source_slot_id:participation.slot_id||null,
+        group_id:choiceForm.grupo_id,slot_id:choiceForm.slot_id,history_id:null})
+      const body=await refreshedChoice(result)
+      if(selectedNow.current!==selected)return
       setChoice(body)
       setChoiceForm((current) => ({ ...current, grupo_id: '', slot_id: '' }))
       setSuccess('Grupo e slot confirmados com sucesso.')
@@ -159,14 +165,14 @@ export function ChampionshipCentral() {
     setError('')
     setSuccess('')
     try {
-      const headers = await authHeaders()
-      const response = await fetch(`/api/campeonatos/${encodeURIComponent(selected)}/escolha-grupo`, {
-        method,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campeonato_equipe_id: participationId }),
-      })
-      const body = await response.json()
-      if (!response.ok) throw new Error(body.error || (method === 'DELETE' ? 'Não foi possível cancelar a escolha.' : 'Não foi possível restaurar a escolha.'))
+      const participation=choice?.participations.find(row=>row.id===participationId)
+      if(!participation)throw new Error('Atualize o acompanhamento antes de confirmar.')
+      const cancelled=choice?.history.filter(row=>row.campeonato_equipe_id===participationId&&!row.grupo_novo_id&&row.grupo_anterior_id&&row.slot_anterior_id)
+        .sort((a,b)=>b.created_at.localeCompare(a.created_at)||b.id.localeCompare(a.id))[0]
+      const result=await choiceMutation.run({action:method==='DELETE'?'cancel':'restore',campeonato_equipe_id:participationId,
+        source_slot_id:participation.slot_id||null,group_id:null,slot_id:null,history_id:method==='PUT'?cancelled?.id||null:null})
+      const body=await refreshedChoice(result)
+      if(selectedNow.current!==selected)return
       setChoice(body)
       setSuccess(method === 'DELETE' ? 'Escolha cancelada. O grupo e o slot foram liberados.' : 'Escolha anterior restaurada com sucesso.')
     } catch (e: any) {
@@ -174,12 +180,24 @@ export function ChampionshipCentral() {
     } finally { setChoiceAction(null) }
   }
 
+  async function refreshedChoice(result:any) {
+    if(!result.operation_confirmed)return result
+    const headers=await authHeaders(),response=await fetch(`/api/campeonatos/${encodeURIComponent(selected)}/escolha-grupo`,{headers,cache:'no-store'})
+    const body=await response.json()
+    if(!response.ok)throw new Error('Escolha confirmada. Atualize a página para conferir os slots.')
+    return body
+  }
+  async function confirmPendingChoice(){if(!choiceMutation.pending)return;try{
+    const body=await refreshedChoice(await choiceMutation.run(choiceMutation.pending.body))
+    if(selectedNow.current===selected){setChoice(body);setSuccess('Resultado da escolha confirmado.')}
+  }catch{/* The mutation exposes errors and retains the original intent. */}}
+
 
   async function updateAlertStatus(alertKey: string, status: 'new' | 'read' | 'resolved' | 'dismissed') {
     if (!selected) return
     let note: string | null = null
     if (status === 'resolved' || status === 'dismissed') {
-      note = window.prompt(status === 'resolved' ? 'Informe como o alerta foi resolvido (opcional):' : 'Informe o motivo para dispensar este alerta (opcional):')
+      note = await promptAction(status === 'resolved' ? 'Informe como o alerta foi resolvido (opcional):' : 'Informe o motivo para dispensar este alerta (opcional):')
       if (note === null) return
     }
     setAlertBusy(alertKey)
@@ -297,12 +315,14 @@ export function ChampionshipCentral() {
 
   return (
     <div className="championship-central-shell">
+      <PendingGroupChoice pending={Boolean(choiceMutation.pending)} busy={choiceMutation.busy} error={choiceMutation.error}
+        onRetry={()=>void confirmPendingChoice()} onDiscard={choiceMutation.discard}/>
       <header className="championship-central-header">
         <div><small>CAMPEONATOS</small><h1>Central</h1></div>
-        <select value={selected} onChange={(event) => setSelected(event.target.value)} aria-label="Selecionar campeonato">
+        <UiSelect value={selected} onChange={(event) => setSelected(event.target.value)} aria-label="Selecionar campeonato">
           <option value="">Selecione um campeonato</option>
           {items.map((item) => <option key={item.id} value={item.id}>{item.nome}{item.access === 'participant' ? ' · Minha equipe' : ' · Administração'}</option>)}
-        </select>
+        </UiSelect>
       </header>
 
       {loading ? <div className="championship-central-state"><LoaderCircle className="spin" /> Carregando...</div> : null}
@@ -316,9 +336,9 @@ export function ChampionshipCentral() {
           {choice.participations.length ? <>
             <div className="championship-choice-current">{choice.participations.map((row) => { const group = choice.groups.find((item) => item.id === row.grupo_id); const slot = choice.slots.find((item) => item.id === row.slot_id); const canRestore = !row.grupo_id && choice.history.some((item) => item.campeonato_equipe_id === row.id && !item.grupo_novo_id && item.grupo_anterior_id && item.slot_anterior_id); return <article key={row.id}><div><strong>{row.nome_exibicao || 'Minha equipe'}</strong><span>{group ? `${group.nome} · ${slot?.slot_letra || `Slot ${slot?.slot_numero || row.slot_numero || '-'}`}` : 'Grupo e slot ainda não escolhidos'}</span></div><div className="championship-choice-actions">{row.grupo_id ? <button type="button" className="button secondary danger" disabled={Boolean(choiceAction)} onClick={() => void runChoiceAction('DELETE', row.id)}>{choiceAction?.participationId === row.id && choiceAction.kind === 'cancel' ? 'Cancelando...' : 'Cancelar escolha'}</button> : null}{canRestore ? <button type="button" className="button secondary" disabled={Boolean(choiceAction)} onClick={() => void runChoiceAction('PUT', row.id)}>{choiceAction?.participationId === row.id && choiceAction.kind === 'restore' ? 'Restaurando...' : 'Restaurar anterior'}</button> : null}</div></article> })}</div>
             {availableGroups.length ? <div className="championship-choice-form">
-              <label><span>Equipe/line</span><select value={choiceForm.campeonato_equipe_id} onChange={(event) => setChoiceForm({ ...choiceForm, campeonato_equipe_id: event.target.value })}>{choice.participations.map((row) => <option key={row.id} value={row.id}>{row.nome_exibicao || 'Minha equipe'}</option>)}</select></label>
-              <label><span>Grupo</span><select value={choiceForm.grupo_id} onChange={(event) => setChoiceForm({ ...choiceForm, grupo_id: event.target.value, slot_id: '' })}><option value="">Escolha o grupo</option>{availableGroups.map((group) => { const free = choice.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id && !choice.blocks.some((block) => String(block.slot_id || '') === String(slot.id))).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} slot(s) livre(s)</option> })}</select></label>
-              <label><span>Slot</span><select value={choiceForm.slot_id} onChange={(event) => setChoiceForm({ ...choiceForm, slot_id: event.target.value })} disabled={!choiceForm.grupo_id}><option value="">Escolha o slot</option>{availableSlots.map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</select></label>
+              <label><span>Equipe/line</span><UiSelect value={choiceForm.campeonato_equipe_id} onChange={(event) => setChoiceForm({ ...choiceForm, campeonato_equipe_id: event.target.value })}>{choice.participations.map((row) => <option key={row.id} value={row.id}>{row.nome_exibicao || 'Minha equipe'}</option>)}</UiSelect></label>
+              <label><span>Grupo</span><UiSelect value={choiceForm.grupo_id} onChange={(event) => setChoiceForm({ ...choiceForm, grupo_id: event.target.value, slot_id: '' })}><option value="">Escolha o grupo</option>{availableGroups.map((group) => { const free = choice.slots.filter((slot) => slot.grupo_id === group.id && slot.status === 'livre' && !slot.equipe_id && !slot.line_id && !choice.blocks.some((block) => String(block.slot_id || '') === String(slot.id))).length; return <option key={group.id} value={group.id} disabled={!free}>{group.nome} · {free} slot(s) livre(s)</option> })}</UiSelect></label>
+              <label><span>Slot</span><UiSelect value={choiceForm.slot_id} onChange={(event) => setChoiceForm({ ...choiceForm, slot_id: event.target.value })} disabled={!choiceForm.grupo_id}><option value="">Escolha o slot</option>{availableSlots.map((slot) => <option key={slot.id} value={slot.id}>{slot.slot_letra || `Slot ${slot.slot_numero}`}</option>)}</UiSelect></label>
               <button type="button" className="button" disabled={savingChoice || !choiceForm.campeonato_equipe_id || !choiceForm.grupo_id || !choiceForm.slot_id} onClick={() => void saveGroupChoice()}>{savingChoice ? <LoaderCircle className="spin" size={15} /> : null} Confirmar grupo e slot</button>
             </div> : <div className="championship-choice-closed"><Clock3 size={18} /><div><strong>Escolha indisponível</strong><span>A escolha ainda não abriu, o prazo terminou ou todas as opções foram bloqueadas pela administração.</span></div></div>}
           </> : <div className="championship-choice-closed"><Info size={18} /><div><strong>Nenhuma participação ativa</strong><span>Não encontramos uma equipe sua neste campeonato.</span></div></div>}
@@ -338,12 +358,12 @@ export function ChampionshipCentral() {
             <details className="championship-central-alert-more">
               <summary>Filtros</summary>
               <div className="championship-central-alert-advanced">
-              <input value={alertAdvancedFilter.query} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, query: event.target.value })} placeholder="Buscar alerta, equipe ou jogo" />
-              <select value={alertAdvancedFilter.severity} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, severity: event.target.value })}><option value="all">Todas as prioridades</option><option value="critical">Crítico</option><option value="warning">Atenção</option><option value="info">Informativo</option></select>
-              <select value={alertAdvancedFilter.category} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, category: event.target.value })}><option value="all">Todas as categorias</option>{['capacity','structure','schedule','lineup','registration','payment','result','rulebook'].map((value) => <option key={value} value={value}>{alertCategoryLabel(value)}</option>)}</select>
-              <select value={alertAdvancedFilter.scope} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, scope: event.target.value })}><option value="all">Todos os escopos</option><option value="championship">Campeonato</option><option value="team">Equipe</option><option value="game">Jogo</option></select>
-              <input type="date" value={alertAdvancedFilter.date_from} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, date_from: event.target.value })} aria-label="Data inicial" />
-              <input type="date" value={alertAdvancedFilter.date_to} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, date_to: event.target.value })} aria-label="Data final" />
+              <UiInput value={alertAdvancedFilter.query} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, query: event.target.value })} placeholder="Buscar alerta, equipe ou jogo" />
+              <UiSelect value={alertAdvancedFilter.severity} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, severity: event.target.value })}><option value="all">Todas as prioridades</option><option value="critical">Crítico</option><option value="warning">Atenção</option><option value="info">Informativo</option></UiSelect>
+              <UiSelect value={alertAdvancedFilter.category} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, category: event.target.value })}><option value="all">Todas as categorias</option>{['capacity','structure','schedule','lineup','registration','payment','result','rulebook'].map((value) => <option key={value} value={value}>{alertCategoryLabel(value)}</option>)}</UiSelect>
+              <UiSelect value={alertAdvancedFilter.scope} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, scope: event.target.value })}><option value="all">Todos os escopos</option><option value="championship">Campeonato</option><option value="team">Equipe</option><option value="game">Jogo</option></UiSelect>
+              <UiInput type="date" value={alertAdvancedFilter.date_from} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, date_from: event.target.value })} aria-label="Data inicial" />
+              <UiInput type="date" value={alertAdvancedFilter.date_to} onChange={(event) => setAlertAdvancedFilter({ ...alertAdvancedFilter, date_to: event.target.value })} aria-label="Data final" />
               </div>
             </details>
             <div className="championship-central-alert-toolbar"><span>{filteredAlerts.length} alerta(s) exibido(s)</span><div><button type="button" disabled={alertBusy === 'bulk-read'} onClick={() => void markFilteredAlertsRead()}>Marcar novos como lidos</button><button type="button" onClick={exportAlertsCsv}>Exportar alertas CSV</button></div></div>

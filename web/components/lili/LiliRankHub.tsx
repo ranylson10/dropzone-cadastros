@@ -1,7 +1,11 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
+import { Dialog } from '@/components/ui/Dialog'
 import { useEffect, useMemo, useState } from 'react'
-import { ExternalLink, Info, Medal, RefreshCw, Search, Shield, Swords, Trophy, X } from 'lucide-react'
+import { ExternalLink, Info, Medal, RefreshCw, Search, Shield, Swords, Trophy } from 'lucide-react'
+import './rank-list-r18.css'
+import styles from './LiliRankHub.module.css'
 
 type RankMode = 'teams' | 'players' | 'championships'
 type RankRow = Record<string, any>
@@ -154,7 +158,7 @@ export function LiliRankHub() {
       </div>
 
       <div className="directory-rank-context">
-        <label className="directory-rank-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Buscar ${modeLabel.toLocaleLowerCase('pt-BR')}`} aria-label={`Buscar ${modeLabel.toLocaleLowerCase('pt-BR')} no ranking`} /></label>
+        <label className="directory-rank-search"><Search size={15} /><UiInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Buscar ${modeLabel.toLocaleLowerCase('pt-BR')}`} aria-label={`Buscar ${modeLabel.toLocaleLowerCase('pt-BR')} no ranking`} /></label>
         <div className="directory-rank-method">
           <span>{updatedAt ? `Atualizado ${updatedAt}` : 'Resultados oficiais'}</span>
           <details>
@@ -168,49 +172,58 @@ export function LiliRankHub() {
       {loading ? <div className="directory-rank-loading" role="status" aria-live="polite"><span /><span /><span /><span /><span /></div> : null}
       {!loading && !sourceRows.length ? <div className="lili-team-empty"><Medal size={34} /><strong>Ranking ainda vazio</strong><span>Os tiers surgem depois dos primeiros resultados oficiais.</span></div> : null}
       {!loading && sourceRows.length > 0 && rows.length === 0 ? <div className="lili-team-empty"><Search size={30} /><strong>Nenhum resultado</strong><span>Tente outro nome, tag ou ID.</span></div> : null}
-      {rows.length ? <div className="directory-list-head" aria-hidden="true"><span className="directory-list-head-main">{modeLabel}</span><span className="directory-list-head-meta"><em>Posição</em><em>Tier</em><em>Score DZ</em></span></div> : null}
+      {rows.length > 0 ? (
+        <div className="dz-ranking-head" aria-hidden="true">
+          <span>Posição</span>
+          <span>{modeLabel}</span>
+          <span>Tier</span>
+          <span>Score DZ</span>
+        </div>
+      ) : null}
 
-      <div className="directory-list directory-rank-list">
+      <div className="dz-ranking-list" aria-label={`Classificação: ${mode === 'teams' ? 'equipes' : mode === 'players' ? 'jogadores' : 'campeonatos'}`}>
         {rows.map((row) => {
           const image = row.logo_url || row.foto_url || row.avatar_url || ''
-          const hasMedia = Number(row.rank || 0) <= 3
-          const title = mode === 'players' ? row.nick : row.nome
+          const title = (mode === 'players' ? row.nick : row.nome) || 'Sem nome'
           const detail = mode === 'teams'
-            ? [row.tag, `${row.quedas} quedas`, `${row.abates || 0} abates`].filter(Boolean).join(' · ')
+            ? [row.tag, `${row.quedas || 0} quedas`, `${row.abates || 0} abates`].filter(Boolean).join(' · ')
             : mode === 'players'
-              ? [`${row.abates || 0} abates`, `${row.assistencias || 0} assist.`, `${row.quedas} quedas`].join(' · ')
+              ? [`${row.abates || 0} abates`, `${row.assistencias || 0} assist.`, `${row.quedas || 0} quedas`].join(' · ')
               : [`${row.participantes || 0} equipes`, `${row.jogadores || 0} jogadores`, `${row.quedas || 0} quedas`].join(' · ')
           const score = Number(row.score || 0).toFixed(1)
+          const tier = String(row.tier || 'E').toLowerCase()
+          const icon = mode === 'teams' ? <Shield size={20} aria-hidden="true" /> : mode === 'players' ? <Swords size={20} aria-hidden="true" /> : <Trophy size={20} aria-hidden="true" />
 
-          return <article
-            className={`directory-list-row directory-list-row-compact directory-rank-row${hasMedia ? ' rank-featured' : ' rank-text-only'}`}
-            key={row.key}
-            role="button"
-            tabIndex={0}
-            aria-label={`Abrir dados de ${title}`}
-            onClick={() => setSelectedRow(row)}
-            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedRow(row) } }}
-          >
-            <b className="directory-rank-mobile-position">{row.rank}</b>
-            {hasMedia ? <span className="directory-list-media">{image ? <img src={image} alt="" decoding="async" /> : mode === 'teams' ? <Shield size={18} /> : mode === 'players' ? <Swords size={18} /> : <Trophy size={18} />}</span> : null}
-            <span className="directory-list-main"><small>{modeLabel}</small><strong>{title}</strong><span>{detail}</span></span>
-            <span className="directory-list-meta">
-              <em data-label="Posição"><b className="directory-rank-position">#{row.rank}</b></em>
-              <em data-label="Tier"><b className={`directory-tier tier-${String(row.tier || 'E').toLowerCase()}`}>{row.tier || 'E'}</b></em>
-              <em data-label="Score DZ"><b className="directory-rank-score">{score}</b></em>
-            </span>
-            <strong className="directory-rank-mobile-score"><span className={`directory-tier tier-${String(row.tier || 'E').toLowerCase()}`}>{row.tier || 'E'}</span><b>{score}</b></strong>
-            <span className="directory-list-arrow" aria-hidden="true" />
-          </article>
+          return (
+            <article
+              className="dz-ranking-item"
+              key={row.key}
+              role="button"
+              tabIndex={0}
+              aria-label={`Ver estatísticas de ${title}, posição ${row.rank}, score ${score}`}
+              onClick={() => setSelectedRow(row)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  setSelectedRow(row)
+                }
+              }}
+            >
+              <span className="dz-ranking-number">#{row.rank}</span>
+              <span className="dz-ranking-identity">
+                <span className="dz-ranking-avatar">{image ? <img src={image} alt="" loading="lazy" decoding="async" /> : icon}</span>
+                <span className="dz-ranking-name"><strong>{title}</strong><small>{detail}</small></span>
+              </span>
+              <span className="dz-ranking-tier"><span className={`directory-tier tier-${tier}`}>{row.tier || 'E'}</span></span>
+              <span className="dz-ranking-score"><strong>{score}</strong><span className={`directory-tier tier-${tier}`}>{row.tier || 'E'}</span></span>
+            </article>
+          )
         })}
       </div>
 
-      {selectedRow ? <div className="directory-rank-detail-backdrop" role="presentation" onClick={() => setSelectedRow(null)}>
-        <section className="directory-rank-detail-card" role="dialog" aria-modal="true" aria-label={`Dados de ${selectedTitle}`} onClick={(event) => event.stopPropagation()}>
-          <button className="directory-rank-detail-close" type="button" onClick={() => setSelectedRow(null)} aria-label="Fechar detalhes"><X size={18} /></button>
+      {selectedRow ? <Dialog open title={selectedTitle} description={`${modeLabel} #${selectedRow.rank}`} onClose={() => setSelectedRow(null)} size="medium" closeLabel="Fechar detalhes" className={styles.detail}>
           <div className="directory-rank-detail-identity">
             <span className="directory-rank-detail-image">{selectedImage ? <img src={selectedImage} alt="" /> : mode === 'teams' ? <Shield size={25} /> : mode === 'players' ? <Swords size={25} /> : <Trophy size={25} />}</span>
-            <div><small>{modeLabel} #{selectedRow.rank}</small><h2>{selectedTitle}</h2></div>
           </div>
           <div className="directory-rank-detail-score"><span>Tier <b className={`directory-tier tier-${String(selectedRow.tier || 'E').toLowerCase()}`}>{selectedRow.tier || 'E'}</b></span><strong>{Number(selectedRow.score || 0).toFixed(1)} <small>score DZ</small></strong></div>
           <dl className="directory-rank-detail-metrics">
@@ -218,8 +231,7 @@ export function LiliRankHub() {
           </dl>
           {advancedMetrics(mode, selectedRow).length ? <details className="directory-rank-detail-advanced"><summary>Mais estatísticas</summary><dl>{advancedMetrics(mode, selectedRow).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></details> : null}
           {selectedProfileHref ? <a className="directory-rank-profile-link" href={selectedProfileHref}>Abrir perfil completo <ExternalLink size={14} /></a> : null}
-        </section>
-      </div> : null}
+      </Dialog> : null}
     </section>
   )
 }

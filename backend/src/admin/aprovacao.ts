@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../shared/supabase-admin'
+import { isPublicDirectoryRow } from '../shared/public-visibility'
 
 export type AprovacaoStatus = 'pendente' | 'aprovado' | 'rejeitado'
 
@@ -26,7 +27,7 @@ export async function getCampeonatoAprovacao(campeonatoId: string): Promise<Apro
     .maybeSingle()
   if (error) throw error
   if (!data) throw new Error('Campeonato não encontrado.')
-  if (data.deleted_at || data.status === 'excluido') throw new Error('Campeonato indisponível.')
+  if (!isPublicDirectoryRow({ status: data.status, deleted_at: data.deleted_at })) throw new Error('Campeonato indisponível.')
   return (data.aprovacao_status as AprovacaoStatus) || 'pendente'
 }
 

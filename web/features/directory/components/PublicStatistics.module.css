@@ -1,0 +1,4 @@
+.statistics :global(.champ-stats-filters) label > span,
+.statistics :global(.champ-stats-filters-mobile) label > span {
+  color: var(--profile-muted, #b1c1cf);
+}

@@ -1,11 +1,14 @@
 'use client'
 
-import { ChevronRight, CirclePlus, Flame, Heart, Search, ShoppingCart, SlidersHorizontal, Ticket, Users, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
-import { addToCart, getCartItems, getWishlistItems, removeFromCart, toggleWishlist, type LocalCommerceItem } from '@/features/commerce/local-commerce'
-import { supabase } from '@/lib/supabase-browser'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
+import { Heart, Search, ShoppingCart, SlidersHorizontal, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ChampionshipListRow } from '@/components/championship'
+import { EntityListRow } from '@/components/entities'
+import { championshipCommerceItem, useCommerce, type LocalCommerceItem } from '@/features/commerce'
 import { cachedStorageMediaUrl } from '@/lib/upload-public'
 import type { DirectoryItem } from '../types'
+import { registrationPriceLabel } from '@/lib/registration-price'
 
 function getMetaLabels(items: DirectoryItem[]) {
   const labels: string[] = []
@@ -22,50 +25,39 @@ function getMetaValue(item: DirectoryItem, label: string) {
   return item.meta?.find((meta) => meta.label === label)?.value || '—'
 }
 
-function money(value: unknown) {
+function prizeLabel(value: unknown) {
   const number = Number(value)
-  if (!Number.isFinite(number) || number <= 0) return 'Grátis'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
+  if (!Number.isFinite(number) || number <= 0) return '—'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(number)
 }
 
-function registrationPriceLabel(value: unknown) {
-  if (value == null || String(value).trim() === '') return 'Sob consulta'
+function dateLabel(value: unknown) {
+  const raw = String(value || '').trim()
+  if (!raw) return 'A confirmar'
+  const date = new Date(raw.length === 10 ? `${raw}T12:00:00` : raw)
+  if (Number.isNaN(date.getTime())) return 'A confirmar'
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
+}
+
+function numericAmount(value: unknown): number | null {
+  if (value == null || String(value).trim() === '') return null
   const number = Number(value)
-  if (!Number.isFinite(number)) return 'Sob consulta'
-  if (number <= 0) return 'Grátis'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number)
+  return Number.isFinite(number) && number >= 0 ? number : null
 }
 
 function moneyNumber(value: unknown) {
-  const number = Number(value)
-  return Number.isFinite(number) && number > 0 ? number : 0
-}
-
-function nextGameLabel(value: unknown) {
-  const raw = String(value || '').trim()
-  if (!raw) return 'Data a confirmar'
-  const date = new Date(raw.length === 10 ? `${raw}T12:00:00` : raw)
-  if (Number.isNaN(date.getTime())) return 'Data a confirmar'
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-}
-
-function shortDateLabel(value: unknown) {
-  const raw = String(value || '').trim()
-  if (!raw) return ''
-  const date = new Date(raw.length === 10 ? `${raw}T12:00:00` : raw)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  return numericAmount(value) ?? 0
 }
 
 function championshipFormat(item: DirectoryItem) {
   const format = getMetaValue(item, 'Formato')
   if (format !== '—') return format
   const type = getMetaValue(item, 'Tipo')
-  return type !== '—' ? type : 'Competição'
+  return type !== '—' ? type : item.eyebrow || 'Competição'
 }
 
-function commerceItemFromDirectory(item: DirectoryItem): LocalCommerceItem {
-  return {
+function commerceItemFromDirectory(item: DirectoryItem, sellerManagerId?: string | null): LocalCommerceItem {
+  return championshipCommerceItem({
     id: item.id,
     name: item.name,
     href: `/${item.kind}/${item.id}`,
@@ -73,38 +65,7 @@ function commerceItemFromDirectory(item: DirectoryItem): LocalCommerceItem {
     banner: item.banner,
     price: moneyNumber(item.commercial?.valor_inscricao),
     freeSlots: Number(item.commercial?.vagas_livres ?? 0),
-  }
-}
-
-function optimisticCartAdd(current: LocalCommerceItem[], item: DirectoryItem) {
-  const nextItem = commerceItemFromDirectory(item)
-  const existing = current.find((row) => row.id === item.id)
-  if (!existing) return [...current, { ...nextItem, quantity: 1 }]
-  const max = Math.max(1, Number(existing.freeSlots || nextItem.freeSlots || 99))
-  return current.map((row) => row.id === item.id
-    ? { ...row, quantity: Math.min(max, Number(row.quantity || 1) + 1) }
-    : row)
-}
-
-function optimisticWishlistToggle(current: LocalCommerceItem[], item: DirectoryItem) {
-  const exists = current.some((row) => row.id === item.id)
-  if (exists) return current.filter((row) => row.id !== item.id)
-  return [{ ...commerceItemFromDirectory(item), quantity: 1 }, ...current]
-}
-
-function commerceItemFromApi(row: any): LocalCommerceItem {
-  const campeonato = Array.isArray(row?.campeonato) ? row.campeonato[0] : row?.campeonato
-  return {
-    id: String(row?.campeonato_id || campeonato?.id || row?.id || ''),
-    name: String(campeonato?.nome || row?.name || 'Campeonato'),
-    href: `/campeonatos/${row?.campeonato_id || campeonato?.id || ''}`,
-    image: campeonato?.logo_url || null,
-    banner: campeonato?.banner_url || null,
-    price: Number(row?.preco_unitario_centavos || 0) / 100 || Number(campeonato?.valor_inscricao || 0),
-    freeSlots: Number(campeonato?.vagas_livres || 0),
-    quantity: Number(row?.quantidade || 1),
-    itemId: row?.id,
-  } as LocalCommerceItem & { itemId?: string }
+  }, sellerManagerId ? { origin: 'vendedor', sellerManagerId } : undefined)
 }
 
 function isToday(value: unknown) {
@@ -124,9 +85,10 @@ type UserCompetitionPurchase = {
   claim_url?: string | null
 }
 
-type MarketSort = 'soon' | 'prize' | 'price' | 'vacancies'
+type MarketSort = 'soon' | 'prize' | 'price' | 'price-high' | 'vacancies'
 
 type ChampFilters = {
+  type: string
   openVacancies: boolean
   today: boolean
   free: boolean
@@ -134,11 +96,17 @@ type ChampFilters = {
   live: boolean
   withPrize: boolean
   mine: boolean
+  favorites: boolean
+  minPrice: string
   maxPrice: string
   minPrize: string
+  maxPrize: string
+  platform: string
+  server: string
 }
 
 const emptyChampFilters: ChampFilters = {
+  type: '',
   openVacancies: false,
   today: false,
   free: false,
@@ -146,316 +114,230 @@ const emptyChampFilters: ChampFilters = {
   live: false,
   withPrize: false,
   mine: false,
+  favorites: false,
+  minPrice: '',
   maxPrice: '',
   minPrize: '',
+  maxPrize: '',
+  platform: '',
+  server: '',
 }
 
 function hasChampFilters(filters: ChampFilters) {
-  return filters.openVacancies || filters.today || filters.free || filters.lastVacancies || filters.live || filters.withPrize || filters.mine || filters.maxPrice || filters.minPrize
+  return Boolean(
+    filters.type || filters.openVacancies
+    || filters.today
+    || filters.free
+    || filters.lastVacancies
+    || filters.live
+    || filters.withPrize
+    || filters.mine
+    || filters.favorites
+    || filters.minPrice
+    || filters.maxPrice
+    || filters.minPrize
+    || filters.maxPrize
+    || filters.platform
+    || filters.server,
+  )
 }
 
-function filterChampionships(items: DirectoryItem[], filters: ChampFilters, myChampionshipIds: Set<string>) {
+function filterChampionships(
+  items: DirectoryItem[],
+  filters: ChampFilters,
+  myChampionshipIds: Set<string>,
+  wishlistIds: Set<string>,
+  producerScopeId: string,
+  sellerScopeId: string,
+  sellerAllowedIds: Set<string> | null,
+) {
+  const minPrice = filters.minPrice ? Number(filters.minPrice) : null
   const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : null
   const minPrize = filters.minPrize ? Number(filters.minPrize) : null
+  const maxPrize = filters.maxPrize ? Number(filters.maxPrize) : null
+  const platform = filters.platform.trim().toLowerCase()
+  const server = filters.server.trim().toLowerCase()
+
   return items.filter((item) => {
-    const price = moneyNumber(item.commercial?.valor_inscricao)
-    const prize = moneyNumber(item.commercial?.premiacao)
-    const free = Number(item.commercial?.vagas_livres ?? 0)
+    const price = numericAmount(item.commercial?.valor_inscricao)
+    const prize = numericAmount(item.commercial?.premiacao)
+    const freeSlots = Number(item.commercial?.vagas_livres ?? 0)
+    if (filters.type && String(item.commercial?.tipo || item.eyebrow || '').trim().toLowerCase() !== filters.type) return false
+
+    if (producerScopeId && String(item.producerId || '') !== producerScopeId) return false
+    if (sellerScopeId && (!sellerAllowedIds || !sellerAllowedIds.has(item.id))) return false
     if (filters.mine && !myChampionshipIds.has(item.id)) return false
-    if (filters.openVacancies && free <= 0) return false
+    if (filters.favorites && !wishlistIds.has(item.id)) return false
+    if (filters.openVacancies && freeSlots <= 0) return false
     if (filters.today && !isToday(item.commercial?.data_jogo || item.commercial?.data_limite_inscricao)) return false
-    if (filters.free && !(item.commercial?.valor_inscricao != null && Number(item.commercial.valor_inscricao) <= 0)) return false
-    if (filters.lastVacancies && !(free > 0 && free <= 3)) return false
+    if (filters.free && price !== 0) return false
+    if (filters.lastVacancies && !(freeSlots > 0 && freeSlots <= 3)) return false
     if (filters.live && !item.commercial?.tem_live) return false
-    if (filters.withPrize && prize <= 0) return false
-    if (maxPrice != null && Number.isFinite(maxPrice) && price > maxPrice) return false
-    if (minPrize != null && Number.isFinite(minPrize) && prize < minPrize) return false
+    if (filters.withPrize && !(prize != null && prize > 0)) return false
+    if ((minPrice != null && Number.isFinite(minPrice)) || (maxPrice != null && Number.isFinite(maxPrice))) {
+      if (price == null) return false
+      if (minPrice != null && Number.isFinite(minPrice) && price < minPrice) return false
+      if (maxPrice != null && Number.isFinite(maxPrice) && price > maxPrice) return false
+    }
+    if ((minPrize != null && Number.isFinite(minPrize)) || (maxPrize != null && Number.isFinite(maxPrize))) {
+      if (prize == null) return false
+      if (minPrize != null && Number.isFinite(minPrize) && prize < minPrize) return false
+      if (maxPrize != null && Number.isFinite(maxPrize) && prize > maxPrize) return false
+    }
+    if (platform && String(item.commercial?.plataforma || '').trim().toLowerCase() !== platform) return false
+    if (server && String(item.commercial?.servidor || '').trim().toLowerCase() !== server) return false
     return true
   })
 }
 
-function ChampionshipCards({
-  items,
-  participatingChampionshipIds,
-  followHrefByChampionship,
-  purchaseByChampionship,
-  wishlistIds,
-  cartIds,
-  pendingWishlistIds,
-  pendingCartIds,
-  onCartToggle,
-  onWishlistToggle,
-}: {
-  items: DirectoryItem[]
-  participatingChampionshipIds: Set<string>
-  followHrefByChampionship: Map<string, string>
-  purchaseByChampionship: Map<string, UserCompetitionPurchase>
-  wishlistIds: Set<string>
-  cartIds: Set<string>
-  pendingWishlistIds: Set<string>
-  pendingCartIds: Set<string>
-  onCartToggle: (item: DirectoryItem) => void
-  onWishlistToggle: (item: DirectoryItem) => void
-}) {
-  return (
-    <div className="directory-champ-card-grid">
-      {items.map((item) => {
-        const free = Number(item.commercial?.vagas_livres ?? 0)
-        const price = moneyNumber(item.commercial?.valor_inscricao)
-        const hasPrize = Number(item.commercial?.premiacao || 0) > 0
-        const isParticipating = participatingChampionshipIds.has(item.id)
-        const purchase = purchaseByChampionship.get(item.id)
-        const followHref = followHrefByChampionship.get(item.id) || '/?painel=1'
-        const isInCart = cartIds.has(item.id)
-        const coverUrl = cachedStorageMediaUrl(item.banner || item.image || '')
-        const championshipHref = `/${item.kind}/${item.id}`
-        const buyHref = `${championshipHref}?comprar=1`
-        const deadlineLabel = shortDateLabel(item.commercial?.data_limite_inscricao)
-        const formatLabel = championshipFormat(item)
-        const openChampionship = (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => {
-          const target = event.target as HTMLElement
-          if (target.closest('a,button,input,select,textarea,label')) return
-          if ('key' in event && event.key !== 'Enter' && event.key !== ' ') return
-          if ('key' in event) event.preventDefault()
-          window.location.assign(championshipHref)
-        }
-        return (
-          <article
-            className="directory-champ-card"
-            key={item.id}
-            tabIndex={0}
-            role="link"
-            aria-label={`Abrir campeonato ${item.name}`}
-            onClick={openChampionship}
-            onKeyDown={openChampionship}
-          >
-            <a
-              className="directory-champ-cover"
-              href={championshipHref}
-              aria-label={`Abrir ${item.name}`}
-            >
-              <span className="directory-champ-cover-empty" aria-hidden="true">
-                {coverUrl ? <img src={coverUrl} alt="" loading="lazy" decoding="async" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}
-              </span>
-              <span className="directory-champ-badges">
-                {free > 0 ? <b><Ticket size={11} /> {free} vaga{free === 1 ? '' : 's'}</b> : <b className="is-full">Sem vagas</b>}
-                {free > 0 && free <= 3 ? <b><Flame size={11} /> Últimas vagas</b> : null}
-              </span>
-            </a>
-            <div className="directory-champ-body">
-              <div className="directory-champ-title-row">
-                <a className="directory-champ-title" href={championshipHref}>
-                  <small>{formatLabel}</small>
-                  <strong>{item.name}</strong>
-                  {item.producerName ? <em>por {item.producerName}</em> : null}
-                </a>
-                <span className="directory-champ-quick-actions">
-                  <button
-                    type="button"
-                    className={`directory-champ-wish ${wishlistIds.has(item.id) ? 'active' : ''}`}
-                    aria-label={wishlistIds.has(item.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                    aria-pressed={wishlistIds.has(item.id)}
-                    disabled={pendingWishlistIds.has(item.id)}
-                    onClick={() => onWishlistToggle(item)}
-                  >
-                    <Heart size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`directory-champ-cart-icon ${isInCart ? 'active' : ''}`}
-                    aria-label={isInCart ? 'Remover do carrinho' : 'Adicionar ao carrinho'}
-                    aria-pressed={isInCart}
-                    disabled={(free <= 0 && !isInCart) || pendingCartIds.has(item.id)}
-                    onClick={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      onCartToggle(item)
-                    }}
-                  >
-                    <ShoppingCart size={17} />
-                  </button>
-                </span>
-              </div>
-              {isParticipating ? <span className="directory-champ-participating"><Users size={12} /> Você já participa</span> : purchase ? <span className="directory-champ-participating is-purchased"><Ticket size={12} /> Vaga comprada · falta concluir entrada</span> : null}
-              <div className="directory-champ-facts">
-                <span><b>{registrationPriceLabel(item.commercial?.valor_inscricao)}</b><small>por vaga</small></span>
-                <span><b>{free}</b><small>livres</small></span>
-                {hasPrize ? <span><b>{money(item.commercial?.premiacao)}</b><small>prêmio</small></span> : null}
-              </div>
-              <div className="directory-champ-next-game">
-                <span>Próximo jogo <b>{nextGameLabel(item.commercial?.data_jogo)}</b></span>
-                {deadlineLabel ? <span>Inscrições até <b>{deadlineLabel}</b></span> : null}
-              </div>
-              <div className="directory-champ-vacancy">
-                <small>{free > 0 ? `${free} de ${item.commercial?.total_vagas || 0} vagas disponíveis` : 'Inscrições sem vagas disponíveis agora'}</small>
-              </div>
-              <div className="directory-champ-actions">
-                <a className="directory-champ-details-link" href={championshipHref}>Detalhes <ChevronRight size={14} /></a>
-                {isParticipating
-                  ? <a className="directory-champ-cart-action" href={followHref}>Acompanhar <ChevronRight size={14} /></a>
-                  : purchase?.claim_url
-                    ? <a className="directory-champ-cart-action" href={purchase.claim_url}>Concluir entrada <ChevronRight size={14} /></a>
-                    : free > 0
-                      ? <a className="directory-champ-cart-action" href={price > 0 ? buyHref : championshipHref}>{price > 0 ? 'Comprar vaga' : 'Ver inscrição'} <ChevronRight size={14} /></a>
-                      : <span className="directory-champ-cart-action is-disabled">Sem vagas</span>}
-              </div>
-            </div>
-          </article>
-        )
-      })}
-    </div>
-  )
+function uniqueOptions(items: DirectoryItem[], field: 'plataforma' | 'servidor') {
+  return Array.from(new Set(items.map((item) => String(item.commercial?.[field] || '').trim()).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
 }
 
-export function DirectoryListClient({ items, kind, cardsOnly = false }: { items: DirectoryItem[]; kind?: DirectoryItem['kind']; cardsOnly?: boolean }) {
+export function DirectoryListClient({ items, kind }: { items: DirectoryItem[]; kind?: DirectoryItem['kind'] }) {
   const [query, setQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(24)
+  const [entitySort, setEntitySort] = useState<'az' | 'za'>('az')
   const [champFilters, setChampFilters] = useState<ChampFilters>(emptyChampFilters)
   const [myChampionshipIds, setMyChampionshipIds] = useState<Set<string>>(new Set())
   const [participatingChampionshipIds, setParticipatingChampionshipIds] = useState<Set<string>>(new Set())
-  const [followHrefByChampionship, setFollowHrefByChampionship] = useState<Map<string, string>>(new Map())
   const [purchaseByChampionship, setPurchaseByChampionship] = useState<Map<string, UserCompetitionPurchase>>(new Map())
   const [sortMode, setSortMode] = useState<MarketSort>('soon')
-  const [cartItems, setCartItems] = useState<LocalCommerceItem[]>([])
-  const [wishlistItems, setWishlistItems] = useState<LocalCommerceItem[]>([])
-  const [accessToken, setAccessToken] = useState<string | null>(null)
-  const [commerceError, setCommerceError] = useState('')
-  const [pendingCartIds, setPendingCartIds] = useState<Set<string>>(new Set())
-  const [pendingWishlistIds, setPendingWishlistIds] = useState<Set<string>>(new Set())
-  const [canCreateChampionship, setCanCreateChampionship] = useState(false)
-  const [authenticated, setAuthenticated] = useState(false)
-  const isChampionshipDirectory = cardsOnly || kind === 'campeonatos' || items[0]?.kind === 'campeonatos'
-
-  const refreshRemoteCart = useCallback(async (token: string): Promise<LocalCommerceItem[]> => {
-    const response = await fetch('/api/me/commerce/cart', {
-      cache: 'no-store',
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => null)
-    const payload = response?.ok ? await response.json().catch(() => null) : null
-    const remoteItems = Array.isArray(payload?.items)
-      ? payload.items.map(commerceItemFromApi).filter((item: LocalCommerceItem) => item.id)
-      : null
-    if (remoteItems) setCartItems(remoteItems)
-    return remoteItems || []
-  }, [])
-
-  useEffect(() => {
-    if (!isChampionshipDirectory) return
-    const refresh = () => {
-      setCartItems(getCartItems())
-      setWishlistItems(getWishlistItems())
-    }
-    refresh()
-    window.addEventListener('storage', refresh)
-    window.addEventListener('dropzone:commerce-updated', refresh)
-    return () => {
-      window.removeEventListener('storage', refresh)
-      window.removeEventListener('dropzone:commerce-updated', refresh)
-    }
-  }, [isChampionshipDirectory])
+  const [producerScopeId, setProducerScopeId] = useState('')
+  const [sellerScopeId, setSellerScopeId] = useState('')
+  const [sellerAllowedIds, setSellerAllowedIds] = useState<Set<string> | null>(null)
+  const [scopeLabel, setScopeLabel] = useState('')
+  const [scopeLoading, setScopeLoading] = useState(false)
+  const [scopeError, setScopeError] = useState('')
+  const isChampionshipDirectory = kind === 'campeonatos' || items[0]?.kind === 'campeonatos'
+  const {
+    wishlistItems,
+    cartIds,
+    wishlistIds,
+    pendingCartIds,
+    pendingWishlistIds,
+    accessToken,
+    authenticated,
+    error: commerceError,
+    cartQuantity,
+    toggleCart,
+    toggleWishlist,
+  } = useCommerce()
 
   useEffect(() => {
     if (!isChampionshipDirectory) return
     const params = new URLSearchParams(window.location.search)
     const initialQuery = String(params.get('q') || '').trim()
+    const producerId = String(params.get('produtora') || '').trim()
+    const sellerId = String(params.get('vendedor') || '').trim()
+
     if (initialQuery) setQuery(initialQuery)
+    const rawType = String(params.get('tipo') || '').trim().toLowerCase()
+    const type = ({ sala: 'diario', x1: 'confronto' } as Record<string, string>)[rawType] || rawType
+    if (['diario', 'copa', 'liga', 'xtreino', 'confronto'].includes(type)) setChampFilters(current => ({ ...current, type }))
     if (params.get('vagas') === '1') setChampFilters((current) => ({ ...current, openVacancies: true }))
     if (params.get('meus') === '1') setChampFilters((current) => ({ ...current, mine: true }))
+    if (params.get('favoritos') === '1') setChampFilters((current) => ({ ...current, favorites: true }))
     if (params.get('gratis') === '1') setChampFilters((current) => ({ ...current, free: true }))
     if (params.get('hoje') === '1') setChampFilters((current) => ({ ...current, today: true }))
     if (params.get('ultimas') === '1') setChampFilters((current) => ({ ...current, lastVacancies: true }))
+    if (params.get('live') === '1') setChampFilters((current) => ({ ...current, live: true }))
+    if (params.get('premio') === '1') setChampFilters((current) => ({ ...current, withPrize: true }))
+    if (params.get('plataforma')) setChampFilters((current) => ({ ...current, platform: String(params.get('plataforma')) }))
+    if (params.get('servidor')) setChampFilters((current) => ({ ...current, server: String(params.get('servidor')) }))
+
     const order = params.get('ordem')
     if (order === 'premio') setSortMode('prize')
     if (order === 'preco') setSortMode('price')
+    if (order === 'preco-maior') setSortMode('price-high')
     if (order === 'vagas') setSortMode('vacancies')
-  }, [isChampionshipDirectory])
+
+    setProducerScopeId(producerId)
+    setSellerScopeId(sellerId)
+    setScopeError('')
+
+    if (producerId) {
+      const producer = items.find((item) => String(item.producerId || '') === producerId)
+      setScopeLabel(producer?.producerName || 'Produtora selecionada')
+    } else if (!sellerId) {
+      setScopeLabel('')
+    }
+
+    if (!sellerId) {
+      setSellerAllowedIds(null)
+      setScopeLoading(false)
+      return
+    }
+
+    let alive = true
+    setScopeLoading(true)
+    setSellerAllowedIds(new Set())
+    void fetch(`/api/vagas?vendedor=${encodeURIComponent(sellerId)}`, { cache: 'no-store' })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar o catálogo do vendedor.')
+        if (!alive) return
+        setSellerAllowedIds(new Set((payload.announcements || []).map((item: any) => String(item.id || '')).filter(Boolean)))
+        setScopeLabel(String(payload.scope?.nome || 'Vendedor selecionado'))
+      })
+      .catch((cause: any) => {
+        if (!alive) return
+        setSellerAllowedIds(new Set())
+        setScopeError(cause?.message || 'Não foi possível carregar o catálogo do vendedor.')
+      })
+      .finally(() => {
+        if (alive) setScopeLoading(false)
+      })
+
+    return () => { alive = false }
+  }, [isChampionshipDirectory, items])
 
   useEffect(() => {
     if (!isChampionshipDirectory) return
+    if (!accessToken) {
+      setParticipatingChampionshipIds(new Set())
+      setPurchaseByChampionship(new Map())
+      setMyChampionshipIds(new Set())
+      return
+    }
     let alive = true
-    void supabase.auth.getSession().then(async ({ data }) => {
-      const accessToken = data.session?.access_token
-      setAuthenticated(Boolean(accessToken))
-      if (!accessToken) return
-      setAccessToken(accessToken)
-      const localCart = getCartItems()
-      const [cartResponse, wishlistResponse, meResponse, journeyResponse] = await Promise.all([
-        fetch('/api/me/commerce/cart', {
-          cache: 'no-store',
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }).catch(() => null),
-        fetch('/api/me/commerce/wishlist', {
-          cache: 'no-store',
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }).catch(() => null),
-        fetch('/api/me', {
-          cache: 'no-store',
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }).catch(() => null),
-        fetch('/api/me/competicoes', {
-          cache: 'no-store',
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }).catch(() => null),
-      ])
-      const cartPayload = cartResponse?.ok ? await cartResponse.json().catch(() => null) : null
-      const wishlistPayload = wishlistResponse?.ok ? await wishlistResponse.json().catch(() => null) : null
-      const mePayload = meResponse?.ok ? await meResponse.json().catch(() => null) : null
+    void fetch('/api/me/competicoes', { cache: 'no-store', headers: { Authorization: `Bearer ${accessToken}` } }).catch(() => null).then(async (journeyResponse) => {
       const journeyPayload = journeyResponse?.ok ? await journeyResponse.json().catch(() => null) : null
-      const remoteCartIds = new Set((cartPayload?.items || []).map((item: any) => String(item?.campeonato_id || '')))
-      const localItemsToSync = localCart.filter((item) => !remoteCartIds.has(item.id))
-      if (localItemsToSync.length) {
-        await Promise.all(localItemsToSync.map((item) => fetch('/api/me/commerce/cart', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campeonato_id: item.id, quantidade: item.quantity || 1, origem: 'direto' }),
-        }).catch(() => null)))
-      }
-      if (alive) {
-        if (localItemsToSync.length) await refreshRemoteCart(accessToken)
-        else if (cartPayload?.items) setCartItems(cartPayload.items.map(commerceItemFromApi).filter((item: LocalCommerceItem) => item.id))
-        setCanCreateChampionship((mePayload?.accounts || []).some((account: any) => account?.profile_type === 'produtora'))
-      }
-      if (wishlistPayload?.items && alive) setWishlistItems(wishlistPayload.items.map(commerceItemFromApi).filter((item: LocalCommerceItem) => item.id))
       if (!alive) return
       const teamJourney = journeyPayload?.team || []
       const playerJourney = journeyPayload?.player || []
       const participating = new Set<string>([...teamJourney, ...playerJourney].map((row: any) => String(row.campeonato_id || '')).filter(Boolean))
-      const followHrefs = new Map<string, string>()
-      for (const row of teamJourney) {
-        const championshipId = String(row.campeonato_id || '')
-        const teamId = String(row.equipe_id || '')
-        if (championshipId && teamId && !followHrefs.has(championshipId)) {
-          followHrefs.set(championshipId, `/?painel=1&perfil=equipe&perfil_id=${encodeURIComponent(teamId)}&section=campeonatos`)
-        }
-      }
-      for (const row of playerJourney) {
-        const championshipId = String(row.campeonato_id || '')
-        const playerId = String(row.jogador_id || '')
-        if (championshipId && playerId && !followHrefs.has(championshipId)) {
-          followHrefs.set(championshipId, `/?painel=1&perfil=jogador&perfil_id=${encodeURIComponent(playerId)}&section=competicoes`)
-        }
-      }
       const purchases = new Map<string, UserCompetitionPurchase>()
       for (const row of journeyPayload?.purchases || []) {
         const championshipId = String(row.campeonato_id || '')
         if (championshipId && !purchases.has(championshipId)) purchases.set(championshipId, row)
       }
       setParticipatingChampionshipIds(participating)
-      setFollowHrefByChampionship(followHrefs)
       setPurchaseByChampionship(purchases)
       setMyChampionshipIds(new Set<string>([...participating, ...purchases.keys()]))
     })
     return () => { alive = false }
-  }, [isChampionshipDirectory, refreshRemoteCart])
+  }, [accessToken, isChampionshipDirectory])
 
   const filtered = useMemo(() => {
     const clean = query.trim().toLowerCase()
     const queryItems = clean ? items.filter((item) => item.searchText.includes(clean)) : items
-    if (!isChampionshipDirectory) return queryItems
+    if (!isChampionshipDirectory) return [...queryItems].sort((a, b) => entitySort === 'az'
+      ? a.name.localeCompare(b.name, 'pt-BR')
+      : b.name.localeCompare(a.name, 'pt-BR'))
 
-    return filterChampionships(queryItems, champFilters, myChampionshipIds)
+    return filterChampionships(queryItems, champFilters, myChampionshipIds, wishlistIds, producerScopeId, sellerScopeId, sellerAllowedIds)
       .sort((a, b) => {
         if (sortMode === 'prize') return moneyNumber(b.commercial?.premiacao) - moneyNumber(a.commercial?.premiacao) || a.name.localeCompare(b.name, 'pt-BR')
-        if (sortMode === 'price') return moneyNumber(a.commercial?.valor_inscricao) - moneyNumber(b.commercial?.valor_inscricao) || a.name.localeCompare(b.name, 'pt-BR')
+        if (sortMode === 'price' || sortMode === 'price-high') {
+          const aPrice = numericAmount(a.commercial?.valor_inscricao)
+          const bPrice = numericAmount(b.commercial?.valor_inscricao)
+          if (aPrice == null && bPrice != null) return 1
+          if (aPrice != null && bPrice == null) return -1
+          if (aPrice != null && bPrice != null && aPrice !== bPrice) return sortMode === 'price' ? aPrice - bPrice : bPrice - aPrice
+          return a.name.localeCompare(b.name, 'pt-BR')
+        }
         if (sortMode === 'vacancies') return Number(b.commercial?.vagas_livres || 0) - Number(a.commercial?.vagas_livres || 0) || a.name.localeCompare(b.name, 'pt-BR')
         const aFree = Number(a.commercial?.vagas_livres || 0)
         const bFree = Number(b.commercial?.vagas_livres || 0)
@@ -464,192 +346,182 @@ export function DirectoryListClient({ items, kind, cardsOnly = false }: { items:
         const bDate = String(b.commercial?.data_jogo || '9999-12-31')
         return aDate.localeCompare(bDate) || a.name.localeCompare(b.name, 'pt-BR')
       })
-  }, [champFilters, isChampionshipDirectory, items, myChampionshipIds, query, sortMode])
+  }, [champFilters, entitySort, isChampionshipDirectory, items, myChampionshipIds, producerScopeId, query, sellerAllowedIds, sellerScopeId, sortMode, wishlistIds])
+
+  useEffect(() => { setVisibleCount(24) }, [filtered])
 
   const metaLabels = useMemo(() => getMetaLabels(items), [items])
-  const wishlistIds = useMemo(() => new Set(wishlistItems.map((item) => item.id)), [wishlistItems])
-  const cartIds = useMemo(() => new Set(cartItems.map((item) => item.id)), [cartItems])
-  const cartQuantity = cartItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0)
-  const toggleChampFilter = (key: keyof Pick<ChampFilters, 'openVacancies' | 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine'>) => {
+  const platformOptions = useMemo(() => uniqueOptions(items, 'plataforma'), [items])
+  const serverOptions = useMemo(() => uniqueOptions(items, 'servidor'), [items])
+  const toggleChampFilter = (key: keyof Pick<ChampFilters, 'openVacancies' | 'today' | 'free' | 'lastVacancies' | 'live' | 'withPrize' | 'mine' | 'favorites'>) => {
     setChampFilters((current) => ({ ...current, [key]: !current[key] }))
   }
-  const handleCartToggle = async (item: DirectoryItem) => {
-    if (pendingCartIds.has(item.id)) return
-    const wasInCart = cartItems.some((row) => row.id === item.id)
-    const previous = cartItems
-    setCommerceError('')
-    setPendingCartIds((current) => new Set(current).add(item.id))
-    setCartItems((current) => wasInCart ? current.filter((row) => row.id !== item.id) : optimisticCartAdd(current, item))
-
-    if (!accessToken) {
-      setCartItems(wasInCart ? removeFromCart(item.id) : addToCart(commerceItemFromDirectory(item), 1))
-      setPendingCartIds((current) => {
-        const next = new Set(current)
-        next.delete(item.id)
-        return next
-      })
-      return
-    }
-
-    const response = await fetch(
-      wasInCart ? `/api/me/commerce/cart?campeonato_id=${encodeURIComponent(item.id)}` : '/api/me/commerce/cart',
-      {
-        method: wasInCart ? 'DELETE' : 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        ...(wasInCart ? {} : { body: JSON.stringify({ campeonato_id: item.id, quantidade: 1, origem: 'direto' }) }),
-      },
-    ).catch(() => null)
-    const payload = response ? await response.json().catch(() => null) : null
-    if (!response?.ok) {
-      setCartItems(previous)
-      setCommerceError(payload?.error || 'Não foi possível atualizar o carrinho. Tente novamente.')
-    } else {
-      void refreshRemoteCart(accessToken)
-    }
-    setPendingCartIds((current) => {
-      const next = new Set(current)
-      next.delete(item.id)
-      return next
-    })
+  const handleCartToggle = (item: DirectoryItem) => {
+    const sellerManagerId = sellerScopeId || null
+    const origin = sellerManagerId ? 'vendedor' : 'direto'
+    void toggleCart(commerceItemFromDirectory(item, sellerManagerId), { origin, sellerManagerId })
+  }
+  const handleWishlistToggle = (item: DirectoryItem) => {
+    const origin = sellerScopeId ? 'vendedor' : 'direto'
+    void toggleWishlist(commerceItemFromDirectory(item, sellerScopeId || null), { origin })
   }
 
-  const handleWishlistToggle = async (item: DirectoryItem) => {
-    if (pendingWishlistIds.has(item.id)) return
-    const shouldFavorite = !wishlistItems.some((row) => row.id === item.id)
-    const previous = wishlistItems
-    setCommerceError('')
-    setPendingWishlistIds((current) => new Set(current).add(item.id))
-    setWishlistItems((current) => optimisticWishlistToggle(current, item))
-
-    if (!accessToken) {
-      setWishlistItems(toggleWishlist(commerceItemFromDirectory(item)))
-      setPendingWishlistIds((current) => {
-        const next = new Set(current)
-        next.delete(item.id)
-        return next
-      })
-      return
-    }
-
-    const response = await fetch('/api/me/commerce/wishlist', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campeonato_id: item.id, favorito: shouldFavorite, origem: 'direto' }),
-    }).catch(() => null)
-    const payload = response ? await response.json().catch(() => null) : null
-    if (!response?.ok) {
-      setWishlistItems(previous)
-      setCommerceError(payload?.error || 'Não foi possível atualizar os favoritos. Tente novamente.')
-    }
-    setPendingWishlistIds((current) => {
-      const next = new Set(current)
-      next.delete(item.id)
-      return next
-    })
-  }
   return (
     <>
-      {isChampionshipDirectory && !cardsOnly ? (
+      {isChampionshipDirectory ? (
         <>
-          <div className="champ-directory-tools">
-            <label className="directory-search">
-              <Search size={18} />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar campeonato, produtora ou formato"
-              />
-            </label>
-            <span className="directory-result-count"><strong>{filtered.length}</strong> campeonato{filtered.length === 1 ? '' : 's'}</span>
-            {canCreateChampionship ? <a className="directory-create-championship" href="/?painel=1&perfil=produtora&acao=criar-campeonato"><CirclePlus size={16} /> Criar campeonato</a> : null}
-            <a className="directory-market-cart-link" href="/carrinho" aria-label={`Abrir carrinho com ${cartQuantity} vagas`}><ShoppingCart size={18} /><b>{cartQuantity}</b></a>
-            <details className="directory-market-tool directory-wishlist-preview">
-              <summary aria-label="Favoritos"><Heart size={18} /><b>{wishlistItems.length}</b></summary>
-              <div>
-                {wishlistItems.length ? wishlistItems.slice(0, 6).map((item) => <a href={item.href} key={item.id}>{item.name}</a>) : <p>Nenhum favorito ainda.</p>}
+          <section className="championship-directory-controls" aria-label="Busca e filtros de campeonatos">
+            <div className="championship-directory-tools">
+              <label className="directory-search championship-directory-search">
+                <Search size={18} />
+                <UiInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, produtora, formato..." />
+              </label>
+              <a className="championship-directory-icon-link" href="/carrinho" aria-label={`Abrir carrinho com ${cartQuantity} vagas`}><ShoppingCart size={18} /><b>{cartQuantity}</b></a>
+              <details className="championship-directory-favorites">
+                <summary aria-label="Favoritos"><Heart size={18} /><b>{wishlistItems.length}</b></summary>
+                <div>{wishlistItems.length ? wishlistItems.slice(0, 8).map((item) => <a href={item.href} key={item.id}>{item.name}</a>) : <p>Nenhum favorito ainda.</p>}</div>
+              </details>
+            </div>
+
+            <div className="championship-directory-filterbar">
+              <div className="championship-directory-chips">
+                <button type="button" className={champFilters.openVacancies ? 'active' : ''} onClick={() => toggleChampFilter('openVacancies')}>Vagas abertas</button>
+                <button type="button" className={champFilters.today ? 'active' : ''} onClick={() => toggleChampFilter('today')}>Hoje</button>
+                <button type="button" className={champFilters.free ? 'active' : ''} onClick={() => toggleChampFilter('free')}>Grátis</button>
+                <button type="button" className={champFilters.lastVacancies ? 'active' : ''} onClick={() => toggleChampFilter('lastVacancies')}>Últimas vagas</button>
+                <button type="button" className={champFilters.withPrize ? 'active' : ''} onClick={() => toggleChampFilter('withPrize')}>Com premiação</button>
+                <button type="button" className={champFilters.live ? 'active' : ''} onClick={() => toggleChampFilter('live')}>Com transmissão</button>
+                {authenticated ? <button type="button" className={champFilters.mine ? 'active' : ''} onClick={() => toggleChampFilter('mine')}>Meus</button> : null}
+                <button type="button" className={champFilters.favorites ? 'active' : ''} onClick={() => toggleChampFilter('favorites')}>Favoritos</button>
               </div>
-            </details>
-          </div>
+
+              <label className="championship-directory-sort"><span>Ordenar</span><UiSelect value={sortMode} onChange={(event) => setSortMode(event.target.value as MarketSort)}><option value="soon">Próximos jogos</option><option value="vacancies">Mais vagas</option><option value="prize">Maior premiação</option><option value="price">Menor inscrição</option><option value="price-high">Maior inscrição</option></UiSelect></label>
+
+              <details className="championship-directory-more">
+                <summary><SlidersHorizontal size={15} /> Mais filtros</summary>
+                <div className="championship-directory-filter-fields">
+                  <label><span>Tipo de campeonato</span><UiSelect value={champFilters.type} onChange={event => setChampFilters(current => ({ ...current, type: event.target.value }))}><option value="">Todos</option><option value="copa">Copas</option><option value="liga">Ligas</option><option value="diario">Salas diárias</option><option value="xtreino">XTreino</option><option value="confronto">Confrontos / X1</option></UiSelect></label>
+                  <label><span>Inscrição mínima</span><UiInput inputMode="decimal" min="0" type="number" value={champFilters.minPrice} onChange={(event) => setChampFilters((current) => ({ ...current, minPrice: event.target.value }))} placeholder="R$ 0" /></label>
+                  <label><span>Inscrição máxima</span><UiInput inputMode="decimal" min="0" type="number" value={champFilters.maxPrice} onChange={(event) => setChampFilters((current) => ({ ...current, maxPrice: event.target.value }))} placeholder="R$" /></label>
+                  <label><span>Premiação mínima</span><UiInput inputMode="decimal" min="0" type="number" value={champFilters.minPrize} onChange={(event) => setChampFilters((current) => ({ ...current, minPrize: event.target.value }))} placeholder="R$ 0" /></label>
+                  <label><span>Premiação máxima</span><UiInput inputMode="decimal" min="0" type="number" value={champFilters.maxPrize} onChange={(event) => setChampFilters((current) => ({ ...current, maxPrize: event.target.value }))} placeholder="R$" /></label>
+                  <label><span>Plataforma</span><UiSelect value={champFilters.platform} onChange={(event) => setChampFilters((current) => ({ ...current, platform: event.target.value }))}><option value="">Todas</option>{platformOptions.map((option) => <option key={option} value={option}>{option}</option>)}</UiSelect></label>
+                  <label><span>Servidor</span><UiSelect value={champFilters.server} onChange={(event) => setChampFilters((current) => ({ ...current, server: event.target.value }))}><option value="">Todos</option>{serverOptions.map((option) => <option key={option} value={option}>{option}</option>)}</UiSelect></label>
+                  {hasChampFilters(champFilters) ? <button type="button" className="championship-directory-clear" onClick={() => setChampFilters(emptyChampFilters)}><X size={14} /> Limpar filtros</button> : null}
+                </div>
+              </details>
+            </div>
+
+            {scopeLabel || scopeError || scopeLoading ? (
+              <div className="championship-directory-scope" role="status">
+                <span>{scopeLoading ? 'Carregando seleção...' : scopeError || <>Mostrando campeonatos de <strong>{scopeLabel}</strong></>}</span>
+                {(producerScopeId || sellerScopeId) ? <a href="/campeonatos">Ver todos</a> : null}
+              </div>
+            ) : null}
+          </section>
 
           {commerceError ? <p className="directory-commerce-error" role="alert">{commerceError}</p> : null}
 
-          <div className="directory-market-filters" aria-label="Filtros de campeonatos">
-            <div className="directory-market-filter-chips">
-              <button type="button" className={champFilters.openVacancies ? 'active' : ''} onClick={() => toggleChampFilter('openVacancies')}>Vagas abertas</button>
-              <button type="button" className={champFilters.today ? 'active' : ''} onClick={() => toggleChampFilter('today')}>Hoje</button>
-              <button type="button" className={champFilters.free ? 'active' : ''} onClick={() => toggleChampFilter('free')}>Grátis</button>
-              <button type="button" className={champFilters.lastVacancies ? 'active' : ''} onClick={() => toggleChampFilter('lastVacancies')}>Últimas vagas</button>
-              {authenticated ? <button type="button" className={champFilters.mine ? 'active' : ''} onClick={() => toggleChampFilter('mine')}>Meus</button> : null}
-            </div>
-            <label className="directory-market-sort"><span>Ordenar</span><select value={sortMode} onChange={(event) => setSortMode(event.target.value as MarketSort)}><option value="soon">Próximos jogos</option><option value="vacancies">Mais vagas</option><option value="prize">Maior premiação</option><option value="price">Menor preço</option></select></label>
-            <details className="directory-market-more">
-              <summary><SlidersHorizontal size={15} /> Filtros</summary>
-              <div className="directory-market-filter-fields">
-                <label><span>Vaga até R$</span><input inputMode="decimal" min="0" type="number" value={champFilters.maxPrice} onChange={(event) => setChampFilters((current) => ({ ...current, maxPrice: event.target.value }))} placeholder="0" /></label>
-                <label><span>Prêmio mínimo</span><input inputMode="decimal" min="0" type="number" value={champFilters.minPrize} onChange={(event) => setChampFilters((current) => ({ ...current, minPrize: event.target.value }))} placeholder="R$" /></label>
-                <button type="button" className={champFilters.withPrize ? 'active' : ''} onClick={() => toggleChampFilter('withPrize')}>Com premiação</button>
-                <button type="button" className={champFilters.live ? 'active' : ''} onClick={() => toggleChampFilter('live')}>Com transmissão</button>
-                {hasChampFilters(champFilters) ? <button type="button" className="directory-market-clear" onClick={() => setChampFilters(emptyChampFilters)}><X size={14} /> Limpar filtros</button> : null}
+          {filtered.length ? (
+            <>
+              <div className="dz-market-section-title" id="campeonatos-lista">
+                <div><span className="dz-market-section-eyebrow">EXPLORE E PARTICIPE</span><h2>Campeonatos disponíveis</h2></div>
+                <span aria-live="polite">{filtered.length} resultado{filtered.length === 1 ? '' : 's'}</span>
               </div>
-            </details>
-          </div>
+              <div className={`directory-list championship-directory-list is-card-grid ${filtered.length <= 3 ? 'is-short-list' : ''}`}>
+                {filtered.slice(0, visibleCount).map((item) => {
+                  const free = item.commercial?.vagas_livres == null ? null : Math.max(0, Number(item.commercial.vagas_livres))
+                  const total = item.commercial?.total_vagas == null ? null : Math.max(0, Number(item.commercial.total_vagas))
+                  const hasCheckoutPrice = numericAmount(item.commercial?.valor_inscricao) != null
+                  const isParticipating = participatingChampionshipIds.has(item.id)
+                  const purchase = purchaseByChampionship.get(item.id)
+                  const href = `/${item.kind}/${item.id}`
+                  const imageUrl = cachedStorageMediaUrl(item.banner || item.image || '') || null
+                  const statusLabel = free == null ? 'Vagas a confirmar' : free > 0 && free <= 3 ? 'Últimas vagas' : free > 0 ? 'Vagas abertas' : 'Sem vagas'
+                  const participationLabel = isParticipating ? 'Você participa' : purchase ? 'Vaga comprada' : null
+                  const registrationLabel = registrationPriceLabel(item.commercial?.valor_inscricao)
+                  const rewardsLabel = prizeLabel(item.commercial?.premiacao)
+                  const nextDate = dateLabel(item.commercial?.data_jogo || item.commercial?.data_limite_inscricao)
+                    return (
+                      <ChampionshipListRow
+                        key={item.id}
+                        championship={{
+                          id: item.id,
+                          name: item.name,
+                          href,
+                          imageUrl,
+                          isBannerImage: Boolean(item.banner),
+                          producerLabel: item.producerName || 'Produtora DropZone',
+                          formatLabel: championshipFormat(item),
+                          freeSlots: free,
+                          totalSlots: total,
+                          statusLabel,
+                          participationLabel,
+                          priceLabel: registrationLabel,
+                          prizeLabel: rewardsLabel,
+                          nextDateLabel: nextDate,
+                        }}
+                        favorite={wishlistIds.has(item.id)}
+                        inCart={cartIds.has(item.id)}
+                        favoritePending={pendingWishlistIds.has(item.id)}
+                        cartPending={pendingCartIds.has(item.id)}
+                        cartDisabled={((free ?? 0) <= 0 || !hasCheckoutPrice) && !cartIds.has(item.id)}
+                        onFavorite={() => handleWishlistToggle(item)}
+                        onCart={() => handleCartToggle(item)}
+                      />
+                    )
+                })}
+              </div>
+              {filtered.length > visibleCount ? <button type="button" className="button secondary" onClick={() => setVisibleCount(count => count + 24)}>Mostrar mais campeonatos ({visibleCount} de {filtered.length})</button> : null}
+            </>
+          ) : <div className="directory-empty championship-directory-empty">Nenhum campeonato encontrado com esses filtros.</div>}
         </>
       ) : (
-        <div className="directory-toolbar">
-          <label className="directory-search">
-            <Search size={17} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nome, usuário, tag ou localidade..." />
-          </label>
-        </div>
-      )}
+        <>
+          <div className="directory-toolbar directory-v1-toolbar">
+            <label className="directory-search">
+              <Search size={17} aria-hidden="true" />
+              <UiInput value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Buscar perfis" placeholder="Buscar por nome, usuário, tag ou localidade..." />
+            </label>
+            <span className="directory-v1-results" role="status" aria-live="polite"><strong>{filtered.length}</strong> resultado{filtered.length === 1 ? '' : 's'}</span>
+            <label className="directory-v1-sort"><span>Ordenar</span>
+              <UiSelect value={entitySort} onChange={(event) => setEntitySort(event.target.value as 'az' | 'za')} aria-label="Ordenar resultados">
+                <option value="az">Nome A–Z</option>
+                <option value="za">Nome Z–A</option>
+              </UiSelect>
+            </label>
+          </div>
 
-      {filtered.length && !isChampionshipDirectory ? (
-        <div className="directory-list-head" aria-hidden="true">
-          <span className="directory-list-head-main">Perfil</span>
-          <span className="directory-list-head-meta">
-            {metaLabels.map((label) => (
-              <em key={label}>{label}</em>
+          {filtered.length ? (
+            <div className="dz-directory-table-head dz-directory-table-head--entity" aria-hidden="true">
+              <span>Perfil</span>
+              <span>Detalhes</span>
+              <span>{metaLabels[0] || 'Indicador 1'}</span>
+              <span>{metaLabels[1] || 'Indicador 2'}</span>
+              <span>{metaLabels[2] || 'Indicador 3'}</span>
+              <span>Abrir</span>
+            </div>
+          ) : null}
+
+          <div className={`directory-list directory-list-${items[0]?.kind || 'empty'} directory-list--table`}>
+            {filtered.map((item) => (
+              <EntityListRow
+                key={item.id}
+                kind={item.kind as 'equipes' | 'jogadores' | 'produtoras' | 'managers'}
+                href={`/${item.kind}/${item.id}`}
+                name={item.name}
+                image={item.image}
+                eyebrow={item.eyebrow}
+                username={item.username}
+                description={item.description}
+                meta={metaLabels.map((label) => ({ label, value: getMetaValue(item, label) }))}
+                className="dz-entity-row--table"
+              />
             ))}
-          </span>
-        </div>
-      ) : null}
-
-      {isChampionshipDirectory ? (
-        <ChampionshipCards
-          items={filtered}
-          participatingChampionshipIds={participatingChampionshipIds}
-          followHrefByChampionship={followHrefByChampionship}
-          purchaseByChampionship={purchaseByChampionship}
-          wishlistIds={wishlistIds}
-          cartIds={cartIds}
-          pendingWishlistIds={pendingWishlistIds}
-          pendingCartIds={pendingCartIds}
-          onCartToggle={handleCartToggle}
-          onWishlistToggle={handleWishlistToggle}
-        />
-      ) : (
-        <div className={`directory-list directory-list-${items[0]?.kind || 'empty'}`}>
-          {filtered.map((item) => (
-            <a className={`directory-list-row directory-list-row-${item.kind}`} href={`/${item.kind}/${item.id}`} key={item.id}>
-              <span className="directory-list-media">{item.image ? <img src={item.image} alt="" /> : <b>{item.name.slice(0, 2).toUpperCase()}</b>}</span>
-              <span className="directory-list-main">
-                <small>{item.eyebrow}</small>
-                <strong>{item.name}</strong>
-                <span>{item.username ? `@${item.username} · ` : ''}{item.description}</span>
-              </span>
-              <span className="directory-list-meta">
-                {metaLabels.map((label) => (
-                  <em key={label} data-label={label}>
-                    <b>{getMetaValue(item, label)}</b>
-                  </em>
-                ))}
-              </span>
-              <ChevronRight size={18} className="directory-list-arrow" />
-            </a>
-          ))}
-        </div>
+          </div>
+          {!filtered.length ? <div className="directory-empty">Nenhum resultado encontrado.</div> : null}
+        </>
       )}
-      {!filtered.length ? <div className="directory-empty">Nenhum resultado encontrado.</div> : null}
     </>
   )
 }

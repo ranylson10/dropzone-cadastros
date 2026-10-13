@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput } from '@/components/ui/Field'
 import { Plus, Trash2 } from 'lucide-react'
 import '@/features/campeonatos/rulebook/rulebook.css'
 import {
@@ -119,7 +120,7 @@ export function PremiacaoDivisaoEditor({
             <div key={item.id} className="premiacao-divisao-row">
               <label className="premiacao-divisao-field">
                 <span>Nome / colocação</span>
-                <input
+                <UiInput
                   type="text"
                   disabled={disabled}
                   value={item.nome}
@@ -129,7 +130,7 @@ export function PremiacaoDivisaoEditor({
               </label>
               <label className="premiacao-divisao-field">
                 <span>Premiação</span>
-                <input
+                <UiInput
                   inputMode="numeric"
                   disabled={disabled}
                   value={moneyValueToDisplay(item.valor)}

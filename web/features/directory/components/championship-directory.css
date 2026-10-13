@@ -1,709 +1,374 @@
-/* Rodada 5 — diretório de campeonatos: uma fonte de estilo, sem overrides no globals.css. */
-.directory-market-page{
-  --champ-bg:#0c0d0f;
-  --champ-surface:#141518;
-  --champ-surface-2:#1a1b1f;
-  --champ-text:#f5f3ed;
-  --champ-muted:#9c9a94;
-  --champ-accent:#c9b766;
-  --champ-accent-strong:#dfcf85;
-  background:var(--champ-bg);
-  color:var(--champ-text);
+/* DropZone R11: catálogo de campeonatos. Layout isolado por .directory-market-page.
+   Componentes, contratos de dados, filtros e lógica de compras permanecem os mesmos. */
+.app-shell-main.directory-market-page {
+  --market-bg: #102331;
+  --market-panel: #1b3345;
+  --market-panel-hover: #243f52;
+  --market-line: #304a5c;
+  --market-text: #f1f6fa;
+  --market-muted: #afbecb;
+  --market-yellow: #f1cc25;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: calc(100dvh - 64px);
+  padding: 0 !important;
+  color: var(--market-text);
+  background: var(--market-bg) !important;
+  overflow-x: clip;
 }
-.directory-market-page .directory-page-body,
-.directory-market-page .directory-page-body-with-banner{
-  background:var(--champ-bg);
-  color:var(--champ-text);
-  gap:0;
-  padding-bottom:40px;
+.app-shell-main.directory-market-page,
+.app-shell-main.directory-market-page * { box-sizing: border-box; }
+.directory-market-page .directory-page-body.directory-page-body-with-banner {
+  display: flex !important;
+  flex-direction: column;
+  gap: 16px !important;
+  width: min(100% - 40px, 960px) !important;
+  max-width: 960px !important;
+  min-width: 0;
+  margin: 0 auto !important;
+  padding: 16px 0 80px !important;
+  background: transparent !important;
+  color: var(--market-text);
 }
-.champ-directory-heading{
-  width:min(1180px,calc(100% - 32px));
-  margin:0 auto;
-  padding:34px 0 18px;
+/* Destaque utiliza as imagens reais disponíveis no catálogo. */
+.directory-market-page .dz-market-showcase {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 42%);
+  align-items: center;
+  width: 100%;
+  min-height: 265px;
+  border: 1px solid #355473;
+  border-radius: 12px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 85% 60%, #176b98 0%, transparent 54%),
+    linear-gradient(116deg, #174a75, #102d49 68%, #091e30);
+  box-shadow: 0 10px 24px #050e1740;
 }
-.champ-directory-heading h1{
-  margin:0;
-  color:var(--champ-text);
-  font-size:clamp(32px,4vw,52px);
-  letter-spacing:-.035em;
+.directory-market-page .dz-market-showcase::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: .22;
+  background: repeating-linear-gradient(118deg, transparent 0 35px, #8dd8ff13 36px 37px);
 }
-.champ-directory-heading p{
-  margin:6px 0 0;
-  color:var(--champ-muted);
-  font-size:13px;
+.directory-market-page .dz-market-showcase-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 13px;
+  min-width: 0;
+  padding: 30px 12px 30px 34px;
 }
-.champ-directory-tools{
-  position:relative;
-  z-index:4;
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto auto auto auto;
-  align-items:center;
-  gap:8px;
-  width:min(1180px,calc(100% - 32px));
-  margin:0 auto 12px;
+.directory-market-page .dz-market-showcase-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #f8d44f;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .065em;
 }
-.directory-market-page .directory-search{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-width:0;
-  min-height:46px;
-  padding:0 14px;
-  border:0;
-  border-radius:10px;
-  background:var(--champ-surface);
-  color:var(--champ-muted);
-  box-shadow:none;
+.directory-market-page .dz-market-showcase h1 {
+  max-width: 430px;
+  margin: 0;
+  color: #fff;
+  font-size: clamp(24px, 2.4vw, 34px);
+  line-height: 1.14;
+  letter-spacing: -.03em;
+  font-weight: 850;
+  text-transform: none;
+  text-shadow: none;
 }
-.directory-market-page .directory-search input{
-  width:100%;
-  min-width:0;
-  border:0;
-  outline:0;
-  background:transparent;
-  color:var(--champ-text);
-  font:inherit;
-  font-weight:700;
+.directory-market-page .dz-market-showcase p {
+  max-width: 430px;
+  margin: 0;
+  color: #d1e0ed;
+  font-size: 13px;
+  line-height: 1.5;
 }
-.directory-market-page .directory-search input::placeholder{color:var(--champ-muted)}
-.directory-market-page .directory-search:focus-within{outline:2px solid var(--champ-accent);outline-offset:1px}
-.directory-market-page .directory-result-count{
-  display:inline-flex;
-  align-items:baseline;
-  gap:5px;
-  min-height:0;
-  margin:0;
-  padding:0 6px;
-  border:0;
-  background:transparent;
-  color:var(--champ-muted);
-  font-size:10px;
-  font-weight:800;
-  letter-spacing:.04em;
-  text-transform:uppercase;
-  white-space:nowrap;
+.directory-market-page .dz-market-showcase-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 41px;
+  padding: 0 18px;
+  border-radius: 7px;
+  background: #f1cc25;
+  color: #14212a;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 800;
 }
-.directory-market-page .directory-result-count strong{color:var(--champ-text);font-size:16px}
-.directory-create-championship{
-  display:inline-flex;
-  min-height:44px;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  padding:0 12px;
-  border-radius:10px;
-  background:var(--champ-accent);
-  color:#15140d;
-  font-size:10px;
-  font-weight:950;
-  text-decoration:none;
-  text-transform:uppercase;
-  white-space:nowrap;
+.directory-market-page .dz-market-showcase-button:hover { background: #ffe15e; }
+.directory-market-page .dz-market-showcase-images {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  padding: 24px 22px 24px 0;
 }
-.directory-create-championship:hover{background:var(--champ-accent-strong)}
-.directory-market-tool{position:relative}
-.directory-market-cart-link{position:relative;display:grid;width:44px;height:44px;place-items:center;border-radius:10px;background:var(--champ-surface);color:var(--champ-text);text-decoration:none}
-.directory-market-cart-link b{position:absolute;top:4px;right:4px;display:grid;min-width:16px;height:16px;place-items:center;padding:0 3px;border-radius:8px;background:var(--champ-accent);color:#11130f;font-size:9px}
-.directory-market-tool>summary{
-  position:relative;
-  display:grid;
-  width:44px;
-  height:44px;
-  place-items:center;
-  list-style:none;
-  border:0;
-  border-radius:10px;
-  background:var(--champ-surface);
-  color:var(--champ-text);
-  cursor:pointer;
+.directory-market-page .dz-market-showcase-images a {
+  display: block;
+  flex: 0 0 45%;
+  height: 174px;
+  min-width: 0;
+  overflow: hidden;
+  border: 3px solid #b9def080;
+  border-radius: 10px;
+  background: #21394a;
+  box-shadow: 0 12px 22px #07152380;
+  transform: rotate(-8deg);
 }
-.directory-market-tool>summary::-webkit-details-marker{display:none}
-.directory-market-tool>summary b{
-  position:absolute;
-  top:4px;
-  right:4px;
-  display:grid;
-  min-width:16px;
-  height:16px;
-  place-items:center;
-  padding:0 3px;
-  border-radius:8px;
-  background:var(--champ-accent);
-  color:#11130f;
-  font-size:9px;
+.directory-market-page .dz-market-showcase-images a + a { margin-left: -10%; transform: translateY(-10px) rotate(6deg); }
+.directory-market-page .dz-market-showcase-images a + a + a { margin-left: -10%; transform: translateY(8px) rotate(12deg); }
+.directory-market-page .dz-market-showcase-images img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
-.directory-market-tool>div{
-  position:absolute;
-  top:50px;
-  right:0;
-  display:grid;
-  gap:8px;
-  width:min(430px,calc(100vw - 24px));
-  max-height:60vh;
-  overflow:auto;
-  padding:12px;
-  border:0;
-  border-radius:12px;
-  background:var(--champ-surface-2);
-  color:var(--champ-text);
+.directory-market-page .dz-market-showcase-fallback { justify-self: center; opacity: .25; color: #b1e4ff; }
+/* Duas entradas rápidas, como as coleções curtas da referência. */
+.directory-market-page .dz-market-quicklinks { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.directory-market-page .dz-market-quicklinks a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 43px;
+  padding: 0 13px;
+  border-radius: 7px;
+  background: #203a4d;
+  color: #e8f0f6;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
 }
-.directory-market-tool p{margin:0;color:var(--champ-muted);font-size:11px}
-.directory-market-page .directory-cart-method{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  padding:8px 0;
-  border:0;
-  background:transparent;
-  color:var(--champ-text);
+.directory-market-page .dz-market-quicklinks a:hover { background: #2a4b62; }
+.directory-market-page .dz-market-quicklinks a svg:last-child { margin-left: auto; opacity: .7; }
+/* Busca do catálogo: não existe outra barra no cabeçalho desta rota. */
+.directory-market-page .championship-directory-controls,
+.directory-market-page .directory-commerce-error,
+.directory-market-page .championship-directory-scope,
+.directory-market-page .dz-market-section-title,
+.directory-market-page .championship-directory-list,
+.directory-market-page .championship-directory-empty { width: 100% !important; max-width: 100% !important; min-width: 0; margin-inline: 0 !important; }
+.directory-market-page .championship-directory-controls { display: flex; flex-direction: column; gap: 10px !important; }
+.directory-market-page .championship-directory-tools { display: flex; align-items: center; gap: 8px !important; min-width: 0; flex-wrap: wrap; }
+.directory-market-page .championship-directory-search {
+  display: flex !important;
+  flex: 1 1 230px;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  height: 43px !important;
+  margin: 0 !important;
+  padding: 0 13px !important;
+  border: 1px solid var(--market-line) !important;
+  border-radius: 7px !important;
+  background: #0e2231 !important;
+  color: #a6b8c7 !important;
 }
-.directory-market-page .directory-cart-method span{color:var(--champ-muted);font-size:10px;font-weight:900;text-transform:uppercase}
-.directory-market-page .directory-cart-method select{min-height:34px;border:0;border-radius:8px;background:var(--champ-bg);color:var(--champ-text);padding:0 8px}
-.directory-market-page .directory-cart-preview article{
-  display:grid;
-  grid-template-columns:34px minmax(0,1fr) 52px auto auto;
-  align-items:center;
-  gap:7px;
-  padding:8px 0;
-  border:0;
-  background:transparent;
+.directory-market-page .championship-directory-search input {
+  flex: 1; min-width: 0; width: 100%; height: 100% !important;
+  margin: 0; padding: 0 !important; border: 0 !important; outline: 0;
+  background: transparent !important; color: #fff !important;
+  font-size: 13px !important;
 }
-.directory-market-page .directory-cart-preview img{width:34px;height:34px;object-fit:cover;border-radius:6px}
-.directory-market-page .directory-cart-preview article div{display:grid;min-width:0}
-.directory-market-page .directory-cart-preview article strong{overflow:hidden;color:var(--champ-text);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
-.directory-market-page .directory-cart-preview article small{color:var(--champ-muted);font-size:9px}
-.directory-market-page .directory-cart-preview input{width:52px;min-height:32px;border:0;border-radius:7px;background:var(--champ-bg);color:var(--champ-text);text-align:center}
-.directory-market-page .directory-cart-preview article button{min-height:32px;border:0;border-radius:7px;padding:0 8px;background:var(--champ-bg);color:var(--champ-text);font-size:9px;font-weight:900;text-transform:uppercase;cursor:pointer}
-.directory-market-page .directory-cart-preview article button:disabled,.directory-market-page .directory-cart-checkout-all:disabled{cursor:wait;opacity:.62}
-.directory-market-page .directory-cart-total{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0 2px;border-top:1px solid var(--champ-bg);color:var(--champ-muted);font-size:10px}
-.directory-market-page .directory-cart-total strong{color:var(--champ-text);font-size:13px}
-.directory-market-page .directory-cart-checkout-all{min-height:38px;border:0;border-radius:8px;background:var(--champ-accent);color:#15140d;font-size:10px;font-weight:950;text-transform:uppercase;cursor:pointer}
-.directory-market-page .directory-cart-prepared{display:grid;gap:6px;padding:10px;border-radius:8px;background:var(--champ-bg)}
-.directory-market-page .directory-cart-prepared strong{font-size:11px}
-.directory-market-page .directory-cart-prepared small{color:var(--champ-muted);font-size:9px}
-.directory-market-page .directory-cart-prepared a{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;padding:0 8px;border-radius:7px;background:var(--champ-surface);color:var(--champ-accent-strong);font-size:10px;font-weight:900;text-decoration:none}
-.directory-market-page .directory-wishlist-preview a{display:block;padding:9px 0;color:var(--champ-text);font-size:11px;font-weight:800;text-decoration:none}
-.directory-market-filters{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  width:min(1180px,calc(100% - 32px));
-  margin:0 auto 16px;
+.directory-market-page .championship-directory-search:focus-within { border-color: #78accf !important; }
+.directory-market-page .directory-create-championship,
+.directory-market-page .championship-directory-icon-link,
+.directory-market-page .championship-directory-favorites > summary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 42px; padding: 0 12px; border: 1px solid var(--market-line) !important;
+  border-radius: 7px; background: #203a4d !important; color: #f0f5f9 !important;
+  text-decoration: none; cursor: pointer; font-size: 12px;
 }
-.directory-market-filter-chips{
-  display:flex;
-  min-width:0;
-  flex:1;
-  align-items:center;
-  gap:4px;
-  overflow-x:auto;
-  scrollbar-width:none;
+.directory-market-page .championship-directory-icon-link,
+.directory-market-page .championship-directory-favorites > summary { position: relative; width: 42px; padding: 0; }
+.directory-market-page .championship-directory-icon-link b,
+.directory-market-page .championship-directory-favorites > summary b {
+  position: absolute; top: -5px; right: -4px; display: grid; place-items: center;
+  min-width: 16px; height: 16px; padding: 0 3px; border-radius: 99px;
+  background: #f1cc25; color: #142533; font-size: 12px;
 }
-.directory-market-filter-chips::-webkit-scrollbar{display:none}
-.directory-market-filter-chips button,
-.directory-market-clear,
-.directory-market-more>summary{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  min-height:34px;
-  padding:0 11px;
-  border:0;
-  border-radius:8px;
-  background:transparent;
-  color:var(--champ-muted);
-  font-size:10px;
-  font-weight:900;
-  text-transform:uppercase;
-  white-space:nowrap;
-  cursor:pointer;
+.directory-market-page .championship-directory-favorites { position: relative; }
+.directory-market-page .championship-directory-favorites > summary { list-style: none; }
+.directory-market-page .championship-directory-favorites > summary::-webkit-details-marker { display: none; }
+.directory-market-page .championship-directory-favorites > div {
+  position: absolute; z-index: 40; right: 0; top: 46px; display: grid; gap: 5px;
+  min-width: min(300px, calc(100vw - 30px)); max-height: 320px; overflow-y: auto;
+  padding: 12px; border: 1px solid var(--market-line); border-radius: 9px; background: #1c3648;
+  box-shadow: 0 12px 30px #0008; color: #e7eef5;
 }
-.directory-market-filter-chips button:hover,
-.directory-market-filter-chips button.active,
-.directory-market-more[open]>summary{background:var(--champ-surface);color:var(--champ-accent-strong)}
-.directory-market-more{position:relative;flex:0 0 auto}
-.directory-market-more>summary{list-style:none;background:var(--champ-surface)}
-.directory-market-more>summary::-webkit-details-marker{display:none}
-.directory-market-filter-fields{
-  position:absolute;
-  top:40px;
-  right:0;
-  z-index:5;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  width:330px;
-  padding:12px;
-  border:0;
-  border-radius:10px;
-  background:var(--champ-surface-2);
+.directory-market-page .championship-directory-favorites > div a { color: #e7eef5; text-decoration: none; font-size: 12px; padding: 5px; }
+.directory-market-page .championship-directory-filterbar {
+  display: flex !important; flex-wrap: wrap; align-items: center; gap: 9px !important;
+  width: 100%; min-width: 0; padding: 8px !important;
+  border: 1px solid var(--market-line) !important; border-radius: 8px !important;
+  background: #1c3446 !important;
 }
-.directory-market-filter-fields label{display:grid;gap:5px;color:var(--champ-muted)}
-.directory-market-filter-fields label span{font-size:9px;font-weight:900;text-transform:uppercase}
-.directory-market-filter-fields input{width:100%;min-height:38px;border:0;border-radius:8px;background:var(--champ-bg);color:var(--champ-text);padding:0 10px;font:inherit;font-size:12px}
-.directory-market-clear{grid-column:1/-1;background:var(--champ-bg);color:var(--champ-accent-strong)}
-.directory-champ-card-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(285px,1fr));
-  gap:10px;
-  width:min(1180px,calc(100% - 32px));
-  margin:0 auto;
+.directory-market-page .championship-directory-chips { display: flex; flex: 1 1 100%; gap: 6px !important; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.directory-market-page .championship-directory-chips button,
+.directory-market-page .championship-directory-more > summary,
+.directory-market-page .championship-directory-clear {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  flex: 0 0 auto; min-height: 44px !important; padding: 0 11px !important;
+  border: 1px solid #395469 !important; border-radius: 6px !important;
+  background: #294254 !important; color: #e7eff6 !important;
+  font-size: 12px !important; font-weight: 700 !important; letter-spacing: 0 !important;
+  text-transform: none !important; white-space: nowrap; cursor: pointer;
 }
-.directory-champ-card{
-  display:flex;
-  min-width:0;
-  flex-direction:column;
-  overflow:hidden;
-  border:0;
-  border-radius:10px;
-  background:var(--champ-surface);
-  color:var(--champ-text);
-  box-shadow:none;
-  cursor:pointer;
+.directory-market-page .championship-directory-chips button.active,
+.directory-market-page .championship-directory-more[open] > summary { border-color: #d4b938 !important; color: #ffe681 !important; background: #4c482c !important; }
+.directory-market-page .championship-directory-sort { display: flex; align-items: center; gap: 8px; color: #b9c9d6; margin-left: auto; }
+.directory-market-page .championship-directory-sort > span { font-size: 12px !important; }
+.directory-market-page .championship-directory-sort select {
+  min-width: 130px !important; min-height: 44px !important; height: 44px !important;
+  padding: 0 7px !important; border: 1px solid #456073 !important;
+  border-radius: 6px; background: #122839 !important; color: #eef4f8 !important; font-size: 12px !important;
 }
-.directory-champ-card:focus-visible{outline:2px solid var(--champ-accent-strong);outline-offset:3px}
-.directory-champ-cover{
-  position:relative;
-  display:block;
-  min-height:144px;
-  background:#1a1b1f center/cover no-repeat;
-  text-decoration:none;
+.directory-market-page .championship-directory-more { position: relative; }
+.directory-market-page .championship-directory-more > summary { list-style: none; }
+.directory-market-page .championship-directory-more > summary::-webkit-details-marker { display: none; }
+.directory-market-page .championship-directory-filter-fields {
+  position: absolute; z-index: 50; right: 0; top: 50px;
+  display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px;
+  width: min(385px, calc(100vw - 36px)); padding: 14px;
+  border: 1px solid #3b586d; border-radius: 9px; background: #21394c; box-shadow: 0 16px 34px #0009;
 }
-.directory-champ-cover-empty{
-  position:absolute;
-  inset:0;
-  display:grid;
-  align-content:center;
-  justify-items:start;
-  gap:7px;
-  padding:18px;
-  overflow:hidden;
-  background:
-    linear-gradient(130deg,rgba(201,183,102,.18),transparent 48%),
-    linear-gradient(145deg,#252117 0%,#151619 62%,#101113 100%);
-  color:var(--champ-text);
+.directory-market-page .championship-directory-filter-fields label { display: grid; gap: 6px; min-width: 0; color: #bdcad6; font-size: 12px; }
+.directory-market-page .championship-directory-filter-fields input,
+.directory-market-page .championship-directory-filter-fields select { width: 100%; min-width: 0; height: 44px !important; padding: 0 8px !important; border: 1px solid #496073 !important; border-radius: 6px; background: #122b3d !important; color: #fff !important; }
+.directory-market-page .championship-directory-clear { grid-column: 1 / -1; }
+.directory-market-page .championship-directory-scope,
+.directory-market-page .directory-commerce-error { padding: 10px; border-radius: 7px; background: #263d4e; color: #e2edf5; font-size: 12px; }
+.directory-market-page .championship-directory-scope a { color: #f1cc25; }
+.directory-market-page .championship-directory-list-head { display: none !important; }
+.directory-market-page .dz-market-section-title {
+  display: flex; align-items: end; justify-content: space-between; gap: 10px;
+  margin: 5px 0 -3px !important; scroll-margin-top: 88px;
 }
-.directory-champ-cover-empty::after{
-  position:absolute;
-  right:-16px;
-  bottom:-38px;
-  color:rgba(201,183,102,.09);
-  content:'DZ';
-  font-size:132px;
-  font-weight:950;
-  letter-spacing:-.12em;
-  line-height:1;
+.directory-market-page .dz-market-section-eyebrow { font-size: 12px; font-weight: 750; color: #b7c9d7; letter-spacing: .03em; }
+.directory-market-page .dz-market-section-title h2 { margin: 4px 0 0; color: #f6fbff; font-size: 19px; font-weight: 800; line-height: 1.3; }
+.directory-market-page .dz-market-section-title > span { white-space: nowrap; font-size: 12px; color: var(--market-muted); }
+/* Poucos campeonatos: cards compartilham a largura central sem buraco à direita.
+   Catálogos longos continuam em quatro colunas compactas. */
+.directory-market-page .championship-directory-list {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0,1fr)) !important;
+  align-items: stretch; gap: 12px !important;
+  min-height: 0; padding: 0 !important; border: none !important;
+  border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
+  overflow: visible !important;
 }
-.directory-champ-cover-empty b,
-.directory-champ-cover-empty small{position:relative;z-index:1}
-.directory-champ-cover-empty b{
-  display:grid;
-  width:48px;
-  height:48px;
-  place-items:center;
-  border:1px solid rgba(223,207,133,.46);
-  border-radius:var(--ui-radius-sm,6px);
-  background:rgba(12,13,15,.62);
-  color:var(--champ-accent-strong);
-  font-size:17px;
-  letter-spacing:.04em;
+.directory-market-page .championship-directory-list.is-short-list { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+.directory-market-page .championship-directory-list > .dz-champ-list-row {
+  display: flex !important; flex-direction: column; gap: 0 !important; align-items: stretch;
+  min-width: 0; min-height: 0 !important; width: auto; margin: 0 !important; padding: 0 !important;
+  border: 1px solid var(--market-line) !important; border-radius: 10px !important;
+  overflow: hidden !important; background: var(--market-panel) !important; color: var(--market-text) !important;
+  box-shadow: 0 3px 12px #07132150 !important;
 }
-.directory-champ-cover-empty small{
-  max-width:75%;
-  overflow:hidden;
-  color:var(--champ-muted);
-  font-size:9px;
-  font-weight:900;
-  letter-spacing:.09em;
-  text-overflow:ellipsis;
-  text-transform:uppercase;
-  white-space:nowrap;
+.directory-market-page .championship-directory-list > .dz-champ-list-row:hover { border-color: #67849a !important; background: var(--market-panel-hover) !important; }
+.directory-market-page .dz-champ-list-row__media {
+  display: grid !important; place-items: center; position: relative;
+  width: 100% !important; height: auto !important; aspect-ratio: 16 / 9 !important;
+  padding: 0 !important; margin: 0 !important; overflow: hidden;
+  border: 0 !important; border-radius: 0 !important; background: linear-gradient(130deg,#283d4e,#102432);
+  color: #f1cc25; text-decoration: none;
 }
-.directory-champ-badges{position:absolute;left:8px;bottom:8px;display:flex;gap:5px}
-.directory-champ-badges b{display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border-radius:6px;background:#111214;color:var(--champ-text);font-size:8px;text-transform:uppercase}
-.directory-champ-body{display:grid;gap:10px;padding:12px}
-.directory-champ-title-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
-.directory-champ-title{display:grid;gap:2px;min-width:0;color:inherit;text-decoration:none}
-.directory-champ-title small{overflow:hidden;color:var(--champ-muted);font-size:9px;font-weight:800;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
-.directory-champ-title strong{overflow:hidden;color:var(--champ-text);font-size:18px;line-height:1.05;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
-.directory-champ-quick-actions{display:flex;align-items:center;gap:4px}
-.directory-champ-wish,.directory-champ-cart-icon{position:relative;z-index:1;display:grid;width:34px;height:34px;place-items:center;border:0;border-radius:8px;background:var(--champ-surface-2);color:var(--champ-muted);cursor:pointer;touch-action:manipulation}
-.directory-champ-wish.active,.directory-champ-cart-icon.active{color:var(--champ-accent-strong)}
-.directory-champ-wish.active svg{fill:currentColor}
-.directory-champ-cart-icon:disabled{color:#5d6066;cursor:not-allowed}
-.directory-champ-facts{display:flex;align-items:center;gap:16px;min-width:0}
-.directory-champ-facts span{display:grid;gap:1px;min-width:0}
-.directory-champ-facts b{overflow:hidden;color:var(--champ-text);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
-.directory-champ-facts small{color:var(--champ-muted);font-size:8px;font-weight:850;text-transform:uppercase}
-.directory-champ-vacancy{display:grid;gap:4px}
-.directory-champ-vacancy i{display:block;height:3px;overflow:hidden;border-radius:2px;background:#282a2f}
-.directory-champ-vacancy em{display:block;height:100%;background:var(--champ-accent)}
-.directory-champ-vacancy small{color:var(--champ-muted);font-size:9px}
-.directory-champ-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.directory-champ-actions>a{display:inline-flex;align-items:center;gap:3px;color:var(--champ-muted);font-size:9px;font-weight:900;text-decoration:none;text-transform:uppercase}
-.directory-champ-cart-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:36px;border:0;border-radius:8px;background:var(--champ-accent);color:#11130f;padding:0 12px;font-size:9px;font-weight:950;text-transform:uppercase;cursor:pointer}
-.directory-champ-cart-action:disabled{background:#282a2f;color:var(--champ-muted);cursor:not-allowed}
-.directory-champ-cart-action.active,.directory-champ-cart-action.active:disabled{background:var(--champ-accent);color:#11130f;opacity:1}
-.directory-commerce-error{width:min(100% - 20px,920px);margin:0 auto 8px;color:#ff8b8b;font-size:10px;font-weight:800}
-.directory-champ-lineup-action{display:inline-flex;width:max-content;align-items:center;gap:6px;border:0;background:transparent;color:var(--champ-accent-strong);padding:0;font-size:9px;font-weight:900;text-transform:uppercase}
+.directory-market-page .dz-champ-list-row__media img { width: 100% !important; height: 100% !important; object-fit: contain !important; padding: 8px !important; }
+.directory-market-page .dz-champ-list-row__media.is-banner img { object-fit: cover !important; padding: 0 !important; }
+.directory-market-page .dz-champ-list-row__badges { position: absolute; z-index: 2; top: 7px; left: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
+.directory-market-page .dz-champ-list-row__badges small { padding: 3px 6px; border: 1px solid #d6bb6755; border-radius: 4px; background: #101f2de8; color: #ffe27a; font-size: 12px !important; font-weight: 700; line-height: 1.1; }
+.directory-market-page .dz-champ-list-row__badges .is-closed { color: #ddd; }
+.directory-market-page .dz-champ-list-row__badges .is-participating { background: #14543ee8; color: #d0ffe5; }
+.directory-market-page .dz-champ-list-row__body { display: flex; flex: 1; flex-direction: column; gap: 11px; min-width: 0; padding: 12px !important; }
+.directory-market-page .dz-champ-list-row__identity { display: flex !important; flex-direction: column; gap: 4px !important; min-width: 0; padding: 0 !important; margin: 0 !important; color: #fff !important; text-decoration: none !important; }
+.directory-market-page .dz-champ-list-row__identity strong { font-size: 15px !important; font-weight: 800; line-height: 1.3; color: #fff !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.directory-market-page .dz-champ-list-row__identity span { font-size: 12px !important; color: var(--market-muted) !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.directory-market-page .dz-champ-list-row__metrics { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 9px 7px !important; min-width: 0; margin: auto 0 0 !important; padding: 9px 0 0 !important; border-top: 1px solid var(--market-line) !important; }
+.directory-market-page .dz-champ-list-row__metrics > div { display: flex !important; flex-direction: column; align-items: flex-start; gap: 3px !important; min-width: 0; padding: 0 !important; border: 0 !important; text-align: left !important; }
+.directory-market-page .dz-champ-list-row__metrics dt { font-size: 12px !important; color: #bac8d5 !important; line-height: 1.3 !important; }
+.directory-market-page .dz-champ-list-row__metrics dd { max-width: 100%; margin: 0 !important; overflow: hidden; color: #f6fbff !important; font-size: 12px !important; font-weight: 800 !important; line-height: 1.4 !important; text-overflow: ellipsis; white-space: nowrap; }
+.directory-market-page .dz-champ-list-row__metrics > div:first-child dd { color: #f8d34d !important; }
+.directory-market-page .dz-champ-list-row__actions { display: flex !important; align-items: center; gap: 7px !important; padding: 8px 11px !important; border-top: 1px solid var(--market-line) !important; background: #162c3c !important; }
+.directory-market-page .dz-champ-list-row__actions .dz-ui-icon-button,
+.directory-market-page .dz-champ-list-row__open { display: grid !important; place-items: center; flex: 0 0 44px; width: 44px !important; min-width: 44px !important; height: 44px !important; min-height: 44px !important; padding: 0 !important; border: 1px solid #40576a !important; border-radius: 6px !important; background: #2c4355 !important; color: #f4f8fb !important; cursor: pointer; }
+.directory-market-page .dz-champ-list-row__actions .is-active { color: #f1cc25 !important; border-color: #f1cc25 !important; }
+.directory-market-page .dz-champ-list-row__actions button:disabled { opacity: .45; cursor: not-allowed; }
+.directory-market-page .dz-champ-list-row__open { margin-left: auto; background: #f1cc25 !important; color: #172a38 !important; }
+.directory-market-page .championship-directory-empty { padding: 28px; border: 1px solid var(--market-line); border-radius: 9px; background: #1b3345; color: #d9e4ec; font-size: 13px; text-align: center; }
+/* O cabeçalho também recebe alinhamento contextual APENAS no catálogo. */
+.store-home-header-inner--catalog { display: flex !important; justify-content: space-between; width: min(calc(100% - 44px),960px) !important; max-width: 960px !important; margin-inline: auto !important; gap: 14px !important; }
+.store-home-header-inner--catalog .store-home-header-search { display: none !important; }
+@media (max-width: 1100px) {
+  .directory-market-page .championship-directory-list { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+  .directory-market-page .directory-page-body.directory-page-body-with-banner { width: min(100% - 28px, 960px) !important; }
+}
+@media (max-width: 700px) {
+  .directory-market-page .directory-page-body.directory-page-body-with-banner { width: calc(100% - 24px) !important; padding: 12px 0 90px !important; gap: 12px !important; }
+  .directory-market-page .dz-market-showcase { grid-template-columns: 1fr; min-height: 232px; }
+  .directory-market-page .dz-market-showcase-copy { position: relative; z-index: 2; padding: 20px; gap: 9px; }
+  .directory-market-page .dz-market-showcase h1 { max-width: 290px; font-size: 25px; }
+  .directory-market-page .dz-market-showcase p { max-width: 270px; font-size: 12px; }
+  .directory-market-page .dz-market-showcase-images { position: absolute; z-index: 1; inset: 0 0 0 auto; width: 52%; padding: 8px 6px 8px 0; opacity: .3; }
+  .directory-market-page .dz-market-showcase-images a { height: 128px; }
+  .directory-market-page .dz-market-quicklinks { gap: 7px; }
+  .directory-market-page .dz-market-quicklinks a { padding: 8px; font-size: 12px; line-height: 1.25; }
+  .directory-market-page .championship-directory-filterbar { gap: 7px !important; }
+  .directory-market-page .championship-directory-more { margin-left: auto; }
+  .directory-market-page .championship-directory-list,
+  .directory-market-page .championship-directory-list.is-short-list { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 9px !important; }
+  .directory-market-page .dz-champ-list-row__body { gap: 8px; padding: 9px !important; }
+  .directory-market-page .dz-champ-list-row__identity strong { font-size: 12px !important; }
+  .directory-market-page .dz-champ-list-row__identity span { font-size: 12px !important; }
+  .directory-market-page .dz-champ-list-row__metrics { gap: 8px 5px !important; }
+  .directory-market-page .dz-champ-list-row__metrics dt { font-size: 12px !important; }
+  .directory-market-page .dz-champ-list-row__metrics dd { font-size: 12px !important; }
+  .directory-market-page .dz-champ-list-row__actions { gap: 5px !important; padding: 7px !important; }
+  .directory-market-page .dz-market-section-title h2 { font-size: 17px; }
+  .directory-market-page .championship-directory-filter-fields { position: fixed; top: auto; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom)); max-height: 60dvh; overflow-y: auto; }
+  .store-home-header-inner--catalog { width: calc(100% - 24px) !important; }
+}
+@media (max-width: 360px) {
+  .directory-market-page .championship-directory-list,
+  .directory-market-page .championship-directory-list.is-short-list { grid-template-columns: 1fr !important; }
+}
+@media (prefers-reduced-motion: reduce) { .directory-market-page * { scroll-behavior: auto !important; } }
 
-@media(max-width:760px){
-  .directory-market-page{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
-  .directory-market-page .directory-page-body,
-  .directory-market-page .directory-page-body-with-banner{padding-bottom:18px}
-  .champ-directory-heading{width:calc(100% - 20px);padding:18px 0 10px}
-  .champ-directory-heading h1{font-size:28px}
-  .champ-directory-heading p{display:none}
-  .champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto auto;width:calc(100% - 20px);gap:5px;margin-bottom:8px}
-  .directory-market-page .directory-search{min-height:42px;padding:0 11px;border-radius:8px}
-  .directory-market-page .directory-result-count{grid-column:1/-1;grid-row:2;padding:0 2px;font-size:8px}
-  .directory-market-page .directory-result-count strong{font-size:12px}
-  .directory-create-championship{min-height:42px;padding:0 9px;border-radius:8px;font-size:8px}
-  .directory-market-tool>summary{width:42px;height:42px;border-radius:8px}
-  .directory-market-cart-link{width:42px;height:42px;border-radius:8px}
-  .directory-market-tool>div{position:fixed;left:10px;right:10px;top:auto;bottom:calc(64px + env(safe-area-inset-bottom));width:auto;max-height:56dvh;border-radius:12px 12px 0 0}
-  .directory-market-filters{width:calc(100% - 20px);margin-bottom:8px;padding-left:0;gap:4px}
-  .directory-market-filter-chips{gap:2px}
-  .directory-market-filter-chips button{min-height:30px;padding:0 9px;font-size:8px;border-radius:7px}
-  .directory-market-more>summary{min-height:30px;padding:0 9px;font-size:8px;border-radius:7px}
-  .directory-market-filter-fields{position:fixed;left:10px;right:10px;top:auto;bottom:calc(64px + env(safe-area-inset-bottom));width:auto;border-radius:12px 12px 0 0}
-  .directory-champ-card-grid{grid-template-columns:1fr;gap:7px;width:calc(100% - 20px)}
-  .directory-champ-card{display:grid;grid-template-columns:96px minmax(0,1fr);min-height:126px;border-radius:8px}
-  .directory-champ-cover{min-height:126px;height:100%}
-  .directory-champ-cover-empty{padding:12px}
-  .directory-champ-cover-empty b{width:38px;height:38px;font-size:14px}
-  .directory-champ-cover-empty::after{right:-11px;bottom:-22px;font-size:98px}
-  .directory-champ-badges{left:5px;bottom:5px;gap:3px}
-  .directory-champ-badges b{padding:3px 4px;font-size:6px}
-  .directory-champ-body{gap:6px;padding:8px 9px}
-  .directory-champ-title-row{grid-template-columns:minmax(0,1fr) auto;gap:5px}
-  .directory-champ-title strong{font-size:15px}
-  .directory-champ-title small{font-size:7px}
-  .directory-champ-wish,.directory-champ-cart-icon{width:28px;height:28px;border-radius:7px}
-  .directory-champ-facts{gap:11px}
-  .directory-champ-facts b{font-size:10px}
-  .directory-champ-facts small{font-size:6px}
-  .directory-champ-vacancy{gap:3px}
-  .directory-champ-vacancy small{font-size:7px}
-  .directory-champ-actions>a{font-size:7px}
-  .directory-champ-cart-action{min-height:31px;padding:0 9px;font-size:7px;border-radius:7px}
-  .directory-champ-lineup-action{font-size:7px}
+/* R13 — Correção da largura do container principal.
+   A sidebar ocupa parte do viewport; o main deve ocupar somente o restante.
+   Sem esta regra, estilos legados com width:100% causavam alinhamento à direita
+   e scrollbar horizontal de aproximadamente a largura da sidebar. */
+@media (min-width: 1024px) {
+  .dz-discovery-sidebar ~ main.app-shell-main.storefront-public-main.directory-market-page {
+    margin-left: var(--dz-v1-sidebar-w) !important;
+    width: calc(100% - var(--dz-v1-sidebar-w)) !important;
+    max-width: calc(100% - var(--dz-v1-sidebar-w)) !important;
+  }
+  .dz-discovery-sidebar[data-collapsed="true"] ~ main.app-shell-main.storefront-public-main.directory-market-page {
+    margin-left: var(--dz-v1-sidebar-mini-w) !important;
+    width: calc(100% - var(--dz-v1-sidebar-mini-w)) !important;
+    max-width: calc(100% - var(--dz-v1-sidebar-mini-w)) !important;
+  }
+}
+@media (max-width: 1023px) {
+  .dz-discovery-sidebar ~ main.app-shell-main.storefront-public-main.directory-market-page {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
 }
 
-/* Vitrine comercial leve: sem banners, uma logo pequena e dados de compra em lista. */
-.directory-market-page .directory-champ-card-grid{grid-template-columns:1fr;gap:0;width:min(1180px,calc(100% - 32px))}
-.directory-market-page .directory-champ-card{
-  display:grid;
-  grid-template-columns:64px minmax(0,1fr);
-  min-height:94px;
-  overflow:visible;
-  border:0;
-  border-bottom:1px solid var(--champ-surface-2);
-  border-radius:0;
-  background:transparent;
-  transition:background .16s ease;
-}
-.directory-market-page .directory-champ-card:hover{background:color-mix(in srgb,var(--champ-surface) 62%,transparent)}
-.directory-market-page .directory-champ-cover{display:grid;grid-column:1;grid-row:1;width:64px;min-height:0;height:64px;align-self:center;background:transparent}
-.directory-market-page .directory-champ-cover-empty{
-  position:relative;
-  inset:auto;
-  display:grid;
-  width:56px;
-  height:56px;
-  place-items:center;
-  justify-items:center;
-  padding:0;
-  overflow:hidden;
-  border:1px solid var(--champ-surface-2);
-  border-radius:10px;
-  background:var(--champ-surface);
-}
-.directory-market-page .directory-champ-cover-empty::after{display:none}
-.directory-market-page .directory-champ-cover-empty img{display:block;width:100%;height:100%;object-fit:contain}
-.directory-market-page .directory-champ-cover-empty b{display:grid;width:100%;height:100%;place-items:center;border:0;border-radius:0;background:transparent;color:var(--champ-accent-strong);font-size:15px}
-.directory-market-page .directory-champ-badges{left:0;bottom:-3px;gap:2px}
-.directory-market-page .directory-champ-badges b{padding:3px 4px;font-size:6px}
-.directory-market-page .directory-champ-body{grid-column:2;grid-row:1;gap:6px;padding:12px 0 12px 8px}
-.directory-market-page .directory-champ-title strong{font-size:15px}
-.directory-market-page .directory-champ-title small{font-size:8px}
-.directory-market-page .directory-champ-wish,.directory-market-page .directory-champ-cart-icon{width:30px;height:30px;border-radius:7px}
-.directory-market-page .directory-champ-facts{gap:0}
-.directory-market-page .directory-champ-facts span{padding-right:14px}
-.directory-market-page .directory-champ-facts span + span{padding-left:14px;border-left:1px solid var(--champ-surface-2)}
-.directory-market-page .directory-champ-vacancy{display:flex;align-items:center;min-height:14px}
-.directory-market-page .directory-champ-vacancy i{display:none}
-.directory-market-page .directory-champ-vacancy small{color:var(--champ-muted);font-size:8px}
-.directory-market-page .directory-champ-vacancy small b{color:var(--champ-text);font-weight:900}
-.directory-market-page .directory-champ-actions{min-height:32px;margin-top:1px;padding-top:2px}
-.directory-market-page .directory-champ-actions>a:first-child{color:var(--champ-text)}
-.directory-market-page .directory-champ-cart-action{min-height:32px;padding:0 10px;border-radius:7px;font-size:8px}
+/* R20 — Campeonatos em lista tabular; cards somente para vagas abertas. */
 
-@media(max-width:760px){
-  .directory-market-page .directory-champ-card-grid{gap:0;width:calc(100% - 20px)}
-  .directory-market-page .directory-champ-card{grid-template-columns:56px minmax(0,1fr);min-height:86px}
-  .directory-market-page .directory-champ-cover{width:56px;height:56px}
-  .directory-market-page .directory-champ-cover-empty{width:50px;height:50px;border-radius:8px}
-  .directory-market-page .directory-champ-body{gap:5px;padding:10px 0 10px 5px}
-  .directory-market-page .directory-champ-title strong{font-size:13px}
-  .directory-market-page .directory-champ-facts span{padding-right:9px}
-  .directory-market-page .directory-champ-facts span + span{padding-left:9px}
-  .directory-market-page .directory-champ-cart-action{min-height:29px;padding:0 8px;font-size:7px}
-}
-
-/* Vitrine de campeonatos: banner 4:5 inteiro, informações sobre o degradê e
-   nenhum conteúdo pesado fora do necessário para a decisão de entrada. */
-.directory-market-page .directory-champ-card-grid{grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:12px;width:min(1180px,calc(100% - 32px))}
-.directory-market-page .directory-champ-card{position:relative;display:block;min-height:0;aspect-ratio:4/5;overflow:hidden;border:1px solid var(--champ-surface-2);border-radius:14px;background:var(--champ-surface);color:var(--champ-text)}
-.directory-market-page .directory-champ-card:hover{background:var(--champ-surface);border-color:rgba(201,183,102,.6);transform:translateY(-2px)}
-.directory-market-page .directory-champ-cover{position:absolute;inset:0;display:block;width:100%;height:100%;min-height:0;background:var(--champ-surface)}
-.directory-market-page .directory-champ-cover-empty{position:absolute;inset:0;display:grid;width:100%;height:100%;padding:0;border:0;border-radius:0;background:var(--champ-surface)}
-.directory-market-page .directory-champ-cover-empty img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;background:var(--champ-surface)}
-.directory-market-page .directory-champ-cover-empty b{width:100%;height:100%;font-size:28px;background:linear-gradient(145deg,#252117,#101113);color:var(--champ-accent-strong)}
-.directory-market-page .directory-champ-cover-empty::after,.directory-market-page .directory-champ-badges{display:none}
-.directory-market-page .directory-champ-body{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:18px;background:linear-gradient(180deg,rgba(9,10,12,0) 12%,rgba(9,10,12,.12) 31%,rgba(9,10,12,.7) 55%,rgba(9,10,12,.94) 73%,#090a0c 100%)}
-.directory-market-page .directory-champ-title-row{display:block;min-width:0}
-.directory-market-page .directory-champ-title{display:grid;gap:4px;color:var(--champ-text)}
-.directory-market-page .directory-champ-title small{color:var(--champ-accent-strong);font-size:9px;letter-spacing:.11em}
-.directory-market-page .directory-champ-title strong{color:var(--champ-text);font-size:20px;line-height:1.02;white-space:normal;text-wrap:balance}
-.directory-market-page .directory-champ-quick-actions{position:absolute;top:10px;right:10px;display:flex;gap:5px}
-.directory-market-page .directory-champ-wish,.directory-market-page .directory-champ-cart-icon{width:32px;height:32px;border:0;border-radius:50%;background:rgba(12,13,15,.72);backdrop-filter:blur(8px);color:var(--champ-text)}
-.directory-market-page .directory-champ-wish.active,.directory-market-page .directory-champ-cart-icon.active{background:var(--champ-accent);color:#17150d}
-.directory-market-page .directory-champ-facts{display:flex;gap:0;align-items:stretch}
-.directory-market-page .directory-champ-facts span{min-width:0;padding:0 10px 0 0}
-.directory-market-page .directory-champ-facts span:first-child{display:none}
-.directory-market-page .directory-champ-facts span:last-child{order:-1;padding:0 10px 0 0;border-right:1px solid rgba(255,255,255,.22)}
-.directory-market-page .directory-champ-facts span + span{padding-left:10px;border-left:0}
-.directory-market-page .directory-champ-facts b{color:var(--champ-text);font-size:12px}
-.directory-market-page .directory-champ-facts small{color:var(--champ-muted);font-size:8px;letter-spacing:.09em}
-.directory-market-page .directory-champ-next-game{color:var(--champ-muted);font-size:10px;font-weight:700}
-.directory-market-page .directory-champ-next-game b{color:var(--champ-text);font-weight:900}
-.directory-market-page .directory-champ-vacancy,.directory-market-page .directory-champ-actions,.directory-market-page .directory-champ-lineup-action{display:none}
-
-@media(max-width:760px){
-  .directory-market-page .directory-champ-card-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:calc(100% - 20px)}
-  .directory-market-page .directory-champ-card{border-radius:10px}
-  .directory-market-page .directory-champ-body{gap:6px;padding:12px}
-  .directory-market-page .directory-champ-title strong{font-size:15px}
-  .directory-market-page .directory-champ-title small{font-size:7px}
-  .directory-market-page .directory-champ-facts b{font-size:10px}
-  .directory-market-page .directory-champ-facts small{font-size:6px}
-  .directory-market-page .directory-champ-next-game{font-size:8px}
-  .directory-market-page .directory-champ-quick-actions{top:7px;right:7px;gap:3px}
-  .directory-market-page .directory-champ-wish,.directory-market-page .directory-champ-cart-icon{width:27px;height:27px}
-}
-
-
-/* Rodada 139 — descoberta e compra: decisão rápida sem esconder preço ou CTA. */
-.directory-market-page .directory-champ-badges{
-  display:flex;
-  left:10px;
-  bottom:auto;
-  top:10px;
-}
-.directory-market-page .directory-champ-badges b{
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
-  padding:5px 7px;
-  border-radius:999px;
-  background:rgba(10,11,13,.78);
-  color:var(--champ-text);
-  font-size:7px;
-  letter-spacing:.04em;
-  backdrop-filter:blur(8px);
-}
-.directory-market-page .directory-champ-badges b.is-full{color:var(--champ-muted)}
-.directory-market-page .directory-champ-body{
-  gap:7px;
-  padding:16px;
-  background:linear-gradient(180deg,rgba(9,10,12,0) 18%,rgba(9,10,12,.08) 30%,rgba(9,10,12,.76) 57%,rgba(9,10,12,.96) 76%,#090a0c 100%);
-}
-.directory-market-page .directory-champ-facts span:first-child{display:grid}
-.directory-market-page .directory-champ-facts span:last-child{order:initial}
-.directory-market-page .directory-champ-participating{
-  display:inline-flex;
-  width:max-content;
-  align-items:center;
-  gap:5px;
-  padding:4px 7px;
-  border-radius:999px;
-  background:rgba(201,183,102,.16);
-  color:var(--champ-accent-strong);
-  font-size:8px;
-  font-weight:900;
-  text-transform:uppercase;
-}
-.directory-market-page .directory-champ-next-game{
-  display:flex;
-  flex-wrap:wrap;
-  gap:5px 12px;
-}
-.directory-market-page .directory-champ-next-game span{white-space:nowrap}
-.directory-market-page .directory-champ-actions{
-  display:grid;
-  grid-template-columns:auto minmax(0,1fr);
-  gap:7px;
-  min-height:36px;
-  margin-top:2px;
-  padding-top:0;
-}
-.directory-market-page .directory-champ-actions>a,
-.directory-market-page .directory-champ-actions>span{
-  display:inline-flex;
-  min-height:36px;
-  align-items:center;
-  justify-content:center;
-  gap:4px;
-  border-radius:8px;
-  padding:0 10px;
-  font-size:8px;
-  font-weight:950;
-  text-decoration:none;
-  text-transform:uppercase;
-}
-.directory-market-page .directory-champ-details-link{
-  border:1px solid rgba(255,255,255,.18);
-  color:var(--champ-text);
-  background:rgba(13,14,16,.62);
-}
-.directory-market-page .directory-champ-cart-action{
-  background:var(--champ-accent);
-  color:#15140d;
-}
-.directory-market-page .directory-champ-cart-action.is-disabled{
-  background:rgba(255,255,255,.08);
-  color:var(--champ-muted);
-}
-.directory-market-page .directory-champ-vacancy,
-.directory-market-page .directory-champ-lineup-action{display:none}
-.directory-market-filter-fields>button{
-  min-height:36px;
-  border:0;
-  border-radius:8px;
-  background:var(--champ-bg);
-  color:var(--champ-muted);
-  padding:0 10px;
-  font:inherit;
-  font-size:10px;
-  font-weight:850;
-  cursor:pointer;
-}
-.directory-market-filter-fields>button.active{
-  background:var(--champ-accent);
-  color:#15140d;
-}
-.directory-market-page .directory-market-clear{
-  background:transparent;
-  color:var(--champ-accent-strong);
-}
-
-@media(max-width:760px){
-  .directory-market-page .directory-champ-card-grid{grid-template-columns:1fr;gap:8px}
-  .directory-market-page .directory-champ-card{aspect-ratio:auto;min-height:210px}
-  .directory-market-page .directory-champ-cover-empty img{object-fit:cover}
-  .directory-market-page .directory-champ-body{justify-content:flex-end;gap:6px;padding:14px}
-  .directory-market-page .directory-champ-title strong{font-size:17px}
-  .directory-market-page .directory-champ-title small{font-size:8px}
-  .directory-market-page .directory-champ-facts{gap:0}
-  .directory-market-page .directory-champ-facts span{padding-right:9px}
-  .directory-market-page .directory-champ-facts span + span{padding-left:9px}
-  .directory-market-page .directory-champ-facts b{font-size:11px}
-  .directory-market-page .directory-champ-facts small{font-size:7px}
-  .directory-market-page .directory-champ-next-game{font-size:9px}
-  .directory-market-page .directory-champ-actions{grid-template-columns:92px minmax(0,1fr)}
-  .directory-market-page .directory-champ-actions>a,
-  .directory-market-page .directory-champ-actions>span{min-height:38px;font-size:8px}
-}
-
-/* Rodada 149 — marketplace orientado à jornada da equipe. */
-.champ-directory-heading small{
-  display:block;
-  margin-bottom:6px;
-  color:var(--champ-accent-strong);
-  font-size:9px;
-  font-weight:950;
-  letter-spacing:.14em;
-}
-.directory-market-filters{
-  align-items:center;
-}
-.directory-market-sort{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  min-height:36px;
-  margin-left:auto;
-  padding:0 10px;
-  border-radius:8px;
-  background:var(--champ-surface);
-  color:var(--champ-muted);
-  font-size:9px;
-  font-weight:900;
-  text-transform:uppercase;
-}
-.directory-market-sort select{
-  max-width:150px;
-  border:0;
-  outline:0;
-  background:transparent;
-  color:var(--champ-text);
-  font:inherit;
-  font-size:10px;
-  font-weight:900;
-  text-transform:none;
-}
-.directory-market-sort option{background:var(--champ-surface);color:var(--champ-text)}
-.directory-market-page .directory-champ-participating.is-purchased{
-  background:rgba(111,67,255,.2);
-  color:#c8baff;
-}
-@media(max-width:760px){
-  .directory-market-filters{align-items:stretch}
-  .directory-market-sort{width:100%;justify-content:space-between;margin-left:0}
-  .directory-market-sort select{max-width:none;text-align:right}
-}
-
-/* R151 — marketplace visual: vitrine clara, banner 16:9 e hierarquia de compra. */
-.directory-market-page{
-  --champ-bg:#f6f5f2;
-  --champ-surface:#fff;
-  --champ-surface-2:#f0eee9;
-  --champ-text:#171619;
-  --champ-muted:#746f69;
-  --champ-accent:#6f43ff;
-  --champ-accent-strong:#5b32e9;
-  background:var(--champ-bg);
-  color:var(--champ-text);
-}
-.directory-market-page .directory-page-body,
-.directory-market-page .directory-page-body-with-banner{gap:24px;background:var(--champ-bg);color:var(--champ-text);padding:0 0 64px}
-.champ-market-intro{display:grid;gap:20px;width:min(1440px,calc(100% - 40px));margin:0 auto;padding-top:28px}
-.champ-market-titlebar{display:flex;align-items:end;justify-content:space-between;gap:22px;padding-bottom:14px;border-bottom:1px solid #ddd8cf}
-.champ-market-titlebar>div{display:grid;gap:3px}.champ-market-titlebar small{color:#6f43ff;font-size:9px;font-weight:950;letter-spacing:.14em}.champ-market-titlebar h1{margin:0;color:#171619;font-size:clamp(36px,5vw,66px);font-weight:950;letter-spacing:-.06em;line-height:.9;text-transform:uppercase}.champ-market-titlebar p{max-width:720px;margin:5px 0 0;color:#746f69;font-size:11px;line-height:1.5}.champ-market-titlebar>a{display:inline-flex;min-height:40px;align-items:center;gap:7px;padding:0 13px;border:1px solid #171619;background:#171619;color:#fff;font-size:9px;font-weight:950;text-decoration:none;text-transform:uppercase}.champ-market-titlebar>a:hover{border-color:#6f43ff;background:#6f43ff}
-.champ-market-hero{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(300px,.75fr);gap:12px;min-height:390px}
-.champ-market-feature{position:relative;display:block;min-height:390px;overflow:hidden;background:#171619;color:#fff;text-decoration:none}.champ-market-feature-media,.champ-market-feature-overlay{position:absolute;inset:0;display:block}.champ-market-feature-media{display:grid;place-items:center;color:#cabdff}.champ-market-feature-media img{width:100%;height:100%;object-fit:cover;transition:transform .35s ease}.champ-market-feature:hover .champ-market-feature-media img{transform:scale(1.025)}.champ-market-feature-overlay{background:linear-gradient(90deg,rgba(9,8,12,.94) 0%,rgba(9,8,12,.78) 38%,rgba(9,8,12,.18) 76%,rgba(9,8,12,.05) 100%)}
-.champ-market-feature-copy{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:9px;padding:34px}.champ-market-feature-copy>small{color:#c8b9ff;font-size:9px;font-weight:950;letter-spacing:.13em}.champ-market-feature-copy>strong{max-width:760px;font-size:clamp(34px,4vw,62px);font-weight:950;letter-spacing:-.055em;line-height:.93;text-transform:uppercase;text-wrap:balance}.champ-market-feature-copy>em{color:#d2ccd8;font-size:10px;font-style:normal;font-weight:800}.champ-market-feature-facts{display:flex;flex-wrap:wrap;gap:1px;margin-top:4px;background:rgba(255,255,255,.16)}.champ-market-feature-facts b{display:grid;min-width:115px;gap:2px;padding:10px 12px;background:rgba(10,9,12,.8);font-size:12px}.champ-market-feature-facts i{color:#aaa4b0;font-size:7px;font-style:normal;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.champ-market-feature-cta{display:inline-flex;min-height:42px;align-items:center;gap:8px;margin-top:3px;padding:0 15px;background:#6f43ff;font-size:9px;font-weight:950;letter-spacing:.06em;text-transform:uppercase}
-.champ-market-side{display:grid;grid-template-rows:1fr 1fr auto;gap:10px}.champ-market-side>a{display:grid;grid-template-columns:92px minmax(0,1fr) auto;align-items:center;gap:11px;min-height:120px;padding:11px;border:1px solid #ddd8cf;background:#fff;color:#171619;text-decoration:none}.champ-market-side>a:hover{border-color:#171619}.champ-market-side>a>span:first-child{display:grid;width:92px;height:82px;place-items:center;overflow:hidden;background:#ece9e3;color:#6f43ff}.champ-market-side img{width:100%;height:100%;object-fit:cover}.champ-market-side div{display:grid;min-width:0;gap:3px}.champ-market-side small{color:#6f43ff;font-size:8px;font-weight:950;text-transform:uppercase}.champ-market-side strong{overflow:hidden;font-size:12px;line-height:1.1;text-overflow:ellipsis;text-transform:uppercase}.champ-market-side b{color:#746f69;font-size:8px}.champ-market-side>a.champ-market-side-cta{grid-template-columns:minmax(0,1fr) auto;min-height:72px;background:#171619;color:#fff}.champ-market-side-cta>span{display:grid!important;width:auto!important;height:auto!important;place-items:initial!important;background:transparent!important}.champ-market-side-cta small{color:#aa94ff!important}
-.champ-market-categories{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid #ddd8cf;border-left:1px solid #ddd8cf}.champ-market-categories>a{display:grid;grid-template-columns:46px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:9px;min-height:78px;padding:10px 12px;border-right:1px solid #ddd8cf;border-bottom:1px solid #ddd8cf;background:#fff;color:#171619;text-decoration:none}.champ-market-categories>a:hover{background:#f3f0ff}.champ-market-categories>a>span{grid-row:1/3;display:grid;width:46px;height:46px;place-items:center;background:#f0edff;color:#6f43ff}.champ-market-categories b{align-self:end;font-size:10px;text-transform:uppercase}.champ-market-categories small{align-self:start;color:#827d76;font-size:8px}
-
-.directory-market-page #marketplace-catalog{display:grid;gap:12px;width:100%}
-.champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto auto auto;width:min(1440px,calc(100% - 40px));margin:0 auto;gap:8px}
-.directory-market-page .directory-search{min-height:52px;padding:0 15px;border:2px solid #171619;border-radius:0;background:#fff;color:#746f69}.directory-market-page .directory-search input{color:#171619;font-size:12px}.directory-market-page .directory-search input::placeholder{color:#9a968f}.directory-market-page .directory-search:focus-within{outline:0;border-color:#6f43ff;box-shadow:3px 3px 0 #6f43ff}.directory-market-page .directory-result-count{color:#746f69}.directory-market-page .directory-result-count strong{color:#171619}.directory-create-championship{min-height:48px;border-radius:0;background:#171619;color:#fff}.directory-create-championship:hover{background:#6f43ff}.directory-market-cart-link,.directory-market-tool>summary{width:48px;height:48px;border:1px solid #ddd8cf;border-radius:0!important;background:#fff!important;color:#171619!important}.directory-market-cart-link:hover,.directory-market-tool>summary:hover{border-color:#6f43ff;color:#6f43ff!important}.directory-market-cart-link b,.directory-market-tool>summary b{background:#6f43ff!important;color:#fff!important}.directory-market-tool>div{border:1px solid #ddd8cf;border-radius:0;background:#fff;color:#171619;box-shadow:0 18px 50px rgba(24,20,32,.14)}.directory-market-tool p{color:#746f69}.directory-market-page .directory-wishlist-preview a{color:#171619!important}.directory-market-page .directory-cart-method{color:#171619}.directory-market-page .directory-cart-method span{color:#746f69}.directory-market-page .directory-cart-method select,.directory-market-page .directory-cart-preview input,.directory-market-page .directory-cart-preview article button{border:1px solid #ddd8cf!important;border-radius:0!important;background:#f6f5f2!important;color:#171619!important}.directory-market-page .directory-cart-preview article{border-bottom:1px solid #eeeae4}.directory-market-page .directory-cart-preview article strong{color:#171619}.directory-market-page .directory-cart-preview article small{color:#746f69}.directory-market-page .directory-cart-total{border-top-color:#ddd8cf;color:#746f69}.directory-market-page .directory-cart-total strong{color:#171619}.directory-market-page .directory-cart-checkout-all{border-radius:0;background:#171619;color:#fff}.directory-market-page .directory-cart-checkout-all:hover{background:#6f43ff}
-.directory-commerce-error{width:min(1440px,calc(100% - 40px));margin:0 auto!important}
-.directory-market-filters{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;width:min(1440px,calc(100% - 40px))!important;margin:0 auto 4px!important;padding:0!important;border:0!important;background:transparent!important}.directory-market-filter-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}.directory-market-filter-chips::-webkit-scrollbar{display:none}.directory-market-filter-chips button,.directory-market-more>summary,.directory-market-filter-fields button{min-height:34px!important;padding:0 10px!important;border:1px solid #ddd8cf!important;border-radius:0!important;background:#fff!important;color:#57534e!important;font-size:8px!important;font-weight:900!important;text-transform:uppercase!important;white-space:nowrap}.directory-market-filter-chips button:hover,.directory-market-filter-chips button.active,.directory-market-filter-fields button.active{border-color:#171619!important;background:#171619!important;color:#fff!important}.directory-market-sort{display:flex!important;align-items:center!important;gap:6px!important;color:#746f69!important;font-size:8px!important;font-weight:900!important;text-transform:uppercase}.directory-market-sort select{min-height:34px!important;border:1px solid #ddd8cf!important;border-radius:0!important;background:#fff!important;color:#171619!important;padding:0 8px!important}.directory-market-more{position:relative}.directory-market-more>summary{display:flex!important;align-items:center!important;gap:6px!important;list-style:none!important;cursor:pointer}.directory-market-more>summary::-webkit-details-marker{display:none}.directory-market-filter-fields{position:absolute!important;right:0!important;top:40px!important;z-index:25!important;display:grid!important;width:min(360px,calc(100vw - 24px))!important;gap:8px!important;padding:12px!important;border:1px solid #ddd8cf!important;background:#fff!important;box-shadow:0 18px 45px rgba(24,20,32,.14)!important}.directory-market-filter-fields label{display:grid!important;gap:4px!important}.directory-market-filter-fields label span{color:#746f69!important;font-size:8px!important;font-weight:900!important;text-transform:uppercase}.directory-market-filter-fields input{min-height:38px!important;border:1px solid #ddd8cf!important;border-radius:0!important;background:#fff!important;color:#171619!important;padding:0 9px!important}.directory-market-clear{display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important}
-
-.directory-market-page .directory-champ-card-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important;width:min(1440px,calc(100% - 40px))!important;margin:0 auto!important}
-.directory-market-page .directory-champ-card{display:flex!important;min-height:0!important;flex-direction:column!important;overflow:hidden!important;border:1px solid #ddd8cf!important;border-radius:0!important;background:#fff!important;color:#171619!important;transition:border-color .16s ease,transform .16s ease,box-shadow .16s ease!important}
-.directory-market-page .directory-champ-card:hover{border-color:#171619!important;background:#fff!important;transform:translateY(-2px)!important;box-shadow:5px 5px 0 rgba(23,22,25,.12)!important}
-.directory-market-page .directory-champ-cover{position:relative!important;display:block!important;grid-column:auto!important;grid-row:auto!important;width:100%!important;height:auto!important;min-height:0!important;aspect-ratio:16/10!important;overflow:hidden!important;background:#ece9e3!important}.directory-market-page .directory-champ-cover-empty{position:absolute!important;inset:0!important;display:grid!important;width:100%!important;height:100%!important;place-items:center!important;padding:0!important;background:linear-gradient(135deg,#171619,#332061 70%,#6f43ff 140%)!important;color:#d7ccff!important}.directory-market-page .directory-champ-cover-empty img{width:100%!important;height:100%!important;object-fit:cover!important}.directory-market-page .directory-champ-cover-empty b{font-size:32px!important}.directory-market-page .directory-champ-badges{position:absolute!important;top:9px!important;left:9px!important;z-index:3!important;display:flex!important;gap:5px!important}.directory-market-page .directory-champ-badges b{display:inline-flex!important;min-height:24px!important;align-items:center!important;gap:4px!important;padding:0 7px!important;border:0!important;border-radius:0!important;background:#171619!important;color:#fff!important;font-size:7px!important;font-weight:950!important;text-transform:uppercase!important}.directory-market-page .directory-champ-badges b+ b{background:#dd5f45!important}.directory-market-page .directory-champ-badges b.is-full{background:#77716a!important}
-.directory-market-page .directory-champ-body{display:flex!important;min-width:0!important;flex:1!important;flex-direction:column!important;gap:10px!important;padding:14px!important}.directory-market-page .directory-champ-title-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:start!important;gap:8px!important}.directory-market-page .directory-champ-title{display:grid!important;min-width:0!important;gap:3px!important;color:#171619!important;text-decoration:none!important}.directory-market-page .directory-champ-title small{color:#6f43ff!important;font-size:7px!important;font-weight:950!important;letter-spacing:.08em!important;text-transform:uppercase!important}.directory-market-page .directory-champ-title strong{font-size:17px!important;font-weight:950!important;letter-spacing:-.03em!important;line-height:1.05!important;text-transform:uppercase!important}.directory-market-page .directory-champ-title em{overflow:hidden;color:#807b74;font-size:8px;font-style:normal;font-weight:750;text-overflow:ellipsis;white-space:nowrap}.directory-market-page .directory-champ-quick-actions{display:flex!important;gap:4px!important}.directory-market-page .directory-champ-wish,.directory-market-page .directory-champ-cart-icon{display:grid!important;width:31px!important;height:31px!important;place-items:center!important;padding:0!important;border:1px solid #ddd8cf!important;border-radius:50%!important;background:#fff!important;color:#171619!important;cursor:pointer!important}.directory-market-page .directory-champ-wish:hover,.directory-market-page .directory-champ-cart-icon:hover,.directory-market-page .directory-champ-wish.active,.directory-market-page .directory-champ-cart-icon.active{border-color:#6f43ff!important;background:#6f43ff!important;color:#fff!important}.directory-market-page .directory-champ-participating{display:inline-flex!important;align-items:center!important;gap:5px!important;align-self:flex-start!important;padding:6px 8px!important;background:#eef8f2!important;color:#146d49!important;font-size:7px!important;font-weight:900!important;text-transform:uppercase!important}.directory-market-page .directory-champ-participating.is-purchased{background:#f3f0ff!important;color:#5b32e9!important}
-.directory-market-page .directory-champ-facts{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;border-top:1px solid #ece8e1!important;border-bottom:1px solid #ece8e1!important}.directory-market-page .directory-champ-facts span{display:grid!important;gap:2px!important;padding:9px 7px!important}.directory-market-page .directory-champ-facts span+span{border-left:1px solid #ece8e1!important}.directory-market-page .directory-champ-facts b{overflow:hidden!important;color:#171619!important;font-size:9px!important;text-overflow:ellipsis!important;white-space:nowrap!important}.directory-market-page .directory-champ-facts small{color:#8d8881!important;font-size:6px!important;font-weight:850!important;text-transform:uppercase!important}.directory-market-page .directory-champ-next-game{display:flex!important;justify-content:space-between!important;gap:7px!important;color:#827d76!important;font-size:8px!important}.directory-market-page .directory-champ-next-game b{color:#171619!important}.directory-market-page .directory-champ-vacancy{display:grid!important;gap:4px!important}.directory-market-page .directory-champ-vacancy::before{display:block;height:4px;background:linear-gradient(90deg,#6f43ff 0 62%,#ece8e1 62% 100%);content:''}.directory-market-page .directory-champ-vacancy small{color:#8d8881!important;font-size:7px!important}.directory-market-page .directory-champ-actions{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;gap:7px!important;margin-top:auto!important}.directory-market-page .directory-champ-actions>a,.directory-market-page .directory-champ-cart-action{display:flex!important;min-height:38px!important;align-items:center!important;justify-content:center!important;gap:5px!important;padding:0 10px!important;border:1px solid #171619!important;border-radius:0!important;font-size:8px!important;font-weight:950!important;text-decoration:none!important;text-transform:uppercase!important}.directory-market-page .directory-champ-details-link{background:#fff!important;color:#171619!important}.directory-market-page .directory-champ-details-link:hover{border-color:#6f43ff!important;color:#6f43ff!important}.directory-market-page .directory-champ-cart-action{background:#171619!important;color:#fff!important}.directory-market-page .directory-champ-cart-action:hover{border-color:#6f43ff!important;background:#6f43ff!important}.directory-market-page .directory-champ-cart-action.is-disabled{opacity:.5!important}
-.directory-market-page .directory-empty{width:min(1440px,calc(100% - 40px));margin:0 auto;border:1px dashed #c7c1b8;background:#fff;color:#746f69}
-
-@media(max-width:1180px){.champ-market-intro,.champ-directory-tools,.directory-market-filters,.directory-market-page .directory-champ-card-grid,.directory-commerce-error,.directory-market-page .directory-empty{width:min(100% - 28px,1180px)!important}.champ-market-hero{grid-template-columns:1fr}.champ-market-side{grid-template-columns:1fr 1fr;grid-template-rows:auto}.champ-market-side>a.champ-market-side-cta{grid-column:1/-1}.champ-market-categories{grid-template-columns:repeat(3,minmax(0,1fr))}.directory-market-page .directory-champ-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
-@media(max-width:820px){.champ-market-intro{width:100%!important;padding:14px 10px 0}.champ-market-titlebar{align-items:flex-start}.champ-market-titlebar h1{font-size:42px}.champ-market-titlebar>a{display:none}.champ-market-feature{min-height:390px}.champ-market-feature-copy{padding:22px 16px}.champ-market-feature-copy>strong{font-size:35px}.champ-market-feature-facts{display:grid;grid-template-columns:1fr 1fr;width:100%}.champ-market-feature-facts b{min-width:0}.champ-market-side{grid-template-columns:1fr}.champ-market-side>a.champ-market-side-cta{grid-column:auto}.champ-market-categories{display:flex;overflow-x:auto;margin-inline:-10px;padding-inline:10px;border:0;scrollbar-width:none}.champ-market-categories::-webkit-scrollbar{display:none}.champ-market-categories>a{flex:0 0 170px;border:1px solid #ddd8cf}.champ-directory-tools{grid-template-columns:minmax(0,1fr) auto auto;width:calc(100% - 20px)!important}.directory-market-page .directory-result-count{display:none}.directory-create-championship{display:none}.directory-market-filters{width:calc(100% - 20px)!important;align-items:stretch!important;flex-wrap:wrap}.directory-market-filter-chips{order:1;width:100%}.directory-market-sort{order:2;margin-right:auto}.directory-market-more{order:3}.directory-market-page .directory-champ-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;width:calc(100% - 20px)!important;gap:8px!important}.directory-market-page .directory-champ-body{padding:10px!important}.directory-market-page .directory-champ-title strong{font-size:14px!important}.directory-market-page .directory-champ-facts{grid-template-columns:1fr 1fr!important}.directory-market-page .directory-champ-facts span:nth-child(3){grid-column:1/-1;border-top:1px solid #ece8e1!important;border-left:0!important}.directory-market-page .directory-champ-next-game{display:grid!important}.directory-market-page .directory-champ-actions{grid-template-columns:1fr!important}.directory-market-page .directory-champ-details-link{display:none!important}.directory-commerce-error,.directory-market-page .directory-empty{width:calc(100% - 20px)!important}}
-@media(max-width:460px){.champ-market-feature-copy>strong{font-size:31px}.champ-market-feature-copy{padding:18px 13px}.champ-market-feature-facts b{font-size:10px}.champ-market-side>a{grid-template-columns:76px minmax(0,1fr) auto;min-height:104px}.champ-market-side>a>span:first-child{width:76px;height:72px}.directory-market-page .directory-champ-badges{top:5px!important;left:5px!important}.directory-market-page .directory-champ-badges b{min-height:20px!important;padding:0 5px!important;font-size:6px!important}.directory-market-page .directory-champ-wish,.directory-market-page .directory-champ-cart-icon{width:27px!important;height:27px!important}.directory-market-page .directory-champ-title strong{font-size:12px!important}.directory-market-page .directory-champ-title em{font-size:7px}.directory-market-page .directory-champ-facts b{font-size:8px!important}.directory-market-page .directory-champ-next-game{font-size:7px!important}.directory-market-page .directory-champ-cart-action{min-height:34px!important;font-size:7px!important}}
+@media (max-width: 560px) { .directory-market-page .championship-directory-list,.directory-market-page .championship-directory-list.is-short-list { grid-template-columns: 1fr !important; } .directory-market-page .dz-champ-list-row__identity strong { font-size: 15px !important; } }

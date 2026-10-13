@@ -19,13 +19,12 @@ export const APP_NAV: AppNavItem[] = [
     href: '/campeonatos',
     children: [
       { label: 'Campeonatos', href: '/campeonatos' },
-      { label: 'Vagas abertas', href: '/vagas' },
       { label: 'Central do campeonato', href: '/central-campeonato' },
     ],
   },
   {
-    label: 'Comunidade',
-    href: '/comunidade',
+    label: 'Perfis',
+    href: '/equipes',
     children: [
       { label: 'Equipes', href: '/equipes' },
       { label: 'Jogadores', href: '/jogadores' },
@@ -61,9 +60,7 @@ export function resolveActiveNavLabel(pathname?: string | null): string | undefi
   ) return 'Competições'
 
   if (
-    clean === '/comunidade'
-    || clean.startsWith('/comunidade/')
-    || clean === '/equipes'
+    clean === '/equipes'
     || clean.startsWith('/equipes/')
     || clean === '/jogadores'
     || clean.startsWith('/jogadores/')
@@ -71,7 +68,7 @@ export function resolveActiveNavLabel(pathname?: string | null): string | undefi
     || clean.startsWith('/rank/')
     || clean === '/produtoras'
     || clean.startsWith('/produtoras/')
-  ) return 'Comunidade'
+  ) return 'Perfis'
 
   if (
     clean === '/carteira'

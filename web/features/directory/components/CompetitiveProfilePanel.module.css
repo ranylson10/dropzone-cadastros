@@ -1,0 +1,22 @@
+.panel :global(.competitive-average-grid) > span {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.panel :global(.competitive-average-grid) > span :is(small, b) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.panel :global(.competitive-loadout) header strong,
+.panel :global(.competitive-trend) header strong {
+  color: var(--profile-ink);
+}
+
+@media (max-width: 850px) {
+  .panel :global(.competitive-average-grid) > strong {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+}

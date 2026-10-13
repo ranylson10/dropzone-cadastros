@@ -1,32 +1,49 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect, Textarea as UiTextarea } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, ShieldCheck, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
+import {saveCreationEdition as persistCreationEdition} from '@/lib/creation-edition'
+import {useAccountResourceScope} from '@/hooks/useAccountResourceScope'
+import { EditionLifecycleStatus } from '@/features/campeonatos/estrutura-avancada/EditionLifecycleStatus'
 import { CHAMPIONSHIP_TYPE_LABELS, CHAMPIONSHIP_TYPES } from '@/lib/dropzone-constants'
 import { Field } from '../../components/form-fields'
 import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@/components/forms/campeonato'
 import { SystemModal } from '@/components/layout/SystemModal'
-import { CampeonatoEquipesTab } from '@/features/campeonatos/equipes'
-import { CampeonatoJogadoresTab } from '@/features/campeonatos/jogadores'
-import { CampeonatoEstruturaTab } from '@/features/campeonatos/fases'
-import { CampeonatoEstatisticasTab } from '@/features/campeonatos/estatisticas'
-import { CampeonatoRulebookTab } from '@/features/campeonatos/rulebook'
-import { CampeonatoCallsTab } from '@/features/campeonatos/calls'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, producerWorkspaceForTab, producerWorkspaceTabs, type ProducerTab } from './producer-tabs'
-import { ProvisionalTeamsPanel } from '@/features/produtoras/components/ProvisionalTeamsPanel'
-import { ProducerMembersPanel } from '@/features/produtoras/components/ProducerMembersPanel'
-import { ProducerFinancePanel } from '@/features/produtoras/components/ProducerFinancePanel'
 import { WhatsappPhoneField } from '@/components/forms/WhatsappPhoneField'
+import { WorkspaceContent, WorkspaceHeader, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
+import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { producerEntityRequest, producerRequestKey, type ProducerEntityRequest, type ProducerSection } from '../../workspace-entities'
+import type { ProducerWorkspaceSummary } from '@backend/dropzone/entities/producer-summary'
+
+const TabLoading = () => <DropzoneLoader label="Carregando área" />
+const CampeonatoEquipesTab = dynamic(() => import('@/features/campeonatos/equipes').then(module => module.CampeonatoEquipesTab), { loading: TabLoading })
+const CampeonatoJogadoresTab = dynamic(() => import('@/features/campeonatos/jogadores').then(module => module.CampeonatoJogadoresTab), { loading: TabLoading })
+const CampeonatoEstruturaTab = dynamic(() => import('@/features/campeonatos/fases').then(module => module.CampeonatoEstruturaTab), { loading: TabLoading })
+const CampeonatoEstatisticasTab = dynamic(() => import('@/features/campeonatos/estatisticas').then(module => module.CampeonatoEstatisticasTab), { loading: TabLoading })
+const CampeonatoRulebookTab = dynamic(() => import('@/features/campeonatos/rulebook').then(module => module.CampeonatoRulebookTab), { loading: TabLoading })
+const CampeonatoCallsTab = dynamic(() => import('@/features/campeonatos/calls').then(module => module.CampeonatoCallsTab), { loading: TabLoading })
+const ProvisionalTeamsPanel = dynamic(() => import('@/features/produtoras/components/ProvisionalTeamsPanel').then(module => module.ProvisionalTeamsPanel), { loading: TabLoading })
+const ProducerMembersPanel = dynamic(() => import('@/features/produtoras/components/ProducerMembersPanel').then(module => module.ProducerMembersPanel), { loading: TabLoading })
+const ProducerFinancePanel = dynamic(() => import('@/features/produtoras/components/ProducerFinancePanel').then(module => module.ProducerFinancePanel), { loading: TabLoading })
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
-type ProducerSection = 'visao' | 'campeonatos' | 'financeiro' | 'equipe' | 'configuracoes'
 type ProducerTeamView = 'membros' | 'provisorias'
 type ProducerFinanceView = 'resumo' | 'vendedores'
 
 export function ProdutoraPanel(props: {
+  dataScopeKey: string
+  dataLoading: boolean
+  dataError: string
+  dataSummary?: ProducerWorkspaceSummary
+  onDataScopeChange: (request: ProducerEntityRequest) => void
+  reloadData: () => void
   account?: DropZoneRow | null
   championships: DropZoneRow[]
   teams: DropZoneRow[]
@@ -95,6 +112,7 @@ export function ProdutoraPanel(props: {
   error?: string
   uploadPublicFile: (file: File, bucket: string, context?: { entityId?: string | null; campeonatoId?: string | null; uploadIntent?: 'create_profile' | 'create_campeonato' | null }) => Promise<string>
 }) {
+  const creationScope=useAccountResourceScope(props.account?.id||'')
   const [showCreateChamp, setShowCreateChamp] = useState(false)
   const workspacePermissions = (props.account?.data?.workspace_permissions || {}) as Record<string, boolean>
   const workspaceRole = String(props.account?.data?.workspace_role || 'proprietario')
@@ -116,7 +134,7 @@ export function ProdutoraPanel(props: {
   async function cancelPendingChampionship(championship: DropZoneRow) {
     const approvalStatus = String(championship.data?.aprovacao_status || 'aprovado')
     if (approvalStatus !== 'pendente') return
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       `Desistir da criação de "${rowTitle(championship)}"? O campeonato pendente será removido e não seguirá para aprovação.`,
     )
     if (!confirmed) return
@@ -135,6 +153,13 @@ export function ProdutoraPanel(props: {
   const [producerFinanceView, setProducerFinanceView] = useState<ProducerFinanceView>('resumo')
   const [championshipDetailOpen, setChampionshipDetailOpen] = useState(true)
   const [tab, setTab] = useState<ProducerTab>('visao')
+  const dataRequest = useMemo(() => producerEntityRequest(producerSection, tab, props.selectedChamp?.id || '', championshipDetailOpen), [producerSection, tab, props.selectedChamp?.id, championshipDetailOpen])
+  const scopeMatches = props.dataScopeKey === producerRequestKey(dataRequest)
+  const dataLoading = !scopeMatches || props.dataLoading
+  const dataError = scopeMatches ? props.dataError : ''
+  const dataSummary = scopeMatches && !props.dataLoading ? props.dataSummary : undefined
+  const onDataScopeChange = props.onDataScopeChange
+  useEffect(() => { onDataScopeChange(dataRequest) }, [onDataScopeChange, dataRequest])
   const [payInfo, setPayInfo] = useState<any>(null)
   const [payBusy, setPayBusy] = useState(false)
   const [payMsg, setPayMsg] = useState('')
@@ -175,9 +200,6 @@ export function ProdutoraPanel(props: {
   const [financialMsg, setFinancialMsg] = useState('')
   const [financialNote, setFinancialNote] = useState<Record<string, string>>({})
   const [financialBusy, setFinancialBusy] = useState<Record<string, boolean>>({})
-  const [editionLifecycle, setEditionLifecycle] = useState<{ status: string; data_fim?: string | null } | null>(null)
-  const [editionLifecycleBusy, setEditionLifecycleBusy] = useState(false)
-  const [editionLifecycleError, setEditionLifecycleError] = useState('')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -231,6 +253,7 @@ export function ProdutoraPanel(props: {
   const [showInviteForm, setShowInviteForm] = useState(false)
 
   useEffect(() => {
+    if (producerSection !== 'campeonatos' || !['jogos', 'estatisticas'].includes(tab)) return
     let active = true
     setMapsLoading(true)
     fetch('/api/mapas')
@@ -246,7 +269,7 @@ export function ProdutoraPanel(props: {
         if (active) setMapsLoading(false)
       })
     return () => { active = false }
-  }, [])
+  }, [producerSection, tab])
 
   async function sellerRequest(path: string, options?: RequestInit) {
     const { data } = await supabase.auth.getSession()
@@ -405,7 +428,7 @@ export function ProdutoraPanel(props: {
   }
 
   async function removeProducerSeller(managerId: string) {
-    if (!window.confirm('Remover este vendedor da produtora e encerrar a atuação dele em todos os campeonatos? O histórico será preservado.')) return
+    if (!await confirmAction('Remover este vendedor da produtora e encerrar a atuação dele em todos os campeonatos? O histórico será preservado.')) return
     setSellerBusy(true)
     setSellerError('')
     try {
@@ -425,7 +448,7 @@ export function ProdutoraPanel(props: {
 
   async function detachSellerFromChampionship(managerId: string) {
     if (!selectedChamp?.id) return
-    if (!window.confirm('Encerrar vendas deste manager neste campeonato? Ele deixa de vender vagas neste evento.')) return
+    if (!await confirmAction('Encerrar vendas deste manager neste campeonato? Ele deixa de vender vagas neste evento.')) return
     setSellerBusy(true)
     setSellerError('')
     try {
@@ -580,47 +603,6 @@ export function ProdutoraPanel(props: {
     if (!visibleChampWorkspaces.some((item) => item.id === activeChampWorkspace)) setTab('visao')
   }, [activeChampWorkspace, visibleChampWorkspaceKey])
 
-  async function loadEditionLifecycle(campeonatoId: string) {
-    try {
-      const json = await sellerRequest(`/api/campeonatos/${campeonatoId}/estrutura-avancada`)
-      setEditionLifecycle(json?.edition ? { status: String(json.edition.status || ''), data_fim: json.edition.data_fim || null } : null)
-      setEditionLifecycleError('')
-    } catch (error) {
-      setEditionLifecycle(null)
-      setEditionLifecycleError(error instanceof Error ? error.message : 'Não foi possível consultar o estado da season.')
-    }
-  }
-
-  useEffect(() => {
-    if (!selectedChamp?.id) {
-      setEditionLifecycle(null)
-      setEditionLifecycleError('')
-      return
-    }
-    void loadEditionLifecycle(selectedChamp.id)
-  }, [selectedChamp?.id])
-
-  async function updateEditionLifecycle(action: 'publish_final' | 'reopen_final') {
-    if (!selectedChamp?.id || editionLifecycleBusy) return
-    const closing = action === 'publish_final'
-    if (!window.confirm(closing
-      ? 'Encerrar este campeonato/season? Todas as quedas precisam estar finalizadas e novas inscrições serão fechadas.'
-      : 'Reabrir esta season? As inscrições continuarão fechadas até você habilitá-las novamente nas configurações.')) return
-    setEditionLifecycleBusy(true)
-    setEditionLifecycleError('')
-    try {
-      await sellerRequest(`/api/campeonatos/${selectedChamp.id}/estrutura-avancada`, {
-        method: 'POST',
-        body: JSON.stringify({ action }),
-      })
-      await loadEditionLifecycle(selectedChamp.id)
-    } catch (error) {
-      setEditionLifecycleError(error instanceof Error ? error.message : 'Não foi possível atualizar a season.')
-    } finally {
-      setEditionLifecycleBusy(false)
-    }
-  }
-
   async function loadFinancialReviews() {
     setFinancialLoading(true)
     setFinancialError('')
@@ -664,8 +646,8 @@ export function ProdutoraPanel(props: {
     : props.championships.filter((champ) => String(dataText(champ, 'tipo') || 'copa') === typeFilter)
   const producerApprovedChampionships = props.championships.filter((champ) => String(dataText(champ, 'aprovacao_status') || 'aprovado') === 'aprovado').length
   const producerPendingChampionships = props.championships.filter((champ) => String(dataText(champ, 'aprovacao_status') || '') === 'pendente').length
-  const producerGamesCount = props.games.length
-  const producerTeamsCount = props.teams.length
+  const producerGamesCount = dataSummary?.gameCount ?? '…'
+  const producerTeamsCount = dataSummary?.teamCount ?? '…'
 
   function toInputDate(value: unknown) {
     if (!value) return ''
@@ -701,7 +683,7 @@ export function ProdutoraPanel(props: {
   }
 
   useEffect(() => {
-    if (!selectedChamp?.id) {
+    if (producerSection !== 'campeonatos' || !selectedChamp?.id) {
       setPayInfo(null)
       return
     }
@@ -724,7 +706,7 @@ export function ProdutoraPanel(props: {
     return () => {
       cancelled = true
     }
-  }, [selectedChamp?.id])
+  }, [producerSection, selectedChamp?.id])
 
   async function gerarPagamentoPacote(campeonatoId = selectedChamp?.id) {
     if (!campeonatoId) return
@@ -894,25 +876,7 @@ export function ProdutoraPanel(props: {
 
   async function saveCreationEdition(campeonatoId: string, form: CampeonatoFormValue) {
     if (!form.nome_historico.trim() && !form.temporada.trim() && !form.titulo_publico.trim()) return
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-    if (!token) throw new Error('Sessão expirada ao salvar temporada e edição.')
-    const response = await fetch(`/api/campeonatos/${campeonatoId}/estrutura-avancada`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'save_edition',
-        franchise_id: form.origem_criacao === 'season' ? form.franquia_origem_id || null : null,
-        source_championship_id: form.origem_criacao === 'season' ? form.campeonato_origem_id || null : null,
-        franchise_name: form.nome_historico.trim() || form.nome.trim(),
-        edition_number: Number(form.numero_edicao) || 1,
-        season: form.temporada.trim() || null,
-        public_title: form.titulo_publico.trim() || null,
-        edition_status: 'planejada',
-      }),
-    })
-    const json = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Error(json.error || 'Não foi possível salvar temporada e edição.')
+    await persistCreationEdition(campeonatoId,{action:'save_edition',franchise_id:form.origem_criacao==='season'?form.franquia_origem_id||null:null,source_championship_id:form.origem_criacao==='season'?form.campeonato_origem_id||null:null,franchise_name:form.nome_historico.trim()||form.nome.trim(),edition_number:Number(form.numero_edicao)||1,season:form.temporada.trim()||null,public_title:form.titulo_publico.trim()||null,edition_status:'planejada'},()=>{if(!creationScope.isCurrent())throw new Error('A conta ou a produtora mudou. Consulte o campeonato na conta anterior.')})
   }
 
   async function createInitialPhases(campeonatoId: string, form: CampeonatoFormValue) {
@@ -1033,6 +997,7 @@ export function ProdutoraPanel(props: {
   }, [champGroups, orderedChampPhases])
 
   useEffect(() => {
+    if (producerSection !== 'campeonatos') return
     if (tab === 'vendedores') {
       setSellerSelected(null)
       setShowInviteForm(false)
@@ -1042,7 +1007,7 @@ export function ProdutoraPanel(props: {
     if (tab === 'financeiro') {
       void loadFinancialReviews()
     }
-  }, [tab, selectedChamp?.id])
+  }, [producerSection, tab, selectedChamp?.id])
 
 
   useEffect(() => {
@@ -1454,10 +1419,10 @@ ${params.url}`
   }
 
   const stats = [
-    { label: 'Equipes', value: props.selectedChampTeams.length },
-    { label: 'Fases', value: champPhases.length },
-    { label: 'Grupos', value: champGroups.length },
-    { label: 'Jogos', value: champGames.length },
+    { label: 'Equipes', value: dataSummary?.teamCount ?? '…' },
+    { label: 'Fases', value: dataSummary?.phaseCount ?? '…' },
+    { label: 'Grupos', value: dataSummary?.groupCount ?? '…' },
+    { label: 'Jogos', value: dataSummary?.gameCount ?? '…' },
   ]
   const nextGame = champGames
     .slice()
@@ -1514,7 +1479,7 @@ ${params.url}`
   ] : []
 
   return (
-    <div className="producer-layout-ref">
+    <WorkspaceShell kind="produtora" className="producer-layout-ref">
       {produtoraAprovacao !== 'aprovado' ? (
         <div
           className={`message ${produtoraAprovacao === 'rejeitado' ? 'error' : ''}`}
@@ -1526,14 +1491,32 @@ ${params.url}`
         </div>
       ) : null}
 
-      <div className="producer-workspace-access-bar"><span><ShieldCheck size={14} /> Workspace privado</span><b>{workspaceRole === 'proprietario' ? 'Proprietário' : workspaceRole}</b></div>
-      <nav className="producer-hub-nav producer-hub-nav-primary" aria-label="Áreas da produtora">
-        <button type="button" className={producerSection === 'visao' ? 'active' : ''} onClick={() => setProducerSection('visao')}><FolderOpen size={17} /><span>Visão geral</span></button>
-        <button type="button" className={producerSection === 'campeonatos' ? 'active' : ''} onClick={() => setProducerSection('campeonatos')}><Trophy size={17} /><span>Campeonatos</span></button>
-        {canFinanceWorkspace || canCommercialWorkspace ? <button type="button" className={producerSection === 'financeiro' ? 'active' : ''} onClick={() => { setProducerSection('financeiro'); if (!canFinanceWorkspace) setProducerFinanceView('vendedores') }}><CreditCard size={17} /><span>Financeiro</span></button> : null}
-        {canManageMembers || canOperateWorkspace ? <button type="button" className={producerSection === 'equipe' ? 'active' : ''} onClick={() => { setProducerSection('equipe'); if (!canManageMembers) setProducerTeamView('provisorias') }}><Users size={17} /><span>Equipe</span></button> : null}
-        {canAdminWorkspace ? <button type="button" className={producerSection === 'configuracoes' ? 'active' : ''} onClick={() => setProducerSection('configuracoes')}><ShieldCheck size={17} /><span>Configurações</span></button> : null}
-      </nav>
+      <WorkspaceHeader
+        eyebrow="Produtora"
+        title={props.account ? rowTitle(props.account) : 'Workspace da produtora'}
+        description="Campeonatos, financeiro, equipe interna e configurações no mesmo workspace."
+        icon={<FolderOpen size={18} />}
+        actions={<span><ShieldCheck size={14} /> {workspaceRole === 'proprietario' ? 'Proprietário' : workspaceRole}</span>}
+      />
+      <WorkspaceNav
+        ariaLabel="Áreas da produtora"
+        activeId={producerSection}
+        onChange={(id) => {
+          const next = id as ProducerSection
+          setProducerSection(next)
+          if (next === 'financeiro' && !canFinanceWorkspace) setProducerFinanceView('vendedores')
+          if (next === 'equipe' && !canManageMembers) setProducerTeamView('provisorias')
+        }}
+        items={[
+          { id: 'visao', label: 'Visão geral', icon: <FolderOpen size={16} /> },
+          { id: 'campeonatos', label: 'Campeonatos', icon: <Trophy size={16} /> },
+          ...(canFinanceWorkspace || canCommercialWorkspace ? [{ id: 'financeiro', label: 'Financeiro', icon: <CreditCard size={16} /> }] : []),
+          ...(canManageMembers || canOperateWorkspace ? [{ id: 'equipe', label: 'Equipe', icon: <Users size={16} /> }] : []),
+          ...(canAdminWorkspace ? [{ id: 'configuracoes', label: 'Configurações', icon: <ShieldCheck size={16} /> }] : []),
+        ]}
+      />
+      <WorkspaceContent>
+      {dataError ? <div className="message error" role="alert">{dataError} <button type="button" className="button secondary" onClick={props.reloadData}>Tentar novamente</button></div> : null}
 
       {producerSection === 'visao' ? (
         <section className="producer-workspace-dashboard" aria-label="Visão geral da produtora">
@@ -1574,10 +1557,15 @@ ${params.url}`
       {producerSection === 'financeiro' ? (
         <>
           {canFinanceWorkspace && canCommercialWorkspace ? (
-            <nav className="producer-hub-subnav" aria-label="Áreas financeiras da produtora">
-              <button type="button" className={producerFinanceView === 'resumo' ? 'active' : ''} onClick={() => setProducerFinanceView('resumo')}>Resumo gerencial</button>
-              <button type="button" className={producerFinanceView === 'vendedores' ? 'active' : ''} onClick={() => setProducerFinanceView('vendedores')}>Vendedores</button>
-            </nav>
+            <WorkspaceSubnav
+              ariaLabel="Áreas financeiras da produtora"
+              activeId={producerFinanceView}
+              onChange={(id) => setProducerFinanceView(id as ProducerFinanceView)}
+              items={[
+                { id: 'resumo', label: 'Resumo gerencial' },
+                { id: 'vendedores', label: 'Vendedores' },
+              ]}
+            />
           ) : null}
 
           {canFinanceWorkspace && producerFinanceView === 'resumo' && props.account?.id ? (
@@ -1616,10 +1604,15 @@ ${params.url}`
       {producerSection === 'equipe' ? (
         <>
           {canManageMembers && canOperateWorkspace ? (
-            <nav className="producer-hub-subnav" aria-label="Equipe da produtora">
-              <button type="button" className={producerTeamView === 'membros' ? 'active' : ''} onClick={() => setProducerTeamView('membros')}>Equipe interna</button>
-              <button type="button" className={producerTeamView === 'provisorias' ? 'active' : ''} onClick={() => setProducerTeamView('provisorias')}>Cadastros provisórios</button>
-            </nav>
+            <WorkspaceSubnav
+              ariaLabel="Equipe da produtora"
+              activeId={producerTeamView}
+              onChange={(id) => setProducerTeamView(id as ProducerTeamView)}
+              items={[
+                { id: 'membros', label: 'Equipe interna' },
+                { id: 'provisorias', label: 'Cadastros provisórios' },
+              ]}
+            />
           ) : null}
           {producerTeamView === 'membros' && canManageMembers && props.account?.id ? <ProducerMembersPanel producerId={props.account.id} /> : null}
           {producerTeamView === 'provisorias' && canOperateWorkspace && props.account?.id ? <ProvisionalTeamsPanel producerId={props.account.id} uploadPublicFile={props.uploadPublicFile} /> : null}
@@ -1708,20 +1701,24 @@ ${params.url}`
           value={props.championship}
           onChange={props.setChampionship}
           onSubmit={async (resolvedChampionship) => {
+            if(!creationScope.actor||!creationScope.isCurrent())throw new Error('Atualize a conta antes de criar o campeonato.')
             const created = await props.createChampionship(resolvedChampionship)
+            if(!creationScope.isCurrent())throw new Error('A conta mudou. Consulte o campeonato criado na conta anterior.')
             if (!created) throw new Error('Não foi possível criar o campeonato.')
             if (typeof created !== 'boolean') {
               props.setSelectedChampId(created.id)
               try {
                 await saveCreationEdition(created.id, resolvedChampionship)
+                if(!creationScope.isCurrent())throw new Error('A conta mudou. Consulte a edição na conta anterior.')
                 await createInitialPhases(created.id, resolvedChampionship)
               } catch (error) {
-                setPayMsg(error instanceof Error ? error.message : 'Campeonato criado, mas a temporada não foi salva.')
+                if(creationScope.isCurrent())setPayMsg('O campeonato foi criado. '+(error instanceof Error?error.message:'Não foi possível confirmar a edição.')+' Confira o histórico antes de tentar criar outro campeonato.')
               }
             }
             return created
           }}
           onCreateSuccess={(result) => {
+            if(!creationScope.isCurrent())return
             setShowCreateChamp(false)
             props.setChampionship({ ...emptyCampeonatoForm })
             if (result && typeof result !== 'boolean') setCreatedChampAction(result as DropZoneRow)
@@ -1933,7 +1930,7 @@ ${params.url}`
                     {payPixPayload || payInfo.pagamentos?.[0]?.asaas_pix_payload ? (
                       <div style={{ display: 'grid', gap: 8 }}>
                         <strong>PIX copia e cola</strong>
-                        <code style={{ display: 'block', maxHeight: 76, overflow: 'auto', padding: 10, border: '1px solid #d9e2ec', background: '#fff', wordBreak: 'break-all', fontSize: 11 }}>
+                        <code style={{ display: 'block', maxHeight: 76, overflow: 'auto', padding: 10, border: '1px solid #d9e2ec', background: '#fff', wordBreak: 'break-all', fontSize: 12 }}>
                           {payPixPayload || payInfo.pagamentos?.[0]?.asaas_pix_payload}
                         </code>
                         <button
@@ -1952,8 +1949,8 @@ ${params.url}`
               </div>
               <div className="championship-admin-actions">
                 <button className="icon-action-button" disabled={String(dataText(selectedChamp, 'aprovacao_status') || 'aprovado') !== 'aprovado'} onClick={() => startEditChampionship(selectedChamp)} title="Editar campeonato"><Pencil size={16} /> Editar</button>
-                <button className="icon-action-button danger" onClick={() => {
-                  if (window.confirm(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficará oculto, mas os dados serão preservados.`)) props.deleteChampionship(selectedChamp.id)
+                <button className="icon-action-button danger" onClick={async () => {
+                  if (await confirmAction(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficará oculto, mas os dados serão preservados.`)) props.deleteChampionship(selectedChamp.id)
                 }} title="Excluir campeonato"><Trash2 size={16} /> Excluir</button>
               </div>
               <div className="detail-stats-ref">
@@ -1988,6 +1985,7 @@ ${params.url}`
             ) : null}
 
             <div className="champ-tab-body-ref">
+              {dataLoading ? <DropzoneLoader label="Carregando dados desta área" /> : dataError ? null : <>
               {tab === 'visao' ? (
                 <div className="champ-overview-panel">
                   <section className="champ-overview-card is-main champ-operation-guide">
@@ -2022,28 +2020,7 @@ ${params.url}`
                     </div>
                   </section>
 
-                  <section className="champ-overview-card championship-lifecycle-card">
-                    <div className="champ-overview-checklist-head">
-                      <div>
-                        <p className="eyebrow">Encerramento</p>
-                        <h3>{editionLifecycle?.status === 'encerrada' ? 'Season encerrada' : 'Fechar resultado oficial'}</h3>
-                        <span>{editionLifecycle?.status === 'encerrada'
-                          ? `Resultado publicado${editionLifecycle.data_fim ? ` em ${editionLifecycle.data_fim}` : ''}.`
-                          : 'Usa os jogos, resultados e classificações que já existem. Não cria uma tabela paralela.'}</span>
-                      </div>
-                      {editionLifecycle ? (
-                        <button
-                          type="button"
-                          className={editionLifecycle.status === 'encerrada' ? 'button secondary' : 'button'}
-                          disabled={editionLifecycleBusy}
-                          onClick={() => void updateEditionLifecycle(editionLifecycle.status === 'encerrada' ? 'reopen_final' : 'publish_final')}
-                        >
-                          {editionLifecycleBusy ? 'Processando...' : editionLifecycle.status === 'encerrada' ? 'Reabrir season' : 'Encerrar campeonato'}
-                        </button>
-                      ) : <small>Esta edição ainda não possui vínculo de season.</small>}
-                    </div>
-                    {editionLifecycleError ? <div className="message error">{editionLifecycleError}</div> : null}
-                  </section>
+                  <EditionLifecycleStatus championshipId={selectedChamp.id} />
 
                   <section className="champ-overview-card">
                     <div className="champ-overview-checklist-head">
@@ -2125,13 +2102,13 @@ ${params.url}`
                       </div>
                       <div className="mini-grid three">
                         <Field label="Fase">
-                          <select value={props.game.fase_id} onChange={(e) => props.setGame({ ...props.game, fase_id: e.target.value, campeonato_id: selectedChamp.id, grupos_ids: [] })}>
+                          <UiSelect value={props.game.fase_id} onChange={(e) => props.setGame({ ...props.game, fase_id: e.target.value, campeonato_id: selectedChamp.id, grupos_ids: [] })}>
                             <option value="">Selecione</option>
                             {orderedChampPhases.map((phase) => <option key={phase.id} value={phase.id}>{rowTitle(phase)}</option>)}
-                          </select>
+                          </UiSelect>
                         </Field>
-                        <Field label="Nome do jogo"><input value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Jogo 1 - A x B" /></Field>
-                        <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => {
+                        <Field label="Nome do jogo"><UiInput value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Jogo 1 - A x B" /></Field>
+                        <Field label="Número de quedas"><UiInput type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => {
                           const total = Math.max(1, Math.min(20, Number(e.target.value || 1)))
                           const isXtreino = String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino'
                           props.setGame({
@@ -2145,8 +2122,8 @@ ${params.url}`
                         }} /></Field>
                       </div>
                       <div className="mini-grid two">
-                        <Field label="Data"><input type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
-                        <Field label="Horário"><input type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                        <Field label="Data"><UiInput type="date" value={props.game.data_jogo} onChange={(e) => props.setGame({ ...props.game, data_jogo: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
+                        <Field label="Horário"><UiInput type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
                       </div>
 
                       <div className="game-form-section game-classification-section">
@@ -2155,7 +2132,7 @@ ${params.url}`
                         </div>
                         <div className="mini-grid two">
                           <Field label="Formato competitivo">
-                            <select
+                            <UiSelect
                               value={props.game.mata_mata ? 'mata_mata' : 'pontos_corridos'}
                               onChange={(e) => props.setGame({
                                 ...props.game,
@@ -2166,11 +2143,11 @@ ${params.url}`
                             >
                               <option value="pontos_corridos">Pontos corridos / sem eliminação</option>
                               <option value="mata_mata">Mata-mata / classificatório</option>
-                            </select>
+                            </UiSelect>
                           </Field>
                           {props.game.mata_mata ? (
                             <Field label="Quantas equipes passam">
-                              <input
+                              <UiInput
                                 type="number"
                                 min="1"
                                 value={props.game.classificam_quantidade}
@@ -2179,7 +2156,7 @@ ${params.url}`
                               />
                             </Field>
                           ) : (
-                            <Field label="Classificação"><input value="Sem corte de classificados" disabled /></Field>
+                            <Field label="Classificação"><UiInput value="Sem corte de classificados" disabled /></Field>
                           )}
                         </div>
                         {props.game.mata_mata ? <p className="statistics-message">As equipes do Top {props.game.classificam_quantidade || '?'} avançam; as demais ficam como eliminadas neste jogo.</p> : null}
@@ -2209,14 +2186,14 @@ ${params.url}`
                                 <span>Queda {index + 1}</span>
                                 <div className="map-drop-control">
                                   {selectedMap?.imagem_url ? <img src={selectedMap.imagem_url} alt="" /> : <div className="map-drop-placeholder" />}
-                                  <select value={selectedCode} disabled={mapsLoading || mapCatalog.length === 0} onChange={(event) => {
+                                  <UiSelect value={selectedCode} disabled={mapsLoading || mapCatalog.length === 0} onChange={(event) => {
                                     const nextMaps = Array.from({ length: Math.max(1, Number(props.game.numero_partidas || 1)) }, (_, mapIndex) => props.game.mapas[mapIndex] || '')
                                     nextMaps[index] = event.target.value
                                     props.setGame({ ...props.game, mapas: nextMaps, campeonato_id: selectedChamp.id })
                                   }}>
                                     <option value="">Selecione o mapa</option>
                                     {mapCatalog.map((mapa) => <option key={mapa.codigo} value={mapa.codigo}>{mapa.nome}</option>)}
-                                  </select>
+                                  </UiSelect>
                                 </div>
                               </label>
                             )
@@ -2234,7 +2211,7 @@ ${params.url}`
                             const checked = props.game.grupos_ids.includes(group.id)
                             return (
                               <label className={`group-check-card ${checked ? 'selected' : ''}`} key={group.id}>
-                                <input type="checkbox" checked={checked} onChange={() => {
+                                <UiInput type="checkbox" checked={checked} onChange={() => {
                                   const grupos_ids = checked ? props.game.grupos_ids.filter((id) => id !== group.id) : [...props.game.grupos_ids, group.id]
                                   props.setGame({ ...props.game, grupos_ids, campeonato_id: selectedChamp.id })
                                 }} />
@@ -2358,7 +2335,7 @@ ${params.url}`
                                           setOpenAction('game')
                                           window.scrollTo({ top: 0, behavior: 'smooth' })
                                         }}><Pencil size={15} /></button>
-                                        <button title="Excluir jogo" className="danger" onClick={async () => { if (window.confirm(`Excluir o jogo ${rowTitle(gameRow)}?`)) await props.deleteGame(gameRow.id) }}><Trash2 size={15} /></button>
+                                        <button title="Excluir jogo" className="danger" onClick={async () => { if (await confirmAction(`Excluir o jogo ${rowTitle(gameRow)}?`)) await props.deleteGame(gameRow.id) }}><Trash2 size={15} /></button>
                                       </div>
                                     </header>
                                     {gameOpen ? (
@@ -2454,7 +2431,7 @@ ${params.url}`
                                   <small>
                                     Motivo: {item.revisao_motivo || 'estorno'} · iniciado em {formatDateTime(item.revisao_iniciada_em)}
                                   </small>
-                                  <textarea
+                                  <UiTextarea
                                     value={financialNote[item.id] || ''}
                                     onChange={(event) => setFinancialNote((value) => ({ ...value, [item.id]: event.target.value }))}
                                     placeholder="Observação interna ou mensagem para a equipe"
@@ -2649,7 +2626,7 @@ ${params.url}`
 
                                   <div className="seller-row-edit">
                                     <Field label="Limite de vagas (0 = sem limite)">
-                                      <input
+                                      <UiInput
                                         type="number"
                                         min={0}
                                         value={sellerLimite}
@@ -2658,7 +2635,7 @@ ${params.url}`
                                       />
                                     </Field>
                                     <Field label="Comissão de venda (%) — máximo 20">
-                                      <input
+                                      <UiInput
                                         type="number"
                                         min={0}
                                         max={20}
@@ -2670,7 +2647,7 @@ ${params.url}`
                                     </Field>
                                     <div className="mini-grid two">
                                       <Field label="Nome público">
-                                        <input
+                                        <UiInput
                                           value={sellerNomePublico}
                                           onChange={(e) => setSellerNomePublico(e.target.value)}
                                           placeholder="Nome exibido nas vendas"
@@ -2691,7 +2668,7 @@ ${params.url}`
                                         ['pontuar_tabela', 'Pontuar'],
                                       ] as const).map(([key, label]) => (
                                         <label key={key} className="seller-perm-item">
-                                          <input
+                                          <UiInput
                                             type="checkbox"
                                             checked={Boolean((sellerPerms as any)[key])}
                                             onChange={(e) =>
@@ -2792,7 +2769,7 @@ ${params.url}`
                                   </div>
                                   <div className="seller-row-edit">
                                     <Field label="Limite de vagas (0 = sem limite)">
-                                      <input
+                                      <UiInput
                                         type="number"
                                         min={0}
                                         value={sellerLimite}
@@ -2801,7 +2778,7 @@ ${params.url}`
                                       />
                                     </Field>
                                     <Field label="Comissão de venda (%) — máximo 20">
-                                      <input
+                                      <UiInput
                                         type="number"
                                         min={0}
                                         max={20}
@@ -2813,7 +2790,7 @@ ${params.url}`
                                     </Field>
                                     <div className="mini-grid two">
                                       <Field label="Nome público">
-                                        <input
+                                        <UiInput
                                           value={sellerNomePublico}
                                           onChange={(e) => setSellerNomePublico(e.target.value)}
                                           placeholder="Nome exibido nas vendas"
@@ -2834,7 +2811,7 @@ ${params.url}`
                                         ['pontuar_tabela', 'Pontuar'],
                                       ] as const).map(([key, label]) => (
                                         <label key={key} className="seller-perm-item">
-                                          <input
+                                          <UiInput
                                             type="checkbox"
                                             checked={Boolean((sellerPerms as any)[key])}
                                             onChange={(e) =>
@@ -2927,7 +2904,7 @@ ${params.url}`
                         <div className="mini-grid two">
                           <Field label="Buscar @username ou ID">
                             <div className="staff-search-row">
-                              <input
+                              <UiInput
                                 value={mgrQuery}
                                 onChange={(e) => setMgrQuery(e.target.value)}
                                 placeholder="@username ou 123"
@@ -2944,7 +2921,7 @@ ${params.url}`
                             </div>
                           </Field>
                           <Field label="Validade (dias)">
-                            <input
+                            <UiInput
                               type="number"
                               min={1}
                               max={30}
@@ -2973,7 +2950,7 @@ ${params.url}`
 
                         <div className="mini-grid two">
                           <Field label="Limite de vagas (0 = sem limite)">
-                            <input
+                            <UiInput
                               type="number"
                               min={0}
                               value={mgrLimite}
@@ -2982,7 +2959,7 @@ ${params.url}`
                             />
                           </Field>
                           <Field label="Comissão de venda (%) — máximo 20">
-                            <input
+                            <UiInput
                               type="number"
                               min={0}
                               max={20}
@@ -2996,7 +2973,7 @@ ${params.url}`
 
                         <div className="mini-grid two">
                           <Field label="Mensagem (opcional)">
-                            <input
+                            <UiInput
                               value={mgrMessage}
                               onChange={(e) => setMgrMessage(e.target.value)}
                               placeholder="Ex.: Liberado para vender vagas."
@@ -3015,7 +2992,7 @@ ${params.url}`
                             ['pontuar_tabela', 'Pontuar'],
                           ] as const).map(([key, label]) => (
                             <label key={key} className="seller-perm-item">
-                              <input
+                              <UiInput
                                 type="checkbox"
                                 checked={Boolean((mgrPerms as any)[key])}
                                 onChange={(e) => setMgrPerms((c) => ({ ...c, [key]: e.target.checked }))}
@@ -3062,7 +3039,7 @@ ${params.url}`
                     <div className="inline-action-panel">
                       <div className="mini-grid two">
                         <Field label="Nome interno do link">
-                          <input
+                          <UiInput
                             value={props.registrationLink.nome_interno}
                             onChange={(e) =>
                               props.setRegistrationLink({
@@ -3074,7 +3051,7 @@ ${params.url}`
                           />
                         </Field>
                         <Field label="Grupo do link">
-                          <select
+                          <UiSelect
                             value={props.registrationLink.grupo_id}
                             onChange={(e) => {
                               const grupoId = e.target.value
@@ -3098,7 +3075,7 @@ ${params.url}`
                                 </option>
                               )
                             })}
-                          </select>
+                          </UiSelect>
                         </Field>
                       </div>
                       <div className="mini-grid two">
@@ -3108,7 +3085,7 @@ ${params.url}`
                             const livres = grupoId ? freeSlotsInGroup(grupoId) : 0
                             const max = Math.max(0, livres)
                             return (
-                              <select
+                              <UiSelect
                                 value={props.registrationLink.limite_vagas}
                                 disabled={!grupoId || max < 1}
                                 onChange={(e) => {
@@ -3129,12 +3106,12 @@ ${params.url}`
                                     </option>
                                   ))
                                 )}
-                              </select>
+                              </UiSelect>
                             )
                           })()}
                         </Field>
                         <Field label="Encerrar em (opcional)">
-                          <input
+                          <UiInput
                             type="datetime-local"
                             value={props.registrationLink.encerra_em}
                             onChange={(e) => props.setRegistrationLink({ ...props.registrationLink, encerra_em: e.target.value })}
@@ -3149,7 +3126,7 @@ ${params.url}`
                         </div>
                         <label className="field">
                           <span>Lista</span>
-                          <textarea
+                          <UiTextarea
                             rows={5}
                             value={props.registrationLink.equipes_esperadas_texto}
                             onChange={(e) =>
@@ -3420,12 +3397,12 @@ ${params.url}`
                                               : 'Pausar link'
                                     }
                                     disabled={info.status === 'expirado' || info.status === 'excluido'}
-                                    onClick={() => {
+                                    onClick={async () => {
                                       if (info.status === 'esgotado' || info.status === 'grupo_cheio' || isPaused) {
                                         const reset = info.status === 'esgotado' || info.status === 'grupo_cheio'
                                         if (
                                           info.status === 'esgotado'
-                                          && !window.confirm(
+                                          && !await confirmAction(
                                             'Reabrir este link esgotado? O contador de usos será recalculado com base em quem já entrou (não zera o histórico).',
                                           )
                                         ) {
@@ -3477,9 +3454,9 @@ ${params.url}`
                                   <button
                                     type="button"
                                     className="button secondary danger"
-                                    onClick={() => {
+                                    onClick={async () => {
                                       if (
-                                        window.confirm(
+                                        await confirmAction(
                                           'Excluir este link? Ele deixa de aparecer na lista e não aceita novas inscrições, mas quem já tem o URL ainda pode acompanhar o grupo.',
                                         )
                                       ) {
@@ -3499,6 +3476,7 @@ ${params.url}`
                   </div>
                 </div>
               ) : null}
+              </>}
             </div>
           </>
         ) : (
@@ -3509,6 +3487,7 @@ ${params.url}`
           </div>
         )}
       </section> : null}
-    </div>
+      </WorkspaceContent>
+    </WorkspaceShell>
   )
 }

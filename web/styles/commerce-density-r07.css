@@ -1,0 +1,240 @@
+/* DropZone | R07 — Comércio, carteira e inscrições pagas.
+   Escopo: estilos exclusivamente; endpoints, contratos, pagamento, saldos,
+   autenticação e regras de inscrição não são modificados.
+   Valores são alvos de layout do DropZone, não CSS oficial da Stake.
+*/
+
+/* 01. /carrinho — página e distribuição dos blocos */
+.cart-page {
+  min-height: 100dvh;
+  padding: 24px 0 48px !important;
+}
+.cart-page :is(.cart-hero, .cart-layout, .cart-login, .cart-error, .cart-purchases, .cart-recommendations) {
+  width: min(1220px, calc(100% - 48px)) !important;
+  max-width: 100%;
+  margin-right: auto !important;
+  margin-left: auto !important;
+}
+.cart-page .cart-hero {
+  min-height: 100px !important;
+  margin-top: 0 !important;
+  padding: 20px 24px !important;
+  border-radius: 10px !important;
+}
+.cart-page .cart-hero h1 { font-size: clamp(24px, 3vw, 32px) !important; line-height: 1.2; }
+.cart-page .cart-hero span { font-size: 13px; }
+.cart-page .cart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(286px, 340px) !important;
+  gap: 14px !important;
+  align-items: start;
+}
+.cart-page .cart-items, .cart-page .cart-summary, .cart-page .cart-login,
+.cart-page .cart-purchases, .cart-page .cart-recommendations {
+  border-radius: 10px !important;
+}
+.cart-page .cart-section-head { align-items: center; min-height: 66px; padding: 14px 18px; }
+.cart-page .cart-section-head h2 { font-size: 18px; line-height: 1.25; }
+.cart-page .cart-section-head > span { font-size: 12px; }
+.cart-page .cart-item {
+  grid-template-columns: 64px minmax(0, 1fr) minmax(90px, auto) 40px;
+  gap: 12px;
+  min-height: 94px;
+  padding: 12px 18px;
+}
+.cart-page .cart-item-image { width: 64px; height: 64px; border-radius: 8px; }
+.cart-page .cart-item-info { min-width: 0; }
+.cart-page .cart-item-info > a { font-size: 14px; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+.cart-page :is(.cart-item-info small, .cart-item-price small, .cart-secure, .cart-purchases small, .cart-recommendations small, .cart-billing-profile small) {
+  font-size: 12px !important;
+  line-height: 1.45;
+}
+.cart-page .cart-item-price { min-width: 0; text-align: right; }
+.cart-page .cart-item-price a { font-size: 12px; text-transform: none; }
+.cart-page .cart-quantity { width: max-content; gap: 5px; padding: 2px; }
+.cart-page .cart-quantity button { width: 36px; height: 36px; }
+.cart-page .cart-quantity b { min-width: 22px; font-size: 14px; }
+.cart-page .cart-remove { width: 40px; height: 40px; }
+.cart-page .cart-summary { top: 80px !important; padding: 18px !important; }
+.cart-page .cart-summary h2 { font-size: 26px; margin-bottom: 14px; }
+.cart-page .cart-summary > div:not(.cart-secure):not(.cart-payments) { font-size: 13px; }
+.cart-page .cart-summary > .cart-billing-profile { display: grid !important; padding: 13px !important; gap: 9px; }
+.cart-page .cart-billing-form { display: grid !important; gap: 12px; min-width: 0; }
+.cart-page .cart-billing-form label { min-width: 0; }
+.cart-page .cart-field span, .cart-page .cart-billing-profile span,
+.cart-page .cart-billing-form label > span { font-size: 12px !important; letter-spacing: 0; }
+.cart-page .cart-field select, .cart-page .cart-billing-form input { width: 100%; min-height: 44px; font-size: 14px; }
+.cart-page .cart-checkout { min-height: 46px; font-size: 14px; text-transform: none; }
+.cart-page .cart-purchases strong, .cart-page .cart-recommendations strong { font-size: 13px; line-height: 1.4; }
+.cart-page .cart-purchases a { font-size: 12px; white-space: normal; text-align: right; }
+.cart-page .cart-recommendations > div:last-child { gap: 12px; }
+.cart-page .cart-recommendations a { min-width: 0; min-height: 148px; padding: 12px; }
+.cart-page .cart-recommendations strong { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cart-page :is(button, select, input, a):focus-visible {
+  outline: 2px solid var(--ui-accent, #d0a900);
+  outline-offset: 2px;
+}
+
+/* 02. /carteira — manter a identidade existente, padronizar geometria.
+   A carteira já tem algumas regras legadas !important; só reforçamos
+   as dimensões e o espaçamento estritamente necessários. */
+body .bank-wallet-page { min-height: 100dvh; }
+body .bank-wallet-shell {
+  width: min(1220px, calc(100% - 48px)) !important;
+  padding: 22px 0 56px !important;
+  gap: 14px !important;
+}
+body .bank-wallet-hero {
+  min-height: 98px !important;
+  padding: 18px 22px !important;
+  border-radius: 10px !important;
+}
+body .bank-wallet-hero h1 { font-size: clamp(21px, 2.8vw, 28px) !important; line-height: 1.2; }
+body .bank-wallet-refresh { width: 44px !important; height: 44px !important; flex: 0 0 44px; }
+body .bank-balance-card {
+  min-height: 165px;
+  padding: 20px !important;
+  border-radius: 10px !important;
+  gap: 8px;
+}
+body .bank-balance-card > span { font-size: 12px; }
+body .bank-balance-card > strong { font-size: clamp(30px, 3.5vw, 38px); line-height: 1.1; }
+body .bank-balance-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+body .bank-chip-btn { min-height: 42px !important; padding: 0 14px; font-size: 12px; }
+body .bank-wallet-tabs { min-height: 52px; align-items: center; }
+body .bank-wallet-tabs button { min-height: 42px !important; padding: 0 16px; font-size: 13px !important; }
+body .bank-section { gap: 14px; padding: 18px !important; border-radius: 10px !important; }
+body .bank-section h2 { font-size: 17px; }
+body .bank-tx-list > li { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; min-height: 64px; padding: 12px 0; }
+body .bank-tx-icon { width: 44px; height: 44px; }
+body .bank-tx-body { min-width: 0; }
+body .bank-tx-body strong { font-size: 14px; overflow-wrap: anywhere; }
+body .bank-tx-body small { font-size: 12px; }
+body .bank-tx-right { min-width: 0; }
+body .bank-tx-right b { font-size: 14px; }
+body .bank-form-card { max-width: 740px; }
+body .bank-form-card label > span { font-size: 12px; }
+body .bank-form-card :is(input, select) { min-height: 44px; font-size: 14px; }
+body .bank-wallet-page :is(button, input, select, a):focus-visible {
+  outline: 2px solid var(--ui-accent, #d0a900);
+  outline-offset: 2px;
+}
+
+/* 03. Checkout de venda por token: ajustar somente apresentação. */
+.sale-checkout-page { padding: 24px 16px 56px !important; }
+.sale-checkout-page .sale-checkout-card {
+  width: min(100%, 640px) !important;
+  gap: 14px;
+  padding: 22px !important;
+  border-radius: 10px !important;
+}
+.sale-checkout-card > p:first-child { font-size: 12px; }
+.sale-checkout-card .sale-title { padding: 15px !important; gap: 12px; }
+.sale-checkout-card .sale-title h1 { font-size: clamp(20px, 2.5vw, 26px); line-height: 1.25; overflow-wrap: anywhere; }
+.sale-checkout-card .sale-title span,
+.sale-checkout-card .sale-login small,
+.sale-checkout-card .sale-profile-form small { font-size: 13px; line-height: 1.45; }
+.sale-checkout-card :is(label, .sale-profile-form label) { font-size: 12px; letter-spacing: 0; }
+.sale-checkout-card :is(input, select) { width: 100%; min-height: 44px; font-size: 14px; }
+.sale-checkout-card > button { min-height: 48px; font-size: 14px; text-transform: none; }
+.sale-checkout-card :is(button, input, select, a):focus-visible {
+  outline: 2px solid var(--ui-accent, #d0a900);
+  outline-offset: 2px;
+}
+
+/* 04. Modal de compra e inscrição por token.
+   Não limitar o modal por height fixa; o QR PIX e mensagens longas rolam. */
+.vacancy-buy-modal { width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 20px; border-radius: 12px; }
+.vacancy-buy-modal > header h2 { font-size: clamp(22px, 3vw, 30px); }
+.vacancy-buy-modal .vacancy-buy-options { gap: 10px; }
+.vacancy-buy-modal .vacancy-buy-option { min-height: 72px; grid-template-columns: 44px minmax(0, 1fr); padding: 12px 14px; border-radius: 9px; }
+.vacancy-buy-modal .vacancy-buy-option strong { font-size: 14px; }
+.vacancy-buy-modal .vacancy-buy-option small { font-size: 12px; line-height: 1.45; }
+.vacancy-buy-modal :is(button, input, select, a):focus-visible {
+  outline: 2px solid var(--ui-accent, #d0a900);
+  outline-offset: 2px;
+}
+.vacancies-page .vacancy-claim-steps,
+.vacancies-page .vacancy-claim-grid {
+  width: min(1080px, calc(100% - 48px)) !important;
+  margin-inline: auto !important;
+}
+.vacancies-page .vacancy-claim-grid { gap: 14px !important; }
+.vacancies-page .vacancy-claim-card { min-width: 0; padding: 18px; border-radius: 10px !important; }
+.vacancies-page .vacancy-claim-form :is(input, select) { min-height: 44px; font-size: 14px; }
+.vacancies-page .vacancy-claim-card :is(button, input, select, a):focus-visible {
+  outline: 2px solid var(--ui-accent, #d0a900);
+  outline-offset: 2px;
+}
+
+/* 05. Cartões e tabelas de transações dentro dos painéis financeiros. */
+.wallet-panel { gap: 14px; }
+.wallet-summary { gap: 22px; min-height: 68px; padding: 12px 0; flex-wrap: wrap; }
+.wallet-summary strong { font-size: 19px; }
+.wallet-summary small { font-size: 12px; }
+.wallet-withdraw { padding: 16px; border-radius: 10px; }
+.wallet-withdraw header h3 { font-size: 16px; }
+.wallet-withdraw-note { font-size: 12px; }
+.wallet-history { border-radius: 10px; }
+.wallet-history-head { padding-inline: 14px; }
+.wallet-history-head span { font-size: 13px; }
+.wallet-history-head small { font-size: 12px; }
+.wallet-history .admin-table-wrap { overflow-x: auto; }
+.wallet-history table { min-width: 580px; }
+.wallet-history th, .wallet-history td { padding: 11px 13px; font-size: 12px; }
+
+/* 06. Larguras intermediárias — evita sobreposição da coluna de checkout. */
+@media (max-width: 1120px) {
+  .cart-page .cart-layout { grid-template-columns: minmax(0, 1fr) !important; }
+  .cart-page .cart-summary { position: static !important; }
+  .cart-page .cart-recommendations > div:last-child { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .cart-page { padding: 12px 0 84px !important; }
+  .cart-page :is(.cart-hero, .cart-layout, .cart-login, .cart-error, .cart-purchases, .cart-recommendations),
+  .vacancies-page .vacancy-claim-steps, .vacancies-page .vacancy-claim-grid {
+    width: calc(100% - 24px) !important;
+  }
+  .cart-page .cart-hero { min-height: 84px !important; padding: 15px !important; }
+  .cart-page .cart-hero h1 { font-size: 24px !important; }
+  .cart-page .cart-hero > svg { width: 27px; height: 27px; }
+  .cart-page .cart-section-head { padding: 12px !important; }
+  .cart-page .cart-layout { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
+  .cart-page .cart-item {
+    grid-template-columns: 52px minmax(0, 1fr) 40px !important;
+    gap: 9px;
+    padding: 12px;
+  }
+  .cart-page .cart-item-image { width: 52px; height: 52px; }
+  .cart-page .cart-item-price { grid-column: 2 !important; grid-row: 2 !important; justify-items: start; text-align: left; }
+  .cart-page .cart-remove { grid-column: 3 !important; grid-row: 1 !important; }
+  .cart-page .cart-summary { position: static !important; padding: 15px !important; }
+  .cart-page .cart-purchases, .cart-page .cart-recommendations { padding: 14px !important; }
+  .cart-page .cart-recommendations > div:last-child { display: flex; overflow-x: auto; padding-bottom: 6px; }
+  .cart-page .cart-recommendations a { flex: 0 0 166px; }
+  body .bank-wallet-shell { width: calc(100% - 24px) !important; padding: 12px 0 84px !important; }
+  body .bank-wallet-hero { display: flex !important; align-items: flex-start !important; justify-content: space-between !important; min-height: 86px !important; padding: 14px !important; }
+  body .bank-balance-card { padding: 16px !important; min-height: 0; }
+  body .bank-wallet-tabs { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 3px; padding: 4px; overflow-x: visible !important; }
+  body .bank-wallet-tabs button { min-width: 0 !important; padding: 0 4px; font-size: 12px !important; letter-spacing: 0; }
+  body .bank-section { padding: 14px !important; }
+  body .bank-tx-list > li { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 8px; }
+  body .bank-tx-icon { width: 40px; height: 40px; }
+  body .bank-tx-right { max-width: 125px; text-align: right; }
+  body .bank-tx-right b { font-size: 13px; overflow-wrap: anywhere; }
+  .sale-checkout-page { padding: 12px 12px 84px !important; }
+  .sale-checkout-page .sale-checkout-card { padding: 16px !important; }
+  .vacancy-buy-modal { width: min(100%, calc(100vw - 16px)); max-height: calc(100dvh - 16px); padding: 16px; }
+  .vacancies-page .vacancy-claim-card { padding: 14px; }
+  .wallet-summary { gap: 12px; }
+  .wallet-history table { min-width: 540px; }
+}
+@media (max-width: 400px) {
+  .cart-page .cart-hero > svg { display: none; }
+  .cart-page .cart-purchases article { flex-wrap: wrap; }
+  .cart-page .cart-purchases article > a { width: 100%; text-align: left; }
+  body .bank-tx-right { max-width: 96px; }
+  body .bank-wallet-tabs button { min-width: 0 !important; font-size: 12px !important; padding-inline: 2px; }
+}
+
+/* A impressão dos comprovantes bancários continua sob as regras originais. */

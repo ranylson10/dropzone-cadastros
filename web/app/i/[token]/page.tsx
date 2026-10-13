@@ -1,11 +1,12 @@
 'use client'
 
+import { Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useState } from 'react'
-import { Check, RefreshCw, Shield, Users, X } from 'lucide-react'
-import { supabase } from '@/lib/supabase-browser'
+import { Check, RefreshCw, Shield, Users } from 'lucide-react'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
-import { SocialLogin } from '@/features/auth/SocialLogin'
 import { buildLoginHref, buildProfileCreationHref } from '@/features/auth/auth-return'
+import { getTokenFlowAccessToken, tokenFlowAuthHeaders, tokenFlowPath, TokenFlowAccessGate, TokenFlowCard, TokenFlowPage, TokenFlowStatus } from '@/features/token-flow'
+import { Field } from '@/components/ui'
 
 function safeToken(value: string) {
   return String(value || '').trim().toUpperCase()
@@ -25,7 +26,7 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
   const [guest, setGuest] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const returnTo = token ? `/i/${encodeURIComponent(token)}` : '/'
+  const returnTo = tokenFlowPath('inscricao', token)
 
   useEffect(() => {
     params.then((p) => setToken(safeToken(p.token)))
@@ -48,16 +49,14 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
     setLoading(true)
     setError('')
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const hasSession = Boolean(sessionData.session)
+      const accessToken = await getTokenFlowAccessToken()
+      const hasSession = Boolean(accessToken)
       const isGuest = sessionStorage.getItem(`${GUEST_KEY}:${token}`) === '1'
       setGuest(isGuest && !hasSession)
       setGate(!hasSession && !isGuest)
 
       const res = await fetch(`/api/dropzone/public/inscricao/${token}`, {
-        headers: sessionData.session
-          ? { Authorization: `Bearer ${sessionData.session.access_token}` }
-          : undefined,
+        headers: accessToken ? tokenFlowAuthHeaders(accessToken) : undefined,
         cache: 'no-store',
       })
       const json = await res.json()
@@ -94,8 +93,7 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
     setMessage('')
     setSubmitting(true)
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const accessToken = sessionData.session?.access_token
+      const accessToken = await getTokenFlowAccessToken()
       if (!accessToken) {
         setGate(true)
         throw new Error('Entre com uma conta de jogador para se inscrever.')
@@ -106,10 +104,7 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
       }
       const res = await fetch(`/api/dropzone/public/inscricao/${token}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: tokenFlowAuthHeaders(accessToken, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({ equipe_id: selectedTeam }),
       })
       const json = await res.json()
@@ -128,20 +123,20 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
 
   if (!data && error) {
     return (
-      <main className="invite-page">
-        <div className="invite-card">
+      <TokenFlowPage>
+        <TokenFlowCard>
           <Shield size={38} />
           <h1>Link inválido</h1>
-          <p>{error}</p>
-        </div>
-      </main>
+          <TokenFlowStatus tone="error">{error}</TokenFlowStatus>
+        </TokenFlowCard>
+      </TokenFlowPage>
     )
   }
 
   if (data?.autenticado && !data?.jogador) {
     return (
-      <main className="invite-page">
-        <div className="invite-card">
+      <TokenFlowPage>
+        <TokenFlowCard>
           <Users size={42} />
           <p className="eyebrow">Perfil de jogador</p>
           <h1>Criando seu perfil de jogo...</h1>
@@ -154,8 +149,8 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
           <a className="button secondary" href={buildLoginHref('jogador', returnTo, true)}>
             Usar outro login
           </a>
-        </div>
-      </main>
+        </TokenFlowCard>
+      </TokenFlowPage>
     )
   }
 
@@ -195,7 +190,7 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
                       </div>
                       <p className="empty">Escolha a line/equipe do grupo para se inscrever.</p>
                       <Field label="Equipe do grupo">
-                        <select
+                        <UiSelect
                           value={selectedTeam}
                           onChange={(e) => setSelectedTeam(e.target.value)}
                           disabled={!data.inscricao_aberta}
@@ -206,7 +201,7 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
                               {team.nome} · {team.vagas_usadas}/{data.regras?.vagas_por_equipe || 6}
                             </option>
                           ))}
-                        </select>
+                        </UiSelect>
                       </Field>
                       <button
                         className="button"
@@ -276,42 +271,18 @@ export default function PublicInscricaoPage({ params }: { params: Promise<{ toke
         </div>
       </main>
 
-      {gate ? (
-        <div className="vacancies-access-gate">
-          <section>
-            <button className="gate-close" type="button" onClick={continueAsGuest} aria-label="Fechar">
-              <X size={18} />
-            </button>
-            <img src="/dropzone-icon.png" alt="" />
-            <p className="eyebrow">Inscrição pública</p>
-            <h2>Como deseja continuar?</h2>
-            <p>
-              Para se inscrever você precisa de um <strong>perfil de jogador</strong>. Entre com Google/Facebook/Discord
-              — se ainda não tiver jogador, o cadastro abre em seguida. Sem login você só acompanha as inscrições.
-            </p>
-            <SocialLogin profileType="jogador" returnTo={returnTo} />
-            <button className="continue-guest" type="button" onClick={continueAsGuest}>
-              Continuar sem login
-            </button>
-            <a
-              className="button secondary"
-              href={buildLoginHref('jogador', returnTo)}
-              style={{ width: '100%', marginTop: 8, placeContent: 'center' }}
-            >
-              Entrar com login e senha
-            </a>
-          </section>
-        </div>
-      ) : null}
+      <TokenFlowAccessGate
+        open={gate}
+        onClose={continueAsGuest}
+        profileType="jogador"
+        returnTo={returnTo}
+        eyebrow="Inscrição pública"
+        title="Como deseja continuar?"
+        description={<>Para se inscrever você precisa de um <strong>perfil de jogador</strong>. Entre com Google/Facebook/Discord — se ainda não tiver jogador, o cadastro abre em seguida. Sem login você só acompanha as inscrições.</>}
+        allowGuest
+        guestLabel="Continuar sem login"
+        onGuest={continueAsGuest}
+      />
     </>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="field">
-      <label>{label}</label>
-      {children}
-    </div>
   )
 }

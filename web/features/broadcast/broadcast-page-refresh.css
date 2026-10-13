@@ -1,0 +1,23 @@
+/* DROPZONE — R187B BROADCAST
+   Controlador recebe UI administrativa clara. /broadcast/obs continua sendo saída limpa. */
+.broadcast-control{
+  min-height:100dvh!important;width:100%!important;max-width:none!important;padding:24px!important;
+  background:linear-gradient(rgba(241,243,245,.96),rgba(241,243,245,.96)),url('/ui/texture-halftone.svg') right top/360px 260px repeat!important;
+  color:#1d2126!important;
+}
+.broadcast-control-head{
+  position:relative!important;isolation:isolate!important;overflow:hidden!important;
+  width:min(1480px,100%)!important;margin:0 auto 12px!important;padding:18px 20px!important;
+  border:1px solid #333941!important;border-bottom:3px solid var(--dz-yellow,#f2c900)!important;border-radius:9px!important;
+  background:linear-gradient(106deg,#22262c,#353b43)!important;color:#fff!important;
+}
+.broadcast-control-head::after{position:absolute;inset:0 0 0 auto;z-index:-1;width:52%;content:'';background:url('/ui/texture-speedlines.svg') right center/680px 210px no-repeat;opacity:.25}
+.broadcast-control-kicker,.broadcast-control-section-label{color:var(--dz-yellow,#f2c900)!important}.broadcast-control-head h1,.broadcast-control-head strong{color:#fff!important}.broadcast-control-head p,.broadcast-control-head small{color:#ccd2d8!important}
+.broadcast-live-select,.broadcast-scenes-section,.broadcast-output-preview,.broadcast-control-hint,.broadcast-control-error{width:min(1480px,100%)!important;margin-left:auto!important;margin-right:auto!important}
+.broadcast-live-select,.broadcast-scenes-section,.broadcast-output-preview,.broadcast-control-hint{border:1px solid #d6dbe0!important;border-radius:8px!important;background:#fff!important;color:#1d2126!important;box-shadow:none!important}
+.broadcast-live-select{min-height:66px!important}.broadcast-live-select-value,.broadcast-live-select-menu{background:#fff!important;color:#1d2126!important}.broadcast-live-select-menu{border:1px solid #d6dbe0!important;border-radius:7px!important;box-shadow:0 12px 30px rgba(24,28,33,.12)!important}.broadcast-live-select-option-text strong{color:#1d2126!important}.broadcast-live-select-option-text small{color:#68717b!important}.broadcast-live-select-badge{background:#fff5bd!important;color:#6c5b00!important}
+.broadcast-scenes-head,.broadcast-output-preview-head{border-color:#e1e5e9!important;background:#fafbfc!important}.broadcast-scenes-summary,.broadcast-scenes-current,.broadcast-scene-list{background:#fff!important}.broadcast-scene-list button,.broadcast-scene-list>article{border-color:#e0e4e8!important;background:#fff!important;color:#1d2126!important}.broadcast-scene-list button:hover{background:#fffbea!important}.broadcast-scene-onair,.broadcast-onair-badge{background:var(--dz-yellow,#f2c900)!important;color:#17191c!important}.broadcast-onair-status{border-color:#d7dce1!important;background:#f7f8f9!important;color:#1d2126!important}.broadcast-output-preview-frame{border:1px solid #cfd5db!important;border-radius:7px!important;background:#171a1f!important}.broadcast-output-preview-toggle,.broadcast-output-preview-link{border-radius:6px!important}
+.broadcast-control-error{border:1px solid #e2b8b8!important;border-radius:7px!important;background:#fff3f3!important;color:#8a2c2c!important}
+/* OBS é um canvas de transmissão: sem fundo/padding do site por intenção funcional. */
+.broadcast-obs-root{margin:0!important;padding:0!important}
+@media(max-width:760px){.broadcast-control{padding:10px!important}.broadcast-control-head{padding:16px!important}.broadcast-scenes-section,.broadcast-output-preview,.broadcast-live-select{border-radius:7px!important}}

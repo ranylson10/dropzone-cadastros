@@ -1,0 +1,44 @@
+﻿Rota real;Shell recomendado;Arquivo real;Status;Referência de ajuste;Rodadas aplicadas;Próxima rodada;Validação
+/admin;Admin;web/app/admin/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R09;Pendente
+/afiliados;Discovery / Workspace;web/app/afiliados/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R05;Pendente
+/agenda;Workspace;web/app/agenda/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R05;Pendente
+/atualizar-senha;Minimal;web/app/atualizar-senha/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/auth/mobile-callback;Minimal;web/app/auth/mobile-callback/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/broadcast/control/[token];Studio;web/app/broadcast/control/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R09;Pendente
+/broadcast/obs/[token];Studio clean;web/app/broadcast/obs/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R09;Pendente
+/campeonatos/[id];Profile;web/app/campeonatos/[id]/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R04;"Estática aprovada; visual pendente"
+/campeonatos/[id]/pontuador/[jogoId];Operations;web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R06;Pendente
+/campeonatos/[id]/regulamento;Minimal / Profile;web/app/campeonatos/[id]/regulamento/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R09;Pendente
+/campeonatos/[id]/stream;Operations / Studio;web/app/campeonatos/[id]/stream/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R09;Pendente
+/campeonatos;Discovery;web/app/campeonatos/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R03;"Estática aprovada; visual pendente"
+/carrinho;Commerce;web/app/carrinho/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R07;Pendente
+/carteira;Commerce;web/app/carteira/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R07;Pendente
+/central-campeonato;Workspace / Operations;web/app/central-campeonato/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R05;Pendente
+/comunidade;Discovery;web/app/comunidade/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R03;"Estática aprovada; visual pendente"
+/convite/equipe/[token];Flow;web/app/convite/equipe/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/convite/grupo/[token];Flow;web/app/convite/grupo/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/convite/produtora/[token];Flow;web/app/convite/produtora/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/equipe/entrar/[token];Flow;web/app/equipe/entrar/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/equipe/reivindicar/[token];Flow;web/app/equipe/reivindicar/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/equipes/[id];Profile;web/app/equipes/[id]/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R04;"Estática aprovada; visual pendente"
+/equipes;Discovery;web/app/equipes/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R03;"Estática aprovada; visual pendente"
+/escala/[token];Flow / Operations;web/app/escala/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/exclusao-de-dados;Minimal;web/app/exclusao-de-dados/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R09;Pendente
+/i/[token];Flow;web/app/i/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/jogadores/[id];Profile;web/app/jogadores/[id]/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R04;"Estática aprovada; visual pendente"
+/jogadores;Discovery;web/app/jogadores/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R03;"Estática aprovada; visual pendente"
+/lili;Workspace / Chat;web/app/lili/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R05;Pendente
+/login;Minimal;web/app/login/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R08;Pendente
+/managers/[id];Profile;web/app/managers/[id]/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R04;"Estática aprovada; visual pendente"
+/managers;Discovery;web/app/managers/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R03;"Estática aprovada; visual pendente"
+/;Discovery / Workspace;web/app/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;"R01 navegação; R02 home";R05;"Estática aprovada; visual pendente"
+/politica-de-privacidade;Minimal;web/app/politica-de-privacidade/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R09;Pendente
+/produtoras/[id];Profile;web/app/produtoras/[id]/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R04;"Estática aprovada; visual pendente"
+/produtoras;Discovery;web/app/produtoras/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R03;"Estática aprovada; visual pendente"
+/rank;Discovery / Data;web/app/rank/page.tsx;Parcial: shell;Consultar seções 6-7 da regra oficial;R01 navegação;R03;"Estática aprovada; visual pendente"
+/termos-de-servico;Minimal;web/app/termos-de-servico/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R09;Pendente
+/vagas/compra/[token];Flow / Commerce;web/app/vagas/compra/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R07;Pendente
+/vagas;Redirect;web/app/vagas/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R07;Pendente
+/vendas/[token];Commerce / Flow;web/app/vendas/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R07;Pendente
+/vendedor/[token];Flow;web/app/vendedor/[token]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R07;Pendente
+/vendedores/[managerId];Discovery / Commerce;web/app/vendedores/[managerId]/page.tsx;Não alterado;Consultar seções 6-7 da regra oficial;Nenhuma alteração de página;R07;Pendente

@@ -1,0 +1,323 @@
+/* DROPZONE R09 — Central administrativa, transmissão e acabamento.
+   Apenas apresentação: APIs, eventos, permissões, coordenadas de overlay e
+   telas /broadcast/obs/[token] permanecem inalteradas.
+   Importar por último em web/app/layout.tsx.
+*/
+
+/* 1. Administração: leitura rápida, grid e tabelas consistentes. */
+.system-admin-page {
+  --r09-gap: 12px;
+  --r09-radius: 9px;
+  min-width: 0;
+  padding-bottom: 64px !important;
+}
+.system-admin-page .system-admin-header {
+  min-height: 76px;
+  padding-block: 14px !important;
+  gap: 14px;
+}
+.system-admin-page .system-admin-header > div { min-width: 0; }
+.system-admin-page .system-admin-header h1 {
+  margin-top: 2px;
+  font-size: clamp(20px, 2vw, 27px) !important;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+}
+.system-admin-page .system-admin-header p { font-size: 12px; line-height: 1.2; }
+.system-admin-page .system-admin-header button {
+  min-height: 40px;
+  padding-inline: 14px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.system-admin-page .system-admin-tabs {
+  display: flex;
+  max-width: 1500px;
+  gap: 5px !important;
+  padding: 5px !important;
+  margin-bottom: 16px !important;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+.system-admin-page .system-admin-tabs button {
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+.system-admin-page .system-admin-tabs button b {
+  min-width: 20px;
+  min-height: 20px;
+  display: inline-grid;
+  place-items: center;
+  margin-left: 6px;
+  border-radius: 5px;
+}
+.system-admin-page .admin-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--r09-gap) !important;
+  margin-block: 12px 16px;
+}
+.system-admin-page .admin-metric-grid article {
+  min-width: 0;
+  min-height: 90px !important;
+  gap: 12px;
+  padding: 13px 15px;
+  border-radius: var(--r09-radius) !important;
+}
+.system-admin-page .admin-metric-grid article svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+}
+.system-admin-page .admin-metric-grid article span { min-width: 0; font-size: 12px; line-height: 1.35; }
+.system-admin-page .admin-metric-grid article strong {
+  display: block;
+  font-size: clamp(21px, 1.8vw, 26px) !important;
+  line-height: 1.12;
+  font-variant-numeric: tabular-nums;
+}
+.system-admin-page .admin-infra-grid { gap: var(--r09-gap) !important; margin-bottom: 16px; }
+.system-admin-page .admin-infra-grid article { min-height: 80px; border-radius: var(--r09-radius) !important; }
+.system-admin-page .admin-section {
+  min-width: 0;
+  padding: 18px !important;
+  margin-block: 14px !important;
+  border-radius: var(--r09-radius) !important;
+}
+.system-admin-page .admin-section > header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 46px;
+  padding-bottom: 12px;
+}
+.system-admin-page .admin-section > header h2 {
+  font-size: clamp(17px, 1.6vw, 21px);
+  line-height: 1.2;
+}
+.system-admin-page .admin-section > header p { font-size: 12px; letter-spacing: .07em; }
+.system-admin-page :is(.admin-publication-grid, .admin-report-list, .admin-audit-list) {
+  min-width: 0;
+  gap: 12px;
+}
+.system-admin-page :is(.admin-publication-grid, .admin-report-list) article,
+.system-admin-page .admin-producer-invite-card,
+.system-admin-page .admin-producer-pending {
+  min-width: 0;
+  border-radius: 8px !important;
+}
+.system-admin-page .admin-producer-invite-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 12px;
+}
+.system-admin-page .admin-producer-invite-form label { min-width: 0; }
+.system-admin-page .admin-producer-invite-form label > span { font-size: 12px; }
+.system-admin-page :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+  max-width: 100%;
+  min-height: 42px;
+  font-size: 13px;
+}
+.system-admin-page .admin-table-wrap {
+  max-width: 100%;
+  overflow-x: auto !important;
+  overscroll-behavior-x: contain;
+  border-radius: 8px !important;
+}
+.system-admin-page .admin-table-wrap table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.system-admin-page .admin-table-wrap th {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.system-admin-page .admin-table-wrap td { padding: 12px 14px; font-size: 12px; line-height: 1.4; }
+.system-admin-page .admin-table-wrap td:first-child {
+  display: table-cell;
+  min-width: 140px;
+  vertical-align: middle;
+}
+.system-admin-page .admin-table-wrap td:first-child :is(strong,small) { display: block; }
+.system-admin-page .admin-row-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.system-admin-page .admin-row-actions button { min-height: 36px; padding-inline: 11px; }
+.system-admin-page .admin-feedback { padding: 12px 14px; border-radius: 8px !important; }
+.system-admin-page :is(button,a,input,select,textarea):focus-visible {
+  outline: 2px solid #ac8a00 !important;
+  outline-offset: 2px;
+}
+
+/* 2. Gestão de transmissão (fora do canvas), editor de pacotes e planilhas. */
+.championship-stream-page { min-width: 0; }
+.championship-stream-page .stream-catalog-page { max-width: 1440px; }
+.championship-stream-page .stream-catalog-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
+  gap: 14px;
+}
+.championship-stream-page .stream-catalog-card { min-width: 0; border-radius: 9px; padding: 16px; }
+.championship-stream-page .stream-catalog-card-top { min-width: 0; }
+.championship-stream-page .stream-catalog-card-actions { gap: 8px; }
+.championship-stream-page .stream-tab,
+.championship-stream-page .stream-panel { min-width: 0; }
+.championship-stream-page .stream-tab { gap: 14px; }
+.championship-stream-page .stream-tab-head {
+  align-items: center;
+  min-height: 78px;
+  gap: 14px;
+}
+.championship-stream-page .stream-tab-head h3 { font-size: clamp(18px, 1.8vw, 24px); line-height: 1.2; }
+.championship-stream-page .stream-tab-head p { font-size: 12px; line-height: 1.5; }
+.championship-stream-page .stream-panel { gap: 14px; padding: 16px; border-radius: 9px; }
+.championship-stream-page .stream-panel-title h4 { font-size: 14px; line-height: 1.35; }
+.championship-stream-page .stream-panel-actions { gap: 8px; }
+.championship-stream-page :is(.stream-primary-btn,.stream-secondary-btn,.stream-icon-btn) {
+  min-height: 40px;
+  font-size: 12px;
+  letter-spacing: normal;
+  border-radius: 7px;
+}
+.championship-stream-page .stream-sheet-tabs { gap: 6px; }
+.championship-stream-page .stream-sheet-tabs button { min-height: 40px; border-radius: 6px; font-size: 12px; }
+.championship-stream-page .stream-sheet-wrap,
+.championship-stream-page .stream-overlay-table-wrap {
+  min-width: 0;
+  overflow: auto;
+  border-radius: 7px;
+  overscroll-behavior: contain;
+}
+.championship-stream-page .stream-sheet :is(th,td),
+.championship-stream-page .stream-overlay-table :is(th,td) {
+  min-width: 55px;
+  font-size: 12px;
+}
+/* Não modificar .stream-gt-stage, .stream-gt-frame, coordenadas do editor,
+   .stream-live-stage ou bloqueio de scroll em modo fullscreen. */
+
+/* 3. Painel e mesa broadcast. O documento OBS não recebe estes seletores. */
+.broadcast-page { width: min(1280px, 100%); max-width: 1280px; padding: 18px 20px 40px; gap: 14px; }
+.broadcast-page .broadcast-card { min-width: 0; padding: 16px; gap: 12px; border-radius: 9px; }
+.broadcast-page .broadcast-card h2 { font-size: 15px; letter-spacing: .015em; }
+.broadcast-page .broadcast-row { min-width: 0; gap: 10px; }
+.broadcast-page .broadcast-field { min-width: min(100%, 180px); font-size: 12px; letter-spacing: .02em; }
+.broadcast-page .broadcast-field input { min-height: 42px; font-size: 13px; }
+.broadcast-page .broadcast-list { gap: 10px; }
+.broadcast-page .broadcast-list li { min-width: 0; padding: 12px; gap: 10px; border-radius: 8px; }
+.broadcast-page .broadcast-list li > * { min-width: 0; }
+.broadcast-page :is(.stream-primary-btn,.stream-secondary-btn) {
+  min-height: 40px;
+  font-size: 12px;
+  letter-spacing: normal;
+  border-radius: 7px;
+}
+.broadcast-page .broadcast-preflight-grid { gap: 10px; }
+.broadcast-page .broadcast-preflight-item { min-width: 0; border-radius: 8px; }
+.broadcast-page .broadcast-desk-urls { min-width: 0; gap: 10px; }
+.broadcast-page :is(button,a,input,select):focus-visible,
+.broadcast-control :is(button,a,input,select):focus-visible {
+  outline: 2px solid #b99912 !important;
+  outline-offset: 2px;
+}
+
+.broadcast-control {
+  min-width: 0;
+  gap: 12px;
+  padding: 16px 20px 36px !important;
+}
+.broadcast-control .broadcast-control-head { min-height: 80px; padding: 16px 20px !important; }
+.broadcast-control .broadcast-control-head h1 { font-size: clamp(20px, 2vw, 26px); line-height: 1.12; }
+.broadcast-control .broadcast-live-select { min-width: 0; padding: 10px 12px; }
+.broadcast-control .broadcast-live-select-trigger {
+  min-height: 44px;
+  border: 1px solid #d5dce3;
+  border-radius: 7px;
+  background: #f6f8fa;
+  color: #1b2733;
+}
+.broadcast-control .broadcast-live-select-trigger:is(:hover,.is-open) { border-color: #a7b3c0; background: #eef2f6; }
+.broadcast-control .broadcast-live-select-value,
+.broadcast-control .broadcast-live-select-menu { color: #1b2733 !important; }
+.broadcast-control .broadcast-live-select-value strong,
+.broadcast-control .broadcast-live-select-option-text strong { color: #1b2733 !important; }
+.broadcast-control .broadcast-live-select-value small,
+.broadcast-control .broadcast-live-select-option-text small { color: #5b6876 !important; }
+.broadcast-control .broadcast-live-select-menu { z-index: 80; padding: 6px; border-radius: 8px; }
+.broadcast-control .broadcast-live-select-option { color: #1b2733 !important; border-radius: 6px; }
+.broadcast-control .broadcast-live-select-option:hover { background: #eef3f7; }
+.broadcast-control .broadcast-live-select-option.is-active { background: #fff5d1; border-color: #f2c900; }
+.broadcast-control .broadcast-onair { width: min(1480px,100%); margin-inline: auto; min-width: 0; border-radius: 9px; }
+.broadcast-control .broadcast-onair-copy { min-width: 0; }
+.broadcast-control .broadcast-onair-copy strong { color: #fff !important; }
+.broadcast-control .broadcast-onair-copy > span,
+.broadcast-control .broadcast-onair-copy small { color: #c8d2df !important; }
+.broadcast-control .broadcast-onair-status .broadcast-output-state { color: #1b2733 !important; }
+.broadcast-control :is(.broadcast-output-preview,.broadcast-scenes-section) .broadcast-control-section-label {
+  color: #826b00 !important;
+}
+.broadcast-control .broadcast-output-preview-head small { color: #536171 !important; }
+.broadcast-control .broadcast-output-preview,
+.broadcast-control .broadcast-scenes-section { min-width: 0; overflow-wrap: anywhere; }
+.broadcast-control .broadcast-output-preview-head,
+.broadcast-control .broadcast-scenes-head { gap: 12px; padding: 14px 16px; }
+.broadcast-control .broadcast-output-preview-actions { flex-wrap: wrap; gap: 8px; }
+.broadcast-control :is(.broadcast-output-preview-toggle,.broadcast-output-preview-link) { min-height: 40px; padding-inline: 12px; }
+.broadcast-control .broadcast-scene-list { gap: 8px; }
+.broadcast-control .broadcast-scene-row {
+  min-width: 0;
+  min-height: 52px;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+}
+.broadcast-control .broadcast-scene-row.is-active { border-color: #c9ab0a !important; background: #fff8dc !important; }
+.broadcast-control .broadcast-scene-meta strong { font-size: 13px; color: #1b2733 !important; }
+.broadcast-control .broadcast-scene-meta small { font-size: 12px; color: #5e6a76 !important; }
+.broadcast-control .broadcast-scene-index { border-radius: 7px; }
+.broadcast-control .broadcast-scene-onair { font-size: 12px; white-space: nowrap; }
+
+@media (max-width: 1024px) {
+  .system-admin-page .admin-metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .system-admin-page .admin-producer-invite-form { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .system-admin-page .admin-producer-invite-form button { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .system-admin-page { padding-inline: 10px !important; }
+  .system-admin-page .system-admin-header { flex-wrap: wrap; margin-inline: -10px !important; padding: 14px !important; }
+  .system-admin-page .system-admin-header > div { flex: 1; }
+  .system-admin-page .system-admin-header h1 { font-size: 20px !important; }
+  .system-admin-page .system-admin-tabs { padding: 4px !important; }
+  .system-admin-page .system-admin-tabs button { min-height: 42px !important; padding-inline: 12px !important; }
+  .system-admin-page .admin-metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; gap: 8px !important; }
+  .system-admin-page .admin-metric-grid article { min-height: 82px !important; padding: 12px; gap: 7px; }
+  .system-admin-page .admin-metric-grid article svg { width: 18px; height: 18px; }
+  .system-admin-page .admin-metric-grid article strong { font-size: 21px !important; }
+  .system-admin-page .admin-metric-grid article span { font-size: 12px; }
+  .system-admin-page .admin-section { padding: 12px !important; }
+  .system-admin-page .admin-section > header { align-items: flex-start; }
+  .system-admin-page .admin-producer-invite-form { grid-template-columns: minmax(0,1fr); padding: 12px; }
+  .system-admin-page .admin-producer-invite-form button { grid-column: auto; }
+  .system-admin-page .admin-table-wrap { margin-inline: 0 !important; }
+  .system-admin-page .admin-table-wrap table { min-width: 560px; }
+  .broadcast-page { padding: 12px; }
+  .broadcast-page .broadcast-list li { grid-template-columns: minmax(0,1fr); }
+  .broadcast-control { padding: 10px 10px 30px !important; }
+  .broadcast-control .broadcast-control-head { padding: 14px !important; }
+  .broadcast-control .broadcast-output-preview-head,
+  .broadcast-control .broadcast-scenes-head { align-items: flex-start; flex-wrap: wrap; padding: 12px; }
+  .broadcast-control .broadcast-onair { min-width: 0; }
+  .broadcast-control .broadcast-scene-row { grid-template-columns: 32px minmax(0,1fr) auto; padding: 10px; }
+  .broadcast-control .broadcast-scene-meta strong { font-size: 12px; }
+  .championship-stream-page .stream-tab-head { align-items: flex-start; }
+  .championship-stream-page .stream-panel { padding: 12px; }
+  .championship-stream-page .stream-panel-actions { width: 100%; }
+  .championship-stream-page .stream-catalog-grid { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 360px) {
+  .system-admin-page .admin-metric-grid { grid-template-columns: minmax(0,1fr) !important; }
+  .broadcast-control .broadcast-onair-status { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .system-admin-page *, .broadcast-page *, .broadcast-control * { scroll-behavior: auto !important; }
+}

@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MailPlus, RefreshCw, ShieldCheck, Trash2, UserRoundCheck, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -125,7 +127,7 @@ export function ProducerMembersPanel({ producerId }: { producerId: string }) {
 
   async function removeMember(member: Member) {
     const label = member.identity?.display_name || member.identity?.username || member.email || 'este membro'
-    if (!window.confirm(`Remover ${label} da equipe da produtora?`)) return
+    if (!await confirmAction(`Remover ${label} da equipe da produtora?`)) return
     setBusy(member.id)
     setError('')
     try {
@@ -139,7 +141,7 @@ export function ProducerMembersPanel({ producerId }: { producerId: string }) {
   }
 
   async function cancelInvite(invite: PendingInvite) {
-    if (!window.confirm(`Cancelar o convite enviado para ${invite.email}?`)) return
+    if (!await confirmAction(`Cancelar o convite enviado para ${invite.email}?`)) return
     setBusy(invite.id)
     setError('')
     try {
@@ -169,8 +171,8 @@ export function ProducerMembersPanel({ producerId }: { producerId: string }) {
             <span><strong>Convidar por e-mail</strong><small>Somente contas já cadastradas no DropZone podem entrar no workspace.</small></span>
           </div>
           <div className="producer-member-invite-form">
-            <label><span>E-mail cadastrado</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@email.com" /></label>
-            <label><span>Cargo</span><select value={role} onChange={(event) => setRole(event.target.value as ProducerMemberRole)}>{PRODUCER_MEMBER_ROLES.map((item) => <option key={item} value={item}>{PRODUCER_ROLE_LABELS[item]}</option>)}</select></label>
+            <label><span>E-mail cadastrado</span><UiInput type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="usuario@email.com" /></label>
+            <label><span>Cargo</span><UiSelect value={role} onChange={(event) => setRole(event.target.value as ProducerMemberRole)}>{PRODUCER_MEMBER_ROLES.map((item) => <option key={item} value={item}>{PRODUCER_ROLE_LABELS[item]}</option>)}</UiSelect></label>
             <button type="button" disabled={busy === 'invite'} onClick={() => void inviteMember()}><MailPlus size={15} /> {busy === 'invite' ? 'Enviando…' : 'Enviar convite'}</button>
           </div>
           <p>{PRODUCER_ROLE_DESCRIPTIONS[role]}</p>
@@ -191,9 +193,9 @@ export function ProducerMembersPanel({ producerId }: { producerId: string }) {
               <span className="producer-member-identity"><strong>{title}</strong><small>{username}</small></span>
               <span className="producer-member-role">
                 {member.is_owner ? <b><ShieldCheck size={13} /> Proprietário</b> : canManage ? (
-                  <select value={member.cargo} disabled={busy === member.id} onChange={(event) => void changeRole(member, event.target.value as ProducerMemberRole)}>
+                  <UiSelect value={member.cargo} disabled={busy === member.id} onChange={(event) => void changeRole(member, event.target.value as ProducerMemberRole)}>
                     {PRODUCER_MEMBER_ROLES.map((item) => <option key={item} value={item}>{PRODUCER_ROLE_LABELS[item]}</option>)}
-                  </select>
+                  </UiSelect>
                 ) : <b>{PRODUCER_ROLE_LABELS[member.cargo] || member.cargo}</b>}
               </span>
               {canManage && !member.is_owner ? <button type="button" className="producer-member-remove" disabled={busy === member.id} onClick={() => void removeMember(member)} aria-label={`Remover ${title}`}><Trash2 size={15} /></button> : <span />}

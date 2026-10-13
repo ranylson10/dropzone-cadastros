@@ -1,7 +1,10 @@
 'use client'
 
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
+import { Dialog } from '@/components/ui/Dialog'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Loader2, RefreshCcw, Table2, X } from 'lucide-react'
+import { Loader2, RefreshCcw, Table2 } from 'lucide-react'
 import { loadStreamFilterOptions, loadStreamSheet } from '../services/stream-data.service'
 import {
   STREAM_SHEETS,
@@ -87,16 +90,6 @@ export function StreamSpreadsheetPanel(props: {
     }
   }, [props.campeonatoId, asModal, open])
 
-  // fecha com Escape
-  useEffect(() => {
-    if (!asModal || !open) return
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [asModal, open])
-
   function renderFilter() {
     const kind = sheet.filter || 'none'
     if (kind === 'none' || !filterOpts) return null
@@ -124,7 +117,7 @@ export function StreamSpreadsheetPanel(props: {
     return (
       <label className="stream-field stream-sheet-filter">
         <span>Filtrar por {kind}</span>
-        <select
+        <UiSelect
           value={value}
           onChange={(e) => {
             const v = e.target.value
@@ -139,7 +132,7 @@ export function StreamSpreadsheetPanel(props: {
           {options.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
-        </select>
+        </UiSelect>
       </label>
     )
   }
@@ -154,11 +147,11 @@ export function StreamSpreadsheetPanel(props: {
   }, [])
 
   const body = (
-    <div className="stream-sheet-modal-panel" role="dialog" aria-modal={asModal} aria-label="Planilha de dados do stream">
+    <div className="stream-sheet-modal-panel" role={asModal ? undefined : 'region'} aria-label={asModal ? undefined : 'Planilha de dados do stream'}>
       <div className="stream-sheet-modal-head">
         <div>
           <p className="eyebrow">Stream · dados ao vivo</p>
-          <h3>Planilha de dados</h3>
+          {!asModal ? <h3>Planilha de dados</h3> : null}
           <p className="stream-hint">
             Fontes para overlays. Endereço de célula: <code>{sheet.refName}!B2</code> (linha 1 = cabeçalho).
             Coluna <strong>Δ</strong> = subiu/desceu em relação à partida anterior (+2 ▲ / -3 ▼).
@@ -170,11 +163,6 @@ export function StreamSpreadsheetPanel(props: {
             {loading ? <Loader2 size={15} className="spin" /> : <RefreshCcw size={15} />}
             Atualizar
           </button>
-          {asModal ? (
-            <button type="button" className="stream-icon-btn" onClick={() => setOpen(false)} title="Fechar">
-              <X size={16} /> Fechar
-            </button>
-          ) : null}
         </div>
       </div>
 
@@ -209,40 +197,40 @@ export function StreamSpreadsheetPanel(props: {
       ) : null}
 
       <div className="stream-sheet-wrap stream-sheet-wrap-modal">
-        <table className="stream-sheet">
-          <thead>
-            <tr>
-              <th className="stream-sheet-corner" scope="col" />
+        <DataTable className="stream-sheet">
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeaderCell className="stream-sheet-corner" scope="col" />
               {sheet.columns.map((col) => (
-                <th key={col.key} scope="col" title={`${sheet.refName}!${col.letter}`}>
+                <DataTableHeaderCell key={col.key} scope="col" title={`${sheet.refName}!${col.letter}`}>
                   <span className="stream-col-letter">{col.letter}</span>
                   {col.label}
-                </th>
+                </DataTableHeaderCell>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
             {loading && !rows.length ? (
-              <tr>
-                <td colSpan={sheet.columns.length + 1} className="stream-sheet-empty">Carregando dados…</td>
-              </tr>
+              <DataTableRow>
+                <DataTableCell colSpan={sheet.columns.length + 1} className="stream-sheet-empty">Carregando dados…</DataTableCell>
+              </DataTableRow>
             ) : null}
             {!loading && !rows.length ? (
-              <tr>
-                <td colSpan={sheet.columns.length + 1} className="stream-sheet-empty">
+              <DataTableRow>
+                <DataTableCell colSpan={sheet.columns.length + 1} className="stream-sheet-empty">
                   {sheet.filter && sheet.filter !== 'none' && !Object.values(filters).some(Boolean)
                     ? 'Selecione um filtro acima para carregar os dados.'
                     : sheet.id === 'mapas'
                       ? 'Nenhuma queda neste jogo. Selecione o jogo da live na aba Stream → Composição, confira mapas no pontuador e clique em Atualizar.'
                       : 'Nenhum dado nesta aba ainda.'}
-                </td>
-              </tr>
+                </DataTableCell>
+              </DataTableRow>
             ) : null}
             {rows.map((row, rowIndex) => {
               const excelRow = rowIndex + 2
               return (
-                <tr key={row.id}>
-                  <td className="stream-sheet-row-head" title={`Linha ${excelRow}`}>{excelRow}</td>
+                <DataTableRow key={row.id}>
+                  <DataTableCell className="stream-sheet-row-head" title={`Linha ${excelRow}`}>{excelRow}</DataTableCell>
                   {sheet.columns.map((col) => {
                     const val = row.cells[col.key] || ''
                     const isDelta = col.key === 'delta'
@@ -254,7 +242,7 @@ export function StreamSpreadsheetPanel(props: {
                           ? 'is-down'
                           : ''
                     return (
-                      <td
+                      <DataTableCell
                         key={col.key}
                         title={showImg ? `${sheet.refName}!${col.letter}${excelRow}` : `${sheet.refName}!${col.letter}${excelRow}${val ? ` · ${val}` : ''}`}
                         className={`${deltaClass}${showImg ? ' is-img-cell' : ''}`}
@@ -263,16 +251,16 @@ export function StreamSpreadsheetPanel(props: {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={val} alt="" className="stream-sheet-thumb" loading="lazy" />
                         ) : (
-                          <input readOnly value={val} aria-label={`${col.label} linha ${excelRow}`} spellCheck={false} />
+                          <UiInput readOnly value={val} aria-label={`${col.label} linha ${excelRow}`} spellCheck={false} />
                         )}
-                      </td>
+                      </DataTableCell>
                     )
                   })}
-                </tr>
+                </DataTableRow>
               )
             })}
-          </tbody>
-        </table>
+          </DataTableBody>
+        </DataTable>
       </div>
     </div>
   )
@@ -288,13 +276,9 @@ export function StreamSpreadsheetPanel(props: {
           <Table2 size={15} /> {props.triggerLabel || 'Planilha de dados'}
         </button>
       ) : null}
-      {open ? (
-        <div className="stream-sheet-modal-root" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}>
-          <div className="stream-sheet-modal-drop">
-            {body}
-          </div>
-        </div>
-      ) : null}
+      <Dialog open={open} title="Planilha de dados do stream" onClose={() => setOpen(false)} size="wide" className="stream-sheet-dialog">
+        {body}
+      </Dialog>
     </>
   )
 }

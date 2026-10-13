@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction, promptAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { Check, Eraser, MapPin, MousePointer2, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
@@ -133,7 +135,7 @@ export function CampeonatoCallsTab({ campeonatoId }: { campeonatoId: string }) {
   return <section className="xt-calls">
     <header className="xt-calls-head">
       <div><p className="eyebrow">Xtreino</p><h3>Mapa territorial de calls</h3><small>Desenhe as regiões, selecione uma ou mais calls e aplique manualmente equipe, cor e opacidade.</small></div>
-      <label>Mapa<select value={mapa} onChange={(event) => setMapa(event.target.value)}>{data.mapas.map((item) => <option key={item.id} value={item.codigo}>{item.nome}</option>)}</select></label>
+      <label>Mapa<UiSelect value={mapa} onChange={(event) => setMapa(event.target.value)}>{data.mapas.map((item) => <option key={item.id} value={item.codigo}>{item.nome}</option>)}</UiSelect></label>
     </header>
 
     <div className="xt-territory-layout">
@@ -170,15 +172,15 @@ export function CampeonatoCallsTab({ campeonatoId }: { campeonatoId: string }) {
           <strong>1. Criar região</strong>
           <button className={`button ${drawing ? 'secondary' : ''}`} onClick={() => { setDrawing((value) => !value); setDraftPoints([]) }}>{drawing ? <X size={15}/> : <Plus size={15}/>} {drawing ? 'Cancelar desenho' : 'Desenhar call'}</button>
           {drawing ? <>
-            <input value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="Nome da call" />
+            <UiInput value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="Nome da call" />
             <div className="xt-tool-row"><button disabled={!draftPoints.length} onClick={() => setDraftPoints((points) => points.slice(0, -1))}>Desfazer ponto</button><button disabled={draftPoints.length < 3 || !draftName.trim() || busy} onClick={() => void saveRegion()}><Save size={14}/> Salvar região</button></div>
           </> : null}
         </section>
 
         <section>
           <strong>2. Aplicar equipe</strong>
-          <label>Equipe<select value={selectedTeam} onChange={(event) => setSelectedTeam(event.target.value)}><option value="">Selecione</option>{data.equipes.map((team) => <option key={team.id} value={team.id}>{teamLabel(team)}</option>)}</select></label>
-          <div className="xt-color-row"><label>Cor<input type="color" value={color} onChange={(event) => setColor(event.target.value)} /></label><label>Opacidade <b>{Math.round(opacity * 100)}%</b><input type="range" min="0.1" max="0.9" step="0.05" value={opacity} onChange={(event) => setOpacity(Number(event.target.value))} /></label></div>
+          <label>Equipe<UiSelect value={selectedTeam} onChange={(event) => setSelectedTeam(event.target.value)}><option value="">Selecione</option>{data.equipes.map((team) => <option key={team.id} value={team.id}>{teamLabel(team)}</option>)}</UiSelect></label>
+          <div className="xt-color-row"><label>Cor<UiInput type="color" value={color} onChange={(event) => setColor(event.target.value)} /></label><label>Opacidade <b>{Math.round(opacity * 100)}%</b><UiInput type="range" min="0.1" max="0.9" step="0.05" value={opacity} onChange={(event) => setOpacity(Number(event.target.value))} /></label></div>
           <button className="button" disabled={!selectedCalls.length || !selectedTeam || busy} onClick={() => void applyTeam()}><Check size={15}/> Aplicar nas calls selecionadas</button>
           <button className="button secondary" disabled={!selectedCalls.length || busy} onClick={() => void clearSelected()}><Eraser size={15}/> Limpar selecionadas</button>
         </section>
@@ -190,13 +192,13 @@ export function CampeonatoCallsTab({ campeonatoId }: { campeonatoId: string }) {
             const team = data.equipes.find((item) => item.id === assignment?.campeonato_equipe_id)
             return <div key={call.id} className={selectedCalls.includes(call.id) ? 'is-selected' : ''}>
               <button className="xt-call-select" onClick={() => toggleCall(call.id)}><span style={{ background: assignment?.cor || call.cor }}/><b>{call.nome}</b><small>{team ? teamLabel(team) : 'Livre'}</small></button>
-              <button title="Renomear" onClick={async () => { const next = window.prompt('Novo nome da call', call.nome); if (next?.trim()) { await campeonatoCallsService.editarCall(campeonatoId, { call_id: call.id, nome: next.trim(), cor: call.cor, observacao: call.observacao, poligono: call.poligono }); await load() } }}><Pencil size={13}/></button>
-              <button title="Excluir" onClick={async () => { if (window.confirm(`Excluir a call ${call.nome}?`)) { await campeonatoCallsService.excluirCall(campeonatoId, call.id); await load() } }}><Trash2 size={13}/></button>
+              <button title="Renomear" onClick={async () => { const next = await promptAction('Novo nome da call', call.nome); if (next?.trim()) { await campeonatoCallsService.editarCall(campeonatoId, { call_id: call.id, nome: next.trim(), cor: call.cor, observacao: call.observacao, poligono: call.poligono }); await load() } }}><Pencil size={13}/></button>
+              <button title="Excluir" onClick={async () => { if (await confirmAction(`Excluir a call ${call.nome}?`)) { await campeonatoCallsService.excluirCall(campeonatoId, call.id); await load() } }}><Trash2 size={13}/></button>
             </div>
           })}</div>
         </section>
 
-        {unshapedCalls.length ? <section className="xt-legacy-calls"><strong>Calls antigas sem área</strong><small>Converta os cadastros criados na versão anterior desenhando os territórios.</small>{unshapedCalls.map((call) => <div key={call.id}><span><MapPin size={13}/>{call.nome}</span><button onClick={() => void convertOldCall(call)}>Desenhar</button><button onClick={async () => { if (window.confirm(`Excluir a call antiga ${call.nome}?`)) { await campeonatoCallsService.excluirCall(campeonatoId, call.id); await load() } }}><Trash2 size={13}/></button></div>)}</section> : null}
+        {unshapedCalls.length ? <section className="xt-legacy-calls"><strong>Calls antigas sem área</strong><small>Converta os cadastros criados na versão anterior desenhando os territórios.</small>{unshapedCalls.map((call) => <div key={call.id}><span><MapPin size={13}/>{call.nome}</span><button onClick={() => void convertOldCall(call)}>Desenhar</button><button onClick={async () => { if (await confirmAction(`Excluir a call antiga ${call.nome}?`)) { await campeonatoCallsService.excluirCall(campeonatoId, call.id); await load() } }}><Trash2 size={13}/></button></div>)}</section> : null}
       </aside>
     </div>
     {message ? <small className="error-text">{message}</small> : null}

@@ -335,6 +335,7 @@ function DropZoneMobileApp() {
       result={selectedTokenAction}
       onBack={goBack}
       accessToken={auth.session?.access_token}
+      actorId={auth.user?.id}
       requireLogin={() => { requireLogin('token_action') }}
       accounts={auth.accounts}
       onCreateProfile={(type) => { setProfileCreationType(type); setRouteWithHistory('profile_create') }}

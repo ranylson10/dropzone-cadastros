@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronDown, ChevronRight, ExternalLink, Users } from 'lucide-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { DirectoryProfile, DirectorySectionItem } from '../types'
 
 /** Slot no padrão da aba Equipes (SLOT + avatar + nome + detalhe). */
@@ -173,6 +173,7 @@ export function DirectoryProfileTabs({
   } | null
 }) {
   const tabTitles = sections.map((item) => item.title)
+  const groupId = useId().replace(/:/g, '')
   const [active, setActive] = useState(tabTitles[0] || '')
   if (!tabTitles.length) return null
 
@@ -185,8 +186,23 @@ export function DirectoryProfileTabs({
           <button
             key={item.title}
             type="button"
+            role="tab"
+            id={`${groupId}-tab-${sections.indexOf(item)}`}
+            aria-controls={`${groupId}-panel`}
+            aria-selected={item.title === section?.title}
+            tabIndex={item.title === section?.title ? 0 : -1}
             className={item.title === section?.title ? 'active' : ''}
             onClick={() => setActive(item.title)}
+            onKeyDown={(event) => {
+              const current = sections.indexOf(item)
+              const next = event.key === 'ArrowRight' ? (current + 1) % sections.length
+                : event.key === 'ArrowLeft' ? (current + sections.length - 1) % sections.length
+                : event.key === 'Home' ? 0 : event.key === 'End' ? sections.length - 1 : -1
+              if (next < 0) return
+              event.preventDefault()
+              setActive(sections[next].title)
+              event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus()
+            }}
           >
             {item.title}
             <span>{item.items.length}</span>
@@ -194,7 +210,7 @@ export function DirectoryProfileTabs({
         ))}
         {agenda ? <a className="directory-profile-tab-link" href={`/agenda?scope=${agenda.scope}&id=${encodeURIComponent(agenda.scopeId)}`}>{agenda.tabLabel || 'Agenda'}</a> : null}
       </div>
-      <div className="directory-profile-tab-panel">
+      <div className="directory-profile-tab-panel" id={`${groupId}-panel`} role="tabpanel" aria-labelledby={`${groupId}-tab-${sections.indexOf(section)}`} tabIndex={0}>
         {section?.layout === 'structure' ? (
           <StructureTree items={section.items} />
         ) : section?.items.length ? (

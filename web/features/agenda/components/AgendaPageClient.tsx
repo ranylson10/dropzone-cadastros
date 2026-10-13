@@ -32,7 +32,7 @@ export function AgendaPageClient() {
       activeLabel="Agenda"
       loadSession
       withAuthOffset={false}
-      mainClassName="agenda-page page directory-page"
+      mainClassName="agenda-page agenda-page--unified page"
     >
       <div className="agenda-page-body">
         {!ready ? (

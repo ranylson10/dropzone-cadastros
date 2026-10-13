@@ -1,25 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
-import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { searchDirectory, searchTerm } from '@backend/directory/search-page'
 
 export async function GET(req: NextRequest) {
   try {
     await getBearerUser(req)
-    const q = String(req.nextUrl.searchParams.get('q') || '').trim().replace(/^@/, '')
-    if (q.length < 2) return NextResponse.json({ items: [] })
-    const numeric = /^\d+$/.test(q)
-    let query = supabaseAdmin.from('jogadores').select('id,nome,username,avatar_url,id_jogo,funcao,auth_user_id,status').eq('status', 'ativo').limit(12)
-    query = numeric ? query.or(`public_id.eq.${Number(q)},id_jogo.eq.${q}`) : query.or(`nome.ilike.%${q}%,username.ilike.%${q}%`)
-    const { data, error } = await query
-    if (error) throw error
-    return NextResponse.json({
-      items: (data || []).map(({ auth_user_id: _private, nome, ...item }) => ({
-        ...item,
-        nome,
-        nick: nome,
-      })),
-    })
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erro ao buscar jogadores.' }, { status: 400 })
+    if (searchTerm(req.nextUrl.searchParams).length < 2) return NextResponse.json({ items: [], hasMore: false, nextCursor: null })
+    const page = await searchDirectory('player', req.nextUrl.searchParams, { defaultLimit: 12, namespace: 'player-invite', columns: 'id,nome,username,avatar_url,id_jogo,funcao,status', fields: ['nome','username'] })
+    return NextResponse.json({ ...page, items: page.items.map(item => ({ ...item, nick: item.nome })) })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao buscar jogadores.' }, { status: 400 })
   }
 }

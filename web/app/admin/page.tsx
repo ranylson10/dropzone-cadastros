@@ -1,5 +1,8 @@
 'use client'
 
+import { confirmAction, promptAction } from '@/components/feedback'
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
@@ -21,6 +24,7 @@ import {
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
+import { HomePageEditor } from '@/features/admin/HomePageEditor'
 
 function bytes(value: number) {
   if (!value) return '0 MB'
@@ -33,7 +37,7 @@ function money(centavos: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((centavos || 0) / 100)
 }
 
-type Tab = 'overview' | 'produtoras' | 'aprovacoes' | 'precos' | 'saques' | 'accounts' | 'reports' | 'audit'
+type Tab = 'overview' | 'home' | 'produtoras' | 'aprovacoes' | 'precos' | 'saques' | 'accounts' | 'reports' | 'audit'
 
 export default function AdminPage() {
   const [data, setData] = useState<any>(null)
@@ -170,7 +174,7 @@ export default function AdminPage() {
   }
 
   async function cancelProducerInvite(id: string) {
-    if (!window.confirm('Cancelar este convite de produtora?')) return
+    if (!await confirmAction('Cancelar este convite de produtora?')) return
     setBusyId(id)
     setError('')
     try {
@@ -192,9 +196,9 @@ export default function AdminPage() {
     const reason =
       action === 'restaurar'
         ? 'Restrição removida pelo administrador.'
-        : window.prompt(`Motivo para ${action} ${item.nome}:`)
+        : await promptAction(`Motivo para ${action} ${item.nome}:`)
     if (!reason) return
-    const days = action === 'suspender' ? Number(window.prompt('Quantidade de dias da suspensão:', '7') || 7) : null
+    const days = action === 'suspender' ? Number(await promptAction('Quantidade de dias da suspensão:', '7') || 7) : null
     const res = await fetch('/api/admin/moderation', {
       method: 'PATCH',
       headers: await headers(),
@@ -215,7 +219,7 @@ export default function AdminPage() {
   }
 
   async function resolveReport(item: any, status: string) {
-    const resolution = window.prompt('Informe a análise/resolução:', item.resolucao || '')
+    const resolution = await promptAction('Informe a análise/resolução:', item.resolucao || '')
     if (resolution === null) return
     const res = await fetch('/api/admin/reports', {
       method: 'PATCH',
@@ -237,9 +241,9 @@ export default function AdminPage() {
   ) {
     const motivo =
       status === 'rejeitado'
-        ? window.prompt('Motivo da rejeição:')
+        ? await promptAction('Motivo da rejeição:')
         : status === 'aprovado'
-          ? window.prompt('Observação (opcional):', '')
+          ? await promptAction('Observação (opcional):', '')
           : ''
     if (status === 'rejeitado' && motivo === null) return
     setBusyId(id)
@@ -247,7 +251,7 @@ export default function AdminPage() {
     try {
       let cobranca_status: string | undefined
       if (alvo === 'campeonato' && status === 'aprovado') {
-        const cob = window.prompt(
+        const cob = await promptAction(
           'Status da cobrança: pago | cortesia | isento | pendente',
           'cortesia',
         )
@@ -272,7 +276,7 @@ export default function AdminPage() {
 
   async function togglePreco(chave: string, ativoAtual: boolean) {
     const acao = ativoAtual ? 'desativar' : 'reativar'
-    if (!window.confirm(`Confirma ${acao} este item da tabela de preços?`)) return
+    if (!await confirmAction(`Confirma ${acao} este item da tabela de preços?`)) return
     setBusyId(chave)
     setError('')
     try {
@@ -346,7 +350,7 @@ export default function AdminPage() {
     <main className="system-admin-page">
       <header className="system-admin-header">
         <div>
-          <img src="/dropzone-icon.png" alt="" />
+          <img src="/branding/dropzone-platform.png" alt="" />
           <span>
             <p>DropZone</p>
             <h1>Central DropZone</h1>
@@ -361,6 +365,7 @@ export default function AdminPage() {
         {(
           [
             ['overview', 'Visão geral'],
+            ['home', 'Página inicial'],
             ['produtoras', 'Produtoras'],
             ['aprovacoes', 'Publicações'],
             ['precos', 'Preços'],
@@ -472,6 +477,8 @@ export default function AdminPage() {
         </>
       ) : null}
 
+      {tab === 'home' ? <HomePageEditor /> : null}
+
       {tab === 'produtoras' ? (
         <section className="admin-section admin-producers-section">
           <header>
@@ -496,8 +503,8 @@ export default function AdminPage() {
             </header>
             <p>O e-mail precisa pertencer a uma conta já cadastrada. A produtora só é criada depois que essa conta aceita o convite.</p>
             <div className="admin-producer-invite-form">
-              <label><span>E-mail cadastrado</span><input type="email" value={producerInviteEmail} onChange={(event) => setProducerInviteEmail(event.target.value)} placeholder="usuario@email.com" /></label>
-              <label><span>Nome da produtora</span><input value={producerInviteName} onChange={(event) => setProducerInviteName(event.target.value)} placeholder="Ex.: ABC Eventos" /></label>
+              <label><span>E-mail cadastrado</span><UiInput type="email" value={producerInviteEmail} onChange={(event) => setProducerInviteEmail(event.target.value)} placeholder="usuario@email.com" /></label>
+              <label><span>Nome da produtora</span><UiInput value={producerInviteName} onChange={(event) => setProducerInviteName(event.target.value)} placeholder="Ex.: ABC Eventos" /></label>
               <button type="button" disabled={producerInviteBusy} onClick={() => void sendProducerInvite()}><MailPlus size={16} /> {producerInviteBusy ? 'Enviando…' : 'Enviar convite'}</button>
             </div>
           </section>
@@ -517,20 +524,20 @@ export default function AdminPage() {
           ) : null}
 
           <div className="admin-table-wrap">
-            <table>
-              <thead><tr><th>Produtora</th><th>Status</th><th>Criada em</th><th>Modelo</th></tr></thead>
-              <tbody>
+            <DataTable>
+              <DataTableHead><DataTableRow><DataTableHeaderCell>Produtora</DataTableHeaderCell><DataTableHeaderCell>Status</DataTableHeaderCell><DataTableHeaderCell>Criada em</DataTableHeaderCell><DataTableHeaderCell>Modelo</DataTableHeaderCell></DataTableRow></DataTableHead>
+              <DataTableBody>
                 {producerAccounts.map((item: any) => (
-                  <tr key={item.id}>
-                    <td><strong>{item.nome}</strong><small>@{item.username || '-'}</small></td>
-                    <td><span className={`admin-status ${item.status}`}>{item.status}</span></td>
-                    <td>{new Date(item.created_at).toLocaleDateString('pt-BR')}</td>
-                    <td><span className="admin-workspace-label">Workspace privado</span></td>
-                  </tr>
+                  <DataTableRow key={item.id}>
+                    <DataTableCell><strong>{item.nome}</strong><small>@{item.username || '-'}</small></DataTableCell>
+                    <DataTableCell><span className={`admin-status ${item.status}`}>{item.status}</span></DataTableCell>
+                    <DataTableCell>{new Date(item.created_at).toLocaleDateString('pt-BR')}</DataTableCell>
+                    <DataTableCell><span className="admin-workspace-label">Workspace privado</span></DataTableCell>
+                  </DataTableRow>
                 ))}
-                {!producerAccounts.length ? <tr><td colSpan={4}><span className="empty">Nenhuma produtora cadastrada.</span></td></tr> : null}
-              </tbody>
-            </table>
+                {!producerAccounts.length ? <DataTableRow><DataTableCell colSpan={4}><span className="empty">Nenhuma produtora cadastrada.</span></DataTableCell></DataTableRow> : null}
+              </DataTableBody>
+            </DataTable>
           </div>
         </section>
       ) : null}
@@ -542,11 +549,11 @@ export default function AdminPage() {
               <p>GATE DE PUBLICAÇÃO</p>
               <h2>Campeonatos e cadastros legados</h2>
             </div>
-            <select value={aprovFilter} onChange={(e) => setAprovFilter(e.target.value)}>
+            <UiSelect value={aprovFilter} onChange={(e) => setAprovFilter(e.target.value)}>
               <option value="pendente">Pendentes</option>
               <option value="aprovado">Aprovados</option>
               <option value="rejeitado">Rejeitados</option>
-            </select>
+            </UiSelect>
           </header>
           {aprovacoes?.needs_migration ? (
             <div className="admin-feedback error">
@@ -646,26 +653,26 @@ export default function AdminPage() {
             </p>
           ) : null}
           <div className="admin-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Categoria</th>
-                  <th>Valor (R$)</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
+            <DataTable>
+              <DataTableHead>
+                <DataTableRow>
+                  <DataTableHeaderCell>Item</DataTableHeaderCell>
+                  <DataTableHeaderCell>Categoria</DataTableHeaderCell>
+                  <DataTableHeaderCell>Valor (R$)</DataTableHeaderCell>
+                  <DataTableHeaderCell>Status</DataTableHeaderCell>
+                  <DataTableHeaderCell></DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
                 {(precos?.precos || []).filter((row: any) => !['rec_export', 'rec_stream', 'rec_broadcast'].includes(String(row.chave))).map((row: any) => (
-                  <tr key={row.chave}>
-                    <td>
+                  <DataTableRow key={row.chave}>
+                    <DataTableCell>
                       <strong>{row.rotulo}</strong>
                       <small>{row.descricao}</small>
-                    </td>
-                    <td>{row.categoria}</td>
-                    <td>
-                      <input
+                    </DataTableCell>
+                    <DataTableCell>{row.categoria}</DataTableCell>
+                    <DataTableCell>
+                      <UiInput
                         key={`${row.chave}-${row.valor_centavos}`}
                         type="number"
                         step="0.01"
@@ -674,13 +681,13 @@ export default function AdminPage() {
                         id={`preco-${row.chave}`}
                         style={{ width: 100 }}
                       />
-                    </td>
-                    <td>
+                    </DataTableCell>
+                    <DataTableCell>
                       <span className={`admin-status ${row.ativo === false ? 'rejeitado' : 'aprovado'}`}>
                         {row.ativo === false ? 'Inativo' : 'Ativo'}
                       </span>
-                    </td>
-                    <td>
+                    </DataTableCell>
+                    <DataTableCell>
                       <div className="admin-row-actions">
                         <button
                           type="button"
@@ -701,11 +708,11 @@ export default function AdminPage() {
                           {row.ativo === false ? 'Reativar' : 'Desativar'}
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </DataTableCell>
+                  </DataTableRow>
                 ))}
-              </tbody>
-            </table>
+              </DataTableBody>
+            </DataTable>
           </div>
         </section>
       ) : null}
@@ -762,7 +769,7 @@ export default function AdminPage() {
                     className="danger"
                     disabled={busyId === s.id}
                     onClick={async () => {
-                      const motivo = window.prompt('Motivo da rejeição:')
+                      const motivo = await promptAction('Motivo da rejeição:')
                       if (motivo === null) return
                       setBusyId(s.id)
                       try {
@@ -797,36 +804,36 @@ export default function AdminPage() {
               <p>Moderação</p>
               <h2>Contas e publicações</h2>
             </div>
-            <input
+            <UiInput
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Pesquisar nome, usuário ou tipo"
             />
           </header>
           <div className="admin-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Cadastro</th>
-                  <th>Tipo</th>
-                  <th>Status</th>
-                  <th>Criado em</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
+            <DataTable>
+              <DataTableHead>
+                <DataTableRow>
+                  <DataTableHeaderCell>Cadastro</DataTableHeaderCell>
+                  <DataTableHeaderCell>Tipo</DataTableHeaderCell>
+                  <DataTableHeaderCell>Status</DataTableHeaderCell>
+                  <DataTableHeaderCell>Criado em</DataTableHeaderCell>
+                  <DataTableHeaderCell>Ações</DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
                 {accounts.map((item: any) => (
-                  <tr key={`${item.tipo}-${item.id}`}>
-                    <td>
+                  <DataTableRow key={`${item.tipo}-${item.id}`}>
+                    <DataTableCell>
                       <strong>{item.nome}</strong>
                       <small>@{item.username || '-'}</small>
-                    </td>
-                    <td>{item.tipo}</td>
-                    <td>
+                    </DataTableCell>
+                    <DataTableCell>{item.tipo}</DataTableCell>
+                    <DataTableCell>
                       <span className={`admin-status ${item.status}`}>{item.status}</span>
-                    </td>
-                    <td>{new Date(item.created_at).toLocaleDateString('pt-BR')}</td>
-                    <td>
+                    </DataTableCell>
+                    <DataTableCell>{new Date(item.created_at).toLocaleDateString('pt-BR')}</DataTableCell>
+                    <DataTableCell>
                       <div className="admin-row-actions">
                         {item.status !== 'ativo' ? (
                           <button type="button" onClick={() => void moderate(item, 'restaurar')}>
@@ -847,11 +854,11 @@ export default function AdminPage() {
                           </>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </DataTableCell>
+                  </DataTableRow>
                 ))}
-              </tbody>
-            </table>
+              </DataTableBody>
+            </DataTable>
           </div>
           <h3>Campeonatos/publicações</h3>
           <div className="admin-publication-grid">

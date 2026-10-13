@@ -1,0 +1,250 @@
+ @media (max-width:560px){
+  :where(.scope) :global(.lili-hub-tabs){ padding: 6px 8px;
+  }
+  :where(.scope) :global(.lili-hub-tabs button){ gap: 4px; padding: 8px 4px; font-size: 12px;
+  }
+  :where(.scope) :global(.lili-hub-tabs button svg){ width: 15px; height: 15px;
+  }
+} @media (max-width:760px){
+  :where(.scope) :global(.lili-language-switch>svg){ display: none;
+  }
+  :where(.scope) :global(.lili-language-switch button){ min-width: 27px; padding: 0 5px;
+  }
+  :where(.scope) :global(.lili-profile-copy){ display: none;
+  }
+  :where(.scope) :global(.lili-profile-trigger){ padding-right: 5px;
+  }
+  :where(.scope) :global(.lili-profile-trigger>svg){ display: none;
+  }
+  :where(.scope) :global(.lili-hub-toolbar .notif-bell-trigger){ width: 36px; height: 36px;
+  }
+  :where(.scope) :global(.lili-hub-identity){ gap: 8px;
+  }
+  :where(.scope) :global(.lili-hub-identity>div:last-child span){ max-width: 115px; display: none;
+  }
+  :where(.scope) :global(.lili-language-switch){ padding-left: 5px; order: 1;
+  }
+  :where(.scope) :global(.lili-hub-toolbar .notif-bell){ order: 2;
+  }
+  :where(.scope) :global(.lili-profile-switcher){ order: 3;
+  }
+  :where(.scope) :global(.lili-reset-button){ width: 36px; height: 36px; order: 4;
+  }
+  :where(.scope) :global(.lili-hub-header){ align-items: center; padding: 8px 10px; gap: 8px; min-height: 60px; flex-wrap: nowrap; grid-template-columns: max-content minmax(0,1fr); column-gap: 8px;
+  }
+  :where(.scope) :global(.lili-hub-toolbar){ gap: 5px; margin-left: auto; flex-wrap: nowrap; justify-self: end;
+  }
+} @media (max-width:640px){
+  :where(.scope) :global(.lili-hub-header){ padding: 9px 12px;
+  }
+  :where(.scope) :global(.lili-hub-feed){ padding: 15px 10px 10px;
+  }
+  :where(.scope) :global(.lili-hub-message-content){ max-width: calc(100vw - 58px);
+  }
+  :where(.scope) :global(.lili-hub-card){ width: calc(100vw - 58px);
+  }
+  :where(.scope) :global(.lili-hub-bubble){ font-size: 13px;
+  }
+  :where(.scope) :global(.lili-hub-actions){ display: grid; width: 100%;
+  }
+  :where(.scope) :global(.lili-hub-actions button){ width: 100%; min-height: 43px;
+  }
+  :where(.scope) :global(.lili-hub-card-slot){ width: calc(100vw - 58px);
+  }
+  :where(.scope) :global(.lili-hub-card-slot .lili-hub-actions){ display: flex;
+  }
+  :where(.scope) :global(.lili-hub-card-slot .lili-hub-actions button){ width: auto; min-height: 32px;
+  }
+  :where(.scope) :global(.lili-hub-card-slot .lili-hub-card-head small){ max-width: 190px;
+  }
+} @media (max-width:700px){
+  :where(.scope) :global(.lili-hub-tabs){ padding: 7px 8px;
+  }
+  :where(.scope) :global(.lili-hub-tabs button){ font-size: 12px; padding: 9px 7px;
+  }
+} @media (max-width:520px){
+  :where(.scope) :global(.lili-hub-toolbar){ gap: 4px;
+  }
+  :where(.scope) :global(.lili-language-switch){ padding: 3px;
+  }
+  :where(.scope) :global(.lili-language-switch button){ min-width: 23px; padding: 0 3px;
+  }
+  :where(.scope) :global(.lili-hub-toolbar .notif-bell-trigger),
+:where(.scope) :global(.lili-reset-button){ width: 34px; height: 34px;
+  }
+  :where(.scope) :global(.lili-profile-trigger){ height: 34px;
+  }
+  :where(.scope) :global(.lili-profile-avatar){ width: 26px; height: 26px; min-width: 26px;
+  }
+} .scope:global(.lili-hub-page){ --lh-primary: #6d3ee8; --lh-primary-dark: #4820aa; --lh-bg: #f4efff; --lh-text: #241b33; min-height: 100dvh; height: 100dvh; display: grid; grid-template-rows: auto minmax(0,1fr) auto; background: radial-gradient(circle at 12% 0%,#eadfff 0,transparent 34%),linear-gradient(180deg,#f9f7ff,#f0eaff); color: var(--lh-text); overflow: hidden;
+} :where(.scope) :global(.lili-hub-header>div:nth-child(2)){ display: grid; gap: 2px; min-width: 0;
+} :where(.scope) :global(.lili-hub-header strong){ font-size: 15px;
+} :where(.scope) :global(.lili-hub-header span){ font-size: 12px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+} :where(.scope) :global(.lili-hub-header button){ margin-left: auto; width: 38px; height: 38px; border: 0; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.15); color: #fff; cursor: pointer;
+} :where(.scope) :global(.lili-hub-feed){ overflow-y: auto; overscroll-behavior: contain; padding: 20px max(12px,calc((100vw - 820px)/2)) 14px; scrollbar-gutter: stable;
+} :where(.scope) :global(.lili-hub-spacer){ min-height: 8px;
+} :where(.scope) :global(.lili-hub-message){ display: flex; align-items: flex-end; gap: 8px; margin: 0 0 13px; animation: liliHubIn .22s ease both;
+} :where(.scope) :global(.lili-hub-message.user){ justify-content: flex-end;
+} :where(.scope) :global(.lili-hub-message-content){ max-width: min(620px,calc(100vw - 72px)); display: grid; gap: 8px;
+} :where(.scope) :global(.lili-hub-message.user .lili-hub-message-content){ justify-items: end;
+} :where(.scope) :global(.lili-hub-bubble){ padding: 11px 14px; border-radius: 18px 18px 18px 5px; background: #fff; box-shadow: 0 5px 18px rgba(53,36,83,.1); font-size: 14px; line-height: 1.45; white-space: pre-wrap;
+} :where(.scope) :global(.lili-hub-message.user .lili-hub-bubble){ border-radius: 18px 18px 5px 18px; background: linear-gradient(135deg,var(--lh-primary),var(--lh-primary-dark)); color: #fff;
+} :where(.scope) :global(.lili-hub-actions){ display: flex; flex-wrap: wrap; gap: 8px;
+} :where(.scope) :global(.lili-hub-actions button),
+:where(.scope) :global(.lili-hub-card button){ border-radius: 13px; padding: 10px 13px; font-weight: 800; font-size: 12px; cursor: pointer; border: 1px solid #d5c5f6; background: #fff; color: var(--lh-primary-dark); box-shadow: 0 4px 12px rgba(62,36,105,.08);
+} :where(.scope) :global(.lili-hub-actions button.primary),
+:where(.scope) :global(.lili-hub-card button.primary){ border-color: var(--lh-primary); background: linear-gradient(135deg,var(--lh-primary),var(--lh-primary-dark)); color: #fff;
+} :where(.scope) :global(.lili-hub-actions button:disabled),
+:where(.scope) :global(.lili-hub-card button:disabled){ opacity: .55; cursor: wait;
+} :where(.scope) :global(.lili-hub-login){ border-radius: 13px; padding: 10px 13px; font-weight: 800; font-size: 12px; cursor: pointer; border: 0; background: linear-gradient(135deg,var(--lh-primary),var(--lh-primary-dark)); color: #fff; box-shadow: 0 4px 12px rgba(62,36,105,.08); border-color: var(--lh-primary); display: flex; align-items: center; justify-content: center; gap: 7px; width: max-content;
+} :where(.scope) :global(.lili-hub-cards){ display: grid; gap: 9px;
+} :where(.scope) :global(.lili-hub-card){ width: min(440px,calc(100vw - 72px)); padding: 12px; border: 1px solid #e0d6f3; border-radius: 17px; background: rgba(255,255,255,.97); box-shadow: 0 8px 22px rgba(52,32,91,.1); display: grid; gap: 9px;
+} :where(.scope) :global(.lili-hub-card-head){ display: flex; align-items: center; gap: 10px;
+} :where(.scope) :global(.lili-hub-card-head img),
+:where(.scope) :global(.lili-hub-card-head>span){ width: 42px; height: 42px; border-radius: 12px; object-fit: cover; background: #eee7ff; display: grid; place-items: center; color: var(--lh-primary-dark); font-weight: 900;
+} :where(.scope) :global(.lili-hub-card-head>div){ display: grid; gap: 2px;
+} :where(.scope) :global(.lili-hub-card-head strong){ font-size: 13px;
+} :where(.scope) :global(.lili-hub-card-head small){ font-size: 12px; color: #786d89;
+} :where(.scope) :global(.lili-hub-badges){ display: flex; gap: 6px; flex-wrap: wrap;
+} :where(.scope) :global(.lili-hub-badges span){ padding: 4px 7px; border-radius: 999px; background: #efe8ff; color: #5c2fc5; font-size: 12px; font-weight: 800;
+} :where(.scope) :global(.lili-hub-card dl){ display: grid; gap: 5px; margin: 0;
+} :where(.scope) :global(.lili-hub-card dl>div){ display: flex; justify-content: space-between; gap: 10px; font-size: 12px;
+} :where(.scope) :global(.lili-hub-card dt){ color: #796f86;
+} :where(.scope) :global(.lili-hub-card dd){ margin: 0; font-weight: 800; text-align: right;
+} :where(.scope) :global(.lili-hub-typing){ display: flex; align-items: center; gap: 4px; padding: 12px 15px; border-radius: 18px 18px 18px 5px; background: #fff; box-shadow: 0 5px 18px rgba(53,36,83,.1);
+} :where(.scope) :global(.lili-hub-typing i){ width: 7px; height: 7px; border-radius: 50%; background: #8c6dd4; animation: liliHubDot 1.1s infinite;
+} :where(.scope) :global(.lili-hub-typing i:nth-child(2)){ animation-delay: .15s;
+} :where(.scope) :global(.lili-hub-typing i:nth-child(3)){ animation-delay: .3s;
+} :where(.scope) :global(.lili-hub-composer){ display: flex; gap: 9px; padding: 10px max(12px,calc((100vw - 820px)/2)) max(10px,env(safe-area-inset-bottom)); background: rgba(255,255,255,.92); border-top: 1px solid #ded4ee; backdrop-filter: blur(14px);
+} :where(.scope) :global(.lili-hub-composer input){ flex: 1; min-width: 0; height: 46px; border: 1px solid #d5c9e8; border-radius: 23px; padding: 0 17px; background: #fff; color: #221a2d; outline: 0; font-size: 14px;
+} :where(.scope) :global(.lili-hub-composer input:focus){ border-color: var(--lh-primary); box-shadow: 0 0 0 3px rgba(109,62,232,.12);
+} :where(.scope) :global(.lili-hub-composer button){ width: 46px; height: 46px; border: 0; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg,var(--lh-primary),var(--lh-primary-dark)); color: #fff; cursor: pointer;
+} :where(.scope) :global(.lili-hub-composer button:disabled){ opacity: .45; cursor: not-allowed;
+} :where(.scope) :global(.lili-hub-identity>div:last-child){ display: grid; gap: 2px; min-width: 0;
+} :where(.scope) :global(.lili-hub-toolbar .notif-inbox-panel){ top: calc(100% + 10px); right: 0; color: #202231;
+} :where(.scope) :global(.lili-language-switch>svg){ margin-right: 2px; opacity: .9;
+} :where(.scope) :global(.lili-language-switch button){ margin: 0; width: auto; height: 28px; min-width: 31px; padding: 0 7px; border-radius: 8px; background: transparent; color: #fff; font-size: 12px; font-weight: 900;
+} :where(.scope) :global(.lili-language-switch button.is-active){ background: #fff; color: var(--lh-primary-dark); box-shadow: 0 3px 10px rgba(31,15,75,.18);
+} :where(.scope) :global(.lili-profile-avatar){ width: 32px; height: 32px; min-width: 32px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; background: #fff; color: var(--lh-primary-dark); font-size: 12px; font-weight: 900; border: 2px solid rgba(255,255,255,.5);
+} :where(.scope) :global(.lili-profile-avatar.small){ width: 30px; height: 30px; min-width: 30px; border-color: #ddd3ff; background: #f1ecff;
+} :where(.scope) :global(.lili-profile-avatar img){ width: 100%; height: 100%; object-fit: cover; display: block;
+} :where(.scope) :global(.lili-profile-copy){ display: grid; min-width: 0; text-align: left; line-height: 1.05;
+} :where(.scope) :global(.lili-profile-copy strong){ font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+} :where(.scope) :global(.lili-profile-copy small){ font-size: 12px; opacity: .75; margin-top: 4px; text-transform: uppercase;
+} :where(.scope) :global(.lili-profile-menu){ position: absolute; right: 0; top: calc(100% + 9px); width: 285px; max-width: calc(100vw - 24px); max-height: 65vh; overflow: auto; background: #fff; color: #252034; border: 1px solid #ddd5ee; border-radius: 14px; box-shadow: 0 18px 55px rgba(34,18,74,.24); z-index: 30; padding: 7px;
+} :where(.scope) :global(.lili-profile-menu-title){ padding: 8px 9px 10px; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; color: #766d87;
+} :where(.scope) :global(.lili-profile-menu>button){ margin: 0; width: 100%; height: auto; min-height: 48px; border: 0; border-radius: 10px; background: #fff; color: #252034; display: flex; align-items: center; justify-content: flex-start; gap: 9px; padding: 8px; text-align: left;
+} :where(.scope) :global(.lili-profile-menu>button:hover){ background: #f5f1ff;
+} :where(.scope) :global(.lili-profile-menu>button.is-active){ background: #eee8ff;
+} :where(.scope) :global(.lili-profile-menu>button>span:last-child){ display: grid; min-width: 0;
+} :where(.scope) :global(.lili-profile-menu>button strong){ font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+} :where(.scope) :global(.lili-profile-menu>button small){ font-size: 12px; color: #7d748d; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+} @media (max-width:430px){
+  :where(.scope) :global(.lili-hub-identity>div:last-child span){ display: none;
+  }
+  :where(.scope) :global(.lili-hub-avatar){ width: 34px; height: 34px; min-width: 34px;
+  }
+  :where(.scope) :global(.lili-language-switch){ height: 36px;
+  }
+  :where(.scope) :global(.lili-profile-avatar){ width: 28px; height: 28px; min-width: 28px;
+  }
+  :where(.scope) :global(.lili-profile-trigger){ height: 36px;
+  }
+  :where(.scope) :global(.lili-hub-identity>div:last-child){ display: none;
+  }
+  :where(.scope) :global(.lili-hub-toolbar){ gap: 4px;
+  }
+  :where(.scope) :global(.lili-language-switch button){ min-width: 24px; padding: 0 4px;
+  }
+} :where(.scope) :global(.lili-hub-identity){ display: flex; align-items: center; gap: 11px; min-width: 0; flex: 0 0 auto;
+} :where(.scope) :global(.lili-hub-identity>div:last-child span){ opacity: .78; max-width: none;
+} :where(.scope) :global(.lili-hub-avatar){ display: grid; place-items: center; border-radius: 50%; font-weight: 900; color: #fff; background: linear-gradient(145deg,#ff89b7 0%,#8d4df4 52%,#5624c7 100%); box-shadow: 0 4px 12px rgba(73,31,156,.25); width: 42px; height: 42px; font-size: 18px; border: 2px solid rgba(255,255,255,.7);
+} :where(.scope) :global(.lili-hub-mini-avatar){ display: grid; place-items: center; border-radius: 50%; font-weight: 900; color: #fff; background: linear-gradient(145deg,#ff89b7 0%,#8d4df4 52%,#5624c7 100%); box-shadow: 0 4px 12px rgba(73,31,156,.25); width: 34px; height: 34px; flex: 0 0 34px; font-size: 13px;
+} :where(.scope) :global(.lili-hub-avatar svg),
+:where(.scope) :global(.lili-hub-mini-avatar svg){ filter: drop-shadow(0 2px 3px rgba(41,16,101,.22));
+} :where(.scope) :global(.lili-hub-card-line .lili-hub-badges span:first-child){ white-space: nowrap;
+} :where(.scope) :global(.lili-hub-card-slot){ grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 14px;
+} :where(.scope) :global(.lili-hub-card-slot .lili-hub-card-head){ grid-column: 1/3; min-width: 0;
+} :where(.scope) :global(.lili-hub-card-slot .lili-hub-card-head img),
+:where(.scope) :global(.lili-hub-card-slot .lili-hub-card-head>span){ width: 34px; height: 34px; border-radius: 10px;
+} :where(.scope) :global(.lili-hub-card-slot .lili-hub-card-head strong){ font-size: 12px;
+} :where(.scope) :global(.lili-hub-card-slot .lili-hub-card-head small){ font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 255px;
+} :where(.scope) :global(.lili-hub-card-slot .lili-hub-badges){ grid-column: 3; grid-row: 1; justify-self: end;
+} :where(.scope) :global(.lili-hub-card-slot .lili-hub-badges span){ padding: 3px 6px; font-size: 12px;
+} :where(.scope) :global(.lili-hub-card-slot dl){ grid-column: 1/-1; margin-top: -2px;
+} :where(.scope) :global(.lili-hub-card-slot dl>div){ font-size: 12px;
+} :where(.scope) :global(.lili-hub-card-slot .lili-hub-actions){ grid-column: 1/-1; display: flex;
+} :where(.scope) :global(.lili-hub-card-slot .lili-hub-actions button){ width: auto; min-height: 32px; padding: 7px 12px; margin-left: auto;
+} :where(.scope) :global(.lili-hub-header){ display: grid; align-items: center; gap: 16px; padding: 11px max(14px,calc((100vw - 820px)/2)); background: linear-gradient(135deg,var(--lh-primary-dark),var(--lh-primary)); color: #fff; box-shadow: 0 6px 20px rgba(59,28,126,.24); z-index: 2; justify-content: space-between; min-height: 72px; flex-wrap: nowrap; padding-top: 10px; padding-bottom: 10px; grid-template-columns: minmax(160px,1fr) max-content; column-gap: 18px;
+} :where(.scope) :global(.lili-hub-toolbar){ display: grid; align-items: center; justify-content: end; gap: 8px; min-width: 0; margin-left: 0; flex-wrap: nowrap; grid-template-columns: max-content max-content max-content max-content; grid-auto-flow: column; width: max-content; max-width: none;
+} :where(.scope) :global(.lili-hub-toolbar>*){ flex: 0 0 auto; width: auto; min-width: 0; margin: 0; align-self: center;
+} :where(.scope) :global(.lili-hub-toolbar .notif-bell){ position: relative; flex: 0 0 auto; align-self: center; display: block;
+} :where(.scope) :global(.lili-profile-switcher){ position: relative; min-width: 0; align-self: center; display: block;
+} :where(.scope) :global(.lili-language-switch){ height: 38px; display: flex; align-items: center; gap: 3px; padding: 3px 4px 3px 8px; border: 1px solid rgba(255,255,255,.22); border-radius: 11px; background: rgba(255,255,255,.12); align-self: center; margin: 0;
+} :where(.scope) :global(.lili-profile-trigger){ margin: 0; width: auto; height: 42px; display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 5px; border: 1px solid rgba(255,255,255,.22); border-radius: 12px; background: rgba(255,255,255,.12); color: #fff; max-width: 235px; align-self: center;
+} :where(.scope) :global(.lili-hub-toolbar .notif-bell-trigger){ width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.22); border-radius: 11px; background: rgba(255,255,255,.12); color: #fff; display: grid; place-items: center; cursor: pointer; align-self: center; margin: 0;
+} :where(.scope) :global(.lili-reset-button){ margin: 0; flex: 0 0 auto; align-self: center;
+} :where(.scope) :global(.lili-payment-countdown){ display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border: 1px solid #f2cf67; border-radius: 12px; background: #fff8dc; color: #6c4c00; font-size: 12px; font-weight: 800;
+} :where(.scope) :global(.lili-payment-countdown strong){ font-size: 18px; letter-spacing: .06em; font-variant-numeric: tabular-nums;
+} :where(.scope) :global(.lili-payment-countdown.expired){ align-items: flex-start; flex-direction: column; gap: 2px; border-color: #efb0b0; background: #fff0f0; color: #8e2525;
+} :where(.scope) :global(.lili-payment-countdown.expired strong){ font-size: 12px; letter-spacing: 0;
+} :where(.scope) :global(.lili-payment-countdown.expired span){ font-size: 12px; font-weight: 700;
+} :where(.scope) :global(.lili-payment-qr){ display: grid; justify-items: center; gap: 5px; padding: 12px; border: 1px solid #ded4ef; border-radius: 14px; background: #fff;
+} :where(.scope) :global(.lili-payment-qr img){ width: min(220px,72vw); height: auto; aspect-ratio: 1; object-fit: contain; border-radius: 10px;
+} :where(.scope) :global(.lili-payment-qr strong){ font-size: 12px; color: #35264d;
+} :where(.scope) :global(.lili-payment-qr small){ font-size: 12px; color: #776b89; text-align: center;
+} :where(.scope) :global(.lili-hub-actions button.whatsapp),
+:where(.scope) :global(.lili-hub-card button.whatsapp){ border-color: #18a957; background: linear-gradient(135deg,#25d366,#128c4b); color: #fff; box-shadow: 0 6px 16px rgba(18,140,75,.24);
+} :where(.scope) :global(.lili-hub-actions button.whatsapp:hover),
+:where(.scope) :global(.lili-hub-card button.whatsapp:hover){ filter: brightness(.97); transform: translateY(-1px);
+} :where(.scope) :global(.lili-hub-tabs){ display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid #e7ebf0; background: #fff;
+} :where(.scope) :global(.lili-hub-tabs button){ display: flex; align-items: center; justify-content: center; gap: 7px; flex: 1; border: 0; border-radius: 9px; background: #f2f4f7; color: #5d6572; padding: 10px 12px; font-weight: 700; cursor: pointer;
+} :where(.scope) :global(.lili-hub-tabs button.is-active){ background: #162033; color: #fff;
+} :where(.scope) :global(.lili-hub-panel){ flex: 1; min-height: 0; overflow: auto; background: #f5f6f8;
+} @media (min-width:701px){
+  :where(.scope) :global(.lili-hub-tabs){ justify-content: center;
+  }
+  :where(.scope) :global(.lili-hub-tabs button){ flex: 0 1 150px; min-width: 118px; max-width: 150px;
+  }
+} @media (max-width:600px){
+  :where(.scope) :global(.lili-hub-tabs){ grid-template-columns: repeat(5,minmax(0,1fr)); display: grid; gap: 4px;
+  }
+  :where(.scope) :global(.lili-hub-tabs button){ font-size: 12px; padding-inline: 3px; gap: 3px; padding: 8px 2px;
+  }
+} .scope :global(.lili-language-switch button),
+.scope :global(.lili-reset-button),
+.scope :global(.lili-profile-trigger),
+.scope :global(.lili-hub-toolbar .notif-bell-trigger),
+.scope :global(.lili-hub-toolbar .notif-bell-trigger .notif-bell-inner) {
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+} .scope :global(.lili-hub-toolbar) { flex-wrap: wrap; justify-content: flex-end; } @media (max-width: 480px) {
+  .scope :global(.lili-hub-header) { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
+  .scope :global(.lili-hub-toolbar) { width: 100%; }
+  .scope :global(.lili-hub-identity>div:last-child) { display: grid; }
+}
+
+.scope {
+  width: 100%;
+  min-width: 0;
+}
+
+.scope :global(.lili-hub-composer) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.scope :global(.lili-hub-composer input) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.scope :global(button:focus-visible),
+.scope :global(.lili-hub-composer input:focus-visible) {
+  outline: 2px solid #725e00;
+  outline-offset: 2px;
+}

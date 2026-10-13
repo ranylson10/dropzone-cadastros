@@ -4,7 +4,7 @@
     "slug": "dropzone-platform",
     "scheme": "dropzone",
     "version": "0.1.0",
-    "icon": "./assets/dropzone-launcher-icon.png",
+    "icon": "./assets/branding/dropzone-platform-launcher.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
@@ -17,7 +17,7 @@
     "android": {
       "package": "com.dropzone.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/dropzone-launcher-foreground.png",
+        "foregroundImage": "./assets/branding/dropzone-platform-foreground.png",
         "backgroundColor": "#F4F1EB"
       },
       "intentFilters": [
@@ -83,12 +83,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/dropzone-icon-accent.png",
+          "image": "./assets/branding/dropzone-platform.png",
           "resizeMode": "contain",
           "backgroundColor": "#F4F1EB",
           "imageWidth": 180,
           "dark": {
-            "image": "./assets/dropzone-icon-accent.png",
+            "image": "./assets/branding/dropzone-platform.png",
             "backgroundColor": "#F4F1EB"
           }
         }

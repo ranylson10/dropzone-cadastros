@@ -1,0 +1,33 @@
+.page:global(.invite-page.champ-theme) {
+  padding-bottom: 92px;
+}
+
+.page:global(.invite-page.champ-theme) .card {
+  display: grid;
+  height: auto;
+  min-height: 0;
+  align-content: start;
+  gap: 12px;
+}
+
+.card .header {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.header > :is(h1, p) {
+  margin: 0;
+}
+
+.header > :is(svg, img) {
+  margin: 0;
+}
+
+.page .card :global(.invite-chat-shell) {
+  min-height: 0;
+  max-height: none;
+  align-content: start;
+  justify-content: start;
+}

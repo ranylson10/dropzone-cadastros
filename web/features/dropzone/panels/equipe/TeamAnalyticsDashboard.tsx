@@ -1,5 +1,6 @@
 'use client'
 
+import { Select as UiSelect } from '@/components/ui/Field'
 import { type ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { Activity, CalendarDays, ChevronRight, CircleDollarSign, Crosshair, Loader2, MapPinned, RefreshCw, Target, Trophy, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
@@ -277,30 +278,30 @@ export function TeamAnalyticsDashboard({
         <div className="team-analytics-filters">
           <label>
             <span>Período</span>
-            <select value={period} onChange={(event: ChangeEvent<HTMLSelectElement>) => setPeriod(event.target.value as DashboardPeriod)}>
+            <UiSelect value={period} onChange={(event: ChangeEvent<HTMLSelectElement>) => setPeriod(event.target.value as DashboardPeriod)}>
               {(Object.keys(periodLabels) as DashboardPeriod[]).map((key) => <option key={key} value={key}>{periodLabels[key]}</option>)}
-            </select>
+            </UiSelect>
           </label>
           <label>
             <span>Evento</span>
-            <select value={eventId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setEventId(event.target.value)}>
+            <UiSelect value={eventId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setEventId(event.target.value)}>
               <option value="">Todos</option>
               {(data?.opcoes.eventos || []).map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
-            </select>
+            </UiSelect>
           </label>
           <label>
             <span>Line</span>
-            <select value={lineId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setLineId(event.target.value)}>
+            <UiSelect value={lineId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setLineId(event.target.value)}>
               <option value="">Todas</option>
               {(data?.opcoes.lines || []).map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
-            </select>
+            </UiSelect>
           </label>
           <label>
             <span>Mapa</span>
-            <select value={mapCode} onChange={(event: ChangeEvent<HTMLSelectElement>) => setMapCode(event.target.value)}>
+            <UiSelect value={mapCode} onChange={(event: ChangeEvent<HTMLSelectElement>) => setMapCode(event.target.value)}>
               <option value="">Todos</option>
               {(data?.opcoes.mapas || []).map((item) => <option key={item.codigo} value={item.codigo}>{item.nome}</option>)}
-            </select>
+            </UiSelect>
           </label>
           <button type="button" className="team-analytics-reset" onClick={resetFilters} title="Limpar filtros"><RefreshCw size={15} /></button>
         </div>

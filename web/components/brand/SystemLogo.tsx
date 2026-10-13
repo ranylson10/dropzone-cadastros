@@ -1,7 +1,7 @@
 /**
  * Logo oficial do DropZone — fundo transparente, tamanho controlado por prop.
  * Use em header, login e qualquer chrome do sistema.
- * Nunca use <img src="/dropzone-icon.png"> solto sem tamanho.
+ * Nunca use <img src="/branding/dropzone-platform.png"> solto sem tamanho.
  */
 type SystemLogoProps = {
   size?: number
@@ -36,7 +36,7 @@ export function SystemLogo({
     ['--system-logo-size' as string]: `${px}px`,
   }
 
-  const source = variant === 'accent' ? '/dropzone-icon-accent.png' : variant === 'light' ? '/dropzone-icon-light.png' : '/dropzone-icon.png'
+  const source = variant === 'accent' ? '/branding/dropzone-platform-accent.png' : variant === 'light' ? '/branding/dropzone-platform-light.png' : '/branding/dropzone-platform.png'
 
   return (
     // eslint-disable-next-line @next/next/no-img-element

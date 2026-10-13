@@ -13,6 +13,7 @@ export type DirectoryItem = {
   eyebrow?: string
   description?: string
   commercial?: {
+    tipo?: string | null
     valor_inscricao?: number | null
     premiacao?: number | null
     tem_live?: boolean

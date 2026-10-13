@@ -48,8 +48,9 @@ test.describe('Rodada 15 — criação guiada por origem', () => {
     expect(form).not.toContain('copied.nome = copied.titulo_publico')
     expect(form).toContain("titulo_publico: value.origem_criacao === 'season' ? nextName : value.titulo_publico")
     expect(panel).toContain('source_championship_id')
-    expect(panel).toContain("franchise_id: form.origem_criacao === 'season'")
-    expect(api).toContain("campeonato_edicoes').upsert")
+    expect(panel).toContain("franchise_id:form.origem_criacao==='season'")
+    expect(api).toContain('tryAtomicEdition')
+    expect(read('web/lib/creation-edition.ts')).toContain('editionProjection(source.edition??null)')
   })
 
   test('não mostra campos técnicos de histórico durante a criação guiada', () => {

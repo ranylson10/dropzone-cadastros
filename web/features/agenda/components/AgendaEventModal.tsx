@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAction } from '@/components/feedback'
+import { Input as UiInput, Select as UiSelect, Textarea as UiTextarea } from '@/components/ui/Field'
 import { useEffect, useState } from 'react'
 import { SystemModal } from '@/components/layout/SystemModal'
 import { Field } from '@/features/dropzone/components/form-fields'
@@ -107,7 +109,7 @@ export function AgendaEventModal({
 
   async function handleDelete() {
     if (!form.id || !onDelete) return
-    if (!window.confirm('Excluir este compromisso da agenda?')) return
+    if (!await confirmAction('Excluir este compromisso da agenda?')) return
     setError('')
     try {
       await onDelete(form.id)
@@ -208,7 +210,7 @@ export function AgendaEventModal({
       ) : (
         <div className="agenda-form">
           <Field label="Título">
-            <input
+            <UiInput
               value={form.titulo}
               onChange={(e) => setForm((c) => ({ ...c, titulo: e.target.value }))}
               placeholder="Ex.: Treino da line, Scrim, Reunião"
@@ -218,21 +220,21 @@ export function AgendaEventModal({
 
           <div className="agenda-form-grid three">
             <Field label="Data">
-              <input
+              <UiInput
                 type="date"
                 value={form.data_evento}
                 onChange={(e) => setForm((c) => ({ ...c, data_evento: e.target.value }))}
               />
             </Field>
             <Field label="Início">
-              <input
+              <UiInput
                 type="time"
                 value={form.horario_inicio}
                 onChange={(e) => setForm((c) => ({ ...c, horario_inicio: e.target.value }))}
               />
             </Field>
             <Field label="Fim">
-              <input
+              <UiInput
                 type="time"
                 value={form.horario_fim}
                 onChange={(e) => setForm((c) => ({ ...c, horario_fim: e.target.value }))}
@@ -242,7 +244,7 @@ export function AgendaEventModal({
 
           <div className="agenda-form-grid">
             <Field label="Tipo">
-              <select
+              <UiSelect
                 value={form.tipo}
                 onChange={(e) => setForm((c) => ({ ...c, tipo: e.target.value }))}
               >
@@ -251,9 +253,9 @@ export function AgendaEventModal({
                     {tipo.label}
                   </option>
                 ))}
-              </select>
+              </UiSelect>
             </Field>
-            <Field label="Visibilidade"><input value="Somente você" disabled /></Field>
+            <Field label="Visibilidade"><UiInput value="Somente você" disabled /></Field>
           </div>
 
           <Field label="Cor no calendário">
@@ -270,10 +272,10 @@ export function AgendaEventModal({
               ))}
             </div>
           </Field>
-          <Field label="Cor do texto"><input type="color" value={form.cor_texto || '#ffffff'} onChange={(e) => setForm((c) => ({ ...c, cor_texto: e.target.value }))} /></Field>
+          <Field label="Cor do texto"><UiInput type="color" value={form.cor_texto || '#ffffff'} onChange={(e) => setForm((c) => ({ ...c, cor_texto: e.target.value }))} /></Field>
 
           <Field label="Descrição (opcional)">
-            <textarea
+            <UiTextarea
               rows={3}
               value={form.descricao}
               onChange={(e) => setForm((c) => ({ ...c, descricao: e.target.value }))}

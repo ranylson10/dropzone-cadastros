@@ -1,5 +1,6 @@
 'use client'
 
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronDown, ChevronRight, Clock3, Pencil, Plus, Trash2, Trophy, Users } from 'lucide-react'
 import { Field } from '@/features/dropzone/components/form-fields'
@@ -255,10 +256,10 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
           <h2>Agenda de jogos</h2>
         </div>
         <div className="champ-games-head-actions">
-          <select value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)} aria-label="Filtrar por fase">
+          <UiSelect value={phaseFilter} onChange={(e) => setPhaseFilter(e.target.value)} aria-label="Filtrar por fase">
             <option value="">Todas as fases</option>
             {props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}</option>)}
-          </select>
+          </UiSelect>
           {canManageGames ? (
             <button type="button" className="champ-games-new" onClick={() => { reset(false); setShowForm((current) => !current) }}>
               <Plus size={15} /> {showForm ? 'Fechar' : 'Novo jogo'}
@@ -278,9 +279,9 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
         <div className="champ-games-form">
           <div className="game-form-heading"><div><p className="eyebrow">{editingId ? 'Editar jogo' : 'Novo jogo'}</p><h4>{editingId ? props.value.nome : 'Configuração do jogo'}</h4></div><button className="button secondary" onClick={() => { setShowForm(false); reset(false) }}>Fechar</button></div>
           <div className="mini-grid three">
-            <Field label="Fase"><select value={props.value.fase_id} onChange={(e) => { const next = props.fases.find((fase) => fase.id === e.target.value); const final = String(next?.data?.tipo || (next as any)?.tipo || '') === 'grande_final'; patch({ fase_id: e.target.value, grupos_ids: [], tipo_jogo: final ? 'final' : 'normal', dia_final: final ? (props.value.dia_final || '1') : '1', define_campeao: final ? props.value.define_campeao : false }) }}><option value="">Selecione a fase</option>{props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}{String(fase.data?.tipo || (fase as any)?.tipo || '') === 'grande_final' ? ' · Grande Final' : ''}</option>)}</select></Field>
-            <Field label="Rodada"><input type="number" min="1" value={props.value.rodada} onChange={(e) => patch({ rodada: e.target.value })} placeholder="Ex.: 1" /></Field>
-            <Field label="Nome do jogo"><input value={props.value.nome} onChange={(e) => patch({ nome: e.target.value })} placeholder="Ex.: Jogo 1 — A x B" /></Field>
+            <Field label="Fase"><UiSelect value={props.value.fase_id} onChange={(e) => { const next = props.fases.find((fase) => fase.id === e.target.value); const final = String(next?.data?.tipo || (next as any)?.tipo || '') === 'grande_final'; patch({ fase_id: e.target.value, grupos_ids: [], tipo_jogo: final ? 'final' : 'normal', dia_final: final ? (props.value.dia_final || '1') : '1', define_campeao: final ? props.value.define_campeao : false }) }}><option value="">Selecione a fase</option>{props.fases.map((fase) => <option key={fase.id} value={fase.id}>{rowTitle(fase)}{String(fase.data?.tipo || (fase as any)?.tipo || '') === 'grande_final' ? ' · Grande Final' : ''}</option>)}</UiSelect></Field>
+            <Field label="Rodada"><UiInput type="number" min="1" value={props.value.rodada} onChange={(e) => patch({ rodada: e.target.value })} placeholder="Ex.: 1" /></Field>
+            <Field label="Nome do jogo"><UiInput value={props.value.nome} onChange={(e) => patch({ nome: e.target.value })} placeholder="Ex.: Jogo 1 — A x B" /></Field>
           </div>
 
           <div className="game-groups-field">
@@ -290,27 +291,27 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
             <div className="game-group-options">
               {phaseGroups.map((grupo) => {
                 const checked = props.value.grupos_ids.includes(grupo.id)
-                return <label key={grupo.id} className={checked ? 'game-group-chip selected' : 'game-group-chip'}><input type="checkbox" checked={checked} onChange={() => patch({ grupos_ids: checked ? props.value.grupos_ids.filter((id) => id !== grupo.id) : [...props.value.grupos_ids, grupo.id] })} /><Users size={15} />{rowTitle(grupo)}</label>
+                return <label key={grupo.id} className={checked ? 'game-group-chip selected' : 'game-group-chip'}><UiInput type="checkbox" checked={checked} onChange={() => patch({ grupos_ids: checked ? props.value.grupos_ids.filter((id) => id !== grupo.id) : [...props.value.grupos_ids, grupo.id] })} /><Users size={15} />{rowTitle(grupo)}</label>
               })}
             </div>
           </div>
 
           <div className="mini-grid three">
-            <Field label="Data"><input type="date" value={props.value.data_jogo} onChange={(e) => patch({ data_jogo: e.target.value })} /></Field>
-            <Field label="Horário inicial"><input type="time" value={props.value.horario} onChange={(e) => patch({ horario: e.target.value })} /></Field>
-            <Field label="Status"><select value={props.value.status} onChange={(e) => patch({ status: e.target.value })}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="escalacao_aberta">Escalação aberta</option><option value="escalacao_encerrada">Escalação encerrada</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select></Field>
+            <Field label="Data"><UiInput type="date" value={props.value.data_jogo} onChange={(e) => patch({ data_jogo: e.target.value })} /></Field>
+            <Field label="Horário inicial"><UiInput type="time" value={props.value.horario} onChange={(e) => patch({ horario: e.target.value })} /></Field>
+            <Field label="Status"><UiSelect value={props.value.status} onChange={(e) => patch({ status: e.target.value })}><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="escalacao_aberta">Escalação aberta</option><option value="escalacao_encerrada">Escalação encerrada</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></UiSelect></Field>
           </div>
 
           <div className="mini-grid three">
-            <Field label="Número de quedas"><input type="number" min="1" max="20" value={props.value.numero_partidas} onChange={(e) => {
+            <Field label="Número de quedas"><UiInput type="number" min="1" max="20" value={props.value.numero_partidas} onChange={(e) => {
               const total = Math.max(1, Math.min(20, Number(e.target.value || 1)))
               patch({
                 numero_partidas: e.target.value,
                 mapas: isXtreino ? buildXtreinoRotation(total, mapList).join(', ') : props.value.mapas,
               })
             }} /></Field>
-            <Field label="Intervalo estimado (min)"><input type="number" min="1" value={props.value.intervalo_minutos} onChange={(e) => patch({ intervalo_minutos: e.target.value })} /></Field>
-            {effectiveGameType === 'final' ? <Field label="Dia da Grande Final"><input type="number" min="1" value={props.value.dia_final} onChange={(e) => patch({ dia_final: e.target.value })} /></Field> : null}
+            <Field label="Intervalo estimado (min)"><UiInput type="number" min="1" value={props.value.intervalo_minutos} onChange={(e) => patch({ intervalo_minutos: e.target.value })} /></Field>
+            {effectiveGameType === 'final' ? <Field label="Dia da Grande Final"><UiInput type="number" min="1" value={props.value.dia_final} onChange={(e) => patch({ dia_final: e.target.value })} /></Field> : null}
           </div>
 
           {effectiveGameType !== 'final' ? (
@@ -320,16 +321,16 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
                 <small>Essa regra também alimenta automaticamente as artes de Classificados e Eliminados.</small>
               </div>
               <div className="mini-grid three">
-                <Field label="Formato competitivo"><select value={props.value.mata_mata ? 'mata_mata' : 'pontos_corridos'} onChange={(e) => patch({ mata_mata: e.target.value === 'mata_mata', classificam_quantidade: e.target.value === 'mata_mata' ? props.value.classificam_quantidade : '' })}><option value="pontos_corridos">Pontos corridos / sem eliminação</option><option value="mata_mata">Mata-mata / classificatório</option></select></Field>
-                {props.value.mata_mata ? <Field label="Top que passa de fase"><input type="number" min="1" value={props.value.classificam_quantidade} onChange={(e) => patch({ classificam_quantidade: e.target.value })} placeholder="Ex.: 6" /></Field> : <Field label="Classificação"><input value="Sem corte de classificados" disabled /></Field>}
+                <Field label="Formato competitivo"><UiSelect value={props.value.mata_mata ? 'mata_mata' : 'pontos_corridos'} onChange={(e) => patch({ mata_mata: e.target.value === 'mata_mata', classificam_quantidade: e.target.value === 'mata_mata' ? props.value.classificam_quantidade : '' })}><option value="pontos_corridos">Pontos corridos / sem eliminação</option><option value="mata_mata">Mata-mata / classificatório</option></UiSelect></Field>
+                {props.value.mata_mata ? <Field label="Top que passa de fase"><UiInput type="number" min="1" value={props.value.classificam_quantidade} onChange={(e) => patch({ classificam_quantidade: e.target.value })} placeholder="Ex.: 6" /></Field> : <Field label="Classificação"><UiInput value="Sem corte de classificados" disabled /></Field>}
               </div>
             </div>
           ) : null}
 
           <div className="mini-grid three">
-            <Field label="Tipo do jogo"><select value={effectiveGameType} disabled={isFinalPhase} onChange={(e) => patch({ tipo_jogo: e.target.value === 'final' ? 'final' : 'normal', mata_mata: e.target.value === 'final' ? false : props.value.mata_mata, classificam_quantidade: e.target.value === 'final' ? '' : props.value.classificam_quantidade, dia_final: e.target.value === 'final' ? (props.value.dia_final || '1') : '1', define_campeao: e.target.value === 'final' ? props.value.define_campeao : false })}><option value="normal">Jogo da fase</option><option value="final" disabled={!isFinalPhase}>Jogo de final</option></select></Field>
-            {effectiveGameType === 'final' ? <Field label="Formato"><input value={finalAccumulationMode === 'bonus_por_ranking' ? 'Point Rush' : 'Pontuação acumulada'} disabled /></Field> : null}
-            {effectiveGameType === 'final' ? <Field label="Critério"><input value={finalDecisionMode === 'booyah_ouro' ? 'Champion Point' : 'Maior pontuação'} disabled /></Field> : null}
+            <Field label="Tipo do jogo"><UiSelect value={effectiveGameType} disabled={isFinalPhase} onChange={(e) => patch({ tipo_jogo: e.target.value === 'final' ? 'final' : 'normal', mata_mata: e.target.value === 'final' ? false : props.value.mata_mata, classificam_quantidade: e.target.value === 'final' ? '' : props.value.classificam_quantidade, dia_final: e.target.value === 'final' ? (props.value.dia_final || '1') : '1', define_campeao: e.target.value === 'final' ? props.value.define_campeao : false })}><option value="normal">Jogo da fase</option><option value="final" disabled={!isFinalPhase}>Jogo de final</option></UiSelect></Field>
+            {effectiveGameType === 'final' ? <Field label="Formato"><UiInput value={finalAccumulationMode === 'bonus_por_ranking' ? 'Point Rush' : 'Pontuação acumulada'} disabled /></Field> : null}
+            {effectiveGameType === 'final' ? <Field label="Critério"><UiInput value={finalDecisionMode === 'booyah_ouro' ? 'Champion Point' : 'Maior pontuação'} disabled /></Field> : null}
           </div>
 
           {effectiveGameType === 'final' ? (
@@ -339,20 +340,20 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
                 <small>{finalConfigLoading ? 'Carregando configuração…' : 'A regra vale para toda a Grande Final, mesmo quando ela acontece em vários dias.'}</small>
               </div>
               <div className="mini-grid three">
-                <Field label="Formato multi-dia"><select value={finalAccumulationMode} onChange={(e) => setFinalAccumulationMode(e.target.value === 'bonus_por_ranking' ? 'bonus_por_ranking' : 'acumulado')}><option value="acumulado">Pontuação acumulada em todos os dias</option><option value="bonus_por_ranking">Point Rush · dias anteriores viram bônus</option></select></Field>
-                <Field label="Critério do campeão"><select value={finalDecisionMode} onChange={(e) => setFinalDecisionMode(e.target.value === 'booyah_ouro' ? 'booyah_ouro' : 'pontuacao_normal')}><option value="pontuacao_normal">Maior pontuação</option><option value="booyah_ouro">Champion Point / Booyah de Ouro</option></select></Field>
-                {finalDecisionMode === 'booyah_ouro' ? <Field label="Pontuação mínima para ativar"><input type="number" min="0.01" step="0.01" value={finalPointsLimit} onChange={(e) => setFinalPointsLimit(e.target.value)} placeholder="Ex.: 160" /></Field> : <Field label="Título"><input value="Definido pela classificação final" disabled /></Field>}
+                <Field label="Formato multi-dia"><UiSelect value={finalAccumulationMode} onChange={(e) => setFinalAccumulationMode(e.target.value === 'bonus_por_ranking' ? 'bonus_por_ranking' : 'acumulado')}><option value="acumulado">Pontuação acumulada em todos os dias</option><option value="bonus_por_ranking">Point Rush · dias anteriores viram bônus</option></UiSelect></Field>
+                <Field label="Critério do campeão"><UiSelect value={finalDecisionMode} onChange={(e) => setFinalDecisionMode(e.target.value === 'booyah_ouro' ? 'booyah_ouro' : 'pontuacao_normal')}><option value="pontuacao_normal">Maior pontuação</option><option value="booyah_ouro">Champion Point / Booyah de Ouro</option></UiSelect></Field>
+                {finalDecisionMode === 'booyah_ouro' ? <Field label="Pontuação mínima para ativar"><UiInput type="number" min="0.01" step="0.01" value={finalPointsLimit} onChange={(e) => setFinalPointsLimit(e.target.value)} placeholder="Ex.: 160" /></Field> : <Field label="Título"><UiInput value="Definido pela classificação final" disabled /></Field>}
               </div>
               {finalDecisionMode === 'booyah_ouro' ? <p className="statistics-message">Ao atingir a pontuação mínima, a equipe fica elegível. Se uma equipe elegível fizer BOOYAH em uma queda seguinte, é campeã. Se ninguém fechar até a última queda, vence quem terminar com mais pontos.</p> : null}
               {finalAccumulationMode === 'bonus_por_ranking' ? (
                 <>
                   <div className="mini-grid three">
-                    <Field label="Jogo decisivo do Point Rush"><select value={finalDecisiveGameId} onChange={(e) => setFinalDecisiveGameId(e.target.value)}><option value="">Selecione o jogo do último dia</option>{props.jogos.filter((game) => game.data?.fase_id === selectedPhase?.id).map((game) => <option key={game.id} value={game.id}>{rowTitle(game)} · Dia {game.data?.dia_final || 1}</option>)}</select></Field>
-                    <Field label="Dias anteriores"><input value="Classificam para o bônus por colocação" disabled /></Field>
-                    <Field label="Dia decisivo"><input value="Começa com o bônus + pontos do jogo" disabled /></Field>
+                    <Field label="Jogo decisivo do Point Rush"><UiSelect value={finalDecisiveGameId} onChange={(e) => setFinalDecisiveGameId(e.target.value)}><option value="">Selecione o jogo do último dia</option>{props.jogos.filter((game) => game.data?.fase_id === selectedPhase?.id).map((game) => <option key={game.id} value={game.id}>{rowTitle(game)} · Dia {game.data?.dia_final || 1}</option>)}</UiSelect></Field>
+                    <Field label="Dias anteriores"><UiInput value="Classificam para o bônus por colocação" disabled /></Field>
+                    <Field label="Dia decisivo"><UiInput value="Começa com o bônus + pontos do jogo" disabled /></Field>
                   </div>
                   <div className="final-bonus-grid">
-                    {finalBonusRanking.map((item, index) => <div className="final-bonus-row" key={`${item.posicao}-${index}`}><strong>TOP {item.posicao}</strong><input type="number" min="0" step="0.01" value={item.pontos_bonus} onChange={(e) => setFinalBonusRanking((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, pontos_bonus: e.target.value } : row))} placeholder="Bônus" /><button type="button" className="button secondary" onClick={() => setFinalBonusRanking((current) => current.filter((_, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, posicao: rowIndex + 1 })))}>Remover</button></div>)}
+                    {finalBonusRanking.map((item, index) => <div className="final-bonus-row" key={`${item.posicao}-${index}`}><strong>TOP {item.posicao}</strong><UiInput type="number" min="0" step="0.01" value={item.pontos_bonus} onChange={(e) => setFinalBonusRanking((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, pontos_bonus: e.target.value } : row))} placeholder="Bônus" /><button type="button" className="button secondary" onClick={() => setFinalBonusRanking((current) => current.filter((_, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, posicao: rowIndex + 1 })))}>Remover</button></div>)}
                   </div>
                   <div className="games-toolbar-actions"><button type="button" className="button secondary" onClick={() => setFinalBonusRanking((current) => [...current, { posicao: current.length + 1, pontos_bonus: '' }])}>Adicionar colocação</button><button type="button" className="button" onClick={() => void applyPointRushBonus()}>Aplicar bônus do Point Rush</button></div>
                   {finalBonusMessage ? <p className="statistics-message">{finalBonusMessage}</p> : null}
@@ -370,20 +371,20 @@ export function CampeonatoJogosTab(props: CampeonatoJogosTabProps) {
           ) : null}
 
           <div className="game-map-grid">
-            {Array.from({ length: count }, (_, index) => <Field key={index} label={`Queda ${index + 1}`}><select value={mapList[index] || ''} onChange={(e) => setMap(index, e.target.value)}><option value="">Selecione o mapa</option>{MAPAS.map((mapa) => <option key={mapa} value={mapa}>{mapa}</option>)}</select></Field>)}
+            {Array.from({ length: count }, (_, index) => <Field key={index} label={`Queda ${index + 1}`}><UiSelect value={mapList[index] || ''} onChange={(e) => setMap(index, e.target.value)}><option value="">Selecione o mapa</option>{MAPAS.map((mapa) => <option key={mapa} value={mapa}>{mapa}</option>)}</UiSelect></Field>)}
           </div>
 
           <div className="game-rules-panel">
             <h4>Controle de escalação</h4>
             <div className="mini-grid three">
-              <Field label="Trocas de jogadores"><select value={props.value.permite_troca_jogadores ? 'sim' : 'nao'} onChange={(e) => patch({ permite_troca_jogadores: e.target.value === 'sim' })}><option value="sim">Permitidas</option><option value="nao">Bloqueadas</option></select></Field>
-              <Field label="Abre escalação (h antes)"><input type="number" min="0" value={props.value.escalacao_abre_horas_antes} onChange={(e) => patch({ escalacao_abre_horas_antes: e.target.value })} /></Field>
-              <Field label="Fecha escalação (h antes)"><input type="number" min="0" value={props.value.escalacao_fecha_horas_antes} onChange={(e) => patch({ escalacao_fecha_horas_antes: e.target.value, prazo_escalacao_minutos: String(Math.max(0, Number(e.target.value || 0) * 60)) })} /></Field>
+              <Field label="Trocas de jogadores"><UiSelect value={props.value.permite_troca_jogadores ? 'sim' : 'nao'} onChange={(e) => patch({ permite_troca_jogadores: e.target.value === 'sim' })}><option value="sim">Permitidas</option><option value="nao">Bloqueadas</option></UiSelect></Field>
+              <Field label="Abre escalação (h antes)"><UiInput type="number" min="0" value={props.value.escalacao_abre_horas_antes} onChange={(e) => patch({ escalacao_abre_horas_antes: e.target.value })} /></Field>
+              <Field label="Fecha escalação (h antes)"><UiInput type="number" min="0" value={props.value.escalacao_fecha_horas_antes} onChange={(e) => patch({ escalacao_fecha_horas_antes: e.target.value, prazo_escalacao_minutos: String(Math.max(0, Number(e.target.value || 0) * 60)) })} /></Field>
             </div>
             <div className="mini-grid three">
-              <Field label="Limite para troca (min antes)"><input type="number" min="0" disabled={!props.value.permite_troca_jogadores} value={props.value.prazo_troca_minutos} onChange={(e) => patch({ prazo_troca_minutos: e.target.value })} /></Field>
-              <Field label="Mínimo de quedas anteriores do jogador"><input type="number" min="0" value={props.value.minimo_partidas_jogadas_jogador} onChange={(e) => patch({ minimo_partidas_jogadas_jogador: e.target.value })} /></Field>
-              <Field label="Etapa competitiva"><input value={effectiveGameType === 'final' ? `Grande Final · Dia ${props.value.dia_final || 1}` : 'Classificação da fase'} disabled /></Field>
+              <Field label="Limite para troca (min antes)"><UiInput type="number" min="0" disabled={!props.value.permite_troca_jogadores} value={props.value.prazo_troca_minutos} onChange={(e) => patch({ prazo_troca_minutos: e.target.value })} /></Field>
+              <Field label="Mínimo de quedas anteriores do jogador"><UiInput type="number" min="0" value={props.value.minimo_partidas_jogadas_jogador} onChange={(e) => patch({ minimo_partidas_jogadas_jogador: e.target.value })} /></Field>
+              <Field label="Etapa competitiva"><UiInput value={effectiveGameType === 'final' ? `Grande Final · Dia ${props.value.dia_final || 1}` : 'Classificação da fase'} disabled /></Field>
             </div>
           </div>
           <button className="button" disabled={props.loading} onClick={save}>{props.loading ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Criar jogo e quedas'}</button>

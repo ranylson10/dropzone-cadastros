@@ -43,10 +43,12 @@ test.describe('Rodada 57 — fechamento integrado do sistema', () => {
 
   test('formação da Liga preserva origem e bloqueia equipe duplicada', () => {
     const teamsApi = source('web/app/api/campeonatos/[id]/equipes/route.ts')
+    const plan = source('backend/src/campeonatos/league-season-plan.ts')
 
     expect(teamsApi).toContain('`liga_${requestedOrigin}`')
     expect(teamsApi).toContain('Esta equipe já ocupa uma vaga em outro agrupamento desta Liga.')
-    expect(teamsApi).toContain('apareceu em mais de uma sugestão')
+    expect(plan).toContain('Uma equipe ou line aparece em mais de uma sugestão.')
+    expect(plan).toContain('teams.has(row.equipe_id) || lines.has(row.line_id)')
   })
 
   test('MatchResult permanece oficial e Garena é apenas enriquecimento tolerante a falha', () => {
@@ -64,37 +66,35 @@ test.describe('Rodada 57 — fechamento integrado do sistema', () => {
   test('classificação usa serviço único e permite separar cada agrupamento', () => {
     const stats = source('backend/src/campeonatos/estatisticas/estatisticas.service.ts')
     const statsRoute = source('web/app/api/campeonatos/[id]/estatisticas/equipes/route.ts')
-    const teamsApi = source('web/app/api/campeonatos/[id]/equipes/route.ts')
+    const reader = source('backend/src/campeonatos/league-season-read.ts')
 
     expect(statsRoute).toContain('listarEstatisticasEquipes')
     expect(statsRoute).toContain("grupoId: q.get('grupo_id')")
-    expect(teamsApi).toContain('listarEstatisticasEquipes(previousChampionshipId, { grupoId: String(group.id) })')
+    expect(reader).toContain('listarEstatisticasEquipes(previous.campeonato_id, { grupoId: matches[0].id })')
     expect(stats).toContain('b.pontos_total - a.pontos_total || b.booyahs - a.booyahs || b.abates - a.abates')
     expect(stats).toContain('a.melhor_posicao ?? 999')
   })
 
-  test('encerramento da Liga valida cada agrupamento e fecha novas inscrições', () => {
+  test('encerramento da Liga permanece indisponível até operação transacional validada', () => {
     const lifecycle = source('web/app/api/campeonatos/[id]/estrutura-avancada/route.ts')
     const panel = source('web/features/dropzone/panels/produtora/ProdutoraPanel.tsx')
 
-    expect(panel).toContain('Encerrar campeonato')
-    expect(panel).toContain('Reabrir season')
-    expect(lifecycle).toContain("action === 'publish_final'")
-    expect(lifecycle).toContain('listarEstatisticasEquipes(campeonatoId, { grupoId: String(group.id) })')
-    expect(lifecycle).toContain('aceita_novas_inscricoes_equipes: false')
-    expect(lifecycle).toContain('final_campeao_campeonato_equipe_id: isLeague ? null')
+    expect(panel).toContain('<EditionLifecycleStatus championshipId={selectedChamp.id} />')
+    expect(lifecycle).toContain('assertLifecycleActionSafe(action)')
+    expect(lifecycle).toContain('lifecycle_write_mode:lifecycleMode()')
+    expect(lifecycle).not.toContain('final_campeao_campeonato_equipe_id: isLeague ? null')
   })
 
   test('próxima season usa franquia e classificação anterior sem aplicar antes da confirmação', () => {
-    const teamsApi = source('web/app/api/campeonatos/[id]/equipes/route.ts')
-    const teamsPanel = source('web/features/campeonatos/equipes/components/CampeonatoEquipesTab.tsx')
+    const reader = source('backend/src/campeonatos/league-season-read.ts')
+    const teamsPanel = source('web/features/campeonatos/equipes/components/LeagueSeasonPanel.tsx')
 
-    expect(teamsApi).toContain(".from('campeonato_edicoes')")
-    expect(teamsApi).toContain(".eq('franquia_id', currentEdition.franquia_id)")
-    expect(teamsApi).toContain(".lt('numero_edicao', Number(currentEdition.numero_edicao))")
-    expect(teamsPanel).toContain('Nenhuma equipe muda de agrupamento até você confirmar.')
-    expect(teamsPanel).toContain('window.confirm(')
-    expect(teamsPanel).toContain('aplicarSugestoesSeasonLiga')
+    expect(reader).toContain(".from('campeonato_edicoes')")
+    expect(reader).toContain(".eq('franquia_id', edition.franquia_id)")
+    expect(reader).toContain(".lt('numero_edicao', Number(edition.numero_edicao))")
+    expect(teamsPanel).toContain('A classificação anterior é uma proposta.')
+    expect(teamsPanel).toContain('confirmAction(')
+    expect(teamsPanel).toContain("mode:'apply_league_season_suggestions',expected")
   })
 
   test('estrutura avançada antiga continua fora do fluxo visível', () => {

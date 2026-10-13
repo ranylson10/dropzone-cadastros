@@ -20,7 +20,7 @@ export function BroadcastPanel(props: {
   return (
     <div className="broadcast-page">
       <header>
-        <p className="eyebrow" style={{ margin: 0, color: 'var(--brand)', fontSize: 10, fontWeight: 900, letterSpacing: '0.12em' }}>
+        <p className="eyebrow" style={{ margin: 0, color: 'var(--brand)', fontSize: 12, fontWeight: 900, letterSpacing: '0.12em' }}>
           BROADCAST · {papel.toUpperCase()}
         </p>
         <h1>{props.account.name || 'Broadcast'}</h1>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   ActivityIndicator,
@@ -11,20 +11,40 @@ import {
   View,
 } from "react-native";
 import { mobileApi } from "@/lib/api";
+import { usePagedDirectory } from "@/hooks/usePagedDirectory";
+import { DirectoryStatus } from "@/components/DirectoryStatus";
+import { readPendingMobileSlotTransfer, type SlotTransferAttempt, type SlotTransferIntent } from "@/lib/slot-transfer-attempt";
+import { discardMobileChampionshipAttempt } from "@/lib/championship-discard";
+import { slotMovementBoardExpected } from "../../../backend/src/campeonatos/slot-movement-contract";
 import { colors, spacing } from "@/theme/tokens";
+import { participationAttempts, writeMobileParticipation, type ParticipationAttempt, type ParticipationIntent } from "@/lib/participation-write";
 
 type Props = {
   championshipId: string;
   token?: string | null;
+  actorId?: string;
   onChanged?: () => void | Promise<void>;
 };
 
 export function ChampionshipTeamsPanel({
   championshipId,
   token,
+  actorId,
   onChanged,
 }: Props) {
-  const [data, setData] = useState<any>(null);
+  const resourceIdentity = JSON.stringify([championshipId, actorId]);
+  const resourceRevision = useRef({identity:resourceIdentity,revision:0});
+  if (resourceRevision.current.identity !== resourceIdentity) resourceRevision.current = {identity:resourceIdentity,revision:resourceRevision.current.revision+1};
+  const resourceScope = JSON.stringify([resourceIdentity,resourceRevision.current.revision]);
+  const tokenRef = useRef(token); tokenRef.current = token;
+  const currentResource = useRef(resourceScope);
+  currentResource.current = resourceScope;
+  const loadGeneration = useRef(0);
+  const moveLock = useRef<{scope:string} | null>(null);
+  const [pendingMove, setPendingMove] = useState<SlotTransferAttempt | null>(null);
+  const [pendingParticipation, setPendingParticipation] = useState<ParticipationAttempt | null>(null);
+  const [snapshot, setSnapshot] = useState<{ scope: string; data: any } | null>(null);
+  const data = snapshot?.scope === resourceScope ? snapshot.data : null;
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -33,32 +53,49 @@ export function ChampionshipTeamsPanel({
   const [sourceSlotId, setSourceSlotId] = useState("");
   const [targetAddSlotId, setTargetAddSlotId] = useState("");
   const [query, setQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
+  const searchPage = usePagedDirectory<any>(`/api/campeonatos/${encodeURIComponent(championshipId)}/equipes/busca`, query, {
+    enabled: Boolean(targetAddSlotId) && query.trim().length >= 2 && Boolean(data), authenticated: true, accessToken: token, itemsKey: "equipes", limit: 30, scopeKey: targetAddSlotId,
+  });
+  const results = searchPage.items;
   const [reviewRequestId, setReviewRequestId] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [entryOrigin, setEntryOrigin] = useState("");
 
   const load = useCallback(async () => {
+    if (currentResource.current !== resourceScope) return;
+    const generation = ++loadGeneration.current;
     setLoading(true);
     try {
       const response = await mobileApi.championshipAdminTeams(
         championshipId,
-        token,
+        tokenRef.current,
       );
-      setData(response);
+      if (generation !== loadGeneration.current || currentResource.current !== resourceScope) return;
+      setSnapshot({ scope: resourceScope, data: response });
       setError("");
       const groups = collectGroups(response?.vagas || []);
       setGroupId((current) => current || String(groups[0]?.id || ""));
     } catch (err: any) {
+      if (generation !== loadGeneration.current || currentResource.current !== resourceScope) return;
       setError(err?.message || "Não foi possível carregar equipes e slots.");
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current && currentResource.current === resourceScope) setLoading(false);
     }
-  }, [championshipId, token]);
+  }, [championshipId, resourceScope]);
 
   useEffect(() => {
+    currentResource.current = resourceScope;
+    setBusy(false);setPendingMove(null);setPendingParticipation(null);
+    setGroupId(""); setSourceSlotId(""); setTargetAddSlotId(""); setQuery(""); setReviewRequestId(""); setRejectReason(""); setError(""); setFeedback("");
+    if (actorId) void readPendingMobileSlotTransfer(actorId,championshipId).then(attempt => {
+      if (currentResource.current === resourceScope) setPendingMove(attempt);
+    }).catch(err => { if (currentResource.current === resourceScope) setError(err.message); });
+    if (actorId) void participationAttempts.read(actorId,championshipId).then(attempt => {
+      if (currentResource.current === resourceScope) setPendingParticipation(attempt);
+    }).catch(err => { if (currentResource.current === resourceScope) setError(err.message); });
     void load();
-  }, [load]);
+    return () => { loadGeneration.current++; currentResource.current = ''; };
+  }, [load,actorId,championshipId,resourceScope]);
 
   const slots = useMemo(
     () => (Array.isArray(data?.vagas) ? data.vagas : []),
@@ -89,66 +126,68 @@ export function ChampionshipTeamsPanel({
       requests.find((item: any) => String(item.id) === reviewRequestId) || null,
     [requests, reviewRequestId],
   );
+  const leagueOrigins = useMemo(() => {
+    const group = groups.find((item: any) => String(item.id) === groupId);
+    const division = data?.liga?.divisoes?.find((item: any) => String(item.nome || "").trim().toLowerCase() === String(group?.nome || "").trim().toLowerCase());
+    return [...new Set<string>((division?.entradas || []).filter((item: any) => Number(item.quantidade) > 0).map((item: any) => String(item.tipo)))];
+  }, [data,groups,groupId]);
+  useEffect(() => { setEntryOrigin(""); }, [groupId,targetAddSlotId,reviewRequestId,resourceScope]);
 
   async function refreshAll(message?: string) {
+    if (currentResource.current !== resourceScope) return;
     if (message) setFeedback(message);
     setSourceSlotId("");
     setTargetAddSlotId("");
     setQuery("");
-    setResults([]);
     setReviewRequestId("");
     setRejectReason("");
     await load();
+    if (currentResource.current !== resourceScope) return;
     await onChanged?.();
   }
 
   async function approveRequest(target: any) {
-    if (!reviewRequest || isOccupied(target)) return;
-    setBusy(true);
-    setError("");
-    setFeedback("");
-    try {
-      const result = await mobileApi.reviewChampionshipEntry(
-        championshipId,
-        {
-          participacao_id: reviewRequest.id,
-          action: "approve",
-          slot_id: target.id,
-        },
-        token,
-      );
-      await refreshAll(result?.mensagem || "Inscrição aprovada.");
-    } catch (err: any) {
-      setError(err?.message || "Não foi possível aprovar a inscrição.");
-    } finally {
-      setBusy(false);
-    }
+    if (!reviewRequest || isOccupied(target) || isReserved(target)) return;
+    if (data?.liga && !entryOrigin) { setError("Selecione a origem da vaga da Liga antes de aprovar.");return; }
+    await executeParticipation("PATCH", { mode: "review_request", participacao_id: reviewRequest.id, action: "approve",
+      slot_id: target.id, origem_entrada: entryOrigin || undefined, expected: reviewRequest.participation_expected }, undefined, "Inscrição aprovada.");
   }
 
   async function rejectRequest(item: any) {
-    setBusy(true);
-    setError("");
-    setFeedback("");
+    await executeParticipation("PATCH", { mode: "review_request", participacao_id: item.id, action: "reject",
+      motivo: rejectReason.trim() || undefined, expected: item.participation_expected }, undefined, "Inscrição rejeitada.");
+  }
+
+  async function executeParticipation(method: ParticipationIntent['method'], body: Record<string, unknown>, removalId?: string, message = "Inscrição confirmada.") {
+    if (!data || currentResource.current !== resourceScope || moveLock.current?.scope === resourceScope) return;
+    const operation = { scope: resourceScope }; moveLock.current = operation;
+    setBusy(true);setError("");setFeedback("");
     try {
-      const result = await mobileApi.reviewChampionshipEntry(
-        championshipId,
-        {
-          participacao_id: item.id,
-          action: "reject",
-          motivo: rejectReason.trim() || undefined,
-        },
-        token,
-      );
-      await refreshAll(result?.mensagem || "Inscrição rejeitada.");
+      const result = await writeMobileParticipation(championshipId,data,method,body,token,actorId,removalId);
+      if (currentResource.current !== resourceScope) return;
+      const remaining = actorId ? await participationAttempts.read(actorId,championshipId) : null;
+      if (currentResource.current !== resourceScope) return;
+      setPendingParticipation(remaining);
+      await refreshAll(result?.mensagem || message);
     } catch (err: any) {
-      setError(err?.message || "Não foi possível rejeitar a inscrição.");
+      if (currentResource.current === resourceScope) {
+        setError(err?.message || "Não foi possível confirmar a inscrição.");
+        if (actorId) try {
+          const attempt = await participationAttempts.read(actorId,championshipId);
+          if (currentResource.current === resourceScope) setPendingParticipation(attempt);
+        } catch { /* Retain the error if storage cannot be read. */ }
+      }
     } finally {
-      setBusy(false);
+      if (moveLock.current === operation) moveLock.current = null;
+      if (currentResource.current === resourceScope) setBusy(false);
     }
   }
 
   async function moveOrSwap(target: any) {
-    if (!source || String(source.id) === String(target.id)) return;
+    if (!source || String(source.id) === String(target.id) || isReserved(target)) return;
+    if (data?.slot_movement_mode === 'atomic') try {
+      slotMovementBoardExpected([source, ...(isOccupied(target) ? [target] : [])].map(slot => ({...slot, participacao_id:slot.campeonato_equipe?.id || slot.participacao_id})));
+    } catch (err: any) { setError(err?.message || "Atualize os slots antes de confirmar.");return; }
     const targetOccupied = Boolean(
       target.line_id || target.equipe_id || target.campeonato_equipe,
     );
@@ -160,35 +199,65 @@ export function ChampionshipTeamsPanel({
         { text: "Cancelar", style: "cancel" },
         {
           text: targetOccupied ? "Trocar" : "Mover",
-          onPress: () => void executeMove(source.id, target.id, mode),
+          onPress: () => void executeMove({
+            source_slot_id: String(source.id),target_slot_id: String(target.id),mode,
+            source_participation_id: String(source.campeonato_equipe?.id || source.participacao_id || ""),
+            target_participation_id: mode === "swap" ? String(target.campeonato_equipe?.id || target.participacao_id || "") : null,
+          }),
         },
       ],
     );
   }
 
   async function executeMove(
-    sourceId: string,
-    targetId: string,
-    mode: "move" | "swap",
+    intent: SlotTransferIntent,
   ) {
+    if (currentResource.current !== resourceScope || moveLock.current?.scope === resourceScope) return;
+    if (!data) return;
+    const operation = {scope:resourceScope}; moveLock.current = operation;
     setBusy(true);
     setError("");
     setFeedback("");
     try {
       const result = await mobileApi.moveChampionshipSlot(
         championshipId,
-        { source_slot_id: sourceId, target_slot_id: targetId, mode },
+        intent,
+        data,
         token,
+        actorId,
       );
+      if (currentResource.current !== resourceScope) return;
+      const remaining = actorId ? await readPendingMobileSlotTransfer(actorId,championshipId) : null;
+      if (currentResource.current !== resourceScope) return;
+      setPendingMove(remaining);
       await refreshAll(
         result?.mensagem ||
-          (mode === "swap" ? "Posições trocadas." : "Line movida."),
+          (intent.mode === "swap" ? "Posições trocadas." : "Line movida."),
       );
     } catch (err: any) {
-      setError(err?.message || "Não foi possível reorganizar os slots.");
+      if (currentResource.current === resourceScope) {
+        setError(err?.message || "Não foi possível reorganizar os slots.");
+        if (actorId) try {
+          const attempt = await readPendingMobileSlotTransfer(actorId,championshipId);
+          if (currentResource.current === resourceScope) setPendingMove(attempt);
+        } catch { /* Keep the error and fail closed if storage is unavailable. */ }
+      }
     } finally {
-      setBusy(false);
+      if (moveLock.current === operation) moveLock.current = null;
+      if (currentResource.current === resourceScope) setBusy(false);
     }
+  }
+
+  async function discardAttempt(family: 'participation' | 'movement', attempt: ParticipationAttempt | SlotTransferAttempt) {
+    if (!actorId || currentResource.current !== resourceScope || moveLock.current?.scope === resourceScope) return;
+    const operation = {scope:resourceScope}; moveLock.current = operation;setBusy(true);setError("");
+    try {
+      await discardMobileChampionshipAttempt(championshipId,actorId,family,attempt);
+      if (currentResource.current !== resourceScope) return;
+      if (family === 'participation') setPendingParticipation(null);else setPendingMove(null);
+      await load();
+    } catch (err: any) { if (currentResource.current === resourceScope) setError(err?.message || "Não foi possível encerrar a tentativa no aparelho."); }
+    finally { if (moveLock.current === operation) moveLock.current = null;if (currentResource.current === resourceScope) setBusy(false); }
   }
 
   function remove(slot: any) {
@@ -207,73 +276,16 @@ export function ChampionshipTeamsPanel({
         {
           text: "Remover",
           style: "destructive",
-          onPress: () => void executeRemove(participationId),
+          onPress: () => void executeParticipation("DELETE", { expected: slot.participation_expected }, participationId, "Inscrição removida e slot liberado."),
         },
       ],
     );
   }
 
-  async function executeRemove(participationId: string) {
-    setBusy(true);
-    setError("");
-    setFeedback("");
-    try {
-      await mobileApi.removeChampionshipParticipation(
-        championshipId,
-        participationId,
-        token,
-      );
-      await refreshAll("Inscrição removida e slot liberado.");
-    } catch (err: any) {
-      setError(err?.message || "Não foi possível remover a inscrição.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function search() {
-    const clean = query.trim();
-    if (clean.length < 2) {
-      setResults([]);
-      return;
-    }
-    setSearching(true);
-    setError("");
-    try {
-      const response = await mobileApi.searchChampionshipTeams(
-        championshipId,
-        clean,
-        token,
-      );
-      setResults(Array.isArray(response?.equipes) ? response.equipes : []);
-    } catch (err: any) {
-      setError(err?.message || "Não foi possível pesquisar equipes.");
-    } finally {
-      setSearching(false);
-    }
-  }
-
   async function addLine(equipe: any, line: any) {
     if (!targetAddSlotId) return;
-    setBusy(true);
-    setError("");
-    setFeedback("");
-    try {
-      const result = await mobileApi.addChampionshipTeamToSlot(
-        championshipId,
-        {
-          slot_id: targetAddSlotId,
-          equipe_id: equipe.id,
-          line_id: line.id,
-        },
-        token,
-      );
-      await refreshAll(result?.mensagem || "Line adicionada ao campeonato.");
-    } catch (err: any) {
-      setError(err?.message || "Não foi possível adicionar a line.");
-    } finally {
-      setBusy(false);
-    }
+    if (data?.liga && !entryOrigin) { setError("Selecione a origem da vaga da Liga antes de adicionar.");return; }
+    await executeParticipation("POST", { slot_id: targetAddSlotId, equipe_id: equipe.id, line_id: line.id, origem_entrada: entryOrigin || undefined }, undefined, "Line adicionada ao campeonato.");
   }
 
   if (loading)
@@ -289,7 +301,7 @@ export function ChampionshipTeamsPanel({
         <Metric value={slots.length} label="Slots" />
         <Metric value={slots.filter(isOccupied).length} label="Ocupados" />
         <Metric
-          value={slots.filter((slot: any) => !isOccupied(slot)).length}
+          value={slots.filter((slot: any) => !isOccupied(slot) && !isReserved(slot)).length}
           label="Livres"
         />
       </View>
@@ -298,6 +310,37 @@ export function ChampionshipTeamsPanel({
         <Text style={[styles.message, styles.error]}>{error}</Text>
       ) : null}
       {feedback ? <Text style={styles.message}>{feedback}</Text> : null}
+      {pendingParticipation ? <View style={{ gap: spacing.sm }}>
+        <Text style={styles.message}>Há uma inscrição aguardando confirmação. Confira o acompanhamento antes de iniciar outra.</Text>
+        <TouchableOpacity accessibilityRole="button" style={[styles.reviewButton,{minHeight:44,justifyContent:"center"}]} disabled={busy || data?.participation_write_mode !== "atomic"}
+          onPress={() => void executeParticipation(pendingParticipation.method,pendingParticipation.body,pendingParticipation.participationId || undefined)}>
+          <Text style={styles.reviewButtonText}>Confirmar tentativa anterior</Text>
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" style={[styles.reviewButton,{minHeight:44,justifyContent:"center"}]} disabled={busy}
+          onPress={() => Alert.alert("Encerrar tentativa?","Após conferir o acompanhamento, você pode encerrar esta tentativa no aparelho. Uma inscrição já confirmada no servidor permanece válida.",[
+            {text:"Voltar",style:"cancel"},{text:"Já conferi",onPress:() => {
+              void discardAttempt('participation',pendingParticipation);
+            }},
+          ])}>
+          <Text style={styles.reviewButtonText}>Encerrar tentativa após conferir</Text>
+        </TouchableOpacity>
+      </View> : null}
+
+      {pendingMove ? <View style={{ gap: spacing.sm }}>
+        <Text style={styles.message}>Há uma movimentação aguardando confirmação. Confira os slots antes de iniciar outra.</Text>
+        <TouchableOpacity accessibilityRole="button" style={[styles.reviewButton,{minHeight:44,justifyContent:"center"}]} disabled={busy || data?.slot_movement_mode !== "atomic"}
+          onPress={() => void executeMove(pendingMove.body)}>
+          <Text style={styles.reviewButtonText}>Confirmar resultado da movimentação anterior</Text>
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" style={[styles.reviewButton,{minHeight:44,justifyContent:"center"}]} disabled={busy}
+          onPress={() => Alert.alert("Encerrar tentativa?","Depois de conferir os slots, você pode encerrar esta tentativa no aparelho. Isso não desfaz uma movimentação já realizada.",[
+            {text:"Voltar",style:"cancel"},{text:"Já conferi os slots",onPress:() => {
+              void discardAttempt('movement',pendingMove);
+            }},
+          ])}>
+          <Text style={styles.reviewButtonText}>Encerrar tentativa após conferir os slots</Text>
+        </TouchableOpacity>
+      </View> : null}
 
       <View style={styles.queueHeader}>
         <Text style={styles.title}>INSCRIÇÕES PARA ANÁLISE</Text>
@@ -382,6 +425,14 @@ export function ChampionshipTeamsPanel({
       )}
 
       <Text style={styles.title}>GRUPO</Text>
+      {data?.liga && (reviewRequest || targetAddSlotId) ? <View style={{ gap: spacing.sm }}>
+        <Text style={styles.message}>Selecione a origem da vaga da Liga.</Text>
+        <View style={styles.chips}>{leagueOrigins.map(origin => <TouchableOpacity key={origin} accessibilityRole="button"
+          accessibilityLabel={`Origem ${origin.replaceAll("_"," ")}`} disabled={busy} onPress={() => setEntryOrigin(origin)}
+          style={[styles.chip,entryOrigin === origin && styles.chipActive]}>
+          <Text style={styles.chipText}>{origin.replaceAll("_"," ")}{entryOrigin === origin ? " ✓" : ""}</Text>
+        </TouchableOpacity>)}</View>
+      </View> : null}
       <View style={styles.chips}>
         {groups.map((group: any) => (
           <TouchableOpacity
@@ -435,7 +486,7 @@ export function ChampionshipTeamsPanel({
             <TouchableOpacity
               key={slot.id}
               activeOpacity={0.8}
-              disabled={busy}
+              disabled={busy || isReserved(slot) || (!isOccupied(slot) && data?.permission?.canManage === false)}
               style={[styles.slotRow, selected && styles.slotRowSelected]}
               onPress={() =>
                 reviewRequest
@@ -459,7 +510,7 @@ export function ChampionshipTeamsPanel({
                 <Text style={styles.rowTitle}>
                   {occupied
                     ? slot.line_nome || slot.equipe_nome || "Line inscrita"
-                    : "Slot livre"}
+                    : isReserved(slot) ? "Slot reservado" : "Slot livre"}
                 </Text>
                 <Text style={styles.meta}>
                   {slot.grupo?.nome ||
@@ -484,6 +535,9 @@ export function ChampionshipTeamsPanel({
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.smallAction}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remover ${slot.line_nome || slot.equipe_nome || "inscrição"}`}
+                    disabled={busy || data?.permission?.canRemove === false}
                     onPress={() => remove(slot)}
                   >
                     <Ionicons name="trash-outline" size={17} color="#b42318" />
@@ -531,8 +585,7 @@ export function ChampionshipTeamsPanel({
               style={styles.iconButton}
               onPress={() => {
                 setTargetAddSlotId("");
-                setResults([]);
-                setQuery("");
+                            setQuery("");
               }}
             >
               <Ionicons name="close" size={18} color={colors.ink} />
@@ -542,19 +595,18 @@ export function ChampionshipTeamsPanel({
             <TextInput
               value={query}
               onChangeText={setQuery}
-              onSubmitEditing={() => void search()}
+              onSubmitEditing={() => void searchPage.refresh()}
               placeholder="Nome ou tag da equipe"
               placeholderTextColor="#8a857e"
               style={styles.input}
             />
             <TouchableOpacity
               style={styles.searchButton}
-              onPress={() => void search()}
+              onPress={() => void searchPage.refresh()}
             >
               <Ionicons name="search" size={18} color={colors.onBrand} />
             </TouchableOpacity>
           </View>
-          {searching ? <ActivityIndicator color={colors.brand} /> : null}
           {results.map((team: any) => (
             <View key={team.id} style={styles.teamCard}>
               <View style={styles.teamHead}>
@@ -609,9 +661,7 @@ export function ChampionshipTeamsPanel({
               ) : null}
             </View>
           ))}
-          {!searching && query.trim().length >= 2 && !results.length ? (
-            <Text style={styles.emptySmall}>Nenhuma equipe encontrada.</Text>
-          ) : null}
+          {query.trim().length >= 2 ? <DirectoryStatus page={searchPage} empty="Nenhuma equipe encontrada." /> : <Text style={styles.emptySmall}>Digite pelo menos 2 caracteres.</Text>}
         </View>
       ) : null}
 
@@ -626,6 +676,9 @@ export function ChampionshipTeamsPanel({
 
 function isOccupied(slot: any) {
   return Boolean(slot?.line_id || slot?.equipe_id || slot?.campeonato_equipe);
+}
+function isReserved(slot: any) {
+  return !isOccupied(slot) && (Boolean(slot?.convite) || ["reservado","reservada","bloqueado","bloqueada"].includes(String(slot?.status || "")));
 }
 function slotLabel(slot: any) {
   return String(slot?.slot_letra || slot?.slot_numero || "—");

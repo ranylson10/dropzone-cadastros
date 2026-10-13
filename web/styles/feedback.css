@@ -1,0 +1,96 @@
+.dz-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--ui-line, rgba(245,243,237,.08));
+  background: var(--ui-surface);
+}
+
+.dz-feedback-dialog .system-modal-content {
+  padding-top: 12px;
+}
+
+body .cropper-dialog .cropper-modal.cropper-modal-interactive {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  box-shadow: none;
+}
+
+.location-results [role="option"][aria-selected="true"] {
+  background: var(--ui-surface-raised);
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -2px;
+}
+
+.dz-feedback-dialog__body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.dz-feedback-dialog__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--ui-radius-sm, 8px);
+  background: var(--ui-surface-raised);
+  color: var(--ui-accent);
+}
+
+.dz-feedback-dialog--danger .dz-feedback-dialog__icon {
+  color: #ff6b6b;
+}
+
+.dz-feedback-dialog__body .field {
+  margin: 0;
+}
+
+.dz-status-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ui-line, rgba(245,243,237,.08));
+  border-radius: var(--ui-radius-sm, 8px);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+}
+
+.dz-status-message > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.dz-status-message span {
+  color: var(--ui-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dz-status-message--success { border-color: rgba(80, 200, 120, .25); }
+.dz-status-message--success > svg { color: #50c878; }
+.dz-status-message--error { border-color: rgba(255, 107, 107, .28); }
+.dz-status-message--error > svg { color: #ff6b6b; }
+.dz-status-message--info > svg { color: var(--ui-accent); }
+
+@media (max-width: 640px) {
+  .dz-dialog-footer {
+    padding: 12px 14px 16px;
+  }
+
+  .dz-dialog-footer .dz-ui-button {
+    flex: 1 1 0;
+  }
+
+  .dz-feedback-dialog__body {
+    grid-template-columns: 1fr;
+  }
+}

@@ -18,6 +18,7 @@ export function LegalPage({ eyebrow, title, description, updatedAt, sections }: 
   return (
     <div className="legal-page-shell">
       <AppShell loadSession mainClassName="legal-page page">
+        <div className="dz-unified-center">
         <header className="legal-hero">
           <span className="legal-eyebrow">{eyebrow}</span>
           <h1>{title}</h1>
@@ -33,6 +34,7 @@ export function LegalPage({ eyebrow, title, description, updatedAt, sections }: 
             </section>
           ))}
         </article>
+        </div>
       </AppShell>
 
       <footer className="legal-footer">

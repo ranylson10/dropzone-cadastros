@@ -1,4 +1,4 @@
-import { ComponentProps, useEffect, useMemo, useState } from "react";
+import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   ActivityIndicator,
@@ -43,6 +43,7 @@ export function TokenActionScreen(props: {
   result: QuickTokenResult | null;
   onBack: () => void;
   accessToken?: string | null;
+  actorId?: string | null;
   requireLogin: () => void;
   accounts?: MobileAccount[];
   onCreateProfile?: (profileType: ProfileType) => void;
@@ -60,6 +61,7 @@ export function TokenActionScreen(props: {
   );
   const [payload, setPayload] = useState<any>(result?.payload || {});
   const [busy, setBusy] = useState(false);
+  const submitLock = useRef(false);
   const [loadingContext, setLoadingContext] = useState(false);
   const [message, setMessage] = useState("");
   const [done, setDone] = useState(false);
@@ -190,6 +192,7 @@ export function TokenActionScreen(props: {
   }
 
   async function executeDirect() {
+    if (submitLock.current) return;
     if (!props.accessToken) {
       props.requireLogin();
       return;
@@ -198,6 +201,7 @@ export function TokenActionScreen(props: {
       props.onCreateProfile?.(preferredProfile);
       return;
     }
+    submitLock.current = true;
     setBusy(true);
     setMessage("");
     try {
@@ -209,11 +213,13 @@ export function TokenActionScreen(props: {
     } catch (err: any) {
       setMessage(err?.message || "Não foi possível concluir esta ação.");
     } finally {
+      submitLock.current = false;
       setBusy(false);
     }
   }
 
   async function executeDetailed() {
+    if (submitLock.current) return;
     if (!props.accessToken) {
       props.requireLogin();
       return;
@@ -259,6 +265,7 @@ export function TokenActionScreen(props: {
       body.funcao = role.trim() || "support";
     }
 
+    submitLock.current = true;
     setBusy(true);
     setMessage("");
     try {
@@ -266,11 +273,13 @@ export function TokenActionScreen(props: {
         resolvedResult,
         body,
         props.accessToken,
+        props.actorId || undefined,
       );
       finish(response);
     } catch (err: any) {
       setMessage(err?.message || "Não foi possível concluir esta inscrição.");
     } finally {
+      submitLock.current = false;
       setBusy(false);
     }
   }
