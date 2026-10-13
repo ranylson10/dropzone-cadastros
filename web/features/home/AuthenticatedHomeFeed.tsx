@@ -1,6 +1,9 @@
 'use client'
 
+import Link from 'next/link'
+
 import { Input as UiInput } from '@/components/ui/Field'
+import { SystemLogo } from '@/components/brand/SystemLogo'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
@@ -103,8 +106,8 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
               <h1>{hero.title}<em>{hero.accent}</em></h1>
               <p>{hero.description}</p>
               <div className="store-home-hero-buttons">
-                <a className="primary" href={safeHref(hero.primary_href)}>{hero.primary_label}</a>
-                <a href={safeHref(hero.secondary_href)}>{hero.secondary_label}</a>
+                <Link className="primary" href={safeHref(hero.primary_href)}>{hero.primary_label}</Link>
+                <Link href={safeHref(hero.secondary_href)}>{hero.secondary_label}</Link>
               </div>
               <div className="store-home-hero-dots" aria-label="Selecionar destaque">
                 {homeConfig.hero_slides.map((_, index) => (
@@ -121,16 +124,16 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
             {featured.some((item) => item.banner_url || item.logo_url) ? (
               <div className="store-home-hero-previews" aria-label="Campeonatos em destaque">
                 {featured.filter((item) => item.banner_url || item.logo_url).slice(0, 3).map((item) => (
-                  <a key={item.id} href={`/campeonatos/${encodeURIComponent(item.id)}`} aria-label={`Ver ${item.nome}`}>
+                  <Link key={item.id} href={`/campeonatos/${encodeURIComponent(item.id)}`} aria-label={`Ver ${item.nome}`}>
                     <img src={item.banner_url || item.logo_url || ''} alt="" />
-                  </a>
+                  </Link>
                 ))}
               </div>
             ) : (
               <div className="store-home-hero-sidecopy">
                 <strong>{hero.side_title}</strong>
                 <p>{hero.side_text}</p>
-                <a href={safeHref(hero.primary_href)}>VER AGORA <ArrowRight size={14} /></a>
+                <Link href={safeHref(hero.primary_href)}>VER AGORA <ArrowRight size={14} /></Link>
               </div>
             )}
           </div>
@@ -146,18 +149,18 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
           <section className="store-home-section">
             <header className="store-home-section-head">
               <h2>EXPLORE POR <em>CATEGORIA</em></h2>
-              <a href="/campeonatos">VER TODOS <ArrowRight size={14} /></a>
+              <Link href="/campeonatos">VER TODOS <ArrowRight size={14} /></Link>
             </header>
             <div className="store-home-categories">
               {homeConfig.categories.map((category, index) => {
                 const Icon = CATEGORY_ICONS[index % CATEGORY_ICONS.length]
                 return (
-                  <a href={safeHref(category.href)} key={`${category.title}-${index}`}>
+                  <Link href={safeHref(category.href)} key={`${category.title}-${index}`}>
                     <span className="store-home-category-media">
                       {category.image_url ? <img src={category.image_url} alt="" /> : <Icon aria-hidden /> }
                     </span>
                     <span className="store-home-category-copy"><strong>{category.title}</strong><small>{category.subtitle} <ArrowRight size={11} /></small></span>
-                  </a>
+                  </Link>
                 )
               })}
             </div>
@@ -166,7 +169,7 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
           <section className="store-home-section">
             <header className="store-home-section-head">
               <h2>CAMPEONATOS <em>EM DESTAQUE</em></h2>
-              <a href="/campeonatos?vagas=1">VER TODOS <ArrowRight size={14} /></a>
+              <Link href="/campeonatos?vagas=1">VER TODOS <ArrowRight size={14} /></Link>
             </header>
             <div className="store-home-products">
               {loadingVacancies ? Array.from({ length: 6 }).map((_, index) => <div className="store-home-product-skeleton" key={index} />) : null}
@@ -216,7 +219,7 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
                   <small>{promo.eyebrow}</small>
                   <h3>{promo.title}</h3>
                   <p>{promo.description}</p>
-                  <a href={safeHref(promo.href)}>{promo.cta_label}</a>
+                  <Link href={safeHref(promo.href)}>{promo.cta_label}</Link>
                 </div>
               </article>
             ))}
@@ -226,7 +229,7 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
         <section className="store-home-newsletter">
           <div className="store-home-width store-home-newsletter-inner">
             <div><strong>ENCONTRE SUA PRÓXIMA DISPUTA</strong><small>Veja campeonatos, inscrições e vagas disponíveis.</small></div>
-            <a className="store-home-discovery-cta" href="/campeonatos?vagas=1">VER CAMPEONATOS <ArrowRight size={16} /></a>
+            <Link className="store-home-discovery-cta" href="/campeonatos?vagas=1">VER CAMPEONATOS <ArrowRight size={16} /></Link>
           </div>
         </section>
       </div>
@@ -234,15 +237,15 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
       <footer className="store-home-footer">
         <div className="store-home-width store-home-footer-grid">
           <div className="store-home-footer-brand">
-            <a className="store-home-brand light" href="/">
-              <img src="/branding/dropzone-platform-light.png" alt="" />
+            <Link className="store-home-brand light" href="/">
+              <SystemLogo size={44} alt="" variant="light" />
               <span><strong>DROPZONE</strong><small>COMPETITIVE SYSTEM</small></span>
-            </a>
+            </Link>
             <p>Campeonatos, equipes, jogadores e estatísticas de Free Fire.</p>
           </div>
-          <div><strong>COMPETIR</strong><a href="/campeonatos">Campeonatos</a><a href="/equipes">Equipes</a><a href="/jogadores">Jogadores</a><a href="/rank">Ranking</a></div>
-          <div><strong>AJUDA</strong><a href="/agenda">Agenda</a><a href="/equipes">Equipes</a><a href="/termos-de-servico">Termos de serviço</a><a href="/politica-de-privacidade">Privacidade</a></div>
-          <div><strong>CONTA</strong>{account ? <button type="button" onClick={() => void onOpenPanel(account)}>Minha área</button> : <a href="/login?returnTo=%2F">Entrar</a>}<a href="/carrinho">Carrinho</a><a href="/afiliados">Afiliados</a></div>
+          <div><strong>COMPETIR</strong><Link href="/campeonatos">Campeonatos</Link><Link href="/equipes">Equipes</Link><Link href="/jogadores">Jogadores</Link><Link href="/rank">Ranking</Link></div>
+          <div><strong>AJUDA</strong><Link href="/agenda">Agenda</Link><Link href="/equipes">Equipes</Link><Link href="/termos-de-servico">Termos de serviço</Link><Link href="/politica-de-privacidade">Privacidade</Link></div>
+          <div><strong>CONTA</strong>{account ? <button type="button" onClick={() => void onOpenPanel(account)}>Minha área</button> : <Link href="/login?returnTo=%2F">Entrar</Link>}<Link href="/carrinho">Carrinho</Link><Link href="/afiliados">Afiliados</Link></div>
         </div>
         <div className="store-home-width store-home-footer-bottom">© {new Date().getFullYear()} DROPZONE. TODOS OS DIREITOS RESERVADOS.</div>
       </footer>

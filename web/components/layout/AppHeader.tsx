@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { Input as UiInput } from '@/components/ui/Field'
 import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Search, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
@@ -257,7 +259,7 @@ export function AppHeader({
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <a className="app-brand" href="/" aria-label="DropZone — início">
+        <Link className="app-brand" href="/" aria-label="DropZone — início">
           <span className="app-brand-logo">
             <SystemLogo size={44} alt="" fit="contain" variant="default" />
           </span>
@@ -265,7 +267,7 @@ export function AppHeader({
             <strong aria-label="DropZone"><span>Drop</span><span>Zone</span></strong>
             <small>COMPETITIVE SYSTEM</small>
           </span>
-        </a>
+        </Link>
 
         <button
           className="app-mobile-toggle"
@@ -296,14 +298,14 @@ export function AppHeader({
             const hasChildren = Boolean(item.children?.length)
             if (!hasChildren) {
               return (
-                <a
+                <Link
                   key={item.label}
                   href={item.href}
                   className={activeLabel === item.label ? 'active' : ''}
                   onClick={() => setMobileOpen(false)}
                 >
                   {item.label}
-                </a>
+                </Link>
               )
             }
             return (
@@ -311,24 +313,24 @@ export function AppHeader({
                 key={item.label}
                 className={`app-nav-dropdown ${activeLabel === item.label ? 'active' : ''}`}
               >
-                <a
+                <Link
                   href={item.href}
                   className={`app-nav-parent ${activeLabel === item.label ? 'active' : ''}`}
                   onClick={() => setMobileOpen(false)}
                 >
                   {item.label}
                   <ChevronDown size={14} className="app-nav-caret" aria-hidden />
-                </a>
+                </Link>
                 <div className="app-nav-submenu" role="menu">
                   {item.children!.map((child) => (
-                    <a
+                    <Link
                       key={child.href}
                       href={child.href}
                       role="menuitem"
                       onClick={() => setMobileOpen(false)}
                     >
                       {child.label}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -336,12 +338,12 @@ export function AppHeader({
           })}
           {isAuthenticated ? (
             <div className="app-mobile-nav-account">
-              <a href="/?painel=1" onClick={() => setMobileOpen(false)}>
+              <Link href="/?painel=1" onClick={() => setMobileOpen(false)}>
                 <LayoutDashboard size={16} />
                 <span>Meu painel</span>
-              </a>
+              </Link>
               {showWallet ? (
-                <a href="/carteira" onClick={() => setMobileOpen(false)}>
+                <Link href="/carteira" onClick={() => setMobileOpen(false)}>
                   <Wallet size={16} />
                   <span>Carteira</span>
                   <strong>
@@ -352,27 +354,27 @@ export function AppHeader({
                           currency: 'BRL',
                         }).format(walletSaldo / 100)}
                   </strong>
-                </a>
+                </Link>
               ) : null}
               {isAdmin || showAdmin ? (
-                <a href="/admin" onClick={() => setMobileOpen(false)}>
+                <Link href="/admin" onClick={() => setMobileOpen(false)}>
                   <Shield size={16} />
                   <span>Administração</span>
-                </a>
+                </Link>
               ) : null}
             </div>
           ) : null}
         </nav>
 
         <nav className="app-mobile-dock" aria-label="Navegação rápida">
-          <a href="/" className={activeLabel === 'Início' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
+          <Link href="/" className={activeLabel === 'Início' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
             <Home size={19} aria-hidden />
             <span>Início</span>
-          </a>
-          <a href="/campeonatos" className={activeLabel === 'Competições' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
+          </Link>
+          <Link href="/campeonatos" className={activeLabel === 'Competições' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
             <Trophy size={19} aria-hidden />
             <span>Competições</span>
-          </a>
+          </Link>
           <button
             type="button"
             className={`app-mobile-quick-trigger ${quickOpen ? 'active' : ''}`}
@@ -388,10 +390,10 @@ export function AppHeader({
             <span className="app-mobile-quick-icon"><Plus size={23} aria-hidden /></span>
             <span>Ações</span>
           </button>
-          <a href="/equipes" className={activeLabel === 'Equipes' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
+          <Link href="/equipes" className={activeLabel === 'Equipes' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
             <UsersRound size={19} aria-hidden />
             <span>Equipes</span>
-          </a>
+          </Link>
           {isAuthenticated ? (
             <button
               type="button"
@@ -413,10 +415,10 @@ export function AppHeader({
               <span>Conta</span>
             </button>
           ) : (
-            <a href={loginHref} className="app-mobile-profile-switcher" onClick={() => setQuickOpen(false)}>
+            <Link href={loginHref} className="app-mobile-profile-switcher" onClick={() => setQuickOpen(false)}>
               <UsersRound size={19} aria-hidden />
               <span>Entrar</span>
-            </a>
+            </Link>
           )}
         </nav>
 
@@ -432,11 +434,11 @@ export function AppHeader({
                 {quickActions.map((action) => {
                   const Icon = action.icon
                   return (
-                    <a href={action.href} key={action.href + action.label} onClick={() => setQuickOpen(false)}>
+                    <Link href={action.href} key={action.href + action.label} onClick={() => setQuickOpen(false)}>
                       <span className="app-mobile-quick-action-icon"><Icon size={19} aria-hidden /></span>
                       <span><strong>{action.label}</strong><small>{action.detail}</small></span>
                       <span aria-hidden>›</span>
-                    </a>
+                    </Link>
                   )
                 })}
               </div>
@@ -478,7 +480,7 @@ export function AppHeader({
         {isAuthenticated ? (
           <div className="app-profile" ref={profileRef}>
             {showWallet ? (
-              <a
+              <Link
                 href="/carteira"
                 className="app-wallet-chip"
                 title="Abrir carteira"
@@ -493,17 +495,17 @@ export function AppHeader({
                         currency: 'BRL',
                       }).format(walletSaldo / 100)}
                 </span>
-              </a>
+              </Link>
             ) : null}
             {isAdmin || showAdmin ? (
-              <a
+              <Link
                 href="/admin"
                 className="app-admin-chip"
                 title="Administração do sistema"
                 onClick={() => setMobileOpen(false)}
               >
                 Admin
-              </a>
+              </Link>
             ) : null}
             <NotificationBell />
             <button
@@ -581,7 +583,7 @@ export function AppHeader({
                   {avatarUploading ? 'Enviando foto...' : accountAvatar ? 'Alterar foto de perfil' : 'Adicionar foto de perfil'}
                 </button>
                 {avatarError ? <span role="alert" style={{ display: 'block', padding: '0 14px 11px', color: 'var(--ui-danger, #d76c6c)', fontSize: 12 }}>{avatarError}</span> : null}
-                {visibleAccounts.length ? <a
+                {visibleAccounts.length ? <Link
                   href="/#meus-cadastros"
                   onClick={() => {
                     setProfileOpen(false)
@@ -602,9 +604,9 @@ export function AppHeader({
                   }}
                 >
                   <LayoutDashboard size={17} strokeWidth={2.5} /> Meus cadastros
-                </a> : null}
+                </Link> : null}
                 {showWallet ? (
-                  <a
+                  <Link
                     href="/carteira"
                     onClick={() => {
                       setProfileOpen(false)
@@ -627,7 +629,7 @@ export function AppHeader({
                     {walletSaldo == null
                       ? 'Carteira'
                       : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(walletSaldo / 100)}
-                  </a>
+                  </Link>
                 ) : null}
                 {onCreateLinkedProfile ? (
                   <button
@@ -676,9 +678,9 @@ export function AppHeader({
             ) : null}
           </div>
         ) : (
-          <a className="app-header-login" href={loginHref}>
+          <Link className="app-header-login" href={loginHref}>
             {loginLabel}
-          </a>
+          </Link>
         )}
       </div>
     </header>

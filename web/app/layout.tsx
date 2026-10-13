@@ -17,6 +17,7 @@ import '@/features/dropzone/panels/profile-panels-page-refresh.css'
 import '@/styles/workspace.css'
 import '@/features/token-flow/token-flow.css'
 import './utility-page-refresh.css'
+import '@/styles/page-loading.css'
 import '@/styles/directory-density-r03.css'
 import '@/styles/public-profiles-r04.css'
 import '@/styles/workspace-density-r05.css'
@@ -37,6 +38,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'DropZone — Campeonatos de Free Fire',
   description: 'Campeonatos, vagas, equipes, jogadores, ranking e gestão competitiva de Free Fire.',
+  icons: { icon: '/dropzone-icon.png', apple: '/dropzone-icon.png' },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

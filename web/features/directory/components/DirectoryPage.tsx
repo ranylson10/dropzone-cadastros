@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { AppShell } from '@/components/layout'
 import { cachedStorageMediaUrl } from '@/lib/upload-public'
 import { Trophy, ArrowUpRight } from 'lucide-react'
@@ -29,21 +30,21 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
                 <span className="dz-market-showcase-kicker"><Trophy size={15} aria-hidden="true" /> COMPITA NO DROPZONE</span>
                 <h1>Seu próximo campeonato começa aqui.</h1>
                 <p>Encontre campeonatos de Free Fire, acompanhe vagas, premiações e participe com sua equipe.</p>
-                <a href="#campeonatos-lista" className="dz-market-showcase-button">Explorar campeonatos <ArrowUpRight size={17} aria-hidden="true" /></a>
+                <Link href="#campeonatos-lista" className="dz-market-showcase-button">Explorar campeonatos <ArrowUpRight size={17} aria-hidden="true" /></Link>
               </div>
               {highlights.length ? (
                 <div className="dz-market-showcase-images" aria-label="Campeonatos em destaque">
                   {highlights.map((item) => (
-                    <a key={item.id} href={`/campeonatos/${item.id}`} title={item.name} aria-label={`Conhecer ${item.name}`}>
+                    <Link key={item.id} href={`/campeonatos/${item.id}`} title={item.name} aria-label={`Conhecer ${item.name}`}>
                       <img src={cachedStorageMediaUrl(item.banner || item.image || '')} alt={item.name} loading={item === highlights[0] ? 'eager' : 'lazy'} />
-                    </a>
+                    </Link>
                   ))}
                 </div>
               ) : <Trophy className="dz-market-showcase-fallback" size={130} aria-hidden="true" />}
             </section>
             <nav className="dz-market-quicklinks" aria-label="Atalhos do catálogo">
-              <a href="/campeonatos?vagas=1"><Trophy size={16} aria-hidden="true" /> Campeonatos com vagas <ArrowUpRight size={15} aria-hidden="true" /></a>
-              <a href="/rank"><Trophy size={16} aria-hidden="true" /> Ranking competitivo <ArrowUpRight size={15} aria-hidden="true" /></a>
+              <Link href="/campeonatos?vagas=1"><Trophy size={16} aria-hidden="true" /> Campeonatos com vagas <ArrowUpRight size={15} aria-hidden="true" /></Link>
+              <Link href="/rank"><Trophy size={16} aria-hidden="true" /> Ranking competitivo <ArrowUpRight size={15} aria-hidden="true" /></Link>
             </nav>
             <DirectoryAccountAction kind={kind} />
           </>

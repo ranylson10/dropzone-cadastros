@@ -2,6 +2,7 @@
   "suite": "DropZone Tools",
   "module": "platform",
   "name": "DropZone Platform",
-  "color": "#8B5CF6",
-  "source": "Família visual V4 aprovada em 2026-10-06"
+  "color": "#f2c900",
+  "source": "Logo oficial DropZone fornecida pelo usuário em 2026-10-13",
+  "webAsset": "web/public/dropzone-icon.png"
 }

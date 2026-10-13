@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { SystemLogo } from '@/components/brand/SystemLogo'
 import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
 import { HomePageEditor } from '@/features/admin/HomePageEditor'
 
@@ -350,7 +351,7 @@ export default function AdminPage() {
     <main className="system-admin-page">
       <header className="system-admin-header">
         <div>
-          <img src="/branding/dropzone-platform.png" alt="" />
+          <SystemLogo size={44} alt="" variant="accent" />
           <span>
             <p>DropZone</p>
             <h1>Central DropZone</h1>

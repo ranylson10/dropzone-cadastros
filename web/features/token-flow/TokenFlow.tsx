@@ -2,6 +2,7 @@
 
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react'
 import { Dialog } from '@/components/ui'
+import { SystemLogo } from '@/components/brand/SystemLogo'
 import { SocialLogin } from '@/features/auth/SocialLogin'
 import { buildLoginHref } from '@/features/auth/auth-return'
 import type { ProfileType } from '@/lib/types'
@@ -106,7 +107,7 @@ export function TokenFlowAccessGate({
       closeLabel="Fechar acesso"
     >
       <div data-dz-token-flow="access-gate" className="dz-token-flow-gate-content">
-        <img className="dz-token-flow-gate-logo" src="/branding/dropzone-platform.png" alt="" />
+        <SystemLogo className="dz-token-flow-gate-logo" size={58} alt="" variant="accent" />
         {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         {typeof description === 'string' ? null : <div className="dz-token-flow-gate-description">{description}</div>}
         <SocialLogin profileType={profileType} returnTo={returnTo} />

@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { ChevronRight, Heart, ShoppingCart, Trophy } from 'lucide-react'
 import { IconButton } from '@/components/ui'
 
@@ -59,7 +61,7 @@ export function ChampionshipListRow({
       data-championship-list-row
       data-championship-id={championship.id}
     >
-      <a className={classes('dz-champ-list-row__media', championship.isBannerImage && 'is-banner')} href={championship.href} aria-label={`Ver campeonato ${championship.name}`}>
+      <Link className={classes('dz-champ-list-row__media', championship.isBannerImage && 'is-banner')} href={championship.href} aria-label={`Ver campeonato ${championship.name}`}>
         {championship.imageUrl
           ? <img src={championship.imageUrl} alt="" loading="lazy" decoding="async" />
           : <Trophy size={36} aria-hidden="true" />}
@@ -67,13 +69,13 @@ export function ChampionshipListRow({
           <small className={freeSlots != null && freeSlots > 0 ? 'is-open' : 'is-closed'}>{statusLabel}</small>
           {championship.participationLabel ? <small className="is-participating">{championship.participationLabel}</small> : null}
         </span>
-      </a>
+      </Link>
 
       <div className="dz-champ-list-row__body">
-        <a className="dz-champ-list-row__identity" href={championship.href}>
+        <Link className="dz-champ-list-row__identity" href={championship.href}>
           <strong>{championship.name}</strong>
           <span>{[championship.producerLabel, championship.formatLabel].filter(Boolean).join(' · ') || 'Campeonato Free Fire'}</span>
-        </a>
+        </Link>
         <dl className="dz-champ-list-row__metrics">
           <div><dt>Vagas</dt><dd>{freeSlots == null ? 'A confirmar' : totalSlots != null && totalSlots > 0 ? `${freeSlots}/${totalSlots}` : String(freeSlots)}</dd></div>
           <div><dt>Inscrição</dt><dd>{championship.priceLabel || 'Sob consulta'}</dd></div>
@@ -99,9 +101,9 @@ export function ChampionshipListRow({
           disabled={!onCart || cartPending || cartDisabled}
           onClick={onCart}
         />
-        <a className="dz-champ-list-row__open" href={championship.href} aria-label={`Ver detalhes de ${championship.name}`}>
+        <Link className="dz-champ-list-row__open" href={championship.href} aria-label={`Ver detalhes de ${championship.name}`}>
           <ChevronRight size={18} />
-        </a>
+        </Link>
       </div>
     </article>
   )

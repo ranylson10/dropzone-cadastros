@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { Heart, Search, ShoppingCart, SlidersHorizontal, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -376,10 +378,10 @@ export function DirectoryListClient({ items, kind }: { items: DirectoryItem[]; k
                 <Search size={18} />
                 <UiInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar campeonato, produtora, formato..." />
               </label>
-              <a className="championship-directory-icon-link" href="/carrinho" aria-label={`Abrir carrinho com ${cartQuantity} vagas`}><ShoppingCart size={18} /><b>{cartQuantity}</b></a>
+              <Link className="championship-directory-icon-link" href="/carrinho" aria-label={`Abrir carrinho com ${cartQuantity} vagas`}><ShoppingCart size={18} /><b>{cartQuantity}</b></Link>
               <details className="championship-directory-favorites">
                 <summary aria-label="Favoritos"><Heart size={18} /><b>{wishlistItems.length}</b></summary>
-                <div>{wishlistItems.length ? wishlistItems.slice(0, 8).map((item) => <a href={item.href} key={item.id}>{item.name}</a>) : <p>Nenhum favorito ainda.</p>}</div>
+                <div>{wishlistItems.length ? wishlistItems.slice(0, 8).map((item) => <Link href={item.href} key={item.id}>{item.name}</Link>) : <p>Nenhum favorito ainda.</p>}</div>
               </details>
             </div>
 
@@ -415,7 +417,7 @@ export function DirectoryListClient({ items, kind }: { items: DirectoryItem[]; k
             {scopeLabel || scopeError || scopeLoading ? (
               <div className="championship-directory-scope" role="status">
                 <span>{scopeLoading ? 'Carregando seleção...' : scopeError || <>Mostrando campeonatos de <strong>{scopeLabel}</strong></>}</span>
-                {(producerScopeId || sellerScopeId) ? <a href="/campeonatos">Ver todos</a> : null}
+                {(producerScopeId || sellerScopeId) ? <Link href="/campeonatos">Ver todos</Link> : null}
               </div>
             ) : null}
           </section>

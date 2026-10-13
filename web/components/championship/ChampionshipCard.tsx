@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { Heart, Info, ShoppingCart, Trophy } from 'lucide-react'
 import { IconButton } from '@/components/ui'
 
@@ -55,11 +57,11 @@ export function ChampionshipCard({
   return (
     <article className={classes('dz-champ-card', className)} data-championship-id={championship.id}>
       <div className="dz-champ-card-media">
-        <a className="dz-champ-card-art" href={championship.href} aria-label={`Abrir ${championship.name}`}>
+        <Link className="dz-champ-card-art" href={championship.href} aria-label={`Abrir ${championship.name}`}>
           {championship.bannerUrl
             ? <img src={championship.bannerUrl} alt="" loading="lazy" decoding="async" />
             : <span className="dz-champ-card-fallback" aria-hidden="true"><Trophy size={42} /></span>}
-        </a>
+        </Link>
 
         <div className="dz-champ-card-badges" aria-label="Situação do campeonato">
           <span className={freeSlots <= 0 ? 'is-closed' : freeSlots <= 3 ? 'is-urgent' : ''}>{statusLabel}</span>
@@ -87,11 +89,11 @@ export function ChampionshipCard({
           {onInfo ? (
             <IconButton icon={<Info size={17} />} label={`Informações de ${championship.name}`} onClick={onInfo} />
           ) : (
-            <a className="dz-champ-card-info" href={championship.href} aria-label={`Informações de ${championship.name}`} title="Informações"><Info size={17} /></a>
+            <Link className="dz-champ-card-info" href={championship.href} aria-label={`Informações de ${championship.name}`} title="Informações"><Info size={17} /></Link>
           )}
         </div>
 
-        <a className="dz-champ-card-caption" href={championship.href}>
+        <Link className="dz-champ-card-caption" href={championship.href}>
           <span className="dz-champ-card-copy">
             <small>{producerLabel}</small>
             <strong>{championship.name}</strong>
@@ -101,7 +103,7 @@ export function ChampionshipCard({
             <b>{priceLabel}</b>
             <small>{freeSlots} vaga{freeSlots === 1 ? '' : 's'}</small>
           </span>
-        </a>
+        </Link>
       </div>
     </article>
   )

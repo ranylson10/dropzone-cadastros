@@ -1,7 +1,7 @@
 /**
- * Logo oficial do DropZone — fundo transparente, tamanho controlado por prop.
+ * Logo oficial fornecida pelo usuário, com cor da interface aplicada pela máscara.
  * Use em header, login e qualquer chrome do sistema.
- * Nunca use <img src="/branding/dropzone-platform.png"> solto sem tamanho.
+ * O PNG original permanece intacto; sua transparência preserva o desenho.
  */
 type SystemLogoProps = {
   size?: number
@@ -28,25 +28,27 @@ export function SystemLogo({
     maxHeight: px,
     minWidth: px,
     minHeight: px,
-    objectFit: fit,
     display: 'block' as const,
     flex: `0 0 ${px}px`,
-    background: 'transparent',
+    backgroundColor: variant === 'light' ? '#fff' : 'var(--dz-yellow, #f2c900)',
+    maskImage: 'url("/dropzone-icon.png")',
+    WebkitMaskImage: 'url("/dropzone-icon.png")',
+    maskSize: fit,
+    WebkitMaskSize: fit,
+    maskRepeat: 'no-repeat',
+    WebkitMaskRepeat: 'no-repeat',
+    maskPosition: 'center',
+    WebkitMaskPosition: 'center',
     // CSS hard-locks leem esta variável
     ['--system-logo-size' as string]: `${px}px`,
   }
 
-  const source = variant === 'accent' ? '/branding/dropzone-platform-accent.png' : variant === 'light' ? '/branding/dropzone-platform-light.png' : '/branding/dropzone-platform.png'
-
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <span
       className={`system-logo ${className}`.trim()}
-      src={source}
-      alt={alt}
-      width={px}
-      height={px}
-      decoding="async"
+      role={alt ? 'img' : undefined}
+      aria-label={alt || undefined}
+      aria-hidden={alt ? undefined : true}
       style={style}
     />
   )
