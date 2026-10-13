@@ -28,7 +28,7 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
             <section className="dz-market-showcase" aria-label="Explore campeonatos de Free Fire">
               <div className="dz-market-showcase-copy">
                 <span className="dz-market-showcase-kicker"><Trophy size={15} aria-hidden="true" /> COMPITA NO DROPZONE</span>
-                <h1>Seu próximo campeonato começa aqui.</h1>
+                <h1><span className="dz-market-desktop-title">Seu próximo campeonato começa aqui.</span><span className="dz-market-mobile-title">Campeonatos</span></h1>
                 <p>Encontre campeonatos de Free Fire, acompanhe vagas, premiações e participe com sua equipe.</p>
                 <Link href="#campeonatos-lista" className="dz-market-showcase-button">Explorar campeonatos <ArrowUpRight size={17} aria-hidden="true" /></Link>
               </div>

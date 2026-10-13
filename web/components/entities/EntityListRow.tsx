@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 import { EntityAvatar } from './EntityAvatar'
 
 export type EntityKind = 'equipes' | 'jogadores' | 'produtoras' | 'managers'
@@ -50,7 +51,7 @@ export function EntityListRow({
     ].filter(Boolean).join(' · ') || 'Perfil competitivo cadastrado no DropZone.'
 
     return (
-      <a
+      <Link
         className={classes}
         href={href}
         data-entity-kind={kind}
@@ -79,12 +80,12 @@ export function EntityListRow({
         ))}
 
         <ChevronRight size={18} className="directory-list-arrow dz-entity-row__arrow dz-entity-table-open" aria-hidden="true" />
-      </a>
+      </Link>
     )
   }
 
   return (
-    <a
+    <Link
       className={classes}
       href={href}
       data-entity-kind={kind}
@@ -113,6 +114,6 @@ export function EntityListRow({
         </span>
       ) : null}
       <ChevronRight size={18} className="directory-list-arrow dz-entity-row__arrow" aria-hidden="true" />
-    </a>
+    </Link>
   )
 }

@@ -19,7 +19,7 @@ type Props = {
   onAccountClick?: () => void
 }
 
-type StoreNavItem = { label: string; href: string; icon: LucideIcon }
+type StoreNavItem = { label: string; href: string; icon: LucideIcon; shortLabel?: string; active?: boolean }
 const PRIMARY_NAV: StoreNavItem[] = [
   { label: 'Início', href: '/', icon: Home },
   { label: 'Campeonatos', href: '/campeonatos', icon: Trophy },
@@ -54,12 +54,12 @@ function StoreNavLink({ item, pathname, onNavigate }: {
   item: StoreNavItem; pathname: string; onNavigate?: () => void
 }) {
   const Icon = item.icon
-  const active = isActive(pathname, item.href)
+  const active = item.active ?? isActive(pathname, item.href)
   return (
     <Link href={item.href} className={active ? 'active' : ''}
-      aria-current={active ? 'page' : undefined} title={item.label} onClick={onNavigate}>
+      aria-current={active ? 'page' : undefined} aria-label={item.label} title={item.label} onClick={onNavigate}>
       <Icon size={19} aria-hidden="true" />
-      <span>{item.label}</span>
+      <span>{item.shortLabel || item.label}</span>
     </Link>
   )
 }
@@ -159,8 +159,8 @@ export function StorefrontHeader({ authenticated = false, onAccountClick }: Prop
           </aside>
           <nav className="dz-public-bottom-nav" aria-label="Navegação inferior">
             {[
-              PRIMARY_NAV[0], PRIMARY_NAV[1], PRIMARY_NAV[2], SECONDARY_NAV[0],
-              { label: 'Minha área', href: profileHref, icon: UserRound },
+              PRIMARY_NAV[0], { ...PRIMARY_NAV[1], shortLabel: 'Competir' }, PRIMARY_NAV[2], SECONDARY_NAV[0],
+              { label: 'Minha área', shortLabel: 'Conta', href: profileHref, icon: UserRound, active: false },
             ].map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} />)}
           </nav>
         </>

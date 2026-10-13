@@ -27,6 +27,7 @@ import '@/styles/commerce-density-r07.css'
 import '@/styles/auth-invites-density-r08.css'
 import '@/styles/admin-broadcast-density-r09.css'
 import '@/styles/unified-platform-r14.css'
+import '@/styles/mobile-app.css'
 import { ApplicationRuntime } from '@/components/layout/ApplicationRuntime'
 
 

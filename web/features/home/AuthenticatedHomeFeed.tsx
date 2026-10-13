@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 import { Input as UiInput } from '@/components/ui/Field'
 import { SystemLogo } from '@/components/brand/SystemLogo'
@@ -43,6 +44,7 @@ function safeHref(value: string, fallback = '/campeonatos') {
 const CATEGORY_ICONS = [Trophy, Shield, UsersRound, Swords, Gift, UserPlus] as const
 
 export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
+  const router = useRouter()
   const [vacancies, setVacancies] = useState<VacancyCatalogItem[]>([])
   const [loadingVacancies, setLoadingVacancies] = useState(true)
   const [homeConfig, setHomeConfig] = useState<HomeConfig>(DEFAULT_HOME_CONFIG)
@@ -84,7 +86,7 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
   function submitSearch(event: FormEvent) {
     event.preventDefault()
     const query = searchValue.trim()
-    window.location.assign(query ? `/campeonatos?q=${encodeURIComponent(query)}` : '/campeonatos')
+    router.push(query ? `/campeonatos?q=${encodeURIComponent(query)}` : '/campeonatos')
   }
 
   return (

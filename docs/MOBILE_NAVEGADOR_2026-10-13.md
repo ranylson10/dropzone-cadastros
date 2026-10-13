@@ -1,0 +1,17 @@
+# Interface compacta no navegador do celular
+
+Pedido de 13/10/2026: continuar as verificações e correções, com aparência de aplicativo no navegador do celular. O usuário confirmou que o problema é no navegador, não no aplicativo Android.
+
+O catálogo de campeonatos usava um banner de aproximadamente 248 px e cards de 420 px em 390 px de largura. Nos diretórios, o `flex-basis` da busca era aplicado no eixo vertical por outra regra da cascata: a busca virava um bloco alto. As métricas de equipes e jogadores ocupavam várias caixas separadas. A navegação inferior cortava o texto de campeonatos.
+
+A apresentação mobile foi centralizada em `web/styles/mobile-app.css`, aplicada até 767 px. Home e catálogos passam a usar títulos curtos, atalhos horizontais, miniaturas e linhas separadas por divisórias. Preço, vagas, premiação, data e ações continuam disponíveis. A home deixa de mostrar os banners promocionais duplicados no celular; seus destinos continuam nos atalhos, navegação e menu. Os diretórios conservam os metadados em linhas, com a busca limitada a 44 px. Ranking, acesso, carrinho vazio e cabeçalhos de perfis também foram compactados. O resumo de pedido com zero itens deixa de ocupar outra caixa no carrinho.
+
+O cabeçalho compartilhado dos painéis ganhou título menor e teve corrigido o conflito de cores entre a navegação e as folhas de densidade. Essa conferência cobre o componente compartilhado com dados fictícios; não certifica todas as telas autenticadas. A geometria desktop continua nas folhas das respectivas funcionalidades. A logo original continua como máscara, sem editar seu arquivo PNG.
+
+Links dos diretórios de entidades e a busca da home agora usam a navegação do Next, preservando a página durante a transição. Os botões de favoritos/carrinho mantêm callbacks, impedimentos e estado. Não foram alteradas regras de inscrição, pagamentos, permissões, banco, migrations, dependências ou flags transacionais.
+
+Validação e capturas locais: `relatorios-testes/mobile-web-2026-10-13`. Conferência em Chromium de 320, 390, 430 e 1440 px, incluindo busca, filtros, navegação para perfil sem recarga de documento, nomes compridos e troca de seção no componente de painel. As APIs do navegador são simuladas e as requisições externas do navegador são bloqueadas; as páginas de diretório/perfil fazem suas leituras públicas normais no servidor. Sem login, gravações ou pagamentos. A rota temporária de conferência é removida antes da compilação/publicação.
+
+Continuam pendentes a conferência no Safari/Chrome físico, teclado virtual, zoom real e a revisão visual de todas as subáreas autenticadas e estados da matriz. Este lote não encerra as seis pendências originais da auditoria. O audit online da raiz continua dispensado pelo usuário; a guarda de release permanece intacta.
+
+Resultado local: 44 combinações de página/largura passaram, sem exceder a largura da tela; busca dos diretórios, busca da home sem recarga, filtros, navegação para perfil e troca de seção passaram. Os botões de ação medidos mantêm 44 px. Os campeonatos passaram de aproximadamente 420 para 193 px de altura em 390 px. As 43 suítes existentes de segurança/regras, tipos web e compilação de produção passaram. Um teste interrompido por atualização dos arquivos em modo dev foi repetido com código estabilizado; a conferência final não registrou erros de página. A publicação seguirá a autorização anterior para GitHub/Vercel, com CI e deploy conferidos separadamente.

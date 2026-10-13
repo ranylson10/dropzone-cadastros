@@ -76,6 +76,10 @@ export function ChampionshipListRow({
           <strong>{championship.name}</strong>
           <span>{[championship.producerLabel, championship.formatLabel].filter(Boolean).join(' · ') || 'Campeonato Free Fire'}</span>
         </Link>
+        <div className="dz-champ-list-row__mobile-status">
+          <span>{statusLabel}</span>
+          {championship.participationLabel ? <span>{championship.participationLabel}</span> : null}
+        </div>
         <dl className="dz-champ-list-row__metrics">
           <div><dt>Vagas</dt><dd>{freeSlots == null ? 'A confirmar' : totalSlots != null && totalSlots > 0 ? `${freeSlots}/${totalSlots}` : String(freeSlots)}</dd></div>
           <div><dt>Inscrição</dt><dd>{championship.priceLabel || 'Sob consulta'}</dd></div>
