@@ -2,6 +2,16 @@
 
 Lote posterior a `3c773844`. O pedido é reorganizar as telas como uma aplicação móvel, incluindo páginas auxiliares, subabas, formulários e diálogos. Largura sem transbordamento, isoladamente, não foi usada como aprovação visual.
 
+## Correção posterior do ranking
+
+A captura seguinte do usuário mostrou que `/rank` ainda conservava a composição de desktop: abas com duas molduras, descrição grande, busca e metodologia em caixas e lista com cabeçalho e faixas de tabela. A aprovação visual anterior dessa tela foi insuficiente.
+
+O ranking mobile agora tem título curto com ajuda/atualização, abas simples com indicador, busca com limpeza, contagem e horário discretos, e lista contínua de posição, identidade, score e tier. Cabeçalho de tabela, faixas alternadas, selo de tier e textura decorativa foram retirados no celular. Nomes podem ocupar duas linhas; todas as estatísticas continuam nos detalhes. Equipes, jogadores e campeonatos usam a mesma composição. Ajuda e detalhes abrem como folhas na parte inferior; textos longos não são truncados nos detalhes. As linhas são botões nativos em lista ordenada, mantendo ativação por teclado.
+
+O cálculo, a ordem, os scores, os tiers e a API não foram alterados. A busca conserva a posição original. A primeira leitura não mostra um falso estado vazio, e uma falha de atualização conserva os resultados anteriores para nova tentativa.
+
+Evidências locais em `relatorios-testes/rank-mobile-2026-10-13`: página Next compilada em 320/360/390/430 e desktop1280, três modos, detalhes/estatísticas adicionais, ajuda, busca com posição original, limpeza/troca de aba, vazio, erro, carregamento e recuperação. As combinações controladas usam apenas fixtures GET locais; contrato de publicação/privacidade do ranking também foi executado sem gravações. CI, deploy e conferência pública posterior ficam em `final.json` nesse diretório. Isso corrige a tela apontada; não é certificação de todos os estados do sistema nem de aparelho físico.
+
 ## Correções
 
 - Acesso, agenda, carteira, carrinho, afiliados, leitura de documentos, convites e ferramentas de operação passam a usar a hierarquia de superfícies, texto e ações do mobile. Banners, caixas aninhadas e cabeçalhos duplicados foram reduzidos em áreas específicas. Comprovantes, documentos editáveis e conteúdo autoral de transmissão conservam seus papéis próprios.
