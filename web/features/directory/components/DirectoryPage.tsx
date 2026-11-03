@@ -40,7 +40,7 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
                     <Link key={item.id} href={`/campeonatos/${item.id}`} title={item.name} aria-label={`Conhecer ${item.name}`}>
                       <Image
                         src={cachedStorageMediaUrl(item.banner || item.image || '')} alt={item.name}
-                        width={720} height={450} sizes="240px" loading="lazy"
+                        width={1200} height={1500} sizes="240px" loading="lazy"
                         unoptimized={!canOptimizeCatalogImage(cachedStorageMediaUrl(item.banner || item.image || ''))}
                       />
                     </Link>

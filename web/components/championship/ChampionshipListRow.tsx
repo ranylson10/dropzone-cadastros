@@ -65,19 +65,19 @@ export function ChampionshipListRow({
       data-championship-list-row
       data-championship-id={championship.id}
     >
+      <span className="dz-champ-list-row__badges">
+        <small className={freeSlots != null && freeSlots > 0 ? 'is-open' : 'is-closed'}>{statusLabel}</small>
+        {championship.participationLabel ? <small className="is-participating">{championship.participationLabel}</small> : null}
+      </span>
       <Link className={classes('dz-champ-list-row__media', championship.isBannerImage && 'is-banner')} href={championship.href} aria-label={`Ver campeonato ${championship.name}: ${statusLabel}${championship.participationLabel ? ` · ${championship.participationLabel}` : ''}`}>
         {championship.imageUrl && failedImage !== championship.imageUrl
           ? <Image
-              src={championship.imageUrl} alt="" width={720} height={450}
+              src={championship.imageUrl} alt="" width={1200} height={1500}
               sizes="(max-width: 767px) 48px, (max-width: 1100px) 33vw, 400px"
               loading="lazy" unoptimized={!canOptimizeCatalogImage(championship.imageUrl)}
               onError={() => setFailedImage(championship.imageUrl || '')}
             />
           : <Trophy size={36} aria-hidden="true" />}
-        <span className="dz-champ-list-row__badges">
-          <small className={freeSlots != null && freeSlots > 0 ? 'is-open' : 'is-closed'}>{statusLabel}</small>
-          {championship.participationLabel ? <small className="is-participating">{championship.participationLabel}</small> : null}
-        </span>
       </Link>
 
       <div className="dz-champ-list-row__body">

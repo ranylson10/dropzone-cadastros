@@ -40,7 +40,7 @@ function priceLabel(item: VacancyCatalogItem) {
 
 function safeHref(value: string, fallback = '/campeonatos') {
   const raw = String(value || '').trim()
-  return raw.startsWith('/') || /^https?:\/\//i.test(raw) ? raw : fallback
+  return (raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('\\')) || /^https?:\/\//i.test(raw) ? raw : fallback
 }
 
 
@@ -113,9 +113,6 @@ export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPane
 
       <div className="store-home-body">
         <section className={`store-home-hero ${hero.image_url ? 'has-media' : 'no-media'}`} aria-label="Destaques">
-          <div className="store-home-hero-media" aria-hidden="true">
-            {hero.image_url ? <img src={hero.image_url} alt="" /> : null}
-          </div>
           <div className="store-home-hero-shade" />
           <div className="store-home-width store-home-hero-inner">
             <div className="store-home-hero-copy">
@@ -140,11 +137,19 @@ export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPane
               </div>
             </div>
             <span className="dz-hero-watermark" aria-hidden="true">DZ</span>
-            {featured.some((item) => item.banner_url || item.logo_url) ? (
+            {hero.image_url ? (
+              <div className="store-home-hero-custom-art">
+                <Link href={safeHref(hero.image_href || hero.primary_href)} aria-label={`Abrir destaque: ${hero.title} ${hero.accent}`}>
+                  <Image src={hero.image_url} alt={`${hero.title} ${hero.accent}`} width={1200} height={1500}
+                    sizes="(max-width: 600px) calc(100vw - 64px), 280px" loading="eager"
+                    unoptimized={!canOptimizeCatalogImage(hero.image_url)} />
+                </Link>
+              </div>
+            ) : featured.some((item) => item.banner_url || item.logo_url) ? (
               <div className="store-home-hero-previews" aria-label="Campeonatos em destaque">
                 {featured.filter((item) => item.banner_url || item.logo_url).slice(0, 3).map((item) => (
                   <Link key={item.id} href={`/campeonatos/${encodeURIComponent(item.id)}`} aria-label={`Ver ${item.nome}`}>
-                    <Image src={item.banner_url || item.logo_url || ''} alt="" loading="lazy" width={720} height={450} sizes="400px" unoptimized={!canOptimizeCatalogImage(item.banner_url || item.logo_url || '')} />
+                    <Image src={item.banner_url || item.logo_url || ''} alt="" loading="lazy" width={1200} height={1500} sizes="180px" unoptimized={!canOptimizeCatalogImage(item.banner_url || item.logo_url || '')} />
                   </Link>
                 ))}
               </div>

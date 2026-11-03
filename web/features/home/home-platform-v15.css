@@ -186,7 +186,7 @@
 .store-home.home-platform-v15 .store-home-hero-previews a:first-child {margin-left: 0;transform: rotate(-9deg);}
 .store-home.home-platform-v15 .store-home-hero-previews a:nth-child(2) {z-index: 2;transform: rotate(5deg);}
 .store-home.home-platform-v15 .store-home-hero-previews a:nth-child(3) {z-index: 3;transform: rotate(10deg);}
-.store-home.home-platform-v15 .store-home-hero-previews img {display: block;width: 100%;height: 100%;object-fit: cover;}
+.store-home.home-platform-v15 .store-home-hero-previews img {display: block;width: 100%;height: 100%;object-fit: contain;}
 .store-home.home-platform-v15 .store-home-hero-sidecopy {
   display: grid;gap: 9px;justify-self: end;align-content: center;
   width: min(100%,240px);min-height: 120px;
@@ -275,12 +275,12 @@
 }
 .store-home.home-platform-v15 .store-home-products .dz-champ-card-art {
   display: block;flex: none;
-  width: 100%;aspect-ratio: 16/10;
+  width: 100%;aspect-ratio:var(--dz-champ-art-ratio);
   overflow: hidden;background: #193141;
 }
 .store-home.home-platform-v15 .store-home-products .dz-champ-card-art > img {
   display: block;width: 100%;height: 100%;
-  object-fit: cover;object-position: center;background: #193141;
+  object-fit:contain;object-position:center;background:var(--dz-paper);
 }
 .store-home.home-platform-v15 .store-home-products .dz-champ-card-fallback {width: 100%;height: 100%;aspect-ratio: auto;}
 .store-home.home-platform-v15 .store-home-products .dz-champ-card-media::after {display: none;}

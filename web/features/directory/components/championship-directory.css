@@ -279,13 +279,13 @@
 .directory-market-page .championship-directory-list > .dz-champ-list-row:hover { border-color: var(--dz-stroke) !important; background: var(--market-panel-hover) !important; }
 .directory-market-page .dz-champ-list-row__media {
   display: grid !important; place-items: center; position: relative;
-  width: 100% !important; height: auto !important; aspect-ratio: 16 / 9 !important;
+  width: 100% !important; height: auto !important; aspect-ratio: var(--dz-champ-art-ratio) !important;
   padding: 0 !important; margin: 0 !important; overflow: hidden;
   border: 0 !important; border-radius: 0 !important; background: var(--dz-white);
   color: var(--dz-ink); text-decoration: none;
 }
 .directory-market-page .dz-champ-list-row__media img { width: 100% !important; height: 100% !important; object-fit: contain !important; padding: 8px !important; }
-.directory-market-page .dz-champ-list-row__media.is-banner img { object-fit: cover !important; padding: 0 !important; }
+.directory-market-page .dz-champ-list-row__media.is-banner img { object-fit: contain !important; padding: 0 !important; }
 .directory-market-page .dz-champ-list-row__badges { position: absolute; z-index: 2; top: 7px; left: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
 .directory-market-page .dz-champ-list-row__badges small { padding: 3px 6px; border: 1px solid var(--dz-stroke); border-radius: 4px; background: var(--dz-white); color: var(--dz-ink); font-size: 12px !important; font-weight: 700; line-height: 1.1; }
 .directory-market-page .dz-champ-list-row__badges .is-closed { color: var(--dz-ink); }

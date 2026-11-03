@@ -66,7 +66,7 @@ export function ChampionshipCard({
         <Link className="dz-champ-card-art" href={championship.href} aria-label={`Abrir ${championship.name}`}>
           {championship.bannerUrl && failedImage !== championship.bannerUrl
             ? <Image
-                src={championship.bannerUrl} alt="" width={720} height={450}
+                src={championship.bannerUrl} alt="" width={1200} height={1500}
                 sizes="(max-width: 600px) calc(100vw - 36px), (max-width: 1023px) 50vw, 400px"
                 loading={imagePriority ? 'eager' : 'lazy'}
                 fetchPriority={imagePriority ? 'high' : 'auto'}

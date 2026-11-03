@@ -17,6 +17,7 @@
   --dz-page-heading-bg: var(--dz-coal);
   --dz-page-heading-color: var(--dz-paper);
   --dz-unified-max: 1160px;
+  --dz-champ-art-ratio: 4 / 5;
   --dz-unified-bg: var(--dz-paper);
   --dz-unified-panel: var(--dz-white);
   --dz-unified-panel-hover: #e9e6dc;
@@ -140,10 +141,10 @@ body#dropzone-app .home-platform-v15 .store-home-hero-dots button::after { conte
 body#dropzone-app .home-platform-v15 .store-home-hero-dots button.active::after { background: var(--dz-orange); }
 body#dropzone-app .home-platform-v15 .store-home-hero-shade { background: linear-gradient(90deg,#1c1e1bf0,#1c1e1b55); }
 body#dropzone-app .home-platform-v15 .store-home-hero-media { opacity: .35; }
-body#dropzone-app .home-platform-v15 .store-home-hero-previews { display: grid; position: relative; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; padding: 0; transform: rotate(-5deg); z-index: 1; }
-body#dropzone-app .home-platform-v15 .store-home-hero-previews a { width: 100%; height: 100px; border: 4px solid #f1efe7; border-radius: 0; box-shadow: none; transform: none; overflow: hidden; }
-body#dropzone-app .home-platform-v15 .store-home-hero-previews a:first-child { grid-column: 1 / -1; width: 76%; height: 135px; margin: 0 auto -28px; z-index: 2; transform: rotate(9deg); }
-body#dropzone-app .home-platform-v15 .store-home-hero-previews img { width: 100%; height: 100%; object-fit: cover; }
+body#dropzone-app .home-platform-v15 .store-home-hero-previews { display: grid; position: relative; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; width: 100%; padding: 12px; transform: none; z-index: 1; }
+body#dropzone-app .home-platform-v15 .store-home-hero-previews a { width: 100%; height: auto; aspect-ratio:var(--dz-champ-art-ratio); margin:0!important; transform:none!important; border:4px solid #f1efe7; border-radius: 0; box-shadow: none; transform: none; overflow: hidden; }
+body#dropzone-app .home-platform-v15 .store-home-hero-previews a:first-child { grid-column:auto; width:100%; height:auto; margin:0; z-index:2; transform:rotate(-7deg); }
+body#dropzone-app .home-platform-v15 .store-home-hero-previews img { width:100%; height:100%; object-fit:contain; }
 .dz-hero-watermark { position: absolute; right: -10px; bottom: -35px; font: 700 320px/.8 var(--font-display),sans-serif; letter-spacing: -.06em; color: #30352a; pointer-events: none; z-index: -1; }
 body#dropzone-app .home-platform-v15 .store-home-hero-sidecopy { background: transparent; border: 0; color: #c5c9ba; }
 body#dropzone-app .home-platform-v15 .store-home-content { padding-top: 20px; padding-bottom: 40px; }
@@ -175,17 +176,17 @@ body#dropzone-app .home-platform-v15 .store-home-category-copy small { display: 
 .dz-category-index { position: absolute; right: 8px; top: 4px; color: var(--dz-muted); font-size: 9px; }
 body#dropzone-app .home-platform-v15 .store-home-products { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 22px; }
 body#dropzone-app .home-platform-v15 .dz-champ-card { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
-body#dropzone-app .home-platform-v15 .dz-champ-card-media { position: relative !important; display: grid !important; grid-template-columns: minmax(0,1fr) !important; grid-template-rows: auto auto !important; height: auto !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; border-radius: 0 !important; overflow: visible !important; }
-body#dropzone-app .home-platform-v15 .dz-champ-card-art { grid-column: 1 !important; grid-row: 1 !important; display: block !important; position: relative !important; inset: auto !important; width: 100% !important; height: auto !important; aspect-ratio: 1.6; border: 0; border-radius: 3px !important; overflow: hidden; background: #dad7ca; }
-body#dropzone-app .home-platform-v15 .dz-champ-card-art img { width: 100% !important; height: 100% !important; object-fit: cover !important; transition: transform .25s ease; }
+body#dropzone-app .home-platform-v15 .dz-champ-card-media { position: relative !important; display: grid !important; grid-template-columns: minmax(0,1fr) !important; grid-template-rows:auto auto auto auto!important; height: auto !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; border-radius: 0 !important; overflow: visible !important; }
+body#dropzone-app .home-platform-v15 .dz-champ-card-art { grid-column: 1 !important; grid-row: 2 !important; display: block !important; position: relative !important; inset: auto !important; width: 100% !important; height: auto !important; aspect-ratio:var(--dz-champ-art-ratio); border: 0; border-radius: 3px !important; overflow: hidden; background: #dad7ca; }
+body#dropzone-app .home-platform-v15 .dz-champ-card-art img { width: 100% !important; height: 100% !important; object-fit: contain !important; transition: transform .25s ease; }
 body#dropzone-app .home-platform-v15 .dz-champ-card-art::after { display: none !important; }
-body#dropzone-app .home-platform-v15 .dz-champ-card-badges { display: flex !important; position: absolute !important; top: 9px !important; left: 9px !important; right: auto !important; z-index: 2; }
+body#dropzone-app .home-platform-v15 .dz-champ-card-badges { display:flex!important; position:static!important; grid-column:1; grid-row:1; max-width:none; padding:0 0 6px; z-index:2; }
 body#dropzone-app .home-platform-v15 .dz-champ-card-badges > span { background: #f1efe7 !important; color: #242621 !important; font: 600 10px/1.3 var(--font-body),sans-serif; border: 0 !important; border-radius: 2px; padding: 5px 7px; }
-body#dropzone-app .home-platform-v15 .dz-champ-card-actions { display: flex !important; flex-direction: column !important; position: absolute !important; inset: 9px 9px auto auto !important; width: auto !important; z-index: 3; gap: 5px; }
+body#dropzone-app .home-platform-v15 .dz-champ-card-actions { display:flex!important; flex-direction:row!important; position:static!important; grid-column:1; grid-row:4; justify-content:flex-end; width:100%!important; z-index:3; gap:5px; }
 body#dropzone-app .home-platform-v15 .dz-champ-card-actions :is(button,a) { display: grid !important; width: 36px !important; height: 36px !important; background: #1c1e1be6 !important; color: #fffef9 !important; border: 0 !important; border-radius: 3px !important; box-shadow: none !important; }
 body#dropzone-app .home-platform-v15 .dz-champ-card-actions .is-active { color: #ffb295 !important; }
 body#dropzone-app .home-platform-v15 .dz-champ-card-actions .dz-champ-card-info { display: none !important; }
-body#dropzone-app .home-platform-v15 .dz-champ-card-caption { position: static !important; grid-column: 1 !important; grid-row: 2 !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; padding: 14px 0 !important; background: transparent !important; color: var(--dz-ink) !important; border: 0 !important; }
+body#dropzone-app .home-platform-v15 .dz-champ-card-caption { position: static !important; grid-column: 1 !important; grid-row: 3 !important; display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; padding: 14px 0 !important; background: transparent !important; color: var(--dz-ink) !important; border: 0 !important; }
 body#dropzone-app .home-platform-v15 .dz-champ-card-copy { display: flex; flex-direction: column; gap: 5px; }
 body#dropzone-app .home-platform-v15 .dz-champ-card-copy > small { display: block !important; font: 600 10px/1.4 var(--font-body),sans-serif; letter-spacing: .07em; color: var(--dz-muted) !important; text-transform: uppercase; }
 body#dropzone-app .home-platform-v15 .dz-champ-card-copy > strong { display: block; font: 700 27px/1.1 var(--font-display),sans-serif !important; color: var(--dz-ink) !important; }
@@ -251,6 +252,7 @@ body#dropzone-app .directory-market-page .dz-market-section-eyebrow { color: var
 body#dropzone-app .directory-market-page .dz-champ-list-row { border: 1px solid var(--dz-stroke) !important; border-radius: 3px !important; background: var(--dz-white) !important; color: var(--dz-ink) !important; box-shadow: none !important; overflow: hidden; }
 body#dropzone-app .directory-market-page .dz-champ-list-row:hover { background: var(--dz-white) !important; border-color: #9a9e8e !important; }
 body#dropzone-app .directory-market-page .dz-champ-list-row__media { background: #dedccf !important; border-radius: 0; }
+body#dropzone-app .directory-market-page .dz-champ-list-row__badges { position:static!important; display:flex; gap:5px; padding:6px 8px; }
 body#dropzone-app .directory-market-page .dz-champ-list-row__badges small { background: #f1efe7 !important; color: var(--dz-ink) !important; border: 0; border-radius: 2px; font-size: 10px !important; padding: 6px 8px; }
 body#dropzone-app .directory-market-page .dz-champ-list-row__identity strong { font: 700 28px/1.1 var(--font-display),sans-serif !important; color: var(--dz-ink) !important; }
 body#dropzone-app .directory-market-page .dz-champ-list-row__identity span { font-size: 11px !important; color: var(--dz-muted) !important; }
@@ -441,7 +443,7 @@ body#dropzone-app .page-authenticated .dz-r20-configure__steps button > span { c
 }
 
 @media (hover:hover) and (prefers-reduced-motion:no-preference) {
-  body#dropzone-app .home-platform-v15 .dz-champ-card:hover .dz-champ-card-art img { transform: scale(1.035); }
+  body#dropzone-app .home-platform-v15 .dz-champ-card:hover .dz-champ-card-art img { transform:none; }
 }
 @media (max-width:1023px) {
   body#dropzone-app :is(.directory-page .directory-page-body-with-banner,.dz-platform-body) { width: calc(100% - 36px) !important; padding-top: 18px !important; }
@@ -525,7 +527,7 @@ body#dropzone-app .page-authenticated .dz-r20-configure__steps button > span { c
   body#dropzone-app .home-platform-v15 .store-home-category-copy small { font-size: 10px; }
   body#dropzone-app .home-platform-v15 .store-home-category-media { width: 25px; flex-basis: 25px; }
   body#dropzone-app .home-platform-v15 .store-home-products { grid-template-columns: 1fr; gap: 18px; }
-  body#dropzone-app .home-platform-v15 .dz-champ-card-art { aspect-ratio: 1.85; }
+  body#dropzone-app .home-platform-v15 .dz-champ-card-art { aspect-ratio:var(--dz-champ-art-ratio); }
   body#dropzone-app .home-platform-v15 .dz-champ-card-copy > strong { font-size: 28px !important; }
   body#dropzone-app .home-platform-v15 .dz-champ-card-actions :is(button,a) { width: 44px !important; height: 44px !important; }
   body#dropzone-app .home-platform-v15 .store-home-promos { grid-template-columns: 1fr; }
@@ -768,4 +770,22 @@ body#dropzone-app .dz-not-found section > div { display:flex; flex-wrap:wrap; ga
   body#dropzone-app .home-platform-v15 .store-home-section-head { margin-bottom:8px; }
   body#dropzone-app .home-platform-v15 .store-home-categories > a { min-height:64px; padding-block:8px; }
   body#dropzone-app :is(.bank-wallet-hero,.agenda-toolbar,.cart-hero,.legal-hero)::after { display:none!important; }
+}
+
+/* Championship artwork has one upload format in every presentation. */
+body#dropzone-app .store-home-hero-custom-art { display:grid; place-items:center; min-width:0; padding:8px; }
+body#dropzone-app .store-home-hero-custom-art a { display:block; width:min(100%,224px); aspect-ratio:var(--dz-champ-art-ratio); background:var(--dz-paper); }
+body#dropzone-app .store-home-hero-custom-art img { display:block; width:100%; height:100%; object-fit:contain; }
+body#dropzone-app .home-platform-v15 .has-media .dz-hero-watermark { display:none; }
+body#dropzone-app .directory-market-page .dz-market-showcase-images { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:16px; }
+body#dropzone-app .directory-market-page .dz-market-showcase-images a { width:100%; aspect-ratio:var(--dz-champ-art-ratio); height:auto!important; margin:0!important; transform:none!important; }
+body#dropzone-app .directory-market-page .dz-market-showcase-images img { object-fit:contain!important; }
+@media(max-width:600px) {
+  body#dropzone-app .home-platform-v15 .store-home-hero.has-media .store-home-hero-inner { display:flex!important; flex-direction:column; gap:8px; }
+  body#dropzone-app .home-platform-v15 .has-media .store-home-hero-copy { order:2; width:100%; }
+  body#dropzone-app .home-platform-v15 .has-media .store-home-hero-copy > :not(.store-home-hero-dots) { display:none; }
+  body#dropzone-app .home-platform-v15 .has-media .store-home-hero-copy > h1 { display:block!important; position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  body#dropzone-app .home-platform-v15 .has-media .store-home-hero-dots { width:100%; justify-content:center; margin:4px 0; }
+  body#dropzone-app .store-home-hero-custom-art { order:1; width:100%; padding:0; }
+  body#dropzone-app .store-home-hero-custom-art a { width:min(100%,280px); }
 }

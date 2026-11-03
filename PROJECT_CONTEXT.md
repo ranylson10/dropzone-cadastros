@@ -1,3 +1,9 @@
+## Padrão único de banners (03/11/2026)
+
+- Arte de campeonato e imagem do carrossel: **1200 × 1500 px (4:5)**. Cards e destaques preservam a imagem inteira; miniaturas móveis usam contenção, sem exigir outra arte.
+- Admin → Página inicial → Carrossel principal permite imagem com link próprio; vazio usa o link principal. O banner aparece também no celular.
+- Guia: `docs/PADRAO_BANNERS_20261103.md`. Manter esse contrato ao alterar cards e carrossel.
+
 ## Correção da estrutura dos painéis (03/11/2026)
 
 - Painéis de perfil e catálogo usam o mesmo `StorefrontHeader`, navegação e `PlatformPageBody`; não recriar um cabeçalho ou largura próprios para o painel.

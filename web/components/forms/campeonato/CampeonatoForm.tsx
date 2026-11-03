@@ -1387,8 +1387,8 @@ export function CampeonatoForm({
           <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
         </div>
         {creationFlow === 'complete' ? <div className="championship-banner-upload">
-          <UploadField label="Banner da vitrine" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
-          <p>O banner é opcional. Se enviar, ele será ajustado e compactado automaticamente.</p>
+          <UploadField label="Banner da vitrine · 1200 × 1500 px (4:5)" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
+          <p>Formato único: 1200 × 1500 px (4:5). Use a mesma arte nos cards e destaques, no celular e no PC. Imagens existentes serão exibidas inteiras.</p>
         </div> : null}
       </div>
     )
@@ -1584,8 +1584,8 @@ export function CampeonatoForm({
           <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
         </div>
         <div className="championship-banner-upload">
-          <UploadField label="Banner da vitrine" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
-          <p>Formato 4:5. Ajuste a imagem antes de salvar; ela será convertida para WebP e compactada automaticamente.</p>
+          <UploadField label="Banner da vitrine · 1200 × 1500 px (4:5)" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
+          <p>Use 1200 × 1500 px (4:5). A mesma arte aparece inteira nos cards e destaques, no celular e no PC. O arquivo será compactado automaticamente.</p>
         </div>
       </section>
 

@@ -15,3 +15,5 @@
 .home-editor-two{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 @media(max-width:1000px){.home-editor-category-grid{grid-template-columns:1fr 1fr}.home-editor-card,.home-editor-promo-grid{grid-template-columns:1fr}.home-editor-card.compact{grid-template-columns:120px minmax(0,1fr)}}
 @media(max-width:680px){.home-editor-category-grid{grid-template-columns:1fr}.home-editor-card.compact{grid-template-columns:105px minmax(0,1fr)}.home-editor-two{grid-template-columns:1fr}.home-editor-main-head{align-items:flex-start}.home-editor-main-head>button{width:100%;justify-content:center}}
+
+.home-editor-preview.championship-art{width:min(100%,280px);aspect-ratio:var(--dz-champ-art-ratio);min-height:0;justify-self:center;align-self:start}.home-editor-preview.championship-art>img{object-fit:contain}.home-editor-fields label>small{color:var(--dz-muted);font-size:12px}

@@ -4,6 +4,7 @@ export type HomeHeroSlide = {
   accent: string
   description: string
   image_url: string
+  image_href: string
   primary_label: string
   primary_href: string
   secondary_label: string
@@ -45,6 +46,7 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
       accent: 'COMPITA. VENÇA.',
       description: 'Encontre campeonatos de Free Fire com vagas abertas, datas confirmadas e premiação publicada.',
       image_url: '',
+      image_href: '',
       primary_label: 'VER CAMPEONATOS',
       primary_href: '/campeonatos',
       secondary_label: 'VAGAS ABERTAS',
@@ -58,6 +60,7 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
       accent: 'ABERTAS AGORA.',
       description: 'Compare inscrições, premiações e datas antes de escolher onde sua equipe vai jogar.',
       image_url: '',
+      image_href: '',
       primary_label: 'VER VAGAS',
       primary_href: '/campeonatos?vagas=1',
       secondary_label: 'VER TODOS',
@@ -71,6 +74,7 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
       accent: 'SUBA NO RANK.',
       description: 'Acompanhe equipes e jogadores pelos resultados oficiais e encontre os destaques do competitivo.',
       image_url: '',
+      image_href: '',
       primary_label: 'VER RANKING',
       primary_href: '/rank',
       secondary_label: 'VER EQUIPES',
@@ -128,6 +132,7 @@ export function normalizeHomeConfig(raw: unknown): HomeConfig {
         accent: text(current.accent, fallback.accent),
         description: text(current.description, fallback.description),
         image_url: text(current.image_url, fallback.image_url),
+        image_href: text(current.image_href, fallback.image_href),
         primary_label: text(current.primary_label, fallback.primary_label),
         primary_href: text(current.primary_href, fallback.primary_href),
         secondary_label: text(current.secondary_label, fallback.secondary_label),

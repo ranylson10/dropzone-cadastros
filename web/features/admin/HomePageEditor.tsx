@@ -122,18 +122,19 @@ export function HomePageEditor() {
       {notice ? <div className="admin-feedback">{notice}</div> : null}
 
       <div className="home-editor-block">
-        <div className="home-editor-block-head"><div><strong>Banner principal</strong><small>3 destaques, como no carrossel da referência.</small></div></div>
+        <div className="home-editor-block-head"><div><strong>Carrossel principal</strong><small>3 destaques. Use artes de 1200 × 1500 px (4:5), o mesmo formato dos campeonatos. A imagem inteira será clicável e aparecerá também no celular.</small></div></div>
         <div className="home-editor-hero-grid">
           {config.hero_slides.map((slide, index) => (
             <article className="home-editor-card" key={index}>
-              <div className="home-editor-preview wide">
+              <div className="home-editor-preview championship-art">
                 {slide.image_url ? <img src={slide.image_url} alt="" /> : <span>SEM IMAGEM</span>}
                 <label className="home-editor-upload"><ImagePlus size={15} /> {uploading === `hero-${index}` ? 'Enviando…' : 'Trocar imagem'}<UiInput type="file" accept="image/png,image/jpeg,image/webp" disabled={Boolean(uploading)} onChange={(event) => void uploadImage(`hero-${index}`, event.target.files?.[0], (url) => patchHero(index, { image_url: url }))} /></label>
                 {slide.image_url ? <button type="button" className="home-editor-remove" onClick={() => patchHero(index, { image_url: '' })} aria-label="Remover imagem"><Trash2 size={14} /></button> : null}
               </div>
               <div className="home-editor-fields">
+                <label><span>Link da imagem</span><UiInput value={slide.image_href} placeholder="/campeonatos ou https://…" onChange={(event) => patchHero(index, { image_href: event.target.value })} /><small>Deixe vazio para usar o link do botão principal.</small></label>
                 <label><span>Chamada pequena</span><UiInput value={slide.eyebrow} onChange={(event) => patchHero(index, { eyebrow: event.target.value })} /></label>
-                <div className="home-editor-two"><label><span>Título</span><UiInput value={slide.title} onChange={(event) => patchHero(index, { title: event.target.value })} /></label><label><span>Título verde</span><UiInput value={slide.accent} onChange={(event) => patchHero(index, { accent: event.target.value })} /></label></div>
+                <div className="home-editor-two"><label><span>Título</span><UiInput value={slide.title} onChange={(event) => patchHero(index, { title: event.target.value })} /></label><label><span>Título em destaque</span><UiInput value={slide.accent} onChange={(event) => patchHero(index, { accent: event.target.value })} /></label></div>
                 <label><span>Descrição</span><UiTextarea value={slide.description} onChange={(event) => patchHero(index, { description: event.target.value })} /></label>
                 <div className="home-editor-two"><label><span>Botão principal</span><UiInput value={slide.primary_label} onChange={(event) => patchHero(index, { primary_label: event.target.value })} /></label><label><span>Link principal</span><UiInput value={slide.primary_href} onChange={(event) => patchHero(index, { primary_href: event.target.value })} /></label></div>
                 <div className="home-editor-two"><label><span>Botão secundário</span><UiInput value={slide.secondary_label} onChange={(event) => patchHero(index, { secondary_label: event.target.value })} /></label><label><span>Link secundário</span><UiInput value={slide.secondary_href} onChange={(event) => patchHero(index, { secondary_href: event.target.value })} /></label></div>
