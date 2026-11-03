@@ -18,6 +18,7 @@ export async function buildCompetitiveProfile(kind: 'equipes' | 'jogadores', id:
   const principal = rankRows.sort((a, b) => integer(b.score) - integer(a.score))[0] || null
   const statTotal = (field: string) => statsRows.reduce((total, row) => total + integer(row[field]), 0)
   const total = (field: string) => aggregate(field) || statTotal(field)
+  const hasResults = statsRows.length > 0 || ['quedas', 'abates', 'pontos'].some(field => aggregate(field) > 0)
   const weaponUsage = new Map<string, { nome: string; abates: number; dano: number }>()
   const skillUsage = new Map<string, { tipo: string; personagem: string; habilidade: string; usos: number; pickTimes: number; pickRate: number }>()
   for (const row of statsRows) {
@@ -64,6 +65,8 @@ export async function buildCompetitiveProfile(kind: 'equipes' | 'jogadores', id:
   if (isPlayer) {
     const row = principal
     return {
+      telemetryAvailable: statsRows.length > 0,
+      hasResults,
       label: 'Perfil gamer · dados oficiais', tier: row?.tier || null, score: row?.score || null,
       metrics: [
         { label: 'Abates', value: String(total('abates')) }, { label: 'Dano total', value: compactNumber(total('dano')) },
@@ -88,6 +91,8 @@ export async function buildCompetitiveProfile(kind: 'equipes' | 'jogadores', id:
   }
 
   return {
+    telemetryAvailable: statsRows.length > 0,
+    hasResults,
     label: 'Elenco · dados oficiais', tier: principal?.tier || null, score: principal?.score || null,
     metrics: [
       { label: 'Pontos', value: String(total('pontos')) }, { label: 'Abates', value: String(total('abates')) },

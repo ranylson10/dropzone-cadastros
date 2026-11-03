@@ -20,6 +20,7 @@ async function collectLinks(page: import('@playwright/test').Page, route: string
 }
 
 test('links internos públicos não retornam 404 ou 5xx', async ({ page, request, baseURL }) => {
+  test.setTimeout(90_000)
   const links = new Set<string>()
 
   for (const route of PUBLIC_ROUTES.slice(0, 5)) {

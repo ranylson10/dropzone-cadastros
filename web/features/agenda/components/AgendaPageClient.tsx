@@ -35,6 +35,7 @@ export function AgendaPageClient() {
       mainClassName="agenda-page agenda-page--unified page"
     >
       <div className="agenda-page-body">
+        {loggedIn || isProfileAgenda ? <h1 className="sr-only">{title}</h1> : null}
         {!ready ? (
           <div className="agenda-empty-month">Carregando...</div>
         ) : !loggedIn && !isProfileAgenda ? (
@@ -42,14 +43,14 @@ export function AgendaPageClient() {
             <div className="agenda-toolbar">
               <div className="agenda-toolbar-copy">
                 <p className="eyebrow">Agenda</p>
-                <h2>Sua agenda competitiva</h2>
+                <h1>Sua agenda competitiva</h1>
               </div>
             </div>
             <div className="agenda-guest-card">
               <span className="agenda-guest-icon"><CalendarDays size={24} /></span>
               <div className="agenda-guest-copy">
                 <p className="eyebrow">Agenda pessoal</p>
-                <h3>Centralize seus jogos e horários</h3>
+                <h2>Centralize seus jogos e horários</h2>
                 <p>Entre para acompanhar os jogos dos seus campeonatos e equipes em uma agenda única.</p>
               </div>
               <div className="agenda-guest-actions">

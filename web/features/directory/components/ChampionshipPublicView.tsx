@@ -18,7 +18,7 @@ import {
   Users,
   UserCircle2,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
 import { ReportButton } from '@/features/reports/ReportButton'
 import { championshipThemeStyle } from '@/lib/championship-theme'
@@ -305,13 +305,13 @@ export function ChampionshipPublicView({
             <div className="champ-public-info-groups">
               {detailGroups.map((group) => (
                 <section key={group.title}>
-                  <h3>{group.title}</h3>
+                  <h2>{group.title}</h2>
                   <dl>
                     {group.items.map((item) => item ? <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div> : null)}
                   </dl>
                 </section>
               ))}
-              {extraDetails.length ? <section><h3>Outros detalhes</h3><dl>{extraDetails.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl></section> : null}
+              {extraDetails.length ? <section><h2>Outros detalhes</h2><dl>{extraDetails.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl></section> : null}
             </div>
             <div className="champ-public-info-links">
               <a className="button secondary" href={`/campeonatos/${profile.id}/regulamento`}>
@@ -540,6 +540,7 @@ function StatsDashboard({
   mvpSection?: DirectoryProfile['sections'][number]
 }) {
   const [view, setView] = useState<StatsView>('campeao')
+  const statsId = useId()
   const [faseId, setFaseId] = useState('')
   const [grupoId, setGrupoId] = useState('')
   const [jogoId, setJogoId] = useState('')
@@ -701,16 +702,23 @@ function StatsDashboard({
         <span><small>Recorte</small><strong>{scopeLabel}</strong><b>{publicationLabel}</b></span>
       </div>
 
-      <div className="champ-stats-tabs" role="tablist" aria-label="Tipo de estatística">
-        {championSummary?.final_concluida && championSummary?.campeao ? <button type="button" className={view === 'campeao' ? 'active' : ''} onClick={() => setView('campeao')}><Flag size={14} /> Campeão</button> : null}
-        <button type="button" className={view === 'tabela' ? 'active' : ''} onClick={() => setView('tabela')}>
-          <BarChart3 size={14} /> Tabela
-        </button>
-        <button type="button" className={view === 'mvp' ? 'active' : ''} onClick={() => setView('mvp')}>
-          <Flag size={14} /> MVP
-        </button>
+      <div className="champ-stats-tabs" role="tablist" aria-label="Tipo de estatística" onKeyDown={event => {
+        const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
+        const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
+        const next = event.key === 'ArrowRight' ? (index + 1) % buttons.length : event.key === 'ArrowLeft' ? (index + buttons.length - 1) % buttons.length : event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : -1
+        if (next < 0) return
+        event.preventDefault()
+        setView(buttons[next].dataset.view as StatsView)
+        buttons[next].focus()
+      }}>
+        {([
+          ...(championSummary?.final_concluida && championSummary?.campeao ? [{ id: 'campeao' as StatsView, label: 'Campeão', icon: Flag }] : []),
+          { id: 'tabela' as StatsView, label: 'Tabela', icon: BarChart3 },
+          { id: 'mvp' as StatsView, label: 'MVP', icon: Flag },
+        ]).map(item => <button key={item.id} type="button" role="tab" data-view={item.id} id={`${statsId}-${item.id}`} aria-controls={`${statsId}-panel`} aria-selected={view === item.id} tabIndex={view === item.id ? 0 : -1} className={view === item.id ? 'active' : ''} onClick={() => setView(item.id)}><item.icon size={14} /> {item.label}</button>)}
       </div>
 
+      <div id={`${statsId}-panel`} role="tabpanel" aria-labelledby={`${statsId}-${view}`} tabIndex={0}>
       {hasFilters && view !== 'campeao' ? (
         <>
           <div className="champ-stats-filters champ-stats-filters-desktop">
@@ -763,7 +771,7 @@ function StatsDashboard({
             <Dialog open title="Filtrar estatísticas" onClose={() => setFiltersOpen(false)} closeLabel="Fechar filtros" size="medium" className={statisticsStyles.filters}>
               <div className="champ-filter-sheet">
                 <section className="champ-filter-group champ-filter-mode">
-                  <h4><SlidersHorizontal size={15} />Modo</h4>
+                  <h3><SlidersHorizontal size={15} />Modo</h3>
                   <div>
                     <button type="button" className={mobileFilterMode === 'general' ? 'active' : ''} onClick={() => selectMobileFilterMode('general')}>Geral</button>
                     <button type="button" className={mobileFilterMode === 'phase' ? 'active' : ''} onClick={() => selectMobileFilterMode('phase')}>Fase</button>
@@ -884,7 +892,7 @@ function StatsDashboard({
       {view !== 'campeao' ? <DataList className="champ-stats-mobile-list">
         {view === 'tabela' ? (
           teams.length ? teams.map((row) => (
-            <DataListItem as="article" key={row.campeonato_equipe_id} className="champ-stats-mobile-row">
+            <DataListItem as="div" key={row.campeonato_equipe_id} className="champ-stats-mobile-row">
               <span className="champ-stats-mobile-position">{row.colocacao}</span>
               <span className="champ-stats-avatar">{row.logo_url ? <img src={row.logo_url} alt="" /> : row.nome.slice(0, 2).toUpperCase()}</span>
               <span className="champ-stats-mobile-copy">
@@ -895,7 +903,7 @@ function StatsDashboard({
             </DataListItem>
           )) : <div className="directory-empty compact">A organização ainda não publicou classificação neste recorte.</div>
         ) : players.length ? players.map((row) => (
-          <DataListItem as="article" key={row.campeonato_jogador_id} className="champ-stats-mobile-row">
+          <DataListItem as="div" key={row.campeonato_jogador_id} className="champ-stats-mobile-row">
             <span className="champ-stats-mobile-position">{row.colocacao}</span>
             <span className="champ-stats-avatar player"><img src={row.foto_url || '/images/jogador-misterioso.png'} alt="" /></span>
             <span className="champ-stats-mobile-copy">
@@ -906,6 +914,7 @@ function StatsDashboard({
           </DataListItem>
         )) : <div className="directory-empty compact">A organização ainda não publicou MVP neste recorte.</div>}
       </DataList> : null}
+      </div>
     </section>
   )
 }
@@ -928,7 +937,7 @@ function FilterOptionGroup({
 }) {
   return (
     <section className="champ-filter-group">
-      <h4>{icon}{label}</h4>
+      <h3>{icon}{label}</h3>
       <div>
         <button type="button" className={!value ? 'active' : ''} onClick={() => onChange('')}>{allLabel}</button>
         {options.map((item) => <button key={item.id} type="button" className={value === item.id ? 'active' : ''} onClick={() => onChange(item.id)}>{item.label}</button>)}

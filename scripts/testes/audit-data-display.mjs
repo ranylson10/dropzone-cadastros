@@ -79,7 +79,7 @@ for (const file of expectedConsumers) {
 
 const championship = read('web/features/directory/components/ChampionshipPublicView.tsx')
 ok('ranking mobile usa DataList compartilhada', championship.includes('<DataList className="champ-stats-mobile-list">'))
-ok('linhas do ranking mobile usam DataListItem', championship.includes('<DataListItem as="article"'))
+ok('linhas do ranking mobile usam elementos com papel de item permitido', championship.includes('<DataListItem as="div"') && !championship.includes('<DataListItem as="article"'))
 
 const directory = read('web/features/directory/components/DirectoryListClient.tsx')
 ok('listas públicas de entidades continuam usando EntityListRow compartilhada', directory.includes('<EntityListRow'))

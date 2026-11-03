@@ -158,8 +158,8 @@ test('championship tabs keep names readable and use the shared list model', asyn
     await page.screenshot({ path: info.outputPath(`championship-${tab}.png`), animations: 'disabled' })
   }
   await page.getByRole('tab', { name: /^Estatísticas/ }).click()
-  await expect(page.getByRole('button', { name: 'MVP', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'MVP', exact: true }).click()
+  await expect(page.getByRole('tab', { name: 'MVP', exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'MVP', exact: true }).click()
   expect(await page.evaluate(inspectContrast, '.champ-public-panel *')).toEqual([])
   await assertSharedIdentity(page)
   const mobileFilters = page.getByRole('button', { name: 'Abrir filtros', exact: true })
@@ -177,7 +177,7 @@ test('championship tabs keep names readable and use the shared list model', asyn
   }
   await expect(page.getByText('Lua', { exact: true }).first()).toBeVisible()
   await assertSharedIdentity(page)
-  await page.getByRole('button', { name: 'Campeão', exact: true }).click()
+  await page.getByRole('tab', { name: 'Campeão', exact: true }).click()
   await expect(page.locator('.champion-public-spotlight')).toBeVisible()
   expect(await page.evaluate(inspectContrast, '.champ-public-panel *')).toEqual([])
   await assertSharedIdentity(page)

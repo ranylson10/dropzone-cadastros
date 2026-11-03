@@ -208,8 +208,8 @@ export function DirectoryProfileTabs({
             <span>{item.items.length}</span>
           </button>
         ))}
-        {agenda ? <a className="directory-profile-tab-link" href={`/agenda?scope=${agenda.scope}&id=${encodeURIComponent(agenda.scopeId)}`}>{agenda.tabLabel || 'Agenda'}</a> : null}
       </div>
+      {agenda ? <a className="directory-profile-tab-link" href={`/agenda?scope=${agenda.scope}&id=${encodeURIComponent(agenda.scopeId)}`}>{agenda.tabLabel || 'Agenda'}</a> : null}
       <div className="directory-profile-tab-panel" id={`${groupId}-panel`} role="tabpanel" aria-labelledby={`${groupId}-tab-${sections.indexOf(section)}`} tabIndex={0}>
         {section?.layout === 'structure' ? (
           <StructureTree items={section.items} />

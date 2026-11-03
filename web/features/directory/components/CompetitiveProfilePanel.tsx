@@ -1,4 +1,4 @@
-import { Activity, Crosshair, Shield, Sparkles, Target } from 'lucide-react'
+import { Activity, ChevronDown, Crosshair, Shield, Sparkles, Target } from 'lucide-react'
 import type { DirectoryProfile } from '../types'
 import styles from './CompetitiveProfilePanel.module.css'
 
@@ -10,6 +10,9 @@ export function CompetitiveProfilePanel({ profile }: { profile: DirectoryProfile
   const competitive = profile.competitive
   if (!competitive) return null
   const maximum = maxTrend(competitive)
+  const telemetryAvailable = competitive.telemetryAvailable !== false
+  const primaryMetrics = telemetryAvailable ? competitive.metrics : competitive.metrics.filter(item => ['Pontos', 'Abates', 'Booyahs', 'Quedas'].includes(item.label))
+  const primaryAverages = telemetryAvailable ? competitive.averages : competitive.averages.filter(item => ['Pontos', 'Abates'].includes(item.label))
 
   return (
     <section className={`competitive-profile-panel ${styles.panel}`} id="desempenho">
@@ -23,19 +26,21 @@ export function CompetitiveProfilePanel({ profile }: { profile: DirectoryProfile
       </header>
 
       <div className="competitive-kpi-grid">
-        {competitive.metrics.map((metric, index) => <article key={metric.label}>
+        {primaryMetrics.map((metric, index) => <article key={metric.label}>
           {index === 0 ? <Crosshair size={15} /> : index === 1 ? <Target size={15} /> : <Shield size={15} />}
           <small>{metric.label}</small>
-          <strong>{metric.value}</strong>
+          <strong>{competitive.hasResults === false ? '—' : metric.value}</strong>
         </article>)}
       </div>
 
       <div className="competitive-average-grid" aria-label="Médias por partida">
         <strong>Média por partida</strong>
-        {competitive.averages.map((average) => <span key={average.label}><small>{average.label}</small><b>{average.value}</b></span>)}
+        {primaryAverages.map((average) => <span key={average.label}><small>{average.label}</small><b>{competitive.hasResults === false ? '—' : average.value}</b></span>)}
       </div>
 
-      <div className="competitive-profile-detail-grid">
+      <details className="competitive-profile-details">
+        <summary><span>Mais estatísticas</span>{!telemetryAvailable ? <small>Telemetria ainda não sincronizada</small> : null}<ChevronDown size={16} aria-hidden="true" /></summary>
+      {telemetryAvailable ? <div className="competitive-profile-detail-grid">
         <section className="competitive-loadout">
           <header><Sparkles size={15} /><strong>Dados Garena</strong></header>
           <dl>
@@ -55,7 +60,8 @@ export function CompetitiveProfilePanel({ profile }: { profile: DirectoryProfile
           </div> : <p className="competitive-no-data">As médias aparecerão após o primeiro MatchResult sincronizado.</p>}
           <footer><span><i /> Abates</span><span><b /> Assistências</span></footer>
         </section>
-      </div>
+      </div> : <p className="competitive-no-data">Os dados de armas, habilidades e desempenho detalhado aparecem após a sincronização das partidas. As informações ausentes não são contabilizadas como zero.</p>}
+      </details>
     </section>
   )
 }

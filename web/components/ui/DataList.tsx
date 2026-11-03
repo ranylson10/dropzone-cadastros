@@ -1,7 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react'
 
 type ListTag = 'div' | 'section' | 'ul' | 'ol'
-type ItemTag = 'div' | 'article' | 'li'
+type ItemTag = 'div' | 'li'
 
 export type DataListProps = HTMLAttributes<HTMLElement> & {
   as?: ListTag

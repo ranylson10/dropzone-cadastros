@@ -35,10 +35,10 @@ import '@/styles/dropzone-identity.css'
 import { ApplicationRuntime } from '@/components/layout/ApplicationRuntime'
 
 const barlow = localFont({ src: [
-  { path: './fonts/Barlow-Regular.ttf', weight: '400', style: 'normal' },
-  { path: './fonts/Barlow-SemiBold.ttf', weight: '600', style: 'normal' },
+  { path: './fonts/Barlow-Regular.woff2', weight: '400', style: 'normal' },
+  { path: './fonts/Barlow-SemiBold.woff2', weight: '600', style: 'normal' },
 ], variable: '--font-body', display: 'swap' })
-const barlowCondensed = localFont({ src: './fonts/BarlowCondensed-Bold.ttf', weight: '700',
+const barlowCondensed = localFont({ src: './fonts/BarlowCondensed-Bold.woff2', weight: '700',
   variable: '--font-display', display: 'swap' })
 
 

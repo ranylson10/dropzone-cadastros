@@ -265,13 +265,13 @@ export function AppHeader({
   return (
     <header className="app-header">
       <div className="app-header-inner">
-        <Link className="app-brand" href="/" aria-label="DropZone — início">
+        <Link className="app-brand" href="/" aria-label="DropZone. O seu jogo começa aqui — início">
           <span className="app-brand-logo">
             <SystemLogo size={44} alt="" fit="contain" variant="default" />
           </span>
           <span className="app-brand-copy">
-            <strong aria-label="DropZone">DROPZONE<span className="dz-brand-period">.</span></strong>
-            <small>O SEU JOGO COMEÇA AQUI</small>
+            <strong aria-label="DropZone">DROPZONE<span className="dz-brand-period" aria-hidden="true">.</span></strong>
+            <small aria-hidden="true">O SEU JOGO COMEÇA AQUI</small>
           </span>
         </Link>
 

@@ -827,3 +827,7 @@ Base R23. Melhoria de teclado, foco, scroll de menu e etiquetas para dispositivo
 ## Mobile e painéis — atualização de 03/11/2026
 
 Molduras externas são removidas no mobile pelo contrato visual compartilhado; cartões dos itens e listas alternadas permanecem. A quinta ação inferior abre `WorkspacePanelSwitcher`, com contextos autorizados de equipe, produtora e jogador, identificação de vice-líder, busca e troca para o painel normal. O menu superior mantém a navegação da plataforma. O retorno ao início atualiza também o estado do workspace já montado. Ranking consome tokens responsivos de cabeçalho. Sem alteração de API/SQL/banco. Detalhes e escopo dos testes em `docs/redesign/MOBILE_PAINEIS_20261103.md`.
+
+## Correções gerais de UX — 03/11/2026
+
+Contraste, semântica/teclado de abas, tamanho de campos mobile, hierarquia da home, estatísticas sem telemetria e recuperação 404 corrigidos. Fontes WOFF2 e imagens responsivas com fallback reduzem o carregamento; CSS legado ainda deve ser migrado por área. Job de experiência no CI usa credenciais fictícias e APIs controladas. Dois perfis E2E comprovados e sem inscrições foram ocultados com `status=suspenso`, sem exclusão de conta ou dados. Build/tipos/lint/segurança, 104 regressões, 8 cenários de experiência e 62 estados visuais aprovados no escopo descrito em `docs/UX_AJUSTES_20261103.md`.

@@ -94,6 +94,8 @@ export type DirectoryProfile = DirectoryItem & {
     maps: Array<{ id: string; label: string }>
   }
   competitive?: {
+    telemetryAvailable?: boolean
+    hasResults?: boolean
     label: string
     score?: number | null
     tier?: string | null

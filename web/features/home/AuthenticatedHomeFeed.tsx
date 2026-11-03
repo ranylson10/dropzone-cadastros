@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
+import { canOptimizeCatalogImage } from '@/lib/catalog-image'
 import { useRouter } from 'next/navigation'
 
 import { Input as UiInput } from '@/components/ui/Field'
@@ -141,7 +143,7 @@ export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPane
               <div className="store-home-hero-previews" aria-label="Campeonatos em destaque">
                 {featured.filter((item) => item.banner_url || item.logo_url).slice(0, 3).map((item) => (
                   <Link key={item.id} href={`/campeonatos/${encodeURIComponent(item.id)}`} aria-label={`Ver ${item.nome}`}>
-                    <img src={item.banner_url || item.logo_url || ''} alt="" />
+                    <Image src={item.banner_url || item.logo_url || ''} alt="" loading="lazy" width={720} height={450} sizes="400px" unoptimized={!canOptimizeCatalogImage(item.banner_url || item.logo_url || '')} />
                   </Link>
                 ))}
               </div>
@@ -157,7 +159,7 @@ export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPane
 
         <div className="store-home-width store-home-content">
           <div className="dz-home-search-heading"><span>ENCONTRE SEU PRÓXIMO DESAFIO</span><small>DA INSCRIÇÃO AO BOOYAH.</small></div>
-          <form className="store-home-content-search" onSubmit={submitSearch} role="search">
+          <form className="store-home-content-search" onSubmit={submitSearch} role="search" aria-label="Buscar no catálogo">
             <Search size={18} aria-hidden="true" />
             <UiInput type="search" value={searchValue} onChange={(event) => setSearchValue(event.target.value)}
               placeholder="Buscar campeonatos, produtoras e formatos..." aria-label="Buscar campeonatos" />

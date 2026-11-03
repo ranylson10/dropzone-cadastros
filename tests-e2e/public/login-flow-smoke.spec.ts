@@ -5,13 +5,9 @@ test.describe('Login publico — smoke e troca de conta', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
     await expect(page).toHaveURL(/\/$/)
-    await expect(page.getByRole('link', { name: /Encontrar vaga/i })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Campeonatos com vagas abertas' })).toBeVisible()
-    await expect(page.getByRole('link', { name: /Entrar no sistema/i })).toBeVisible()
-
-    await expect(page.getByText('Produtoras são privadas')).toBeVisible()
-    await expect(page.getByText(/Workspaces de organização são liberados somente pela administração/i)).toBeVisible()
-    await expect(page.getByText('Organizo campeonatos')).toHaveCount(0)
+    await expect(page.locator('.store-home-hero').getByRole('link', { name: /Ver campeonatos/i })).toBeVisible()
+    await expect(page.locator('.store-home-section-head').getByRole('heading', { name: /Campeonatos.*destaque/i })).toBeVisible()
+    await expect(page.locator('.store-home-header').getByRole('link', { name: 'Entrar', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Criar campeonato/i })).toHaveCount(0)
   })
 

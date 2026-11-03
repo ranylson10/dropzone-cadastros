@@ -126,9 +126,9 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
     <>
       <header className={`store-home-header ${discovery ? 'store-home-header--with-discovery' : ''}`} data-collapsed={collapsed ? 'true' : 'false'}>
         <div className={`store-home-width store-home-header-inner ${discovery ? 'store-home-header-inner--unified' : ''} ${pathname === '/campeonatos' ? 'store-home-header-inner--catalog' : ''}`}>
-          <Link className="store-home-brand" href="/" aria-label="DropZone — início">
+          <Link className="store-home-brand" href="/" aria-label="DropZone. O seu jogo começa aqui — início">
             <SystemLogo size={44} alt="" variant="accent" />
-            <span><strong>DROPZONE<span className="dz-brand-period">.</span></strong><small>O SEU JOGO COMEÇA AQUI</small></span>
+            <span><strong>DROPZONE<span className="dz-brand-period" aria-hidden="true">.</span></strong><small aria-hidden="true">O SEU JOGO COMEÇA AQUI</small></span>
           </Link>
 
           <Form className="store-home-header-search" action="/campeonatos" role="search">
@@ -182,7 +182,7 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
                 <div><small>FORA DO LOBBY. DENTRO DO JOGO.</small><strong>Seu próximo movimento<span className="dz-brand-period">.</span></strong></div>
                 <button type="button" aria-label="Fechar menu" onClick={() => mobilePopup.close(true)}><X size={21} aria-hidden="true" /></button>
               </div>
-              <Form action="/campeonatos" role="search" onSubmit={() => setMobileOpen(false)}>
+              <Form action="/campeonatos" role="search" aria-label="Busca no menu de navegação" onSubmit={() => setMobileOpen(false)}>
                 <Search size={17} /><UiInput name="q" placeholder="Buscar campeonatos" aria-label="Buscar campeonatos" />
                 <button type="submit">Buscar</button>
               </Form>

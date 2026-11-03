@@ -603,7 +603,7 @@ export default function LiliPage() {
         <Link href="/" className="lili-mobile-back" aria-label="Voltar ao início"><ArrowLeft size={20} /></Link>
         <div className="lili-hub-identity">
           <div className="lili-hub-avatar" aria-hidden="true"><Bot size={22} strokeWidth={2.4} /></div>
-          <div><strong>Lili</strong><span>Assistente DropZone</span></div>
+          <div><h1>Lili</h1><span>Assistente DropZone</span></div>
         </div>
 
         <div className="lili-hub-toolbar">

@@ -1,6 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
+import { useState } from 'react'
+import { canOptimizeCatalogImage } from '@/lib/catalog-image'
 
 import { Heart, Info, ShoppingCart, Trophy } from 'lucide-react'
 import { IconButton } from '@/components/ui'
@@ -49,6 +52,7 @@ export function ChampionshipCard({
   onInfo,
   className,
 }: ChampionshipCardProps) {
+  const [failedImage, setFailedImage] = useState('')
   const freeSlots = Math.max(0, Number(championship.freeSlots || 0))
   const statusLabel = championship.statusLabel || (freeSlots > 0 ? `${freeSlots} vaga${freeSlots === 1 ? '' : 's'}` : 'Sem vagas')
   const producerLabel = championship.producerLabel || championship.formatLabel || 'Campeonato Free Fire'
@@ -58,8 +62,8 @@ export function ChampionshipCard({
     <article className={classes('dz-champ-card', className)} data-championship-id={championship.id}>
       <div className="dz-champ-card-media">
         <Link className="dz-champ-card-art" href={championship.href} aria-label={`Abrir ${championship.name}`}>
-          {championship.bannerUrl
-            ? <img src={championship.bannerUrl} alt="" loading="lazy" decoding="async" />
+          {championship.bannerUrl && failedImage !== championship.bannerUrl
+            ? <Image src={championship.bannerUrl} alt="" width={720} height={450} sizes="(max-width: 600px) 100vw, (max-width: 1023px) 50vw, 400px" loading="lazy" unoptimized={!canOptimizeCatalogImage(championship.bannerUrl)} onError={() => setFailedImage(championship.bannerUrl || '')} />
             : <span className="dz-champ-card-fallback" aria-hidden="true"><Trophy size={42} /></span>}
         </Link>
 
