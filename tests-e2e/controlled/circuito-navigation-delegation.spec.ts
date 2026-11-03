@@ -7,7 +7,7 @@ test.setTimeout(90_000)
 test('mobile navigation traps focus, closes with Escape and survives a short viewport', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto('/')
-  const menu = page.getByRole('button', { name: 'Abrir menu completo', exact: true })
+  const menu = page.getByRole('button', { name: 'Abrir menu', exact: true })
   await menu.click()
   const dialog = page.getByRole('dialog', { name: 'Menu completo do DropZone' })
   await expect(dialog).toBeVisible()

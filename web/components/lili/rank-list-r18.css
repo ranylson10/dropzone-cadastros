@@ -6,15 +6,15 @@ body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-table
 body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero {
   width: 100% !important; min-height: 200px !important; margin: 0 0 24px !important;
   padding: 0 !important; border: 0 !important; border-radius: 0 !important;
-  background: var(--dz-coal) !important; color: var(--dz-paper); box-shadow: none !important;
+  background: var(--dz-page-heading-bg) !important; color: var(--dz-page-heading-color); box-shadow: none !important;
 }
 body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero-inner {
   width: 100% !important; min-height: 200px !important; padding: 30px 32px !important;
 }
 body#dropzone-app .directory-rank-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 body#dropzone-app .directory-rank-heading small { color: var(--dz-orange) !important; font-size: 10px !important; letter-spacing: .14em; }
-body#dropzone-app main.directory-theme-rank .directory-rank-heading h1 { color: var(--dz-paper) !important; font: 700 clamp(36px,4vw,56px)/1 var(--font-display),sans-serif !important; margin: 10px 0 !important; letter-spacing: 0; }
-body#dropzone-app main.directory-theme-rank .directory-rank-hero-inner > p { max-width: 650px; color: var(--dz-paper) !important; opacity: .8; margin: 0; font: 400 14px/1.5 var(--font-body),sans-serif; }
+body#dropzone-app main.directory-theme-rank .directory-rank-heading h1 { color: var(--dz-page-heading-color) !important; font: 700 clamp(36px,4vw,56px)/1 var(--font-display),sans-serif !important; margin: 10px 0 !important; letter-spacing: 0; }
+body#dropzone-app main.directory-theme-rank .directory-rank-hero-inner > p { max-width: 650px; color: var(--dz-page-heading-color) !important; opacity: .8; margin: 0; font: 400 14px/1.5 var(--font-body),sans-serif; }
 .directory-rank-actions { display: flex; gap: 6px; }
 body#dropzone-app .directory-rank-actions button { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--dz-muted) !important; border-radius: 3px; background: transparent !important; color: var(--dz-paper) !important; cursor: pointer; }
 body#dropzone-app main.directory-theme-rank .directory-rank-toolbar { width: 100% !important; padding: 0 !important; margin: 0 0 20px !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
@@ -60,11 +60,11 @@ body#dropzone-app .directory-tier { border-radius: 3px; background: var(--surfac
 .directory-rank-help-dialog dd { margin: 0; }
 @media(max-width:767px) {
   body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero { min-height: 0 !important; }
-  body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero-inner { min-height: 0 !important; padding: 24px 20px !important; }
+  body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero-inner { min-height: 0 !important; padding: 24px 0 20px !important; }
   body#dropzone-app main.directory-theme-rank .directory-rank-heading h1 { font-size: 38px !important; }
   .directory-rank-title-full,.directory-rank-updated-full,.dz-ranking-meta-full { display: none; }
   .directory-rank-title-mobile,.directory-rank-updated-mobile,.dz-ranking-meta-mobile { display: block; }
-  body#dropzone-app .directory-rank-actions { flex-direction: column; }
+  body#dropzone-app .directory-rank-actions { flex-direction: row; }
   body#dropzone-app main.directory-theme-rank .directory-rank-toolbar > nav button { padding-inline: 4px; gap: 5px; font-size: 12px; }
   body#dropzone-app main.directory-theme-rank .directory-rank-search { width: 100%; }
   body#dropzone-app main.directory-theme-rank .dz-ranking-head { display: none; }

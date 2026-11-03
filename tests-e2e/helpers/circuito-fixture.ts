@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test'
 
-export async function deputyFixture(page: Page, options: { analytics?: boolean } = {}) {
+export async function deputyFixture(page: Page, options: { analytics?: boolean; ownedProducer?: boolean; extraTeams?: number } = {}) {
   const user = { id: '00000000-0000-4000-8000-000000000601', aud: 'authenticated', role: 'authenticated', email: 'vice@example.test', app_metadata: {}, user_metadata: { display_name: 'Vice-líder', account_username: 'vice' }, created_at: '2026-01-01T00:00:00Z' }
   const base = { entity_type: 'account', auth_user_id: null, username: 'fixture', token: null, parent_id: null, ref_id: null, status: 'ativo', created_by: null, created_at: '2026-01-01', updated_at: '2026-01-01' }
   const manager = { ...base, id: 'manager-a', profile_type: 'manager', name: 'Vice-líder', auth_user_id: user.id, data: {} }
@@ -10,6 +10,8 @@ export async function deputyFixture(page: Page, options: { analytics?: boolean }
     { ...base, id: 'player-a', profile_type: 'jogador', name: 'Jogador Aurora', data: { delegated_access: true, delegated_permissions: { pode_ver: true, pode_editar: false } } },
     { ...base, id: 'player-b', profile_type: 'jogador', name: 'Jogador Brasa', data: { delegated_access: true, delegated_permissions: { pode_ver: true, pode_editar: true } } },
   ]
+  if (options.ownedProducer) contexts.push({ ...base, id: 'producer-a', profile_type: 'produtora', name: '6B Produções', auth_user_id: user.id, data: {} })
+  for (let index = 0; index < (options.extraTeams || 0); index++) contexts.push({ ...contexts[1], id: `team-extra-${index}`, name: `Equipe extra ${index}` })
   const exp = Math.floor(Date.now() / 1000) + 3600
   const jwt = [Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url'), Buffer.from(JSON.stringify({ sub: user.id, exp, role: 'authenticated' })).toString('base64url'), 'fixture'].join('.')
   const session = { access_token: jwt, refresh_token: 'fixture-refresh', token_type: 'bearer', expires_at: exp, expires_in: 3600, user }
@@ -31,5 +33,5 @@ export async function deputyFixture(page: Page, options: { analytics?: boolean }
     if (path === '/api/dropzone') return route.fulfill({ json: { rows: contexts.filter(item => item.profile_type === 'equipe').map(item => ({ ...item, entity_type: 'team', data: { ...item.data, managed_by_current_user: true } })) } })
     return route.fulfill({ json: { rows: [], items: [], team: [], player: [], purchases: [], escalacoes: [], treinos: [], announcements: [] } })
   })
-  return { errors }
+  return { errors, contexts }
 }

@@ -25,9 +25,9 @@ for (const href of ['/produtoras','/rank','/agenda','/central-campeonato','/cart
 }
 const storefront = read('web/components/layout/StorefrontHeader.tsx')
 check('Catálogo público mantém quatro destinos diretos', storefront.includes("{ label: 'Jogadores', href: '/jogadores'") && storefront.includes('PRIMARY_NAV.map((item) => <StoreNavLink'))
-check('Catálogo público abre menu inferior com funções secundárias', storefront.includes('aria-label={mobileOpen ? "Fechar menu completo" : "Abrir menu completo"}') && storefront.includes('SECONDARY_NAV.map'))
+check('Menu superior conserva funções secundárias e dock abre painéis', storefront.includes("aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}") && storefront.includes('SECONDARY_NAV.map') && storefront.includes('<WorkspacePanelSwitcher'))
 check('Catálogo público preserva painel autenticado', storefront.includes('className="dz-menu-account-entry"') && storefront.includes('href={profileHref}'))
-check('Header navega pelas cinco áreas no mobile', (header.match(/<Link href="\/(?:"|campeonatos"|equipes"|jogadores")/g)||[]).length >= 4 && header.includes('app-mobile-menu-action'))
+check('Header navega pelas quatro áreas e abre painéis no mobile', (header.match(/<Link href="\/(?:"|campeonatos"|equipes"|jogadores")/g)||[]).length >= 4 && header.includes('<WorkspacePanelSwitcher'))
 check('Bottom dock usa menu acessível', header.includes('aria-label="Navegação inferior do aplicativo"') && header.includes('aria-expanded={mobileOpen}'))
 check('FAB separada das cinco áreas, acessível', header.includes('className="app-action-fab"') && header.includes('aria-label="Abrir ações rápidas"'))
 check('Meu painel autenticado acessível', header.includes('className="app-dashboard-entry"') && header.includes('href="/?painel=1"'))

@@ -823,3 +823,7 @@ Somente a experiência visual e mobile foi modificada; APIs e Supabase permanece
 ## R24 — revisão final de UX (03/11/2026)
 
 Base R23. Melhoria de teclado, foco, scroll de menu e etiquetas para dispositivos estreitos nos cabeçalhos público/autenticado. Teste Node R24 verifica o comportamento de Tab/Shift+Tab; roteiro Playwright público incluído, não executado no ambiente sem Next/Chromium operacional. Sem alterações no Supabase, backend ou dados. Redesign de código encerrado na R24, condicionado a QA visual autenticado + build/infraestrutura para liberar produção.
+
+## Mobile e painéis — atualização de 03/11/2026
+
+Molduras externas são removidas no mobile pelo contrato visual compartilhado; cartões dos itens e listas alternadas permanecem. A quinta ação inferior abre `WorkspacePanelSwitcher`, com contextos autorizados de equipe, produtora e jogador, identificação de vice-líder, busca e troca para o painel normal. O menu superior mantém a navegação da plataforma. O retorno ao início atualiza também o estado do workspace já montado. Ranking consome tokens responsivos de cabeçalho. Sem alteração de API/SQL/banco. Detalhes e escopo dos testes em `docs/redesign/MOBILE_PAINEIS_20261103.md`.

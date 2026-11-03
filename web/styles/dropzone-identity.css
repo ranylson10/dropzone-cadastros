@@ -14,6 +14,8 @@
   --dz-list-row-padding: 7px 12px;
   --dz-list-row-bg: var(--dz-white);
   --dz-list-stripe: #e9e7df;
+  --dz-page-heading-bg: var(--dz-coal);
+  --dz-page-heading-color: var(--dz-paper);
   --dz-unified-max: 1160px;
   --dz-unified-bg: var(--dz-paper);
   --dz-unified-panel: var(--dz-white);
@@ -567,6 +569,7 @@ body#dropzone-app .champ-public-enroll-btn svg { color:inherit!important; }
 body#dropzone-app .lili-platform-page.lili-embedded { padding:0!important; margin:0!important; }
 body#dropzone-app .lili-embedded .lili-hub-page { height:100dvh!important; }
 @media(max-width:1023px) {
+  body#dropzone-app { --dz-page-heading-bg:transparent; --dz-page-heading-color:var(--dz-ink); }
   body#dropzone-app .directory-page .dz-entity-row--table { grid-template-columns:minmax(0,1fr) 22px!important; }
 }
 @media(max-width:600px) {
@@ -579,3 +582,87 @@ body#dropzone-app .lili-embedded .lili-hub-page { height:100dvh!important; }
 
 body#dropzone-app .directory-page :is(.dz-entity-row--table,.dz-directory-table-head--entity) { grid-template-areas:none!important; row-gap:0!important; }
 @media(max-width:1023px) { body#dropzone-app .directory-page .dz-entity-table-main > small { display:none!important; } body#dropzone-app .directory-page .dz-entity-mobile-tag { display:inline!important; margin-left:6px; color:var(--dz-muted); font-size:10px; } }
+
+/* The dock opens operational profiles; the header retains platform navigation. */
+body#dropzone-app .dz-panel-switcher .system-modal-content { padding:8px 20px 24px; }
+body#dropzone-app .dz-panel-switcher-group + .dz-panel-switcher-group { margin-top:20px; }
+body#dropzone-app .dz-panel-switcher-group h3 { display:flex; align-items:center; gap:8px; margin:0; padding:12px 0; color:var(--dz-muted); font:600 12px/1.4 var(--font-body),sans-serif; }
+body#dropzone-app .dz-panel-switcher-group h3 span { margin-left:auto; font-size:11px; }
+body#dropzone-app .dz-panel-switcher-row { display:grid; grid-template-columns:36px minmax(0,1fr) 20px; align-items:center; gap:12px; text-decoration:none; }
+body#dropzone-app .dz-panel-switcher-row > span:not([data-entity-avatar]) { display:grid; gap:2px; min-width:0; }
+body#dropzone-app .dz-panel-switcher-row strong { color:var(--dz-ink); font:600 15px/1.3 var(--font-body),sans-serif; overflow-wrap:anywhere; }
+body#dropzone-app .dz-panel-switcher-row small { color:var(--dz-muted); font-size:12px; }
+body#dropzone-app .dz-panel-switcher-row > svg { color:var(--dz-rust); }
+body#dropzone-app .dz-panel-switcher-row[aria-current="true"] { box-shadow:inset 2px 0 var(--dz-rust)!important; }
+body#dropzone-app .dz-panel-switcher-state { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; min-height:170px; padding:24px 8px; color:var(--dz-muted); text-align:center; }
+body#dropzone-app .dz-panel-switcher-state strong { color:var(--dz-ink); font-size:18px; }
+body#dropzone-app .dz-panel-switcher-state p { max-width:340px; margin:0; font-size:14px; line-height:1.6; }
+body#dropzone-app .dz-panel-switcher-search { display:flex; align-items:center; gap:10px; min-height:46px; padding:0 12px; border:1px solid var(--dz-stroke); background:var(--dz-white); color:var(--dz-muted); }
+body#dropzone-app .dz-panel-switcher-search input { flex:1; width:100%; min-width:0; border:0!important; background:transparent!important; box-shadow:none!important; }
+
+/* Mobile pages sit directly on the app canvas. Item cards retain their skin. */
+@media(max-width:1023px) {
+  body#dropzone-app .system-modal-backdrop:has(.dz-panel-switcher) { align-items:flex-end; padding:0; }
+  body#dropzone-app .system-modal.dz-panel-switcher { width:100%; max-width:none; min-height:0; max-height:82dvh; margin:0; border:0!important; border-radius:18px 18px 0 0!important; background:var(--dz-paper)!important; }
+  body#dropzone-app .dz-panel-switcher::before { content:''; display:block; width:36px; height:4px; flex-shrink:0; margin:10px auto 2px; border-radius:4px; background:var(--dz-stroke); }
+  body#dropzone-app .dz-panel-switcher .system-modal-header { position:static; flex-shrink:0; padding:14px 20px 12px; background:transparent!important; }
+  body#dropzone-app .dz-panel-switcher .system-modal-content { padding:0 16px calc(20px + env(safe-area-inset-bottom)); }
+  body#dropzone-app .dz-panel-switcher .system-modal-header h2 { font-size:28px; }
+  body#dropzone-app .directory-page .directory-page-body-with-banner,
+  body#dropzone-app main.directory-profile-page .directory-page-body,
+  body#dropzone-app main.directory-profile-page .champ-public.champ-public-simple { width:calc(100% - 32px)!important; margin-inline:auto!important; }
+  body#dropzone-app .directory-page .directory-page-body-with-banner { padding-top:0!important; }
+  body#dropzone-app main.directory-page .directory-hero-banner,
+  body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero { min-height:0!important; margin:0!important; padding:0!important; background:transparent!important; border:0!important; border-radius:0!important; box-shadow:none!important; }
+  body#dropzone-app main.directory-page .directory-hero-banner::before,
+  body#dropzone-app main.directory-page .directory-hero-banner::after,
+  body#dropzone-app .directory-page-body::before,
+  body#dropzone-app :is(.community-hub,.vacancies-page,.cart-page)::before,
+  body#dropzone-app main.directory-profile-page .profile-command-hero::before,
+  body#dropzone-app main.directory-profile-page .profile-command-hero::after,
+  body#dropzone-app main.directory-profile-page .champ-public-simple::before { content:none!important; display:none!important; }
+  body#dropzone-app main.directory-page .directory-hero-inner,
+  body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero-inner { min-height:0!important; padding:24px 0 20px!important; }
+  body#dropzone-app main.directory-page .directory-hero-inner h1,
+  body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-heading h1 { margin:8px 0!important; color:var(--dz-ink)!important; font-size:36px!important; }
+  body#dropzone-app main.directory-page .directory-hero-inner > p,
+  body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero-inner > p { color:var(--dz-muted)!important; font-size:14px!important; }
+  body#dropzone-app main.directory-page .directory-hero-inner > small,
+  body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-heading small { color:var(--dz-rust)!important; }
+  body#dropzone-app main.directory-page .directory-rank-actions button { color:var(--dz-ink)!important; border-color:var(--dz-stroke)!important; }
+  body#dropzone-app main.directory-page .directory-rank-heading { width:100%; }
+  body#dropzone-app :is(.directory-hero-banner,.profile-command-hero) :is(h1,p,small) { text-shadow:none!important; }
+  body#dropzone-app main.directory-page .directory-rank-toolbar > nav { background:transparent!important; }
+  body#dropzone-app main.directory-profile-page .champ-public.champ-public-simple { padding-top:0!important; gap:0!important; }
+  body#dropzone-app main.directory-profile-page :is(.dz-champ-simple-header,.champ-public-panel,.champ-public-nav,.champ-public-info-agenda,.champ-public-info-groups>section,.profile-command-hero,.directory-profile-tabs-shell,.directory-profile-tab-panel,.competitive-profile-panel,.team-lines-site-workspace) {
+    border:0!important; border-radius:0!important; background:transparent!important; background-image:none!important; box-shadow:none!important;
+  }
+  body#dropzone-app main.directory-profile-page .dz-champ-simple-header { padding:16px 0 20px!important; }
+  body#dropzone-app main.directory-profile-page .champ-public-nav { border-bottom:1px solid var(--dz-stroke)!important; }
+  body#dropzone-app main.directory-profile-page .champ-public-panel { margin:0!important; padding:0!important; }
+  body#dropzone-app main.directory-profile-page :is(.champ-public-section,.champ-public-info) { padding:20px 0!important; border:0!important; border-radius:0!important; background:transparent!important; box-shadow:none!important; }
+  body#dropzone-app main.directory-profile-page .champ-public-panel-head { border:0!important; border-radius:0!important; background:transparent!important; box-shadow:none!important; }
+  body#dropzone-app main.directory-profile-page .champ-public-stats-summary { border:0!important; border-block:1px solid var(--dz-stroke)!important; border-radius:0!important; background:transparent!important; }
+  body#dropzone-app main.directory-profile-page .champ-public-stats-summary > span { padding-inline:0; background:transparent!important; }
+  body#dropzone-app main.directory-profile-page :is(.champ-stats-tabs,.champ-stats-mobile-filterbar,.champ-stats-table-wrap,.champ-list-filters) { border:0!important; border-radius:0!important; background:transparent!important; box-shadow:none!important; }
+  body#dropzone-app main.directory-profile-page .champ-stats-tabs { border-bottom:1px solid var(--dz-stroke)!important; }
+  body#dropzone-app main.directory-profile-page .champ-list-filters { padding:0!important; }
+  body#dropzone-app main.directory-profile-page .profile-command-inner { padding:16px 0 0!important; }
+  body#dropzone-app main.directory-profile-page .profile-command-hero { width:100%!important; margin:0!important; }
+  body#dropzone-app main.directory-profile-page .profile-command-facts { background:transparent!important; }
+  body#dropzone-app main.directory-profile-page :is(.directory-profile-tab-panel,.competitive-profile-panel,.team-lines-site-workspace) { padding-inline:0!important; }
+  body#dropzone-app main.directory-profile-page .champ-public-info-agenda { padding:16px 0!important; }
+  body#dropzone-app .champ-public-mobile-enroll { left:0!important; right:0!important; width:100%!important; margin:0!important; padding:10px 16px!important; border:0!important; border-top:1px solid var(--dz-stroke)!important; border-radius:0!important; box-shadow:none!important; }
+  body#dropzone-app .page-authenticated :is(.dz-workspace-header,.dz-focus),
+  body#dropzone-app .dz-workspace-content > :is(.panel,.panel-soft),
+  body#dropzone-app :is(.bank-wallet-hero,.agenda-toolbar,.cart-hero,.legal-hero,.legal-document) {
+    border:0!important; border-radius:0!important; background:transparent!important; background-image:none!important; box-shadow:none!important;
+  }
+  body#dropzone-app .page-authenticated .dz-workspace-header { padding:16px 0!important; color:var(--dz-ink)!important; }
+  body#dropzone-app .page-authenticated .dz-workspace-header :is(h2,.dz-workspace-header__eyebrow) { color:var(--dz-ink)!important; }
+  body#dropzone-app .page-authenticated .dz-workspace-header__description { color:var(--dz-muted)!important; }
+  body#dropzone-app .dz-workspace-content > :is(.panel,.panel-soft) { padding-inline:0!important; }
+  body#dropzone-app :is(.bank-wallet-hero,.agenda-toolbar,.cart-hero,.legal-hero) :is(h1,strong) { color:var(--dz-ink)!important; }
+  body#dropzone-app :is(.bank-wallet-hero,.agenda-toolbar,.cart-hero,.legal-hero) :is(p,small) { color:var(--dz-muted)!important; }
+  body#dropzone-app :is(.bank-wallet-hero,.agenda-toolbar,.cart-hero,.legal-hero)::after { display:none!important; }
+}

@@ -161,7 +161,7 @@ test('conta com perfil vinculado também abre o menu sem redirecionar', async ({
   await page.locator('.store-home-header .store-home-brand').click()
   await expect(menu).toHaveCount(0)
   if (isMobile) {
-    await page.locator('.dz-public-bottom-nav').getByRole('button', { name: 'Abrir menu completo' }).click()
+    await page.locator('.store-home-header').getByRole('button', { name: 'Abrir menu', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Menu completo do DropZone' }).getByRole('link', { name: 'Abrir minha área' })).toBeVisible()
   }
   expect(errors).toEqual([])

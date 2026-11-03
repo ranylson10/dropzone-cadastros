@@ -1669,6 +1669,7 @@ export function DropZoneHome() {
       activeAccountId={account?.id}
       switchingAccountId={switchingAccountId || undefined}
       onSwitchAccount={switchLinkedAccount}
+      onHomeClick={() => setWorkspace('home')}
       onSignOut={signOut}
       mainClassName={`page ${workspaceMode === 'panel' ? styles.scope : ''} ${workspaceMode === 'home' ? 'marketplace-shell-page' : authIdentity || (account && !linkingProfile) ? 'page-authenticated' : ''}`}
       mainId="painel-inicio"

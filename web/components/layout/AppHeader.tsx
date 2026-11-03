@@ -11,6 +11,7 @@ import { usePathname } from 'next/navigation'
 import { isWebProfileType, type DropZoneRow, type WebProfileType } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SystemLogo } from '@/components/brand/SystemLogo'
+import { WorkspacePanelSwitcher } from '@/components/workspace/WorkspacePanelSwitcher'
 import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
 import { supabase } from '@/lib/supabase-browser'
 import { useGlobalLocale } from '@/features/i18n/global-locale'
@@ -31,6 +32,7 @@ type AppHeaderProps = {
   onSwitchAccount?: (account: DropZoneRow) => void
   onCreateLinkedProfile?: (profileType?: WebProfileType) => void
   onSignOut?: () => void
+  onHomeClick?: () => void
   /** Guest CTA when not logged in */
   loginHref?: string
   loginLabel?: string
@@ -116,6 +118,7 @@ export function AppHeader({
   onSwitchAccount,
   onCreateLinkedProfile,
   onSignOut,
+  onHomeClick,
   loginHref = '/login?returnTo=%2F',
   loginLabel = 'Entrar no sistema',
   showWallet = false,
@@ -380,7 +383,7 @@ export function AppHeader({
         </nav>
 
         <nav className="app-mobile-dock" aria-label="Navegação inferior do aplicativo">
-          <Link href="/" className={pathname === '/' ? 'active' : ''} aria-current={pathname === '/' ? 'page' : undefined} onClick={() => setQuickOpen(false)}>
+          <Link href="/" className={pathname === '/' && !isAuthenticated ? 'active' : ''} aria-current={pathname === '/' && !isAuthenticated ? 'page' : undefined} onClick={event => { setQuickOpen(false); if (onHomeClick && pathname === '/') { event.preventDefault(); onHomeClick() } }}>
             <Home size={20} aria-hidden /><span>Início</span>
           </Link>
           <Link href="/campeonatos" className={pathname === '/campeonatos' || pathname?.startsWith('/campeonatos/') ? 'active' : ''} aria-current={pathname === '/campeonatos' || pathname?.startsWith('/campeonatos/') ? 'page' : undefined} onClick={() => setQuickOpen(false)}>
@@ -392,17 +395,9 @@ export function AppHeader({
           <Link href="/jogadores" className={pathname === '/jogadores' || pathname?.startsWith('/jogadores/') ? 'active' : ''} aria-current={pathname === '/jogadores' || pathname?.startsWith('/jogadores/') ? 'page' : undefined} onClick={() => setQuickOpen(false)}>
             <UserRound size={20} aria-hidden /><span>Jogadores</span>
           </Link>
-          <button type="button" className={`app-mobile-menu-action ${mobileOpen ? 'active' : ''}`}
-            aria-expanded={mobileOpen} aria-controls={`${menuId}-navigation`}
-            aria-label={mobileOpen ? "Fechar menu completo" : "Abrir menu completo"}
-            onClick={(event) => {
-              event.currentTarget.focus({ preventScroll: true })
-              setProfileOpen(false); setQuickOpen(false); setLanguageOpen(false)
-              setMobileOpen((value) => !value)
-            }}>
-            {mobileOpen ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
-            <span>Menu</span>
-          </button>
+          <WorkspacePanelSwitcher className="app-mobile-panel-action" active={pathname === '/' && isAuthenticated}
+            activeAccountId={activeAccountId} onSelect={onSwitchAccount}
+            onBeforeOpen={() => { setMobileOpen(false); setProfileOpen(false); setQuickOpen(false); setLanguageOpen(false) }} />
         </nav>
         {isAuthenticated ? <button type="button" className="app-action-fab"
           aria-label="Abrir ações rápidas" aria-expanded={quickOpen}

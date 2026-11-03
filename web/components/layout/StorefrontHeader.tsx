@@ -7,7 +7,8 @@ import { Input as UiInput } from '@/components/ui/Field'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { useDisclosureFocus } from '@/components/ui/useDisclosureFocus'
 import { AccountEditDialog } from '@/features/auth/AccountEditDialog'
-import type { AccountIdentity } from '@/lib/types'
+import { WorkspacePanelSwitcher } from '@/components/workspace/WorkspacePanelSwitcher'
+import type { AccountIdentity, DropZoneRow } from '@/lib/types'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 import { hasPublicDiscoveryNavigation } from './nav'
 import {
@@ -24,6 +25,8 @@ type Props = {
   identity?: AccountIdentity | null
   onAccountClick?: () => void
   onSignOut?: () => void | Promise<void>
+  activeAccountId?: string
+  onSelectPanel?: (context: DropZoneRow) => void | Promise<void>
 }
 
 type StoreNavItem = { label: string; href: string; icon: LucideIcon; shortLabel?: string; active?: boolean }
@@ -62,7 +65,7 @@ function StoreNavLink({ item, pathname, onNavigate }: {
   )
 }
 
-export function StorefrontHeader({ authenticated = false, identity, onAccountClick, onSignOut }: Props) {
+export function StorefrontHeader({ authenticated = false, identity, onAccountClick, onSignOut, activeAccountId, onSelectPanel }: Props) {
   const pathname = usePathname() || '/'
   const returnTo = encodeURIComponent(pathname)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -232,12 +235,8 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
           </aside>
           <nav className="dz-public-bottom-nav" aria-label="Navegação inferior do aplicativo">
             {PRIMARY_NAV.map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} />)}
-            <button type="button" className={mobileOpen ? 'active' : ''}
-              onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setAccountOpen(false); setMobileOpen((value) => !value) }}
-              aria-label={mobileOpen ? "Fechar menu completo" : "Abrir menu completo"} aria-expanded={mobileOpen} aria-controls="dz-public-mobile-menu">
-              {mobileOpen ? <X size={19} aria-hidden="true" /> : <Menu size={19} aria-hidden="true" />}
-              <span>Menu</span>
-            </button>
+            <WorkspacePanelSwitcher activeAccountId={activeAccountId} onSelect={onSelectPanel}
+              onBeforeOpen={() => { setMobileOpen(false); setAccountOpen(false) }} />
           </nav>
         </>
       ) : null}

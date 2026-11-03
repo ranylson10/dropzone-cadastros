@@ -16,7 +16,8 @@ for (const width of [320, 360, 390, 430, 768]) {
     for (const name of ['Início', 'Campeonatos', 'Equipes', 'Jogadores']) {
       await expect(dock.getByRole('link', { name })).toBeVisible()
     }
-    const menu = dock.getByRole('button', { name: 'Abrir menu completo' })
+    await expect(dock.getByRole('button', { name: 'Abrir meus painéis' })).toBeVisible()
+    const menu = page.getByRole('button', { name: 'Abrir menu', exact: true })
     await menu.focus()
     await menu.click()
     const sheet = page.getByRole('dialog', { name: 'Menu completo do DropZone' })

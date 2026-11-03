@@ -13,6 +13,7 @@ import { AppHeader } from './AppHeader'
 import { StorefrontHeader } from './StorefrontHeader'
 import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
 import { signOutEverywhere } from '@/lib/auth-client-state'
+import { workspaceHref } from '@/features/dropzone/WorkspaceContextSwitcher'
 
 function mediaFor(account?: DropZoneRow | null) {
   return String(account?.data?.logo_url || account?.data?.avatar_url || '')
@@ -46,6 +47,7 @@ export type AppShellProps = {
   onSwitchAccount?: (account: DropZoneRow) => void
   onCreateLinkedProfile?: (profileType?: WebProfileType) => void
   onSignOut?: () => void
+  onHomeClick?: () => void
   /** Se true, carrega sessão via /api/me (páginas públicas) */
   loadSession?: boolean
   loginHref?: string
@@ -70,6 +72,7 @@ export function AppShell({
   onSwitchAccount,
   onCreateLinkedProfile,
   onSignOut: onSignOutProp,
+  onHomeClick,
   loadSession = false,
   loginHref,
   withAuthOffset = true,
@@ -200,8 +203,7 @@ export function AppShell({
     localStorage.setItem('dropzone_active_profile_type', String(next.profile_type || ''))
     localStorage.setItem('dropzone_active_profile_id', next.id)
     setSessionAccount(next)
-    // Volta ao painel para carregar o contexto do perfil
-    if (pathname !== '/') window.location.href = '/'
+    window.location.assign(workspaceHref(next))
   }
 
   // A mesma moldura visual do catálogo R13 também atende às páginas públicas.
@@ -266,6 +268,7 @@ export function AppShell({
             onSwitchAccount={onSwitchAccount || (loadSession ? defaultSwitch : undefined)}
             onCreateLinkedProfile={onCreateLinkedProfile}
             onSignOut={account || identity ? (onSignOutProp || defaultSignOut) : undefined}
+            onHomeClick={onHomeClick}
             loginHref={loginHref}
             showWallet={
               Boolean(account)

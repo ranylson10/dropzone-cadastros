@@ -103,6 +103,8 @@ export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPane
           avatar_url: identity?.avatar_url || account?.data?.avatar_url || account?.data?.foto_url || account?.data?.logo_url,
         } : null}
         onSignOut={onSignOut}
+        activeAccountId={account?.id}
+        onSelectPanel={onOpenPanel}
         onAccountClick={account ? () => void onOpenPanel(account) : undefined}
       />
 
