@@ -607,6 +607,45 @@ body#dropzone-app .dz-panel-switcher-search input { flex:1; width:100%; min-widt
 
 /* Shared readable states, including fallbacks and utility flows. */
 body#dropzone-app .dz-champ-card-art { background:var(--surface-soft)!important; }
+
+/* The mobile catalog follows the same compact discovery flow on direct visits. */
+@media (max-width:767px) {
+  body#dropzone-app .directory-market-page .dz-market-showcase {
+    min-height:0!important; padding:0!important; background:transparent!important;
+    border:0!important; box-shadow:none!important;
+  }
+  body#dropzone-app .directory-market-page .dz-market-showcase-copy { padding:0!important; }
+  body#dropzone-app .directory-market-page .dz-market-showcase::before { display:none!important; }
+  body#dropzone-app .directory-market-page :is(.dz-market-showcase-kicker,.dz-market-showcase-images,.dz-market-showcase-fallback,.dz-market-showcase-button,.dz-market-quicklinks,.dz-market-desktop-title,.dz-market-section-eyebrow) { display:none!important; }
+  body#dropzone-app .directory-market-page .dz-market-mobile-title { display:inline; }
+  body#dropzone-app .directory-market-page .dz-market-showcase h1 { max-width:none; color:var(--dz-ink)!important; font-size:28px; }
+  body#dropzone-app .directory-market-page .dz-market-showcase p { max-width:none; color:var(--dz-muted)!important; }
+  body#dropzone-app .directory-market-page .championship-directory-search input { font-size:16px!important; }
+  body#dropzone-app .directory-market-page .dz-market-section-title h2 { font-size:22px; }
+  body#dropzone-app .directory-market-page .championship-directory-list { grid-template-columns:1fr!important; gap:0!important; }
+  body#dropzone-app .directory-market-page .championship-directory-list > .dz-champ-list-row {
+    display:grid!important; grid-template-columns:48px minmax(0,1fr) 44px;
+    gap:10px!important; align-items:center; padding:10px 8px!important;
+    border:0!important; border-bottom:1px solid var(--dz-stroke)!important; border-radius:0!important;
+    background:var(--dz-list-row-bg)!important;
+  }
+  body#dropzone-app .directory-market-page .championship-directory-list > .dz-champ-list-row:nth-child(even) { background:var(--dz-list-stripe)!important; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__media { width:48px!important; height:48px!important; aspect-ratio:1!important; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__badges { display:none; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__body { gap:5px; padding:0!important; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__identity strong { font-size:16px!important; white-space:normal; overflow-wrap:anywhere; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__identity span { font-size:12px!important; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__mobile-status { display:flex; flex-wrap:wrap; gap:4px 8px; color:var(--dz-rust); font-size:12px; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__metrics { gap:5px 8px!important; padding:5px 0 0!important; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__metrics dt { font-size:12px!important; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__metrics dd { font-size:13px!important; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__actions {
+    flex-direction:column; gap:0!important; padding:0!important;
+    border:0!important; background:transparent!important;
+  }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__actions .dz-ui-icon-button { border:0!important; background:transparent!important; }
+  body#dropzone-app .directory-market-page .dz-champ-list-row__open { display:none!important; }
+}
 body#dropzone-app .competitive-tier { color:var(--dz-ink)!important; background:var(--surface-soft)!important; border-color:var(--dz-stroke)!important; }
 body#dropzone-app .dz-entity-avatar > b { color:var(--dz-ink)!important; }
 body#dropzone-app .cart-section-head > div > p,

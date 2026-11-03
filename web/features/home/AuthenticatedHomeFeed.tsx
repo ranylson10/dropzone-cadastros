@@ -193,7 +193,7 @@ export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPane
             </header>
             <div className="store-home-products">
               {loadingVacancies ? Array.from({ length: 6 }).map((_, index) => <div className="store-home-product-skeleton" key={index} />) : null}
-              {!loadingVacancies && featured.map((item) => {
+              {!loadingVacancies && featured.map((item, index) => {
                 const href = `/campeonatos/${encodeURIComponent(item.id)}`
                 const inCart = cartIds.has(item.id)
                 const wishlisted = wishlistIds.has(item.id)
@@ -201,6 +201,7 @@ export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPane
                 return (
                   <ChampionshipCard
                     key={item.id}
+                    imagePriority={index === 0}
                     championship={{
                       id: item.id,
                       name: item.nome,

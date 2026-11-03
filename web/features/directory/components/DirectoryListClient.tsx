@@ -380,7 +380,7 @@ export function DirectoryListClient({ items, kind }: { items: DirectoryItem[]; k
               </label>
               <Link className="championship-directory-icon-link" href="/carrinho" aria-label={`Abrir carrinho com ${cartQuantity} vagas`}><ShoppingCart size={18} /><b>{cartQuantity}</b></Link>
               <details className="championship-directory-favorites">
-                <summary aria-label="Favoritos"><Heart size={18} /><b>{wishlistItems.length}</b></summary>
+                <summary><Heart size={18} aria-hidden="true" /><span className="sr-only">Favoritos </span><b>{wishlistItems.length}</b></summary>
                 <div>{wishlistItems.length ? wishlistItems.slice(0, 8).map((item) => <Link href={item.href} key={item.id}>{item.name}</Link>) : <p>Nenhum favorito ainda.</p>}</div>
               </details>
             </div>

@@ -16,15 +16,18 @@ async function expectCanonicalCard(card: Locator) {
   await expect(card.locator('.dz-champ-card-actions')).toBeVisible()
   const caption = card.locator('.dz-champ-card-caption')
   await expect(caption).toBeVisible()
-  expect(await caption.evaluate((node) => getComputedStyle(node).position)).toBe('absolute')
+  expect(await caption.evaluate((node) => getComputedStyle(node).position)).toBe('static')
 }
 
 test.describe.configure({ mode: 'serial' })
 
 test('Home continua usando o ChampionshipCard canônico', async ({ page }) => {
+  await page.route('**/api/vagas', route => route.fulfill({ json: { announcements: [
+    { id: 'card-contract', nome: 'Copa Circuito', vagas_livres: 12, valor_inscricao: 30, banner_url: '/dropzone-icon.png' },
+  ] } }))
   await open(page, '/')
   const card = page.locator('.dz-champ-card').first()
-  if (await card.count()) await expectCanonicalCard(card)
+  await expectCanonicalCard(card)
   await expect(page.locator('.store-home-product.championship-poster-card,.directory-champ-card,.vacancy-catalog-card')).toHaveCount(0)
   await expectNoOverflow(page)
 })

@@ -34,6 +34,7 @@ export type ChampionshipCardProps = {
   onCart?: () => void
   onInfo?: () => void
   className?: string
+  imagePriority?: boolean
 }
 
 function classes(...values: Array<string | false | null | undefined>) {
@@ -51,6 +52,7 @@ export function ChampionshipCard({
   onCart,
   onInfo,
   className,
+  imagePriority = false,
 }: ChampionshipCardProps) {
   const [failedImage, setFailedImage] = useState('')
   const freeSlots = Math.max(0, Number(championship.freeSlots || 0))
@@ -63,7 +65,14 @@ export function ChampionshipCard({
       <div className="dz-champ-card-media">
         <Link className="dz-champ-card-art" href={championship.href} aria-label={`Abrir ${championship.name}`}>
           {championship.bannerUrl && failedImage !== championship.bannerUrl
-            ? <Image src={championship.bannerUrl} alt="" width={720} height={450} sizes="(max-width: 600px) 100vw, (max-width: 1023px) 50vw, 400px" loading="lazy" unoptimized={!canOptimizeCatalogImage(championship.bannerUrl)} onError={() => setFailedImage(championship.bannerUrl || '')} />
+            ? <Image
+                src={championship.bannerUrl} alt="" width={720} height={450}
+                sizes="(max-width: 600px) calc(100vw - 36px), (max-width: 1023px) 50vw, 400px"
+                loading={imagePriority ? 'eager' : 'lazy'}
+                fetchPriority={imagePriority ? 'high' : 'auto'}
+                unoptimized={!canOptimizeCatalogImage(championship.bannerUrl)}
+                onError={() => setFailedImage(championship.bannerUrl || '')}
+              />
             : <span className="dz-champ-card-fallback" aria-hidden="true"><Trophy size={42} /></span>}
         </Link>
 

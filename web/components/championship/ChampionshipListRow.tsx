@@ -1,6 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
+import { useState } from 'react'
+import { canOptimizeCatalogImage } from '@/lib/catalog-image'
 
 import { ChevronRight, Heart, ShoppingCart, Trophy } from 'lucide-react'
 import { IconButton } from '@/components/ui'
@@ -49,6 +52,7 @@ export function ChampionshipListRow({
   onCart,
   className,
 }: ChampionshipListRowProps) {
+  const [failedImage, setFailedImage] = useState('')
   const hasFreeSlots = championship.freeSlots != null && Number.isFinite(Number(championship.freeSlots))
   const hasTotalSlots = championship.totalSlots != null && Number.isFinite(Number(championship.totalSlots))
   const freeSlots = hasFreeSlots ? Math.max(0, Number(championship.freeSlots)) : null
@@ -61,9 +65,14 @@ export function ChampionshipListRow({
       data-championship-list-row
       data-championship-id={championship.id}
     >
-      <Link className={classes('dz-champ-list-row__media', championship.isBannerImage && 'is-banner')} href={championship.href} aria-label={`Ver campeonato ${championship.name}`}>
-        {championship.imageUrl
-          ? <img src={championship.imageUrl} alt="" loading="lazy" decoding="async" />
+      <Link className={classes('dz-champ-list-row__media', championship.isBannerImage && 'is-banner')} href={championship.href} aria-label={`Ver campeonato ${championship.name}: ${statusLabel}${championship.participationLabel ? ` · ${championship.participationLabel}` : ''}`}>
+        {championship.imageUrl && failedImage !== championship.imageUrl
+          ? <Image
+              src={championship.imageUrl} alt="" width={720} height={450}
+              sizes="(max-width: 767px) 48px, (max-width: 1100px) 33vw, 400px"
+              loading="lazy" unoptimized={!canOptimizeCatalogImage(championship.imageUrl)}
+              onError={() => setFailedImage(championship.imageUrl || '')}
+            />
           : <Trophy size={36} aria-hidden="true" />}
         <span className="dz-champ-list-row__badges">
           <small className={freeSlots != null && freeSlots > 0 ? 'is-open' : 'is-closed'}>{statusLabel}</small>

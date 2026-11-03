@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { AppShell } from '@/components/layout'
 import { cachedStorageMediaUrl } from '@/lib/upload-public'
+import { canOptimizeCatalogImage } from '@/lib/catalog-image'
 import { Trophy, ArrowUpRight } from 'lucide-react'
 import { DIRECTORY_CONFIG } from '../config'
 import { listDirectory } from '../server'
@@ -36,7 +38,11 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
                 <div className="dz-market-showcase-images" aria-label="Campeonatos em destaque">
                   {highlights.map((item) => (
                     <Link key={item.id} href={`/campeonatos/${item.id}`} title={item.name} aria-label={`Conhecer ${item.name}`}>
-                      <img src={cachedStorageMediaUrl(item.banner || item.image || '')} alt={item.name} loading={item === highlights[0] ? 'eager' : 'lazy'} />
+                      <Image
+                        src={cachedStorageMediaUrl(item.banner || item.image || '')} alt={item.name}
+                        width={720} height={450} sizes="240px" loading="lazy"
+                        unoptimized={!canOptimizeCatalogImage(cachedStorageMediaUrl(item.banner || item.image || ''))}
+                      />
                     </Link>
                   ))}
                 </div>

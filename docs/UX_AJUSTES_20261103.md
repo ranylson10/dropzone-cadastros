@@ -8,6 +8,8 @@
 - Campos mobile usam 16 px; links frequentes possuem área de toque ampliada. O nome acessível da marca inclui o rótulo visível.
 - A home foi compactada em PC/mobile para aproximar as competições da primeira tela. Estatísticas detalhadas ficam em uma seção expansível. Sem amostra publicada, o painel mostra ausência de informação; zero permanece um resultado válido quando há amostra.
 - A página 404 agora está em português, com navegação e ações de retorno.
+- O catálogo mobile tem título curto e linhas alternadas, com miniaturas de 48 px, inscrição, vagas, premiação e data. Os destaques promocionais ficam no PC. A regra pertence à identidade canônica; a folha mobile antiga não voltou a ser importada.
+- Favoritos usa o conteúdo nativo do controle como nome acessível. O link da imagem inclui o estado mostrado no selo; a utilidade compartilhada `sr-only` mantém rótulos auxiliares disponíveis sem aparecerem na tela.
 
 ## Carregamento
 
@@ -15,6 +17,8 @@
 - Artes do componente de campeonato passam pelo otimizador de imagens do Next quando a origem é mídia pública do projeto. Fontes externas continuam funcionando sem a otimização; nenhuma origem arbitrária foi adicionada ao otimizador.
 - Os tamanhos de imagem são declarados conforme o espaço de exibição. Imagens decorativas do destaque usam carregamento sob demanda, inclusive quando o grupo é escondido no mobile.
 - Imagens com falha mantêm um fallback neutro e o acesso ao campeonato. A textura decorativa do contêiner público deixou de participar da pintura tardia da página.
+- A primeira arte da home recebe carregamento imediato e prioridade alta. As demais continuam sob demanda. Variantes de 360/480 px evitam entregar a arte de 640 px a uma área de 354 px em uma tela DPR 1.
+- Miniaturas e destaques do catálogo também usam o otimizador. O tamanho declarado acompanha os 48 px no mobile e a grade no PC; o fallback preserva os nomes e links quando a mídia falha.
 
 O CSS global legado continua sendo candidato a uma migração por área. Esta entrega não removeu estilos operacionais indiscriminadamente. As medições posteriores à publicação devem ser comparadas com as condições registradas no diagnóstico original; não se deve tratar uma coleta local como melhora comprovada de produção.
 
@@ -23,6 +27,8 @@ O CSS global legado continua sendo candidato a uma migração por área. Esta en
 Os testes públicos foram atualizados para a identidade atual. A checagem de links tem prazo próprio. O CI ganhou um job independente de experiência com build completo e Playwright/axe em PC e mobile, sem credenciais reais ou banco de teste compartilhado. Os dados usados pelo navegador desse job são controlados.
 
 Validação local: build completo, tipos, lint, contratos de identidade/dados e suíte de segurança aprovados. Foram aprovados **104 cenários de regressão** e **8 cenários da suíte de experiência**. A inspeção ampliada registrou **62 estados**, sem alertas nas regras axe verificadas, erros fatais, respostas HTTP inesperadas ou transbordamento. Decoração sem informação, como a marca d’água, não foi tratada como texto funcional.
+
+Na conferência complementar das imagens e do catálogo, **23 cenários passaram** e um caso exclusivo de mobile foi ignorado no PC. Isso inclui rechecagens de perfil/agenda e atualização das expectativas antigas de navegação/layout de R197/R208. Quatro estados de home/catálogo em PC/mobile passaram no axe, sem erros de execução, HTTP ou transbordamento; a falha de imagens da lista também foi simulada. Evidências: `ux-image-regression-final.log`, `ux-image-build-final.log`, `ux-image-lint-final.log` e `ux-after/images-local.json`.
 
 ## Catálogo e banco
 

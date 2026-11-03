@@ -41,7 +41,7 @@ test.describe('R208 — Campeonatos e vagas em um catálogo único', () => {
       await expect(visible(page, '.store-home-nav')).toHaveCount(0)
       await expectSingleVisible(visible(page, 'button.store-home-mobile-toggle'), 'Botão do menu mobile da Home')
     } else {
-      await expectSingleVisible(visible(page, '.store-home-nav'), 'Navegação principal da Home')
+      await expectSingleVisible(page.getByRole('navigation', { name: 'Navegação principal', exact: true }), 'Navegação principal da Home')
     }
 
     await noOverflow(page)
@@ -56,15 +56,15 @@ test.describe('R208 — Campeonatos e vagas em um catálogo único', () => {
       await expectSingleVisible(toggle, 'Botão do menu mobile')
       await toggle.click()
 
-      const mobileNav = visible(page, 'nav[aria-label="Navegação mobile"]')
+      const mobileNav = page.getByRole('dialog', { name: 'Menu completo do DropZone' }).getByRole('navigation', { name: 'Explorar', exact: true })
       await expectSingleVisible(mobileNav, 'Navegação mobile')
-      await expect(mobileNav.getByRole('link', { name: 'CAMPEONATOS', exact: true })).toBeVisible()
-      await expect(mobileNav.getByRole('link', { name: 'VAGAS', exact: true })).toHaveCount(0)
+      await expect(mobileNav.getByRole('link', { name: 'Campeonatos', exact: true })).toBeVisible()
+      await expect(mobileNav.getByRole('link', { name: 'Vagas', exact: true })).toHaveCount(0)
     } else {
-      const desktopNav = visible(page, '.store-home-nav')
+      const desktopNav = page.getByRole('navigation', { name: 'Navegação principal', exact: true })
       await expectSingleVisible(desktopNav, 'Navegação principal')
-      await expect(desktopNav.getByRole('link', { name: 'CAMPEONATOS', exact: true })).toBeVisible()
-      await expect(desktopNav.getByRole('link', { name: 'VAGAS', exact: true })).toHaveCount(0)
+      await expect(desktopNav.getByRole('link', { name: 'Campeonatos', exact: true })).toBeVisible()
+      await expect(desktopNav.getByRole('link', { name: 'Vagas', exact: true })).toHaveCount(0)
     }
 
     await noOverflow(page)
@@ -112,13 +112,13 @@ test.describe('R208 — Campeonatos e vagas em um catálogo único', () => {
         await expect(row.locator('.dz-champ-list-row__actions')).toBeVisible()
       }
     } else {
-      const listHead = root.locator('.championship-directory-list-head:visible')
-      await expectSingleVisible(listHead, 'Cabeçalho da lista de campeonatos')
-      await expect(listHead.getByText('Inscrição', { exact: true })).toBeVisible()
-      await expect(listHead.getByText('Premiação', { exact: true })).toBeVisible()
+      // Os rótulos acompanham cada item também no PC; não há cabeçalho de tabela.
       if (await rows.count()) {
         await expect(rows.first()).toBeVisible()
-        await expect(rows.first().locator('.dz-champ-list-row__metrics')).toBeVisible()
+        const metrics = rows.first().locator('.dz-champ-list-row__metrics')
+        await expect(metrics).toBeVisible()
+        await expect(metrics.getByText('Inscrição', { exact: true })).toBeVisible()
+        await expect(metrics.getByText('Premiação', { exact: true })).toBeVisible()
         await expect(rows.first().locator('.dz-champ-list-row__actions')).toBeVisible()
       }
     }
