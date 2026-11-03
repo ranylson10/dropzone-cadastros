@@ -11,7 +11,10 @@ export default defineConfig({
   outputDir: 'relatorios-testes/experience-results',
   reporter: [['line'], ['html', { outputFolder: 'relatorios-testes/experience-report', open: 'never' }]],
   use: { baseURL, reducedMotion: 'reduce', trace: 'retain-on-failure' },
-  webServer: { command: 'npm run start --workspace dropzone-web -- --port 3001', url: baseURL, reuseExistingServer: !process.env.CI, timeout: 60_000 },
+  webServer: [
+    ...(process.env.CI ? [{ command: 'node scripts/e2e/serve-readonly-supabase-fixture.mjs', url: 'http://127.0.0.1:54321/health', reuseExistingServer: false, timeout: 10_000 }] : []),
+    { command: 'npm run start --workspace dropzone-web -- --port 3001', url: baseURL, reuseExistingServer: !process.env.CI, timeout: 60_000 },
+  ],
   projects: [
     { name: 'experience-desktop', use: { ...devices['Desktop Chrome'] } },
     { name: 'experience-mobile', use: { ...devices['Pixel 7'] } },

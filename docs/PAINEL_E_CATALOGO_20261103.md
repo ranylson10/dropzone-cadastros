@@ -13,3 +13,5 @@ Validação local: build completo, TypeScript, lint, segurança e contratos de t
 Regressão adicional: 26 cenários aprovados, cobrindo permissões de vice-líder, revogação, seletor de perfis, retorno ao início, contagens, carregamento por área, troca rápida de campeonato e descarte de respostas antigas. Total local: 42 cenários E2E aprovados.
 
 Esses testes não gravam em contas reais. Não houve migração de banco nem mudança de permissões ou de regras de cobrança.
+
+O CI usa um servidor de catálogo vazio, restrito a GET/HEAD e ligado somente ao loopback, para renderizar a moldura real de `/campeonatos` sem consultar um endereço fictício ou exigir credenciais de produção. A reprodução local do ambiente de CI passou nos 16 cenários; requisições de escrita ao servidor de teste retornaram 405. A publicação da interface também passou em oito cenários no domínio, com as APIs de conta controladas pelo teste.
