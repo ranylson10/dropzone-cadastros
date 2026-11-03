@@ -1,6 +1,6 @@
 /* Shared operational layout. The scope belongs to all profile panels. */
-:global(body#dropzone-app) .scope:global(.page-authenticated) { display:block; width:100%!important; max-width:none!important; margin:0!important; padding:24px 32px 48px!important; text-align:left; }
-:global(body#dropzone-app) .scope :global(.panel-workspace-shell) { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; width:100%!important; max-width:1600px!important; margin:0 auto!important; padding:0!important; }
+:global(body#dropzone-app) .scope:global(.page-authenticated) { display:block; padding:0!important; text-align:left; }
+:global(body#dropzone-app) .scope :global(.panel-workspace-shell) { display:grid; grid-template-columns:minmax(0,1fr); }
 :global(body#dropzone-app) .scope :global(.panel-workspace-return) { margin:0; padding:0; }
 :global(body#dropzone-app) .scope :global(.panel-workspace-return > button) { min-height:44px!important; padding:0!important; border:0!important; background:transparent!important; color:var(--dz-muted)!important; font:400 14px/1.3 var(--font-body),sans-serif; cursor:pointer; }
 :global(body#dropzone-app) .scope :global(.panel-workspace-shell .account-workspace-hero) { display:grid!important; grid-template-columns:minmax(0,1fr) auto!important; align-items:center; gap:16px!important; margin:0!important; padding:0 0 16px!important; min-height:0!important; border-bottom:1px solid var(--dz-stroke)!important; }
@@ -18,13 +18,26 @@
 :global(body#dropzone-app) .scope :global(.dz-workspace > :is(.dz-workspace-header,.dz-workspace-content,.dz-workspace-subnav,.message)) { grid-column:1/-1!important; }
 :global(body#dropzone-app) .scope :global(.dz-workspace > .dz-workspace-nav) { grid-column:1!important; align-self:start; }
 :global(body#dropzone-app) .scope :global(.dz-workspace > .dz-workspace-more) { grid-column:2!important; align-self:start; margin:0; width:auto; max-width:none; }
-:global(body#dropzone-app) .scope :global(.panel-workspace-shell .dz-workspace .dz-workspace-header) { display:flex!important; flex-direction:row!important; align-items:center; min-height:0!important; padding:0!important; margin:0!important; border:0!important; border-radius:0!important; background:transparent!important; color:var(--dz-ink)!important; box-shadow:none!important; }
+:global(body#dropzone-app) .scope :global(.panel-workspace-shell .dz-workspace .dz-workspace-header) { display:flex!important; flex-direction:row!important; flex-wrap:wrap; align-items:center; min-height:0!important; padding:0!important; margin:0!important; border:0!important; border-radius:0!important; background:transparent!important; color:var(--dz-ink)!important; box-shadow:none!important; }
 :global(body#dropzone-app) .scope :global(.dz-workspace-header)::before,
 :global(body#dropzone-app) .scope :global(.dz-workspace-header)::after { display:none!important; }
 :global(body#dropzone-app) .scope :global(.dz-workspace-header__eyebrow) { display:none; }
 :global(body#dropzone-app) .scope :global(.panel-workspace-shell .dz-workspace-header__title-row h2) { color:var(--dz-ink)!important; font-size:24px; }
 :global(body#dropzone-app) .scope :global(.dz-workspace-header .dz-workspace-header__icon) { width:28px; height:28px; flex-basis:28px; border:0!important; background:transparent!important; color:var(--dz-rust)!important; }
 :global(body#dropzone-app) .scope :global(.dz-workspace-header .dz-workspace-header__description) { color:var(--dz-muted)!important; font-size:14px; }
+:global(body#dropzone-app) .scope :global(.dz-workspace-header__copy) { flex:1 1 240px; }
+:global(body#dropzone-app) .scope :global(.dz-workspace-header__actions) { width:auto!important; flex:0 0 auto; max-width:100%; }
+:global(body#dropzone-app) .scope :global(.dz-workspace-header__description p) { margin:0; color:inherit!important; }
+:global(body#dropzone-app) .scope :global(.championship-summary .dz-workspace-header__description) { display:block; }
+:global(body#dropzone-app) .scope :global(.dz-workspace-content > .championship-detail-card) { display:grid; gap:16px; overflow:visible!important; }
+:global(body#dropzone-app) .scope :global(.champ-tab-body-ref) { padding:0!important; background:transparent!important; color:var(--dz-ink)!important; }
+:global(body#dropzone-app) .scope :global(.championship-overview) { display:grid; gap:24px; }
+:global(body#dropzone-app) .scope :global(.championship-checklist .section-head) { align-items:center; margin:0; padding:0 0 12px; border:0; }
+:global(body#dropzone-app) .scope :global(.championship-checklist h3) { font-size:22px; }
+:global(body#dropzone-app) .scope :global(.championship-checklist .dz-data-select > span:not(.sr-only)) { flex:1; }
+:global(body#dropzone-app) .scope :global(.championship-checklist .dz-data-select > svg) { flex-shrink:0; }
+:global(body#dropzone-app) .scope :global(.championship-lifecycle-card) { padding:16px 0!important; border:0!important; border-top:1px solid var(--dz-stroke)!important; border-radius:0!important; background:transparent!important; }
+:global(body#dropzone-app) .scope :global(.championship-lifecycle-card h3) { font-size:22px; }
 :global(body#dropzone-app) .scope :global(.dz-workspace-header__actions > :is(span,a,button)) { background:transparent!important; border-color:var(--dz-stroke)!important; color:var(--dz-muted)!important; border-radius:var(--radius-sm); }
 :global(body#dropzone-app) .scope :global(.dz-workspace-nav .dz-workspace-nav__item:not(.is-active):not(:disabled)) { color:var(--dz-muted)!important; }
 :global(body#dropzone-app) .scope :global(.dz-workspace-nav .dz-workspace-nav__item :is(span,svg)) { color:inherit!important; }
@@ -57,8 +70,6 @@
 :global(body#dropzone-app) .scope :global(.player-summary-grid svg) { color:var(--dz-rust)!important; }
 
 @media (max-width:900px) {
-  :global(body#dropzone-app) .scope:global(.page-authenticated) { padding:12px 16px calc(88px + env(safe-area-inset-bottom))!important; }
-  :global(body#dropzone-app) .scope :global(.panel-workspace-shell) { max-width:none!important; gap:12px; }
   :global(body#dropzone-app) .scope :global(.panel-workspace-shell .dz-workspace .dz-focus) { grid-template-columns:minmax(0,1fr); gap:16px; padding:0 0 16px!important; }
   :global(body#dropzone-app) .scope :global(.panel-workspace-shell .dz-workspace) { gap:12px!important; }
 }

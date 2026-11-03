@@ -272,7 +272,7 @@ export function ProducerFinancePanel(props: {
           <span>Carteira é saldo. Aqui ficam desempenho, custos, metas e projeções.</span>
         </div>
         <div className="producer-finance-toolbar-actions">
-          <label><CalendarRange size={15} /><UiInput type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
+          <label><CalendarRange size={15} aria-hidden="true" /><span className="sr-only">Período financeiro</span><UiInput type="month" value={period} onChange={(event) => setPeriod(event.target.value)} /></label>
           <button type="button" className="button secondary" disabled={loading} onClick={() => void loadFinance()}><RefreshCcw size={15} /> Atualizar</button>
           {scope === 'workspace' ? <a className="button secondary" href="/carteira"><WalletCards size={15} /> Carteira</a> : null}
         </div>

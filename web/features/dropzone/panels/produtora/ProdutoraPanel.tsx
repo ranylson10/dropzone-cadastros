@@ -2,6 +2,8 @@
 
 import { confirmAction } from '@/components/feedback'
 import { Input as UiInput, Select as UiSelect, Textarea as UiTextarea } from '@/components/ui/Field'
+import { DataList, DataListItem } from '@/components/ui/DataList'
+import { EntityAvatar } from '@/components/entities/EntityAvatar'
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, ShieldCheck, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
@@ -17,7 +19,7 @@ import { SystemModal } from '@/components/layout/SystemModal'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, producerWorkspaceForTab, producerWorkspaceTabs, type ProducerTab } from './producer-tabs'
 import { WhatsappPhoneField } from '@/components/forms/WhatsappPhoneField'
-import { WorkspaceContent, WorkspaceFocus, WorkspaceHeader, WorkspaceMoreMenu, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
+import { WorkspaceContent, WorkspaceFocus, WorkspaceHeader, WorkspaceMetrics, WorkspaceMoreMenu, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { producerEntityRequest, producerRequestKey, type ProducerEntityRequest, type ProducerSection } from '../../workspace-entities'
 import type { ProducerWorkspaceSummary } from '@backend/dropzone/entities/producer-summary'
@@ -1539,12 +1541,12 @@ ${params.url}`
             ]}
           />
 
-          <div className="producer-dashboard-kpis">
-            <article><small>Campeonatos</small><strong>{props.championships.length}</strong><span>Total no workspace</span></article>
-            <article><small>Ativos</small><strong>{producerApprovedChampionships}</strong><span>Liberados para operação</span></article>
-            <article><small>Equipes</small><strong>{producerTeamsCount}</strong><span>Cadastros disponíveis</span></article>
-            <article><small>Jogos</small><strong>{producerGamesCount}</strong><span>Programados no sistema</span></article>
-          </div>
+          <WorkspaceMetrics label="Resumo da produtora" metrics={[
+            { label: 'Campeonatos', value: props.championships.length, hint: 'Competições criadas' },
+            { label: 'Ativos', value: producerApprovedChampionships, hint: 'Campeonatos aprovados' },
+            { label: 'Equipes', value: producerTeamsCount, hint: 'Equipes cadastradas' },
+            { label: 'Jogos', value: producerGamesCount, hint: 'Jogos programados' },
+          ]} />
 
           <button type="button" className="producer-dashboard-help-toggle" aria-expanded={flowHelpOpen}
             aria-controls="producer-dashboard-flow-help" onClick={() => setFlowHelpOpen(value => !value)}>
@@ -1662,22 +1664,21 @@ ${params.url}`
         </div>
 
         {showChampFilters ? (
-          <div className="championship-type-filter producer-filter-popover" role="tablist" aria-label="Filtrar campeonatos por tipo">
-            <button className={typeFilter === 'todos' ? 'active' : ''} onClick={() => setTypeFilter('todos')}>Todos</button>
-            {CHAMPIONSHIP_TYPES.map((type) => <button key={type} className={typeFilter === type ? 'active' : ''} onClick={() => setTypeFilter(type)}>{CHAMPIONSHIP_TYPE_LABELS[type]}</button>)}
+          <div className="championship-type-filter producer-filter-popover" role="group" aria-label="Filtrar campeonatos por tipo">
+            <button className={typeFilter === 'todos' ? 'active' : ''} aria-pressed={typeFilter === 'todos'} onClick={() => setTypeFilter('todos')}>Todos</button>
+            {CHAMPIONSHIP_TYPES.map((type) => <button key={type} className={typeFilter === type ? 'active' : ''} aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)}>{CHAMPIONSHIP_TYPE_LABELS[type]}</button>)}
           </div>
         ) : null}
 
 
-        <div className="championship-list ref-list producer-championship-list">
-          {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato neste tipo.</p> : null}
+        {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato neste tipo.</p> : null}
+        <DataList className="producer-championship-list" aria-label="Seus campeonatos">
           {filteredChampionships.map((champ) => {
             const logo = dataText(champ, 'logo_url')
             const ap = String(dataText(champ, 'aprovacao_status') || 'aprovado')
             return (
-              <button
-                key={champ.id}
-                className={`champ-list-item ref-champ-item ${selectedChamp?.id === champ.id ? 'active' : ''}`}
+              <DataListItem key={champ.id} data-selected={selectedChamp?.id === champ.id}>
+              <button className="dz-data-select" aria-current={selectedChamp?.id === champ.id ? 'true' : undefined}
                 onClick={() => {
                   props.setSelectedChampId(champ.id)
                   setShowCreateChamp(false)
@@ -1685,7 +1686,7 @@ ${params.url}`
                   setTab('visao')
                 }}
               >
-                <span className="champ-thumb">{logo ? <img src={logo} alt="" /> : <Trophy size={18} />}</span>
+                <EntityAvatar name={rowTitle(champ)} image={logo} size="sm" />
                 <span>
                   <strong>{rowTitle(champ)}</strong>
                   <small>
@@ -1695,9 +1696,10 @@ ${params.url}`
                   </small>
                 </span>
               </button>
+              </DataListItem>
             )
           })}
-        </div>
+        </DataList>
       </aside> : null}
 
       <SystemModal
@@ -1883,13 +1885,12 @@ ${params.url}`
       {producerSection === 'campeonatos' && championshipDetailOpen ? <section className="championship-detail-card panel">
         {selectedChamp ? (
           <>
-            <header className="detail-hero-ref">
-              <div className="detail-logo-ref">
-                {dataText(selectedChamp, 'logo_url') ? <img src={dataText(selectedChamp, 'logo_url')} alt="" /> : <Trophy size={28} />}
-              </div>
-              <div className="detail-title-ref">
-                <p className="eyebrow">Campeonato selecionado</p>
-                <h2>{rowTitle(selectedChamp)}</h2>
+            <WorkspaceHeader
+              className="championship-summary"
+              eyebrow="Campeonato selecionado"
+              title={rowTitle(selectedChamp)}
+              icon={<EntityAvatar name={rowTitle(selectedChamp)} image={dataText(selectedChamp, 'logo_url')} size="sm" />}
+              description={<>
                 <p>
                   {CHAMPIONSHIP_TYPE_LABELS[selectedChampType as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Copa'}
                   {' · '}
@@ -1949,13 +1950,13 @@ ${params.url}`
                         alt="QR Code PIX"
                         width={180}
                         height={180}
-                        style={{ border: '1px solid #d9e2ec', background: '#fff', padding: 8, borderRadius: 12 }}
+                        style={{ border: '1px solid var(--dz-stroke)', background: 'var(--dz-white)', padding: 8, borderRadius: 12 }}
                       />
                     ) : null}
                     {payPixPayload || payInfo.pagamentos?.[0]?.asaas_pix_payload ? (
                       <div style={{ display: 'grid', gap: 8 }}>
                         <strong>PIX copia e cola</strong>
-                        <code style={{ display: 'block', maxHeight: 76, overflow: 'auto', padding: 10, border: '1px solid #d9e2ec', background: '#fff', wordBreak: 'break-all', fontSize: 12 }}>
+                        <code style={{ display: 'block', maxHeight: 76, overflow: 'auto', padding: 10, border: '1px solid var(--dz-stroke)', background: 'var(--dz-white)', wordBreak: 'break-all', fontSize: 12 }}>
                           {payPixPayload || payInfo.pagamentos?.[0]?.asaas_pix_payload}
                         </code>
                         <button
@@ -1971,131 +1972,63 @@ ${params.url}`
                   </div>
                 ) : null}
                 {dataText(selectedChamp, 'regras_url') ? <small>Regulamento: {dataText(selectedChamp, 'regras_url')}</small> : null}
-              </div>
+              </>}
+              actions={
               <div className="championship-admin-actions">
                 <button className="icon-action-button" disabled={String(dataText(selectedChamp, 'aprovacao_status') || 'aprovado') !== 'aprovado'} onClick={() => startEditChampionship(selectedChamp)} title="Editar campeonato"><Pencil size={16} /> Editar</button>
                 <button className="icon-action-button danger" onClick={async () => {
                   if (await confirmAction(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficará oculto, mas os dados serão preservados.`)) props.deleteChampionship(selectedChamp.id)
                 }} title="Excluir campeonato"><Trash2 size={16} /> Excluir</button>
               </div>
-              <div className="detail-stats-ref">
-                {stats.map((item) => (
-                  <div className="detail-stat" key={item.label}>
-                    <strong>{item.value}</strong>
-                    <span>{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            </header>
-
-            <section className="dz-r20-configure" aria-label="Configurar campeonato por etapas">
-              <div className="dz-r20-configure__heading">
-                <span className="dz-r20-spark" aria-hidden="true">✦</span>
-                <div><p className="eyebrow">Próximos passos</p><h3>Configure seu campeonato</h3><small>Comece pelo essencial. O restante pode ser ajustado depois.</small></div>
-              </div>
-              <div className="dz-r20-configure__steps">
-                <button type="button" onClick={() => startEditChampionship(selectedChamp)}><span>01</span><strong>Dados e inscrição</strong><small>Editar informações</small><ChevronRight size={16} aria-hidden /></button>
-                <button type="button" onClick={() => setTab('grupos')}><span>02</span><strong>Fases e grupos</strong><small>Montar estrutura</small><ChevronRight size={16} aria-hidden /></button>
-                <button type="button" onClick={() => setTab('equipes')}><span>03</span><strong>Equipes</strong><small>Gerenciar participantes</small><ChevronRight size={16} aria-hidden /></button>
-                <button type="button" onClick={() => setTab('jogos')}><span>04</span><strong>Jogos</strong><small>Agenda e quedas</small><ChevronRight size={16} aria-hidden /></button>
-              </div>
-            </section>
-
-            <nav className="champ-workspace-nav" aria-label="Áreas do campeonato">
-              {visibleChampWorkspaces.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={activeChampWorkspace === item.id ? 'active' : ''}
-                  onClick={() => setTab(item.defaultTab)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </nav>
-
-            {contextualChampTabs.length > 1 ? (
-              <nav className="champ-context-nav" aria-label={`Ferramentas de ${activeWorkspaceConfig.label.toLowerCase()}`}>
-                {contextualChampTabs.map((item) => (
-                  <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>
-                ))}
-              </nav>
-            ) : null}
+              }
+            />
+            <WorkspaceMetrics label="Resumo do campeonato" metrics={stats} />
+            <WorkspaceMoreMenu label="Configurar campeonato" items={[
+              { id: 'dados', label: 'Dados e inscrição', detail: 'Editar informações do campeonato' },
+              { id: 'grupos', label: 'Fases e grupos', detail: 'Montar a estrutura' },
+              { id: 'equipes', label: 'Equipes', detail: 'Gerenciar participantes' },
+              { id: 'jogos', label: 'Jogos', detail: 'Agenda e quedas' },
+            ]} onChange={(id) => {
+              if (id === 'dados') startEditChampionship(selectedChamp)
+              else setTab(id as typeof tab)
+            }} />
+            <WorkspaceNav ariaLabel="Áreas do campeonato" activeId={activeChampWorkspace}
+              items={visibleChampWorkspaces.map(item => ({ id: item.id, label: item.label }))}
+              onChange={(id) => {
+                const workspace = visibleChampWorkspaces.find(item => item.id === id)
+                if (workspace) setTab(workspace.defaultTab)
+              }} />
+            {contextualChampTabs.length > 1 ? <WorkspaceSubnav
+              ariaLabel={`Ferramentas de ${activeWorkspaceConfig.label.toLowerCase()}`}
+              activeId={tab} items={contextualChampTabs.map(item => ({ id: item.id, label: item.label }))}
+              onChange={(id) => setTab(id as typeof tab)}
+            /> : null}
 
             <div className="champ-tab-body-ref">
               {dataLoading ? <DropzoneLoader label="Carregando dados desta área" /> : dataError ? null : <>
               {tab === 'visao' ? (
-                <div className="champ-overview-panel">
-                  <section className="champ-overview-card is-main champ-operation-guide">
-                    <div className="champ-operation-guide-head">
-                      <div>
-                        <p className="eyebrow">Operação guiada</p>
-                        <h3>Um campeonato, cinco áreas.</h3>
-                        <span>Equipes e jogadores entram em Participantes. Fases, grupos, jogos e quedas ficam dentro de Operação. Resultados e financeiro aparecem só quando você precisa.</span>
-                      </div>
-                      <span className="champ-operation-progress">{operationalChecklist.filter((item) => item.done).length}/{operationalChecklist.length} prontos</span>
+                <div className="championship-overview">
+                  <div className="button-row compact-actions">
+                    {canScoreWorkspace ? <button type="button" className="button secondary" disabled={!nextGame} onClick={() => nextGame && window.open(`/campeonatos/${selectedChamp.id}/pontuador/${nextGame.id}`, '_blank', 'noopener,noreferrer')}><Play size={16} /> Abrir pontuador</button> : null}
+                    {canOperateWorkspace ? <button type="button" className="button secondary" onClick={() => { setTab('links'); setOpenAction('link') }}><Link2 size={16} /> Receber inscrições</button> : null}
+                  </div>
+                  <section className="championship-checklist" aria-label="Preparação do campeonato">
+                    <div className="section-head">
+                      <h3>O que falta para rodar?</h3>
+                      <small>{operationalChecklist.filter(item => item.done).length}/{operationalChecklist.length} concluídos</small>
                     </div>
-                    <div className="champ-operation-pipeline">
-                      <button type="button" onClick={() => setTab('equipes')}>
-                        <b>01</b><strong>Participantes</strong><small>{props.selectedChampTeams.length ? `${props.selectedChampTeams.length} line(s) inscrita(s)` : 'Equipes, jogadores e inscrições'}</small>
-                      </button>
-                      <button type="button" onClick={() => setTab('grupos')}>
-                        <b>02</b><strong>Estrutura</strong><small>{champPhases.length || champGroups.length ? `${champPhases.length} fase(s) · ${champGroups.length} grupo(s)` : 'Fases, grupos e slots'}</small>
-                      </button>
-                      <button type="button" onClick={() => setTab('jogos')}>
-                        <b>03</b><strong>Jogos e quedas</strong><small>{champGames.length ? `${champGames.length} jogo(s) preparado(s)` : 'Agenda, mapas e quedas'}</small>
-                      </button>
-                      <button type="button" onClick={() => setTab('estatisticas')}>
-                        <b>04</b><strong>Resultados</strong><small>{finalizedGames ? `${finalizedGames} jogo(s) finalizado(s)` : 'Classificação, MVP e estatísticas'}</small>
-                      </button>
-                      {canFinanceWorkspace || canCommercialWorkspace ? <button type="button" onClick={() => setTab(canFinanceWorkspace ? 'financeiro' : 'vendedores')}>
-                        <b>05</b><strong>Financeiro</strong><small>Pagamentos, revisões e vendas</small>
-                      </button> : null}
-                    </div>
-                    <div className="champ-overview-quick-actions">
-                      {canScoreWorkspace ? <button type="button" disabled={!nextGame} onClick={() => nextGame && window.open(`/campeonatos/${selectedChamp.id}/pontuador/${nextGame.id}`, '_blank', 'noopener,noreferrer')}><Play size={16} /><span><strong>Abrir pontuador</strong><small>{nextGame ? rowTitle(nextGame) : 'Crie um jogo primeiro'}</small></span><ChevronRight size={15} /></button> : null}
-                      {canOperateWorkspace ? <button type="button" onClick={() => { setTab('links'); setOpenAction('link') }}><Link2 size={16} /><span><strong>Receber inscrições</strong><small>Gerar link externo por grupo</small></span><ChevronRight size={15} /></button> : null}
-                    </div>
-                  </section>
-
-                  <EditionLifecycleStatus championshipId={selectedChamp.id} />
-
-                  <section className="champ-overview-card">
-                    <div className="champ-overview-checklist-head">
-                      <div>
-                        <p className="eyebrow">Checklist operacional</p>
-                        <h3>O que falta para rodar?</h3>
-                      </div>
-                      <span>{operationalChecklist.filter((item) => item.done).length}/{operationalChecklist.length} concluídos</span>
-                    </div>
-                    <div className="champ-overview-checklist">
-                      {operationalChecklist.map((item) => (
-                        <button
-                          type="button"
-                          key={item.title}
-                          className={item.done ? 'is-done' : 'is-pending'}
-                          onClick={item.action}
-                        >
-                          <CheckCircle2 size={17} />
-                          <span>
-                            <strong>{item.title}</strong>
-                            <small>{item.detail}</small>
-                          </span>
+                    <DataList aria-label="Checklist operacional">
+                      {operationalChecklist.map(item => <DataListItem key={item.title}>
+                        <button type="button" className="dz-data-select" onClick={item.action}>
+                          <CheckCircle2 size={18} aria-hidden="true" style={{ color: item.done ? 'var(--success)' : 'var(--dz-rust)' }} />
+                          <span><strong>{item.title}</strong><small>{item.detail}</small></span>
+                          <span className="sr-only">{item.done ? 'Concluído' : 'Pendente'}</span>
+                          <ChevronRight size={16} aria-hidden="true" />
                         </button>
-                      ))}
-                    </div>
+                      </DataListItem>)}
+                    </DataList>
                   </section>
-
-                  <section className="champ-overview-card">
-                    <div className="champ-overview-status">
-                      {stats.map((item) => (
-                        <span key={item.label}>
-                          <strong>{item.value}</strong>
-                          <small>{item.label}</small>
-                        </span>
-                      ))}
-                    </div>
-                  </section>
+                  <EditionLifecycleStatus championshipId={selectedChamp.id} />
                 </div>
               ) : null}
 

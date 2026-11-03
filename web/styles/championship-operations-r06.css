@@ -271,7 +271,7 @@
   color: #20252c !important;
 }
 .producer-layout-ref .champ-games-head p,
-.producer-layout-ref .champ-stats-head p { color: #8b7400 !important; }
+.producer-layout-ref .champ-stats-head p { color: var(--dz-rust) !important; }
 .producer-layout-ref .champ-games-summary small,
 .producer-layout-ref .champ-stats-summary small { color: #64707c !important; }
 .producer-layout-ref .champ-stats-ranking-head,

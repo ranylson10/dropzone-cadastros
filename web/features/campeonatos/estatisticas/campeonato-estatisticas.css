@@ -14,7 +14,7 @@
 .champ-stats-tabs button{flex:0 0 auto;min-height:36px;border:0;border-bottom:2px solid transparent;background:transparent;padding:0;color:#85888e;font:inherit;font-size:12px;font-weight:900;text-transform:uppercase;cursor:pointer}
 .champ-stats-tabs button.active{border-bottom-color:var(--ui-primary,#c9b766);color:var(--ui-text,#f5f3ed)}
 .champ-stats-filters,.champ-stats-share{border-radius:9px;background:var(--ui-surface,#141518)}
-.champ-stats-filters>summary,.champ-stats-share>summary{min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;padding:0 11px;color:#b9bbc0;font-size:12px;font-weight:850;text-transform:uppercase;cursor:pointer}
+.champ-stats-filters>summary,.champ-stats-share>summary{min-height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none;padding:0 11px;color:var(--dz-muted);font-size:12px;font-weight:850;text-transform:uppercase;cursor:pointer}
 .champ-stats-filters>summary::-webkit-details-marker,.champ-stats-share>summary::-webkit-details-marker{display:none}
 .champ-stats-filters>summary small{color:#73767c;font-size:12px}
 .champ-stats-filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:0 10px 10px}

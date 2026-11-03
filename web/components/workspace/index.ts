@@ -10,3 +10,4 @@ export {
 export { WorkspaceMoreMenu, type WorkspaceMoreItem } from './WorkspaceMoreMenu'
 
 export { WorkspaceFocus, type WorkspaceFocusAction } from './WorkspaceFocus'
+export { WorkspaceMetrics } from './WorkspaceMetrics'

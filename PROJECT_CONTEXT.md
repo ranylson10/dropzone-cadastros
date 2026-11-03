@@ -1,3 +1,11 @@
+## Correção da estrutura dos painéis (03/11/2026)
+
+- Painéis de perfil e catálogo usam o mesmo `StorefrontHeader`, navegação e `PlatformPageBody`; não recriar um cabeçalho ou largura próprios para o painel.
+- Gestão de campeonatos usa os componentes compartilhados, incluindo listas alternadas e indicadores compactos. Retirados o banner antigo, o assistente roxo e a lista fixa que sobrepunha o conteúdo.
+- Seletor de painéis no topo do PC e no dock móvel; acessos da conta preservados. Corrigido o token de superfície que ainda produzia fundos escuros antigos.
+- Build, tipos, segurança, contratos e 16 cenários de experiência local aprovados; comparação explícita entre catálogo e painel incluída no CI.
+- Registro atual: `docs/PAINEL_E_CATALOGO_20261103.md`. Substitui a composição descrita em `docs/CORRECAO_PAINEIS_20261103.md`.
+
 ## Circuito — identidade, listas e publicação (03/11/2026)
 
 - Identidade visual centralizada, navegação compartilhada e listas compactas com faixas alternadas em desktop e mobile.

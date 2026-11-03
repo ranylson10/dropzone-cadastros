@@ -107,6 +107,7 @@ export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPane
         onSignOut={onSignOut}
         activeAccountId={account?.id}
         onSelectPanel={onOpenPanel}
+        showWallet={account?.profile_type === 'produtora' || account?.profile_type === 'manager'}
         onAccountClick={account ? () => void onOpenPanel(account) : undefined}
       />
 

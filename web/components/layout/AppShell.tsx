@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { isWebProfileType, type AccountIdentity, type DropZoneRow, type WebProfileType } from '@/lib/types'
 import { AppHeader } from './AppHeader'
 import { StorefrontHeader } from './StorefrontHeader'
-import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
+import { APP_NAV, hasPublicDiscoveryNavigation, resolveActiveNavLabel, type AppNavItem } from './nav'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 import { workspaceHref } from '@/features/dropzone/WorkspaceContextSwitcher'
 
@@ -208,17 +208,8 @@ export function AppShell({
     window.location.assign(workspaceHref(next))
   }
 
-  // A mesma moldura visual do catálogo R13 também atende às páginas públicas.
-  // Não substituímos o cabeçalho de painéis operacionais nem o de fluxos isolados.
-  const unifiedPublicRoutes = new Set([
-    '/agenda', '/carteira', '/lili', '/afiliados',
-    '/termos-de-servico', '/politica-de-privacidade', '/exclusao-de-dados',
-  ])
-  const unifiedPublicHeader = header !== 'never'
-    && unifiedPublicRoutes.has(pathname)
-    && !mainClassName.includes('dashboard')
-    && !mainClassName.includes('affiliate-dashboard')
-  const resolvedHeaderVariant = unifiedPublicHeader ? 'storefront' : headerVariant
+  // Profile operation uses the same platform navigation as its public directory.
+  const resolvedHeaderVariant = hasPublicDiscoveryNavigation(pathname) ? 'storefront' : headerVariant
   const resolvedActive = activeLabel || resolveActiveNavLabel(pathname)
   const showHeader =
     header === 'always'
@@ -230,7 +221,7 @@ export function AppShell({
     if (mainClassName.split(/\s+/).some(name => ['login-portal', 'cart-page', 'bank-wallet-page', 'agenda-page', 'affiliate-page', 'affiliate-dashboard-page', 'championship-central-page', 'vacancies-page', 'sale-checkout-page', 'legal-page', 'rulebook-public-layout', 'championship-stream-page'].includes(name))) parts.push('dz-mobile-utility')
     if (showHeader && withAuthOffset && resolvedHeaderVariant !== 'storefront') parts.push('page-authenticated')
     if (showHeader && resolvedHeaderVariant === 'storefront') parts.push('storefront-public-main', 'dz-unified-public-page')
-    if (showHeader && resolvedHeaderVariant === 'system' && mainClassName.includes('page-authenticated')) parts.push('dz-unified-workspace-page')
+    if (showHeader && mainClassName.includes('page-authenticated')) parts.push('dz-unified-workspace-page')
     return parts.filter(Boolean).join(' ')
   }, [mainClassName, showHeader, withAuthOffset, resolvedHeaderVariant])
 
@@ -250,6 +241,11 @@ export function AppShell({
               avatar_url: identity?.avatar_url || mediaFor(account),
             } : null}
             onSignOut={onSignOutProp || defaultSignOut}
+            activeAccountId={activeAccountId || account?.id}
+            onSelectPanel={onSwitchAccount || (loadSession ? defaultSwitch : undefined)}
+            onHomeClick={onHomeClick}
+            panelActive={activeLabel === 'Meu painel'}
+            showWallet={account?.profile_type === 'produtora' || account?.profile_type === 'manager'}
           />
         ) : (
           <AppHeader

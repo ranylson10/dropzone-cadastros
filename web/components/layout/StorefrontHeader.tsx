@@ -8,12 +8,15 @@ import { SystemLogo } from '@/components/brand/SystemLogo'
 import { useDisclosureFocus } from '@/components/ui/useDisclosureFocus'
 import { AccountEditDialog } from '@/features/auth/AccountEditDialog'
 import { WorkspacePanelSwitcher } from '@/components/workspace/WorkspacePanelSwitcher'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { supabase } from '@/lib/supabase-browser'
+import { useGlobalLocale } from '@/features/i18n/global-locale'
 import type { AccountIdentity, DropZoneRow } from '@/lib/types'
 import { signOutEverywhere } from '@/lib/auth-client-state'
 import { hasPublicDiscoveryNavigation } from './nav'
 import {
   CalendarDays, ChevronLeft, ChevronRight, Heart, Home, Menu, MessageCircle,
-  LogOut, Pencil, Search, ShoppingBag, Trophy, UserRound, UsersRound, X,
+  LogOut, Pencil, Search, Shield, ShoppingBag, Trophy, UserRound, UsersRound, Wallet, X,
   type LucideIcon,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
@@ -27,6 +30,9 @@ type Props = {
   onSignOut?: () => void | Promise<void>
   activeAccountId?: string
   onSelectPanel?: (context: DropZoneRow) => void | Promise<void>
+  onHomeClick?: () => void
+  panelActive?: boolean
+  showWallet?: boolean
 }
 
 type StoreNavItem = { label: string; href: string; icon: LucideIcon; shortLabel?: string; active?: boolean }
@@ -51,11 +57,11 @@ function isActive(pathname: string, href: string) {
   return pathname === path || pathname.startsWith(`${path}/`)
 }
 
-function StoreNavLink({ item, pathname, onNavigate }: {
-  item: StoreNavItem; pathname: string; onNavigate?: () => void
+function StoreNavLink({ item, pathname, onNavigate, panelActive = false }: {
+  item: StoreNavItem; pathname: string; onNavigate?: (event: MouseEvent<HTMLAnchorElement>) => void; panelActive?: boolean
 }) {
   const Icon = item.icon
-  const active = item.active ?? isActive(pathname, item.href)
+  const active = item.active ?? (item.href === '/' && panelActive ? false : isActive(pathname, item.href))
   return (
     <Link href={item.href} className={active ? 'active' : ''}
       aria-current={active ? 'page' : undefined} aria-label={item.label} title={item.label} onClick={onNavigate}>
@@ -65,7 +71,7 @@ function StoreNavLink({ item, pathname, onNavigate }: {
   )
 }
 
-export function StorefrontHeader({ authenticated = false, identity, onAccountClick, onSignOut, activeAccountId, onSelectPanel }: Props) {
+export function StorefrontHeader({ authenticated = false, identity, onAccountClick, onSignOut, activeAccountId, onSelectPanel, onHomeClick, panelActive = false, showWallet = false }: Props) {
   const pathname = usePathname() || '/'
   const returnTo = encodeURIComponent(pathname)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -74,6 +80,8 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
   const [savedIdentity, setSavedIdentity] = useState<AccountIdentity | null>(null)
   const [signingOut, setSigningOut] = useState(false)
   const [accountError, setAccountError] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [locale, setLocale] = useGlobalLocale()
   const accountMenuId = useId()
   const accountPopup = useDisclosureFocus(accountOpen, () => setAccountOpen(false))
   const mobilePopup = useDisclosureFocus(mobileOpen, () => setMobileOpen(false), true, true)
@@ -89,11 +97,34 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
   }, [])
   useEffect(() => { setMobileOpen(false); setAccountOpen(false) }, [pathname])
   useEffect(() => { setSavedIdentity(null) }, [identity?.name, identity?.username, identity?.email, identity?.avatar_url])
+  useEffect(() => {
+    let active = true
+    setIsAdmin(false)
+    if (isAuthenticated) void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!data.session?.access_token) return
+        const response = await fetch('/api/admin/session', { cache: 'no-store', headers: { Authorization: `Bearer ${data.session.access_token}` } })
+        const payload = await response.json()
+        if (active && response.ok) setIsAdmin(payload.isAdmin === true)
+      } catch { /* The server still controls access to administration. */ }
+    })()
+    return () => { active = false }
+  }, [isAuthenticated])
 
   function toggleAccount(event: MouseEvent<HTMLButtonElement>) {
     event.currentTarget.focus({ preventScroll: true })
     setMobileOpen(false)
     setAccountOpen((value) => !value)
+  }
+
+  function navigate(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    setMobileOpen(false)
+    setAccountOpen(false)
+    if (href === '/' && pathname === '/' && onHomeClick) {
+      event.preventDefault()
+      onHomeClick()
+    }
   }
 
   async function signOut() {
@@ -126,7 +157,7 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
     <>
       <header className={`store-home-header ${discovery ? 'store-home-header--with-discovery' : ''}`} data-collapsed={collapsed ? 'true' : 'false'}>
         <div className={`store-home-width store-home-header-inner ${discovery ? 'store-home-header-inner--unified' : ''} ${pathname === '/campeonatos' ? 'store-home-header-inner--catalog' : ''}`}>
-          <Link className="store-home-brand" href="/" aria-label="DropZone. O seu jogo começa aqui — início">
+          <Link className="store-home-brand" href="/" onClick={event => navigate(event, '/')} aria-label="DropZone. O seu jogo começa aqui — início">
             <SystemLogo size={44} alt="" variant="accent" />
             <span><strong>DROPZONE<span className="dz-brand-period" aria-hidden="true">.</span></strong><small aria-hidden="true">O SEU JOGO COMEÇA AQUI</small></span>
           </Link>
@@ -137,14 +168,17 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
           </Form>
 
           <div className="store-home-header-actions">
+            {isAuthenticated ? <WorkspacePanelSwitcher className="store-home-panel-picker" active={panelActive} activeAccountId={activeAccountId} onSelect={onSelectPanel}
+              onBeforeOpen={() => { setMobileOpen(false); setAccountOpen(false) }} /> : null}
             <Link href="/campeonatos?vagas=1" className="store-home-open-slots">Vagas abertas</Link>
             <Link href="/campeonatos?favoritos=1" aria-label="Favoritos" title="Favoritos"><Heart size={20} /></Link>
             <Link className="store-home-cart" href="/carrinho" aria-label="Carrinho" title="Carrinho"><ShoppingBag size={20} /></Link>
             {isAuthenticated ? (
               <div className="store-home-account">
                 <button type="button" className="store-home-account-toggle" onClick={toggleAccount}
-                  aria-label="Abrir menu da conta" title={profileName} aria-expanded={accountOpen} aria-controls={accountMenuId}>
-                  {profile.avatar_url ? <img src={profile.avatar_url} alt="Foto do perfil" width={32} height={32} /> : <span aria-hidden="true">{profileName.slice(0, 2).toUpperCase()}</span>}
+                  title={profileName} aria-expanded={accountOpen} aria-controls={accountMenuId}>
+                  <span className="sr-only">Abrir menu da conta</span>
+                  {profile.avatar_url ? <img src={profile.avatar_url} alt="" aria-hidden="true" width={32} height={32} /> : <span aria-hidden="true">{profileName.slice(0, 2).toUpperCase()}</span>}
                 </button>
                 {accountOpen ? (
                   <div ref={accountPopup.panelRef} id={accountMenuId} className="store-home-account-menu" role="region" aria-label="Minha conta">
@@ -155,6 +189,12 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
                     ) : (
                       <Link href="/?painel=1" onClick={() => setAccountOpen(false)}><UserRound size={17} /> Minha área</Link>
                     )}
+                    {showWallet ? <Link href="/carteira" onClick={() => setAccountOpen(false)}><Wallet size={17} /> Carteira</Link> : null}
+                    {isAdmin ? <Link href="/admin" onClick={() => setAccountOpen(false)}><Shield size={17} /> Administração</Link> : null}
+                    <div className="store-home-account-notifications"><span>Notificações</span><NotificationBell /></div>
+                    <div className="store-home-account-language" role="group" aria-label="Idioma" data-no-translate>
+                      {(['pt-BR', 'en', 'es'] as const).map(value => <button type="button" key={value} aria-pressed={locale === value} onClick={() => setLocale(value)}>{value === 'pt-BR' ? 'Português' : value === 'en' ? 'English' : 'Español'}</button>)}
+                    </div>
                     <button type="button" disabled={signingOut} onClick={() => void signOut()}><LogOut size={17} /> {signingOut ? 'Saindo…' : 'Sair da conta'}</button>
                     {accountError ? <p role="alert">{accountError}</p> : null}
                   </div>
@@ -193,7 +233,7 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
               </div>
               <nav className="dz-menu-primary" aria-label="Explorar">
                 {PRIMARY_NAV.map((item) => (
-                  <StoreNavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+                  <StoreNavLink key={item.href} item={item} pathname={pathname} panelActive={panelActive} onNavigate={event => navigate(event, item.href)} />
                 ))}
               </nav>
               <div className="dz-menu-section-label">ACOMPANHE E ORGANIZE</div>
@@ -220,7 +260,7 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
                 </button>
               </div>
               <nav aria-label="Navegação principal">
-                {PRIMARY_NAV.map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} />)}
+                {PRIMARY_NAV.map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} panelActive={panelActive} onNavigate={event => navigate(event, item.href)} />)}
               </nav>
               <div className="dz-discovery-sidebar-divider" />
               <div className="dz-discovery-sidebar-section">ACESSO RÁPIDO</div>
@@ -234,8 +274,8 @@ export function StorefrontHeader({ authenticated = false, identity, onAccountCli
             </div>
           </aside>
           <nav className="dz-public-bottom-nav" aria-label="Navegação inferior do aplicativo">
-            {PRIMARY_NAV.map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} />)}
-            <WorkspacePanelSwitcher activeAccountId={activeAccountId} onSelect={onSelectPanel}
+            {PRIMARY_NAV.map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} panelActive={panelActive} onNavigate={event => navigate(event, item.href)} />)}
+            <WorkspacePanelSwitcher active={panelActive} activeAccountId={activeAccountId} onSelect={onSelectPanel}
               onBeforeOpen={() => { setMobileOpen(false); setAccountOpen(false) }} />
           </nav>
         </>

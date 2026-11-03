@@ -31,7 +31,7 @@ body#dropzone-app {
   /* Shared contract for legacy components. Pages consume these tokens instead
      of defining another palette in their feature stylesheet. */
   --ui-bg: var(--dz-paper); --ui-surface: var(--dz-white); --ui-surface-soft: #e9e7df;
-  --ui-surface-raised: var(--dz-white); --ui-text: var(--dz-ink); --ui-text-soft: #484b40;
+  --ui-surface-raised: var(--dz-white); --ui-surface-elevated: var(--dz-paper); --ui-text: var(--dz-ink); --ui-text-soft: #484b40;
   --ui-text-muted: var(--dz-muted); --ui-muted: var(--dz-muted); --ui-line: var(--dz-stroke);
   --ui-accent: var(--dz-rust); --ui-accent-strong: #9c3720; --ui-primary: var(--dz-rust);
   --ui-primary-light: var(--dz-orange); --ui-gold: var(--dz-rust); --ui-gold-light: var(--dz-orange);
@@ -54,6 +54,7 @@ body#dropzone-app {
 body#dropzone-app :is(button,input,select,textarea) { font-family: var(--font-body), sans-serif; }
 body#dropzone-app :is(h1,h2,h3,h4) { font-family: var(--font-display), sans-serif; font-weight: 700; letter-spacing: .005em; }
 body#dropzone-app :is(a,button,input,select,textarea):focus-visible { outline: 2px solid var(--dz-rust); outline-offset: 4px; }
+body#dropzone-app .message.error { color:var(--danger)!important; background:#fbeeee!important; }
 body#dropzone-app input { accent-color: var(--dz-rust); }
 /* Shared controls and dialogs own their skin, including when portalled outside a page. */
 body#dropzone-app .system-modal { background: var(--dz-white) !important; color: var(--dz-ink) !important; border: 1px solid var(--dz-stroke) !important; border-radius: var(--radius) !important; }
@@ -85,7 +86,15 @@ body#dropzone-app .store-home-header-actions > :is(a,button):hover { background:
 body#dropzone-app .store-home-open-slots { background: transparent; border-color: #565a4d; color: #f1efe7 !important; border-radius: 3px; }
 body#dropzone-app .store-home-account-toggle > :is(img,span) { background: #363a30; border-color: #626856; color: #f1efe7; }
 body#dropzone-app .store-home-account-menu { background: var(--dz-coal); color: #f1efe7; border-color: #565a4d; border-radius: 4px; }
+body#dropzone-app .store-home-account-info strong { color:var(--dz-paper)!important; }
 body#dropzone-app .store-home-account-menu > :is(a,button) { font-family: var(--font-body), sans-serif; }
+body#dropzone-app .store-home-header-actions > .store-home-panel-picker { display:inline-flex; width:auto; flex-basis:auto; gap:8px; padding:0 10px; font-size:13px; }
+body#dropzone-app .store-home-account-notifications { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; color:var(--dz-paper); }
+body#dropzone-app .store-home-account-notifications .notif-bell-trigger { color:var(--dz-paper); background:transparent; }
+body#dropzone-app .store-home-account-language { display:flex; gap:4px; padding:8px; border-top:1px solid #565a4d; }
+body#dropzone-app .store-home-account-language button { min-height:44px; padding:0 8px; border:0; background:transparent; color:var(--dz-paper); font-size:12px; cursor:pointer; }
+body#dropzone-app .store-home-account-language button[aria-pressed="true"] { background:#34382e; color:#ffad8d; }
+@media(max-width:1023px) { body#dropzone-app .store-home-header-actions > .store-home-panel-picker { display:none!important; } }
 body#dropzone-app .dz-discovery-sidebar { border-color: #393c35; }
 body#dropzone-app .dz-discovery-sidebar-scroll { padding: 22px 14px; }
 body#dropzone-app .dz-discovery-sidebar nav { gap: 4px; }
@@ -264,7 +273,7 @@ body#dropzone-app .dz-entity-row__main > :is(small,span) { color: var(--dz-muted
 body#dropzone-app .dz-entity-row__meta { border-color: var(--dz-stroke) !important; }
 body#dropzone-app .dz-entity-row__meta :is(b,em) { color: var(--dz-ink) !important; }
 body#dropzone-app .dz-entity-row__arrow { color: var(--dz-rust) !important; }
-body#dropzone-app .directory-page .directory-page-body-with-banner { width: min(calc(100% - 64px),1160px) !important; max-width: 1160px !important; margin-inline: auto !important; padding: 32px 0 80px !important; gap: 24px !important; }
+body#dropzone-app :is(.directory-page .directory-page-body-with-banner,.dz-platform-body) { width: min(calc(100% - 64px),var(--dz-unified-max)) !important; max-width: var(--dz-unified-max) !important; margin-inline: auto !important; padding: 32px 0 80px !important; gap: 24px !important; }
 body#dropzone-app .directory-page .directory-hero-banner { width: 100% !important; min-height: 220px !important; margin: 0 !important; background: var(--dz-coal) !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
 body#dropzone-app .directory-page .directory-hero-inner { min-height: 220px !important; padding: 32px !important; }
 body#dropzone-app .directory-page .directory-hero-inner h1 { font: 700 64px/.98 var(--font-display),sans-serif !important; margin: 10px 0 12px !important; color: #f1efe7 !important; }
@@ -312,6 +321,9 @@ body#dropzone-app .dz-workspace-header__icon { background: #34382e !important; c
 body#dropzone-app .dz-workspace-nav { padding: 0; gap: 4px; background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--dz-stroke) !important; border-radius: 0 !important; }
 body#dropzone-app .dz-workspace-nav .dz-workspace-nav__item { min-height: 48px; background: transparent; color: var(--dz-muted); border-radius: 0; font: 600 14px/1.3 var(--font-body),sans-serif; }
 body#dropzone-app .dz-workspace-nav .dz-workspace-nav__item.is-active { background: transparent !important; color: var(--dz-rust) !important; box-shadow: inset 0 -2px var(--dz-rust) !important; }
+body#dropzone-app .dz-workspace-subnav .dz-workspace-nav__item { background:var(--dz-white)!important; border-color:var(--dz-stroke)!important; color:var(--dz-muted)!important; }
+body#dropzone-app .dz-workspace-subnav .dz-workspace-nav__item.is-active { background:var(--dz-paper)!important; color:var(--dz-rust)!important; border-color:var(--dz-rust)!important; box-shadow:none!important; }
+body#dropzone-app :is(.dz-workspace-nav,.dz-workspace-subnav) .dz-workspace-nav__item > span { color:inherit!important; }
 body#dropzone-app .dz-workspace-more { background: var(--dz-white); color: var(--dz-ink); border-color: var(--dz-stroke); border-radius: 3px; box-shadow: none; }
 body#dropzone-app .dz-workspace-more>summary svg { color: var(--dz-rust); }
 body#dropzone-app .dz-workspace-more__items button { background: var(--dz-paper); border-color: var(--dz-stroke); border-radius: 3px; color: var(--dz-ink); }
@@ -356,6 +368,8 @@ body#dropzone-app .directory-market-page .dz-directory-context-picker label { co
 .dz-team-first-result p { max-width: 500px; margin: 0; color: var(--dz-muted); font-size: 14px; }
 .dz-team-first-result a { display: inline-flex; align-items: center; min-height: 44px; gap: 8px; color: var(--dz-rust); font-weight: 600; text-decoration: none; }
 
+body#dropzone-app .producer-command-card .section-head .eyebrow { color:var(--dz-muted)!important; }
+body#dropzone-app .producer-action.primary :is(span,svg) { color:var(--dz-white)!important; }
 /* Shared internal chrome: same visual language as discovery, including the deputy view. */
 body#dropzone-app .app-mobile-sheet-heading { display: none; }
 body#dropzone-app .app-header::before { display: none; }
@@ -430,7 +444,7 @@ body#dropzone-app .page-authenticated .dz-r20-configure__steps button > span { c
   body#dropzone-app .home-platform-v15 .dz-champ-card:hover .dz-champ-card-art img { transform: scale(1.035); }
 }
 @media (max-width:1023px) {
-  body#dropzone-app .directory-page .directory-page-body-with-banner { width: calc(100% - 36px) !important; padding-top: 18px !important; }
+  body#dropzone-app :is(.directory-page .directory-page-body-with-banner,.dz-platform-body) { width: calc(100% - 36px) !important; padding-top: 18px !important; }
   body#dropzone-app .directory-page .dz-directory-table-head--entity { display: none !important; }
   body#dropzone-app .directory-page .dz-entity-row--table { grid-template-columns: minmax(0,1fr) 22px !important; gap: 10px !important; min-height: 94px !important; padding: 18px 4px !important; }
   body#dropzone-app .directory-page .dz-entity-table-open { grid-column: 2 !important; }
@@ -559,6 +573,7 @@ body#dropzone-app [data-dz-list] > [data-dz-list-item]:nth-child(even),
 body#dropzone-app [data-dz-list="legacy"] > :is(a,article,button,li,div,label):nth-child(even),
 body#dropzone-app [data-dz-list] > li:nth-child(even) > [data-dz-list-item] { background:var(--dz-list-stripe)!important; }
 body#dropzone-app [data-dz-list] :is(a,button)[data-dz-list-item]:hover { background:var(--surface-muted)!important; transform:none!important; }
+body#dropzone-app [data-dz-list] > [data-dz-list-item][data-selected="true"] { box-shadow:inset 2px 0 var(--dz-rust)!important; }
 body#dropzone-app .app-shell-main table:not(:where(.stream-editor,.stream-package-render-root,[data-identity-color="custom"]) table) { border-collapse:collapse; color:var(--dz-ink); }
 body#dropzone-app .app-shell-main table:not(:where(.stream-editor,.stream-package-render-root,[data-identity-color="custom"]) table) > tbody > tr > :is(td,th) {
   height:var(--dz-list-row-h); padding:7px 12px!important; border:0!important; border-bottom:1px solid var(--dz-stroke)!important;
@@ -684,10 +699,10 @@ body#dropzone-app .dz-not-found section > div { display:flex; flex-wrap:wrap; ga
   body#dropzone-app .dz-panel-switcher .system-modal-header { position:static; flex-shrink:0; padding:14px 20px 12px; background:transparent!important; }
   body#dropzone-app .dz-panel-switcher .system-modal-content { padding:0 16px calc(20px + env(safe-area-inset-bottom)); }
   body#dropzone-app .dz-panel-switcher .system-modal-header h2 { font-size:28px; }
-  body#dropzone-app .directory-page .directory-page-body-with-banner,
+  body#dropzone-app :is(.directory-page .directory-page-body-with-banner,.dz-platform-body),
   body#dropzone-app main.directory-profile-page .directory-page-body,
   body#dropzone-app main.directory-profile-page .champ-public.champ-public-simple { width:calc(100% - 32px)!important; margin-inline:auto!important; }
-  body#dropzone-app .directory-page .directory-page-body-with-banner { padding-top:0!important; }
+  body#dropzone-app :is(.directory-page .directory-page-body-with-banner,.dz-platform-body) { padding-top:0!important; }
   body#dropzone-app main.directory-page .directory-hero-banner,
   body#dropzone-app main.directory-page.directory-theme-rank .directory-rank-hero { min-height:0!important; margin:0!important; padding:0!important; background:transparent!important; border:0!important; border-radius:0!important; box-shadow:none!important; }
   body#dropzone-app main.directory-page .directory-hero-banner::before,

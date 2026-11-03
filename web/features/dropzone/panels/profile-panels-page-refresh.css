@@ -54,7 +54,7 @@
 }
 .panel-workspace-shell .panel h1,.panel-workspace-shell .panel h2,.panel-workspace-shell .panel h3,.panel-workspace-shell .panel strong,
 .panel-workspace-shell .producer-layout-ref h1,.panel-workspace-shell .producer-layout-ref h2,.panel-workspace-shell .producer-layout-ref h3,.panel-workspace-shell .producer-layout-ref strong{color:#1d2126!important}
-.panel-workspace-shell .panel p,.panel-workspace-shell .panel small,.panel-workspace-shell .muted-copy,.panel-workspace-shell .panel-guide-copy{color:#69727d!important}
+.panel-workspace-shell .panel p,.panel-workspace-shell .panel small,.panel-workspace-shell .muted-copy,.panel-workspace-shell .panel-guide-copy{color:var(--dz-muted)!important}
 .panel-workspace-shell .eyebrow{color:#8a7300!important}
 .panel-workspace-shell input,.panel-workspace-shell select,.panel-workspace-shell textarea{
   border:1px solid #cbd1d7!important;border-radius:6px!important;background:#fff!important;color:#1d2126!important;box-shadow:none!important;
@@ -157,7 +157,7 @@
 .producer-dashboard-kpis>*{padding:13px!important;border:1px solid #d8dde2!important;border-radius:7px!important;background:#fff!important}
 .producer-dashboard-flow-card{padding:16px!important}.producer-dashboard-flow{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}
 .producer-dashboard-flow button{min-height:104px!important;padding:14px!important;border:1px solid #d9dee3!important;border-radius:7px!important;background:#fafbfc!important;color:#1d2126!important;text-align:left!important}.producer-dashboard-flow button:hover{border-color:#b6bdc5!important;background:#fffbea!important}.producer-dashboard-flow button b{color:#8a7300!important}.producer-dashboard-flow button small{color:#69727d!important}
-.producer-command-card{grid-column:1!important;position:sticky!important;top:82px!important;max-height:calc(100dvh - 102px)!important;overflow:auto!important;padding:12px!important}
+.producer-command-card{grid-column:1!important;position:static!important;max-height:none!important;overflow:visible!important;padding:0!important}
 .producer-layout-ref>.championship-detail-card{grid-column:2!important;min-width:0!important;margin:0!important;padding:0!important;overflow:hidden!important}
 .producer-command-card .section-head{padding:2px 2px 10px!important;border-bottom:1px solid #e0e4e8!important}
 .producer-filter-popover{display:flex!important;flex-wrap:wrap!important;gap:4px!important;margin:8px 0!important}.producer-filter-popover button{min-height:30px!important;padding:0 9px!important;border:1px solid #d5dae0!important;border-radius:5px!important;background:#fff!important;color:#626b75!important}.producer-filter-popover button.active{border-color:#24282e!important;background:#24282e!important;color:#fff!important}

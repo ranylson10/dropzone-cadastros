@@ -10,7 +10,7 @@ import { WEB_PROFILE_TYPES, isWebProfileType, type DropZoneRow, type ProfileType
 import { cleanUsername, getPasswordIssue } from '@/lib/validation'
 import { Field, LocationSearch, UploadField, resolvePendingImageUpload } from './components/form-fields'
 import type { CampeonatoFormValue } from '@/components/forms/campeonato'
-import { AppShell, APP_NAV } from '@/components/layout'
+import { AppShell, APP_NAV, PlatformPageBody } from '@/components/layout'
 import { authHeaders, dataText, loginSuggestion, rowTitle } from './utils'
 import { safeInternalPath } from '@/features/auth/auth-return'
 import { signOutEverywhere } from '@/lib/auth-client-state'
@@ -1659,6 +1659,7 @@ export function DropZoneHome() {
     )
   }
 
+  const ContentBody = workspaceMode === 'panel' ? PlatformPageBody : 'div'
   return (
     <AppShell
       activeLabel={workspaceMode === 'panel' ? 'Meu painel' : 'Início'}
@@ -1677,7 +1678,7 @@ export function DropZoneHome() {
       showQuickActions={false}
       withAuthOffset={workspaceMode !== 'home' && Boolean(authIdentity || (account && !linkingProfile))}
     >
-        <div className="shell panel-workspace-shell">
+        <ContentBody className={workspaceMode === 'panel' ? 'panel-workspace-shell' : 'shell panel-workspace-shell'}>
         {!account || linkingProfile ? (
           <>
           {authIdentity ? <AuthenticatedHomeFeed account={account} accounts={accounts} identity={authIdentity} onSignOut={signOut} onOpenPanel={openProfilePanel} /> : null}
@@ -1989,7 +1990,7 @@ export function DropZoneHome() {
             )}
           </>
         )}
-        </div>
+        </ContentBody>
     </AppShell>
   )
 }

@@ -39,7 +39,7 @@ export function WorkspaceHeader(props: {
           {props.icon ? <span className="dz-workspace-header__icon" aria-hidden>{props.icon}</span> : null}
           <h2>{props.title}</h2>
         </div>
-        {props.description ? <p className="dz-workspace-header__description">{props.description}</p> : null}
+        {props.description ? <div className="dz-workspace-header__description">{props.description}</div> : null}
       </div>
       {props.actions ? <div className="dz-workspace-header__actions">{props.actions}</div> : null}
     </header>

@@ -1,5 +1,7 @@
 # Faixa superior e painéis por perfil — 03/11/2026
 
+> Registro histórico: a estrutura abaixo foi substituída pela moldura compartilhada de catálogo e painel. Consulte `PAINEL_E_CATALOGO_20261103.md`.
+
 A navegação autenticada voltou à faixa superior do PC. A conversão antiga para sidebar foi removida, assim como a reserva lateral de 232 px. O botão com o nome do perfil operacional abre o mesmo seletor autorizado de painéis usado no mobile. A conta pessoal mantém suas ações próprias. O cabeçalho marca “Meu painel” durante a operação.
 
 O seletor é conferido com a página rolada, fechamento por Escape e retorno do foco. A troca de perfil abre o novo painel no início da tela. O perfil operacional ativo é passado explicitamente ao cabeçalho, evitando confundi-lo com a identidade da conta.

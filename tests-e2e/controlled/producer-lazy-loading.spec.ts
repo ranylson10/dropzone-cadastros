@@ -46,16 +46,16 @@ async function fixture(page: Page, options: { slowGames?: boolean; failOnce?: bo
   return { calls, otherCalls, errors }
 }
 
-function areas(page: Page) { return page.getByRole('navigation', { name: 'Áreas da produtora', exact: true }) }
+function areas(page: Page) { return page.getByRole('navigation', { name: 'Áreas principais da produtora', exact: true }) }
 async function openChampionships(page: Page) {
   await areas(page).getByRole('button', { name: 'Campeonatos', exact: true }).click()
-  await expect(page.locator('.champ-operation-guide')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Preparação do campeonato', exact: true })).toBeVisible()
 }
 
 test('produtora abre com contagens e busca somente a área e campeonato ativos', async ({ page }) => {
   const { calls, otherCalls, errors } = await fixture(page)
   await page.goto('/?painel=1', { waitUntil: 'domcontentloaded' })
-  await expect(page.locator('.producer-dashboard-kpis').getByText('20', { exact: true })).toBeVisible({ timeout: 30000 })
+  await expect(page.getByRole('group', { name: 'Resumo da produtora', exact: true }).getByText('20', { exact: true })).toBeVisible({ timeout: 30000 })
   expect(calls[0].types).toEqual(['championship'])
   expect(calls.filter(call => call.summary).every(call => call.types.length === 0)).toBe(true)
   expect(otherCalls).not.toContain('/api/mapas')
@@ -72,7 +72,8 @@ test('produtora abre com contagens e busca somente a área e campeonato ativos',
     const metrics = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }))
     expect(metrics.scroll).toBeLessThanOrEqual(metrics.width + 4)
   }
-  await areas(page).getByRole('button', { name: 'Configurações', exact: true }).click()
+  await page.getByText('Gestão avançada', { exact: true }).click()
+  await page.getByRole('button', { name: /^Configurações/ }).click()
   expect(errors).toEqual([])
 })
 
@@ -85,9 +86,9 @@ test('troca rápida de campeonato descarta a resposta anterior', async ({ page }
   await page.getByRole('navigation', { name: 'Ferramentas de operação', exact: true }).getByRole('button', { name: 'Jogos e quedas', exact: true }).click()
   await pending
   await page.locator('.producer-championship-list').getByRole('button', { name: /Copa B/ }).click()
-  await expect(page.locator('.detail-stat').filter({ hasText: 'Fases' }).locator('strong')).toHaveText('5')
+  await expect(page.getByRole('group', { name: 'Resumo do campeonato', exact: true }).locator(':scope > div').filter({ hasText: 'Fases' }).locator('strong')).toHaveText('5')
   await page.waitForTimeout(650)
-  await expect(page.locator('.detail-stat').filter({ hasText: 'Fases' }).locator('strong')).toHaveText('5')
+  await expect(page.getByRole('group', { name: 'Resumo do campeonato', exact: true }).locator(':scope > div').filter({ hasText: 'Fases' }).locator('strong')).toHaveText('5')
   await expect(page.locator('.champ-tab-body-ref').getByText('Jogo champ-a', { exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
 })
@@ -96,9 +97,9 @@ test('falha de contagem aparece e pode ser repetida sem mostrar zero falso', asy
   const { errors } = await fixture(page, { failOnce: true })
   await page.goto('/?painel=1', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('alert').filter({ hasText: 'Contagem temporariamente indisponível' })).toBeVisible()
-  await expect(page.locator('.producer-dashboard-kpis').getByText('0', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Resumo da produtora', exact: true }).getByText('0', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Tentar novamente', exact: true }).click()
-  await expect(page.locator('.producer-dashboard-kpis').getByText('20', { exact: true })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Resumo da produtora', exact: true }).getByText('20', { exact: true })).toBeVisible()
   await expect(page.getByRole('alert').filter({ hasText: 'Contagem temporariamente indisponível' })).toHaveCount(0)
   expect(errors).toEqual([])
 })

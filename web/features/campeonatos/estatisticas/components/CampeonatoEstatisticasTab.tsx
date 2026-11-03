@@ -472,27 +472,27 @@ export function CampeonatoEstatisticasTab(props: {
 
       {tab === 'geral' && !loadingStats ? (
         <>
-          <div className="champ-stats-ranking" role="table" aria-label="Classificação geral">
+          <div className="champ-stats-ranking" role="table" aria-label="Classificação geral" tabIndex={0}>
             <div className="champ-stats-ranking-head" role="row">
-              <span>#</span><span>Equipe</span><span>QD</span><span>B!</span><span>K</span><span>PTS</span>
+              <span role="columnheader">#</span><span role="columnheader">Equipe</span><span role="columnheader">QD</span><span role="columnheader">B!</span><span role="columnheader">K</span><span role="columnheader">PTS</span>
             </div>
             {teamStats.map((row) => (
               <article className={`champ-stats-ranking-row${row.colocacao <= 3 ? ' is-podium' : ''}`} key={row.campeonato_equipe_id} role="row">
-                <div className="champ-stats-rank">
+                <div className="champ-stats-rank" role="cell">
                   <strong>{row.colocacao}</strong>
                   <VariationCell value={row.variacao} />
                 </div>
-                <div className="champ-stats-team">
+                <div className="champ-stats-team" role="cell">
                   {row.logo_url ? <img src={row.logo_url} alt="" /> : <span>{row.nome.slice(0, 1)}</span>}
                   <div><strong>{row.nome}</strong><small>{row.tag || `Grupo ${groupCode(row.grupo_id, props.groups)}`}</small></div>
                 </div>
-                <span>{row.quedas}</span>
-                <span>{row.booyahs}</span>
-                <span>{row.abates}</span>
-                <strong className="champ-stats-points">{row.pontos_total}</strong>
+                <span role="cell">{row.quedas}</span>
+                <span role="cell">{row.booyahs}</span>
+                <span role="cell">{row.abates}</span>
+                <strong className="champ-stats-points" role="cell">{row.pontos_total}</strong>
               </article>
             ))}
-            {teamStats.length === 0 ? <p className="champ-stats-empty">Nenhuma pontuação registrada.</p> : null}
+            {teamStats.length === 0 ? <div role="row"><p className="champ-stats-empty" role="cell" aria-colspan={6}>Nenhuma pontuação registrada.</p></div> : null}
           </div>
 
           <details className="champ-stats-share">

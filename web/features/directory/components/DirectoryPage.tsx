@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { AppShell } from '@/components/layout'
+import { AppShell, PlatformPageBody } from '@/components/layout'
 import { cachedStorageMediaUrl } from '@/lib/upload-public'
 import { canOptimizeCatalogImage } from '@/lib/catalog-image'
 import { Trophy, ArrowUpRight } from 'lucide-react'
@@ -24,7 +24,7 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
       withAuthOffset={false}
       mainClassName={`directory-page directory-v1-catalog directory-theme-${kind} page ${isChampionshipDirectory ? 'directory-championship-page directory-market-page' : ''}`}
     >
-      <div className="directory-page-body directory-page-body-with-banner directory-immersive-shell">
+      <PlatformPageBody className="directory-page-body directory-page-body-with-banner directory-immersive-shell">
         {isChampionshipDirectory ? (
           <>
             <section className="dz-market-showcase" aria-label="Explore campeonatos de Free Fire">
@@ -67,7 +67,7 @@ export async function DirectoryPage({ kind }: { kind: DirectoryKind }) {
         )}
 
         <DirectoryListClient items={items} kind={kind} />
-      </div>
+      </PlatformPageBody>
     </AppShell>
   )
 }
