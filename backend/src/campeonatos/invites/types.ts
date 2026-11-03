@@ -15,3 +15,18 @@ export function assertTeamEnrollmentPermission(team: ControllableEquipe, lineId:
     throw new Error('Selecione uma line existente. Sua permissão não permite criar ou reativar lines.')
   }
 }
+
+/** An invitation targeting a team/line cannot be redirected to another owner. */
+export function assertTeamInviteRecipient(
+  invite: { equipe_id?: string | null; equipe_destino_id?: string | null; line_destino_id?: string | null },
+  equipeId: string,
+  lineId?: string | null,
+) {
+  if ((invite.equipe_id && invite.equipe_id !== equipeId) ||
+      (invite.equipe_destino_id && invite.equipe_destino_id !== equipeId)) {
+    throw new Error('Este convite está destinado a outra equipe.')
+  }
+  if (invite.line_destino_id && invite.line_destino_id !== lineId) {
+    throw new Error('Este convite está destinado a outra line.')
+  }
+}

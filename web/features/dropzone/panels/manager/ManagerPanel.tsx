@@ -1,6 +1,6 @@
 'use client'
 
-import { MessageCircle, Trophy, UserRound, Users, Wallet } from 'lucide-react'
+import { BriefcaseBusiness, MessageCircle, Trophy, UserRound, Users, Wallet } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { DropZoneRow, WebProfileType } from '@/lib/types'
 import { supabase } from '@/lib/supabase-browser'
@@ -16,7 +16,7 @@ import { ManagerContextsView, type StaffVinculo } from './ManagerContextsView'
 import { ManagerVendasView } from './ManagerVendasView'
 import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { dataText } from '../../utils'
-import { WorkspaceContent, WorkspaceHeader, WorkspaceNav, WorkspaceShell } from '@/components/workspace'
+import { WorkspaceContent, WorkspaceFocus, WorkspaceHeader, WorkspaceMoreMenu, WorkspaceNav, WorkspaceShell } from '@/components/workspace'
 
 const contextIcons: Record<Exclude<ManagerPanelMode, 'hub'>, typeof Trophy> = {
   produtora: Trophy,
@@ -31,9 +31,11 @@ export function ManagerPanel(props: {
   onCreateLinkedProfile?: (profileType?: WebProfileType) => void
   /** Aceita modes antigos (vendas/campeonatos) e normaliza. */
   initialMode?: string
+  /** Commercial legacy surface only; delegated management uses the normal entity panels. */
+  commercialOnly?: boolean
 }) {
   const accounts = props.accounts || []
-  const [mode, setMode] = useState<ManagerPanelMode>(() => normalizeManagerMode(props.initialMode))
+  const [mode, setMode] = useState<ManagerPanelMode>(() => props.commercialOnly ? 'produtora' : normalizeManagerMode(props.initialMode))
   const [produtoraSub, setProdutoraSub] = useState<ManagerProdutoraSub>(
     'vendas',
   )
@@ -127,7 +129,7 @@ export function ManagerPanel(props: {
 
   useEffect(() => {
     void loadSeller()
-    void loadVinculos()
+    if (!props.commercialOnly) void loadVinculos()
   }, [props.account?.id])
 
   async function saveProfile() {
@@ -195,7 +197,7 @@ export function ManagerPanel(props: {
     setFeedback('Link copiado.')
   }
 
-  function openMode(next: Exclude<ManagerPanelMode, 'hub'>) {
+  function openMode(next: ManagerPanelMode) {
     setMode(next)
     if (next !== 'produtora') {
       setSelectedChampId('')
@@ -227,42 +229,76 @@ export function ManagerPanel(props: {
       {/* Afiliado não administra o campeonato. Esta central mostra somente
           campanhas liberadas, vínculos e o próprio perfil comercial. */}
       <WorkspaceHeader
-        eyebrow="Manager"
-        title="Painel do manager"
-        description="Campeonatos para venda, equipes e jogadores vinculados no mesmo workspace."
+        eyebrow={props.commercialOnly ? 'Afiliados' : mode === 'produtora' && !showManagerPerfil ? 'Vendedor' : 'Sua área'}
+        title={props.commercialOnly ? 'Central de afiliados' : mode === 'produtora' && !showManagerPerfil ? 'Painel do vendedor' : 'Sua área'}
+        description={props.commercialOnly ? 'Campanhas, links de venda, contato e comissões.' : mode === 'produtora' && !showManagerPerfil ? 'Campanhas, links de venda e comissões, sem ferramentas de gestão misturadas.' : 'Acompanhe suas equipes e jogadores.'}
         icon={<Trophy size={18} />}
         actions={<a href="/carteira"><Wallet size={14} /> Carteira</a>}
       />
       <WorkspaceNav
-        ariaLabel="Áreas do manager"
-        activeId={showManagerPerfil ? 'perfil' : mode}
+        ariaLabel="Áreas de vendas"
+        activeId={showManagerPerfil ? undefined : mode}
         onChange={(id) => {
           if (id === 'perfil') {
             setShowManagerPerfil(true)
             return
           }
           setShowManagerPerfil(false)
-          openMode(id as Exclude<ManagerPanelMode, 'hub'>)
+          openMode(id as ManagerPanelMode)
         }}
-        items={[
+        items={props.commercialOnly ? [{ id: 'produtora', label: 'Vendas', icon: <BriefcaseBusiness size={15} /> }] : [
+          { id: 'hub', label: 'Início', icon: <Trophy size={15} /> },
           ...MANAGER_CONTEXT_CARDS.map((item) => {
             const Icon = contextIcons[item.id]
-            return { id: item.id, label: item.title, icon: <Icon size={15} />, badge: modeCount(item.id) }
+            return { id: item.id, label: item.id === 'produtora' ? 'Vendas' : item.title, icon: item.id === 'produtora' ? <BriefcaseBusiness size={15} /> : <Icon size={15} />, badge: modeCount(item.id) }
           }),
-          { id: 'perfil', label: 'Perfil', icon: <UserRound size={15} /> },
         ]}
+      />
+      <WorkspaceMoreMenu label="Informações comerciais"
+        activeId={showManagerPerfil ? 'perfil' : undefined}
+        onChange={() => { setShowManagerPerfil(true); openMode('produtora') }}
+        items={[{ id: 'perfil', label: 'Editar perfil', detail: 'Conta e informações comerciais' }]}
       />
       <WorkspaceContent>
 
+      {mode === 'hub' && !showManagerPerfil ? (
+        <WorkspaceFocus
+          role="manager" eyebrow="Central do manager" title="O que você vai gerenciar hoje?"
+          description="Acesse seus vínculos e solicitações. Vendas e comissões têm uma área própria."
+          status={`${countEquipes} vínculo(s) de equipe · ${countJogador} de jogador`}
+          actions={[
+            { id: 'equipes', title: 'Minhas equipes', detail: 'Vínculos e solicitações', icon: <Users size={20} />, onClick: () => openMode('equipes') },
+            { id: 'jogadores', title: 'Meus jogadores', detail: 'Perfis e relacionamentos', icon: <UserRound size={20} />, onClick: () => openMode('jogador') },
+            { id: 'vendas', title: 'Central de vendas', detail: 'Links, anúncios e comissões', icon: <BriefcaseBusiness size={20} />, onClick: () => openMode('produtora') },
+          ]}
+        />
+      ) : null}
+
       {mode === 'produtora' && !showManagerPerfil ? (
-        <section className="manager-guide-grid span-3" aria-label="Resumo do afiliado">
+        <WorkspaceFocus
+          role="vendedor" eyebrow="Central de vendas" title="Venda sem perder tempo"
+          description="Gerencie seus campeonatos de venda. Configure o contato uma vez e compartilhe seu link."
+          status={`${countCampeonatos} campeonato(s) disponível(is) · ${ativos.filter((item) => item.anunciando).length} anunciado(s)`}
+          actions={whatsapp.trim() ? [
+            { id: 'link', title: 'Copiar link de vendas', detail: 'Compartilhe seu catálogo de vagas', icon: <BriefcaseBusiness size={20} />, onClick: copyPublicLink },
+            { id: 'perfil', title: 'Configurar contato', detail: 'Nome público e WhatsApp', icon: <MessageCircle size={20} />, onClick: () => setShowManagerPerfil(true) },
+            { id: 'carteira', title: 'Minha carteira', detail: 'Comissões e histórico', icon: <Wallet size={20} />, href: '/carteira' },
+          ] : [
+            { id: 'perfil', title: 'Configurar contato', detail: 'Defina seu WhatsApp para vender', icon: <MessageCircle size={20} />, onClick: () => setShowManagerPerfil(true) },
+            { id: 'carteira', title: 'Minha carteira', detail: 'Comissões e histórico', icon: <Wallet size={20} />, href: '/carteira' },
+          ]}
+        />
+      ) : null}
+
+      {mode === 'hub' && !showManagerPerfil ? (
+        <section className="manager-guide-grid span-3" aria-label="Resumo do manager">
           <article><Trophy size={18}/><span><strong>{countCampeonatos}</strong><small>campeonatos liberados para venda</small></span></article>
           <article><MessageCircle size={18}/><span><strong>{ativos.filter((item) => item.anunciando).length}</strong><small>campanhas anunciadas agora</small></span></article>
           <a href="/carteira"><Wallet size={18}/><span><strong>Carteira</strong><small>saldo, comissões e histórico</small></span></a>
         </section>
       ) : null}
 
-      {mode === 'produtora' && showManagerPerfil ? (
+      {showManagerPerfil ? (
         <section className="panel span-3">
           <div className="section-head compact-head">
             <div>
@@ -312,7 +348,7 @@ export function ManagerPanel(props: {
       ) : null}
 
       {/* ——— EQUIPES — sem trocar de perfil ——— */}
-      {mode === 'equipes' ? (
+      {mode === 'equipes' && !showManagerPerfil ? (
         <ManagerContextsView
           context="equipes"
           staff={staffEquipes}
@@ -324,7 +360,7 @@ export function ManagerPanel(props: {
       ) : null}
 
       {/* ——— JOGADORES — sem trocar de perfil ——— */}
-      {mode === 'jogador' ? (
+      {mode === 'jogador' && !showManagerPerfil ? (
         <ManagerContextsView
           context="jogador"
           staff={staffJogadores}

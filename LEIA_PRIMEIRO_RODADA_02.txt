@@ -1,0 +1,18 @@
+DROPZONE - RODADA 02 - 21/10/2026
+
+BASE: R01 incluída. Esta entrega não sobrescreve a R01 no servidor.
+
+CORRIGIDO EM CANDIDATOS SQL:
+- Reinscrição: preserva exclusividade única de status ativo + pendente.
+- Inscrição: não usa slot reservado por Lili ou outro convite.
+- Preparado pré-teste de leitura e rollback específico do índice.
+- Cenários PostgreSQL adicionados (ainda não executados).
+
+TESTE SEM DEPENDÊNCIAS NO WINDOWS:
+1. Extraia todo o ZIP numa pasta separada.
+2. Execute TESTAR_RODADA_02.bat.
+3. Veja docs/RODADA_02_INSCRICOES_2026-10-21.md.
+
+NÃO COLE SQL EM PRODUÇÃO. NÃO ATIVE FLAGS ATOMIC AINDA.
+Essas mudanças somente serão implantadas após teste de banco em homologação,
+backup, auditoria das dependências e autorização de publicação.

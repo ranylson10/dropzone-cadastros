@@ -69,6 +69,8 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
   const [groupAssignment, setGroupAssignment] = useState({ campeonato_equipe_id: '', group_id: '', slot_id: '' })
   const [choiceSchedule, setChoiceSchedule] = useState<Record<string, { opens_at: string; closes_at: string }>>({})
   const [choiceBlock, setChoiceBlock] = useState({ phase_id: '', group_id: '', slot_id: '', reason: '' })
+  // Keep the same idempotency key after timeouts until the server confirms success.
+  const pendingBlockKeys = useRef(new Map<string,string>())
   const [choiceOpsFilter, setChoiceOpsFilter] = useState({ phase_id: '', group_id: '', status: 'all', query: '' })
   const [choiceNoticeType, setChoiceNoticeType] = useState('pending')
   const [choiceHistoryFilter, setChoiceHistoryFilter] = useState({ team_id: '', action: 'all', phase_id: '', group_id: '', date_from: '', date_to: '' })
@@ -77,9 +79,17 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
     const { data: sessionData } = await supabase.auth.getSession()
     if(resourceNow.current!==resource||!choiceMutation.actor||sessionData.session?.user.id!==choiceMutation.actor)throw new Error('A conta mudou. Atualize o acompanhamento.')
     const token = sessionData.session?.access_token
+    const isBlock = body?.action === 'set_group_choice_block' || body?.action === 'remove_group_choice_block'
+    const operationKey = isBlock ? JSON.stringify([resource,body]) : ''
+    let requestId = isBlock ? pendingBlockKeys.current.get(operationKey) : undefined
+    if (isBlock && !requestId) {
+      requestId = crypto.randomUUID()
+      if (pendingBlockKeys.current.size >= 12) pendingBlockKeys.current.clear()
+      pendingBlockKeys.current.set(operationKey, requestId)
+    }
     const response = await fetch(`/api/campeonatos/${campeonatoId}/estrutura-avancada`, {
       method,
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}), ...(requestId ? { 'Idempotency-Key': requestId } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     })
     const json = await response.json()
@@ -170,7 +180,13 @@ export function AdvancedStructureTab({ campeonatoId, championshipType }: { campe
         const result=await choiceMutation.run({action,campeonato_equipe_id:participation.id,source_slot_id:participation.slot_id||null,
           group_id:action==='assign'?body.group_id:null,slot_id:action==='assign'?body.slot_id:null,history_id:action==='restore'?cancelled?.id||null:null})
         next=result.operation_confirmed?await request('GET'):result
-      }else next=await request(method, body)
+      }else {
+        const result=await request(method,body)
+        const isBlock=body.action==='set_group_choice_block'||body.action==='remove_group_choice_block'
+        next=isBlock&&(result as Row).operation_confirmed ? await request('GET') : result
+        // An uncertain GET must NOT discard the original block operation key.
+        if(isBlock)pendingBlockKeys.current.delete(JSON.stringify([resource,body]))
+      }
       if(championshipNow.current!==campeonatoId)return
       setData(next)
       setMessage('Alteração salva.')

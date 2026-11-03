@@ -4,13 +4,13 @@
 :root {
   --dz-unified-max: 960px;
   --dz-unified-wide: 1180px;
-  --dz-unified-bg: #102331;
-  --dz-unified-panel: #1c3446;
-  --dz-unified-panel-hover: #254357;
-  --dz-unified-border: #304c61;
-  --dz-unified-text: #f4f8fc;
-  --dz-unified-muted: #b1c1cf;
-  --dz-unified-accent: #f1cc25;
+  --dz-unified-bg: var(--dz-paper);
+  --dz-unified-panel: var(--dz-white);
+  --dz-unified-panel-hover: var(--dz-white);
+  --dz-unified-border: var(--dz-stroke);
+  --dz-unified-text: var(--dz-ink);
+  --dz-unified-muted: var(--dz-muted);
+  --dz-unified-accent: var(--dz-rust);
 }
 
 /* A faixa superior e o main dividem o mesmo referencial: espaço APÓS o menu. */
@@ -101,9 +101,9 @@ main.dz-unified-public-page.directory-page:not(.directory-market-page) .director
   max-width: 100% !important;
   margin: 0 auto !important;
   min-height: 235px !important;
-  border-color: #365572 !important;
+  border-color: var(--dz-stroke) !important;
   border-radius: 11px !important;
-  background: radial-gradient(ellipse at 78% 55%, #145273, transparent 55%),linear-gradient(120deg,#19496f,#102d47 70%,#0a1e2d) !important;
+  background: var(--dz-white) !important;
 }
 main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-hero-inner,
 main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-rank-hero-inner {
@@ -119,7 +119,7 @@ main.dz-unified-public-page.directory-page:not(.directory-market-page) .director
 }
 main.dz-unified-public-page.directory-page:not(.directory-market-page) .directory-hero-banner p {
   max-width: 500px !important;
-  color: #d2e1ec !important;
+  color: var(--dz-muted) !important;
   font-size: 13px !important;
 }
 
@@ -145,12 +145,12 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-search {
   flex: 1 1 260px;
   min-width: 0;
-  background: #112735 !important;
-  color: #d3e0ec !important;
-  border-color: #385369 !important;
+  background: var(--dz-white) !important;
+  color: var(--dz-muted) !important;
+  border-color: var(--dz-stroke) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-search input {
-  color: #fff !important;
+  color: var(--dz-ink) !important;
   font-size: 13px !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-head {
@@ -188,7 +188,7 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-row:hover {
   background: var(--dz-unified-panel-hover) !important;
-  border-color: #6b8497 !important;
+  border-color: var(--dz-muted) !important;
   box-shadow: 0 5px 15px #0003 !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-media {
@@ -196,8 +196,8 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   grid-row: 1;
   width: 60px !important;
   height: 60px !important;
-  background: #29495b !important;
-  border-color: #4c7085 !important;
+  background: var(--dz-white) !important;
+  border-color: var(--dz-stroke) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main {
   grid-column: 2;
@@ -206,11 +206,11 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   overflow-wrap: anywhere;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main > strong {
-  color: #fff !important;
+  color: var(--dz-ink) !important;
   font-size: 15px !important;
   line-height: 1.25 !important;
 }
-main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main > small {color: #f1ce53 !important; font-size: 12px !important}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main > small {color: var(--dz-rust) !important; font-size: 12px !important}
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-main > span {color: var(--dz-unified-muted) !important; font-size: 12px !important}
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-meta {
   grid-column: 1 / -1;
@@ -223,15 +223,15 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-meta em {
   min-width: 0;
-  border-color: #355467 !important;
+  border-color: var(--dz-stroke) !important;
   color: var(--dz-unified-muted) !important;
 }
-main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-meta b {color: #f5f8fb !important; font-size: 12px !important}
-main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-arrow {grid-column: 2;grid-row: 3;justify-self: end;color: #f1cc25 !important}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-meta b {color: var(--dz-ink) !important; font-size: 12px !important}
+main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list-arrow {grid-column: 2;grid-row: 3;justify-self: end;color: var(--dz-rust) !important}
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-empty {
   border-color: var(--dz-unified-border) !important;
   background: var(--dz-unified-panel) !important;
-  color: #f4f8fc !important;
+  color: var(--dz-ink) !important;
 }
 /* R16 — Correção da cascata nos quatro diretórios de entidades.
    A R03 usa `.directory-list > .dz-entity-row` (mais específico que
@@ -241,59 +241,59 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   background: var(--dz-unified-panel) !important;
   border-color: var(--dz-unified-border) !important;
   color: var(--dz-unified-text) !important;
-  box-shadow: 0 4px 14px #06162230 !important;
+  box-shadow: 0 4px 14px var(--dz-ink) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row:hover {
   background: var(--dz-unified-panel-hover) !important;
-  border-color: #6d90a7 !important;
-  box-shadow: 0 7px 19px #06162255 !important;
+  border-color: var(--dz-muted) !important;
+  box-shadow: 0 7px 19px var(--dz-ink) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__main > strong {
   color: var(--dz-unified-text) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__main > small {
-  color: #f1ce53 !important;
+  color: var(--dz-rust) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__main > span {
-  color: #bdd0de !important;
+  color: var(--dz-muted) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__meta {
-  border-top-color: #426073 !important;
+  border-top-color: var(--dz-stroke) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__meta em::before {
-  color: #b7c9d7 !important;
+  color: var(--dz-muted) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__meta b {
-  color: #f5f8fc !important;
+  color: var(--dz-ink) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list > .dz-entity-row .dz-entity-row__arrow {
-  color: #f1cc25 !important;
+  color: var(--dz-rust) !important;
 }
 /* O mesmo conflito atingia o input e o seletor reutilizáveis do toolbar. */
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-toolbar .directory-search {
-  background: #112735 !important;
-  border-color: #426078 !important;
-  color: #b7cbd9 !important;
+  background: var(--dz-white) !important;
+  border-color: var(--dz-stroke) !important;
+  color: var(--dz-muted) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-toolbar .directory-search input.dz-ui-input {
   background: transparent !important;
   border-color: transparent !important;
-  color: #f4f8fc !important;
+  color: var(--dz-ink) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-toolbar .directory-search input::placeholder {
-  color: #a6bdce !important;
+  color: var(--dz-muted) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-results,
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-sort {
-  color: #b7c9d7 !important;
+  color: var(--dz-muted) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-results strong {
-  color: #f4f8fc !important;
+  color: var(--dz-ink) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-v1-sort select.dz-ui-select {
-  background: #132c3d !important;
-  border-color: #426078 !important;
-  color: #f4f8fc !important;
+  background: var(--dz-white) !important;
+  border-color: var(--dz-stroke) !important;
+  color: var(--dz-ink) !important;
   color-scheme: dark;
 }
 
@@ -317,12 +317,12 @@ main.dz-unified-public-page.directory-profile-page .directory-page-body {
 }
 main.dz-unified-public-page.directory-profile-page .profile-command-page {
   --profile-bg: transparent;
-  --profile-surface: #1c3446;
-  --profile-surface-raised: #254357;
-  --profile-ink: #f4f8fc;
-  --profile-muted: #b1c1cf;
-  --profile-line: #365366;
-  color: #f4f8fc !important;
+  --profile-surface: var(--dz-white);
+  --profile-surface-raised: var(--dz-paper);
+  --profile-ink: var(--dz-ink);
+  --profile-muted: var(--dz-muted);
+  --profile-line: var(--dz-stroke);
+  color: var(--dz-ink) !important;
 }
 main.dz-unified-public-page.directory-profile-page :is(.profile-command-hero,.directory-profile-tabs-shell,.directory-profile-tab-panel,.team-lines-site-workspace,.competitive-profile-panel,.champ-public-banner,.champ-public-panel) {
   box-sizing: border-box;
@@ -333,25 +333,25 @@ main.dz-unified-public-page.directory-profile-page :is(.profile-command-hero,.di
 }
 main.dz-unified-public-page.directory-profile-page .profile-command-hero {
   margin-top: 0 !important;
-  border-color: #365572 !important;
-  background: linear-gradient(115deg,#184a75,#102d47) !important;
+  border-color: var(--dz-stroke) !important;
+  background: var(--dz-white) !important;
 }
 main.dz-unified-public-page.directory-profile-page .directory-profile-tabs-shell {
-  background: #203b4e !important;
-  border-color: #365366 !important;
+  background: var(--dz-white) !important;
+  border-color: var(--dz-stroke) !important;
 }
 main.dz-unified-public-page.directory-profile-page .directory-profile-tab-panel,
 main.dz-unified-public-page.directory-profile-page .competitive-profile-panel {
-  background: #1b3345 !important;
-  border-color: #365366 !important;
-  color: #f4f8fc !important;
+  background: var(--dz-white) !important;
+  border-color: var(--dz-stroke) !important;
+  color: var(--dz-ink) !important;
 }
 main.dz-unified-public-page.directory-profile-page .directory-profile-tabs :is(button,a),
 main.dz-unified-public-page.directory-profile-page .directory-profile-tab-link {
   min-height: 40px !important;
-  color: #d5e3ec !important;
+  color: var(--dz-muted) !important;
 }
-main.dz-unified-public-page.directory-profile-page .directory-profile-tabs :is(button,a).active {color: #fff !important; background: #31556b !important}
+main.dz-unified-public-page.directory-profile-page .directory-profile-tabs :is(button,a).active {color: var(--dz-ink) !important; background: var(--dz-paper) !important}
 
 /* Demais destinos de leitura: consistência de largura/espaçamento sem mexer
    na lógica dos formulários, pagamentos ou consulta de dados. */
@@ -378,13 +378,13 @@ main.dz-unified-public-page.agenda-page .agenda-page-body {
   width: 100% !important;
 }
 main.dz-unified-public-page.community-hub .community-hub-card {
-  background: #1c3446;
-  border-color: #365366;
-  color: #f4f8fc;
+  background: var(--dz-white);
+  border-color: var(--dz-stroke);
+  color: var(--dz-ink);
 }
-main.dz-unified-public-page.community-hub .community-hub-card:hover {background: #254357}
-main.dz-unified-public-page.community-hub .community-hub-copy strong {color: #f4f8fc}
-main.dz-unified-public-page.community-hub .community-hub-copy small {color: #b1c1cf}
+main.dz-unified-public-page.community-hub .community-hub-card:hover {background: var(--dz-paper)}
+main.dz-unified-public-page.community-hub .community-hub-copy strong {color: var(--dz-ink)}
+main.dz-unified-public-page.community-hub .community-hub-copy small {color: var(--dz-muted)}
 
 /* Painéis logados: mesmo eixo e mesma hierarquia de controles, mas largura maior
    para tabelas de 12 equipes, estatísticas e grids. Não alteramos o Engine/OBS. */
@@ -397,24 +397,24 @@ main.dz-unified-workspace-page:has(.dz-workspace--unified) > .shell.panel-worksp
   margin-inline: auto !important;
 }
 .dz-workspace--unified {
-  --dz-workspace-ink: #f4f8fc;
+  --dz-workspace-ink: var(--dz-ink);
   width: 100% !important;
   min-width: 0 !important;
   gap: 14px;
 }
 .dz-workspace--unified > * { min-width: 0; max-width: 100%; }
 .dz-workspace--unified .dz-workspace-header {
-  background: #1b3345;
-  border: 1px solid #365366;
-  border-left: 3px solid #f1cc25;
-  color: #f4f8fc;
+  background: var(--dz-white);
+  border: 1px solid var(--dz-stroke);
+  border-left: 3px solid var(--dz-stroke);
+  color: var(--dz-ink);
 }
-.dz-workspace--unified .dz-workspace-header__title-row h2 {color: #f4f8fc; font-size: clamp(18px,2vw,24px)}
-.dz-workspace--unified .dz-workspace-header__description {color: #b1c1cf; font-size: 12px}
-.dz-workspace--unified .dz-workspace-nav {background:#1b3345; border-color: #365366; gap: 5px}
-.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item {min-height: 42px; color: #cad9e4; font-size: 12px}
-.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item:hover {background: #2c4a5f; color: #fff}
-.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item.is-active {background:#33536a;color:#fff;box-shadow:inset 0 -3px 0 #f1cc25}
+.dz-workspace--unified .dz-workspace-header__title-row h2 {color: var(--dz-ink); font-size: clamp(18px,2vw,24px)}
+.dz-workspace--unified .dz-workspace-header__description {color: var(--dz-muted); font-size: 12px}
+.dz-workspace--unified .dz-workspace-nav {background:var(--dz-white); border-color: var(--dz-stroke); gap: 5px}
+.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item {min-height: 42px; color: var(--dz-muted); font-size: 12px}
+.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item:hover {background: var(--dz-paper); color: var(--dz-ink)}
+.dz-workspace--unified .dz-workspace-nav .dz-workspace-nav__item.is-active {background:var(--dz-paper);color:var(--dz-ink);box-shadow:inset 0 -3px 0 var(--dz-ink)}
 .dz-workspace--unified .dz-workspace-subnav .dz-workspace-nav__item {min-height: 38px; font-size: 12px}
 
 @media (max-width: 1100px) {
@@ -533,10 +533,10 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   margin: 0 0 0 !important;
   padding: 0 14px;
   min-height: 36px;
-  border: 1px solid #314d62;
+  border: 1px solid var(--dz-stroke);
   border-radius: 8px 8px 0 0;
-  background: #1a3446;
-  color: #afc5d6;
+  background: var(--dz-white);
+  color: var(--dz-muted);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .06em;
@@ -556,11 +556,11 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   display: grid !important;
   grid-template-columns: 1fr !important;
   gap: 0 !important;
-  border: 1px solid #314d62 !important;
+  border: 1px solid var(--dz-stroke) !important;
   border-top: 0 !important;
   border-radius: 0 0 8px 8px !important;
   overflow: hidden !important;
-  background: #142a3b !important;
+  background: var(--dz-white) !important;
   box-shadow: none !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table {
@@ -572,19 +572,19 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   height: auto !important;
   padding: 10px 14px !important;
   border: 0 !important;
-  border-bottom: 1px solid #2e485d !important;
+  border-bottom: 1px solid var(--dz-stroke) !important;
   border-radius: 0 !important;
-  background: #162e40 !important;
+  background: var(--dz-white) !important;
   box-shadow: none !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table:nth-child(even) {
-  background: #1b3549 !important;
+  background: var(--dz-paper) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table:last-child {
   border-bottom: 0 !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table:hover {
-  background: #29465c !important;
+  background: var(--dz-paper) !important;
   border-color: transparent !important;
   box-shadow: none !important;
   transform: none !important;
@@ -595,8 +595,8 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   width: 44px !important;
   height: 44px !important;
   border-radius: 8px !important;
-  border: 1px solid #4d6f84 !important;
-  background: #254558 !important;
+  border: 1px solid var(--dz-stroke) !important;
+  background: var(--dz-white) !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main {
   grid-column: 2;
@@ -607,17 +607,17 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   min-width: 0;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main > strong {
-  color: #f4faff !important;
+  color: var(--dz-muted) !important;
   font-size: 14px !important;
   font-weight: 800 !important;
   line-height: 1.25 !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main > small {
-  color: #f1ce53 !important;
+  color: var(--dz-rust) !important;
   font-size: 12px !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-main > span {
-  color: #aec6d6 !important;
+  color: var(--dz-muted) !important;
   font-size: 12px !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-meta {
@@ -636,14 +636,14 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   align-items: center;
   min-height: 24px;
   padding: 0 8px;
-  border: 1px solid #3b556a !important;
+  border: 1px solid var(--dz-stroke) !important;
   border-radius: 999px;
-  background: #1f3a4f !important;
-  color: #bfd1df !important;
+  background: var(--dz-white) !important;
+  color: var(--dz-muted) !important;
   font-size: 12px !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table .directory-list-meta em b {
-  color: #f5f9fd !important;
+  color: var(--dz-ink) !important;
   font-size: 12px !important;
   font-weight: 800 !important;
 }
@@ -651,7 +651,7 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   grid-column: 4;
   grid-row: 1;
   justify-self: end;
-  color: #f1cc25 !important;
+  color: var(--dz-rust) !important;
 }
 @media (max-width: 700px) {
   main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .directory-list.directory-list--table > .dz-entity-row.dz-entity-row--table {
@@ -695,7 +695,7 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   min-width: 0 !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main > strong {
-  color: #f4faff !important;
+  color: var(--dz-muted) !important;
   font-size: 14px !important;
   font-weight: 800 !important;
   line-height: 1.2 !important;
@@ -704,11 +704,11 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   text-overflow: ellipsis !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-main > small {
-  color: #f1ce53 !important;
+  color: var(--dz-rust) !important;
   font-size: 12px !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-details {
-  color: #aec6d6 !important;
+  color: var(--dz-muted) !important;
   font-size: 12px !important;
   line-height: 1.35 !important;
   min-width: 0 !important;
@@ -724,13 +724,13 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   gap: 3px !important;
   min-height: 44px !important;
   padding: 6px 8px !important;
-  border: 1px solid #3b556a !important;
+  border: 1px solid var(--dz-stroke) !important;
   border-radius: 999px !important;
-  background: #1f3a4f !important;
+  background: var(--dz-white) !important;
   text-align: center !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat > small {
-  color: #b7c9d7 !important;
+  color: var(--dz-muted) !important;
   font-size: 12px !important;
   font-weight: 800 !important;
   letter-spacing: .05em !important;
@@ -738,14 +738,14 @@ main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-m
   line-height: 1 !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-stat > b {
-  color: #f5f9fd !important;
+  color: var(--dz-ink) !important;
   font-size: 13px !important;
   font-weight: 800 !important;
   line-height: 1.1 !important;
 }
 main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-entity-table-open {
   justify-self: center !important;
-  color: #f1cc25 !important;
+  color: var(--dz-rust) !important;
 }
 @media (max-width: 920px) {
   main.dz-unified-public-page.directory-page.directory-v1-catalog:not(.directory-market-page) .dz-directory-table-head--entity {

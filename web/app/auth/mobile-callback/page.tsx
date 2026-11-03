@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo } from 'react'
+import { AppShell } from '@/components/layout'
 
 const APP_CALLBACK = 'dropzone://auth/callback'
 
@@ -20,13 +21,13 @@ export default function MobileAuthCallbackPage() {
   }, [appUrl])
 
   return (
-    <main className="mobile-callback-page dz-mobile-utility">
+    <AppShell header="never" withAuthOffset={false} mainClassName="mobile-callback-page dz-mobile-utility">
       <section className="mobile-callback-card">
         <p className="mobile-callback-kicker">DropZone Mobile</p>
         <h1>Voltando para o app</h1>
         <p>Se o DropZone não abrir automaticamente, toque no botão abaixo.</p>
         <a className="mobile-callback-action" href={appUrl}>Abrir DropZone</a>
       </section>
-    </main>
+    </AppShell>
   )
 }

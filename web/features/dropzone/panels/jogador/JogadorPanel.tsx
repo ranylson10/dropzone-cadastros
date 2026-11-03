@@ -9,7 +9,8 @@ import { ProfileEditForm } from '@/components/forms/ProfileEditForm'
 import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 import { supabase } from '@/lib/supabase-browser'
 import { buildObjectivePerformanceGoals } from '../../performance-goals'
-import { WorkspaceContent, WorkspaceHeader, WorkspaceNav, WorkspaceShell } from '@/components/workspace'
+import { WorkspaceContent, WorkspaceFocus, WorkspaceHeader, WorkspaceMoreMenu, WorkspaceNav, WorkspaceShell } from '@/components/workspace'
+import { PlayerManagersPanel } from './PlayerManagersPanel'
 
 type PlayerTelemetry = {
   abates: number
@@ -189,13 +190,14 @@ export function JogadorPanel(props: {
   teamLines: DropZoneRow[]
   championships: DropZoneRow[]
 }) {
+  const canEdit = !props.account.data?.delegated_access || Boolean(props.account.data?.delegated_permissions?.pode_editar)
   const memberships = props.playerTeams.filter(
     (row) => row.created_by === props.account.auth_user_id || row.data?.player_user_id === props.account.auth_user_id || String(row.data?.jogador_id || '') === props.account.id,
   )
   const teamIds = new Set(memberships.map((row) => String(row.ref_id || row.data?.team_id || '')))
   const myTeams = props.teams.filter((team) => teamIds.has(team.id))
   const myLines = props.teamLines.filter((line) => teamIds.has(String(line.ref_id || line.data?.team_id || '')))
-  const [tab, setTab] = useState<'resumo' | 'competicoes' | 'equipe' | 'desempenho' | 'perfil'>('resumo')
+  const [tab, setTab] = useState<'resumo' | 'competicoes' | 'equipe' | 'desempenho' | 'perfil' | 'staff'>('resumo')
   const [performance, setPerformance] = useState<PlayerPerformance | null>(null)
   const [performanceLoading, setPerformanceLoading] = useState(false)
   const [performanceError, setPerformanceError] = useState('')
@@ -259,7 +261,7 @@ export function JogadorPanel(props: {
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
       if (!token) return
-      const response = await fetch('/api/me/competicoes', { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
+      const response = await fetch(`/api/me/competicoes?jogador_id=${encodeURIComponent(props.account.id)}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
       const json = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(json.error || 'Não foi possível carregar suas competições.')
       setCompetitionJourney((json.player || []).filter((row: any) => String(row.jogador_id || '') === String(props.account.id)))
@@ -505,21 +507,27 @@ export function JogadorPanel(props: {
         icon={<Gamepad2 size={18} />}
       />
       <WorkspaceNav
-        ariaLabel="Áreas do jogador"
-        activeId={tab}
+        ariaLabel="Áreas principais do jogador"
+        activeId={['resumo', 'equipe', 'competicoes'].includes(tab) ? tab : undefined}
         onChange={(id) => setTab(id as typeof tab)}
         items={[
           { id: 'resumo', label: 'Início' },
-          { id: 'competicoes', label: 'Competições' },
           { id: 'equipe', label: 'Equipe' },
-          { id: 'desempenho', label: 'Desempenho' },
-          { id: 'perfil', label: 'Perfil' },
+          { id: 'competicoes', label: 'Competições' },
+        ]}
+      />
+      <WorkspaceMoreMenu activeId={tab} onChange={(id) => setTab(id as typeof tab)}
+        items={[
+          { id: 'desempenho', label: 'Estatísticas', detail: 'Histórico e desempenho' },
+          ...(canEdit ? [{ id: 'perfil', label: 'Editar perfil', detail: 'Foto, nick e informações' }] : []),
+          ...(!props.account.data?.delegated_access ? [{ id: 'staff', label: 'Vice-líderes', detail: 'Escolha quem ajuda e libere funções' }] : []),
         ]}
       />
       <WorkspaceContent>
         <section className="panel span-3">
+        {tab === 'staff' && !props.account.data?.delegated_access ? <PlayerManagersPanel playerId={props.account.id} /> : null}
 
-        {tab === 'perfil' ? (
+        {tab === 'perfil' && canEdit ? (
           <ProfileEditForm profileType="jogador" profileId={props.account.id} initial={{
             nome: props.account.name || '', avatar_url: dataText(props.account, 'avatar_url') || dataText(props.account, 'foto_url'),
             bio: dataText(props.account, 'bio'), id_jogo: dataText(props.account, 'id_jogo'), funcao: dataText(props.account, 'funcao'),
@@ -534,12 +542,17 @@ export function JogadorPanel(props: {
               <div><Swords size={18} /><strong>{enrolledChampionships.length}</strong><span>Campeonatos</span></div>
               <div><BarChart3 size={18} /><strong>{performance?.statistics?.partidas || 0}</strong><span>Partidas pontuadas</span></div>
             </div>
-            <div className="player-start-actions" aria-label="Acesso rápido do jogador">
-              <a href="/agenda"><CalendarDays size={18}/><span><strong>Minha agenda</strong><small>Jogos e compromissos</small></span><ChevronRight size={16}/></a>
-              <button type="button" onClick={() => setTab('equipe')}><Users size={18}/><span><strong>{myTeams.length ? 'Minha equipe' : 'Encontrar equipe'}</strong><small>{myTeams.length ? 'Elenco, lines e escalação' : 'Procure uma equipe para entrar'}</small></span><ChevronRight size={16}/></button>
-              <button type="button" onClick={() => setTab('competicoes')}><Trophy size={18}/><span><strong>Minhas competições</strong><small>Agenda, equipe e resultados</small></span><ChevronRight size={16}/></button>
-            </div>
-            {!myTeams.length ? <div className="player-next-step"><Users size={18}/><span><strong>Próximo passo: entre em uma equipe</strong><small>Você pode pesquisar pelo nome, tag ou @ da equipe e enviar um pedido.</small></span><button type="button" onClick={() => setTab('equipe')}>Encontrar equipe</button></div> : null}
+            <WorkspaceFocus
+              role="jogador" eyebrow="Sua jornada"
+              title={myTeams.length ? 'Pronto para o próximo jogo' : 'Encontre sua equipe'}
+              description="Tudo o que você precisa para participar: equipe, competições e agenda. Suas estatísticas ficam nas ferramentas."
+              status={myTeams.length ? `${myTeams.length} equipe(s) vinculada(s)` : 'Você ainda não está em uma equipe'}
+              actions={[
+                { id: 'equipe', title: myTeams.length ? 'Minha equipe' : 'Encontrar equipe', detail: 'Elenco, lines e convites', icon: <Users size={20} />, onClick: () => setTab('equipe') },
+                { id: 'competicoes', title: 'Minhas competições', detail: 'Escalação, resultados e jogos', icon: <Trophy size={20} />, onClick: () => setTab('competicoes') },
+                { id: 'agenda', title: 'Minha agenda', detail: 'Próximos compromissos', icon: <CalendarDays size={20} />, href: '/agenda' },
+              ]}
+            />
           </>
         ) : null}
 
@@ -648,11 +661,11 @@ export function JogadorPanel(props: {
                 <div className="player-performance-sections">
                   <section><div className="player-performance-section-head"><Target size={16} /><span><strong>Leitura técnica</strong><small>telemetria Garena</small></span></div><div className="player-performance-tech"><span><b>{analytics.headshots}</b><small>headshots</small></span><span><b>{analytics.knockdowns}</b><small>knockdowns</small></span><span><b>{totals.revives}</b><small>revives</small></span><span><b>{totals.booyahs}</b><small>booyahs</small></span></div></section>
 
-                  <section><div className="player-performance-section-head"><Activity size={16} /><span><strong>Por mapa</strong><small>médias do jogador</small></span></div>{historyAnalytics.bestMap ? <div className="player-performance-map-reading"><span><small>melhor leitura</small><b>{historyAnalytics.bestMap.nome}</b></span>{historyAnalytics.worstMap ? <span><small>ponto de atenção</small><b>{historyAnalytics.worstMap.nome}</b></span> : null}</div> : null}<div className="player-performance-list">{analytics.maps.length ? analytics.maps.map((map) => <div key={map.nome}><strong>{map.nome}</strong><span>{map.partidas} partidas</span><b>{map.abates_media.toFixed(1)} K</b><small>{Math.round(map.dano_media).toLocaleString('pt-BR')} dano · {map.colocacao_media === null ? '—' : `${map.colocacao_media.toFixed(1)} pos.`}</small></div>) : <p className="empty">Sem partidas por mapa ainda.</p>}</div></section>
+                  <section><div className="player-performance-section-head"><Activity size={16} /><span><strong>Por mapa</strong><small>médias do jogador</small></span></div>{historyAnalytics.bestMap ? <div className="player-performance-map-reading"><span><small>melhor leitura</small><b>{historyAnalytics.bestMap.nome}</b></span>{historyAnalytics.worstMap ? <span><small>ponto de atenção</small><b>{historyAnalytics.worstMap.nome}</b></span> : null}</div> : null}<div className="player-performance-list" data-dz-list="legacy">{analytics.maps.length ? analytics.maps.map((map) => <div key={map.nome}><strong>{map.nome}</strong><span>{map.partidas} partidas</span><b>{map.abates_media.toFixed(1)} K</b><small>{Math.round(map.dano_media).toLocaleString('pt-BR')} dano · {map.colocacao_media === null ? '—' : `${map.colocacao_media.toFixed(1)} pos.`}</small></div>) : <p className="empty">Sem partidas por mapa ainda.</p>}</div></section>
 
-                  <section><div className="player-performance-section-head"><Swords size={16} /><span><strong>Armas</strong><small>mais eficientes no histórico filtrado</small></span></div><div className="player-performance-list">{analytics.weapons.length ? analytics.weapons.map((weapon) => <div key={weapon.nome}><strong>{weapon.nome}</strong><span>{weapon.usos} partidas</span><b>{weapon.abates} K</b><small>{Math.round(weapon.dano).toLocaleString('pt-BR')} dano · {weapon.precisao_media === null ? '—' : `${weapon.precisao_media.toFixed(1)}% precisão`}</small></div>) : <p className="empty">Sem telemetria de armas ainda.</p>}</div></section>
+                  <section><div className="player-performance-section-head"><Swords size={16} /><span><strong>Armas</strong><small>mais eficientes no histórico filtrado</small></span></div><div className="player-performance-list" data-dz-list="legacy">{analytics.weapons.length ? analytics.weapons.map((weapon) => <div key={weapon.nome}><strong>{weapon.nome}</strong><span>{weapon.usos} partidas</span><b>{weapon.abates} K</b><small>{Math.round(weapon.dano).toLocaleString('pt-BR')} dano · {weapon.precisao_media === null ? '—' : `${weapon.precisao_media.toFixed(1)}% precisão`}</small></div>) : <p className="empty">Sem telemetria de armas ainda.</p>}</div></section>
 
-                  <section><div className="player-performance-section-head"><Gamepad2 size={16} /><span><strong>Habilidades</strong><small>uso no histórico filtrado</small></span></div><div className="player-performance-list">{analytics.skills.length ? analytics.skills.map((skill) => <div key={`${skill.personagem}:${skill.habilidade}`}><strong>{skill.habilidade}</strong><span>{skill.personagem || 'Personagem'}</span><b>{skill.partidas}</b><small>partidas · {skill.usos} usos registrados</small></div>) : <p className="empty">Sem telemetria de habilidades ainda.</p>}</div></section>
+                  <section><div className="player-performance-section-head"><Gamepad2 size={16} /><span><strong>Habilidades</strong><small>uso no histórico filtrado</small></span></div><div className="player-performance-list" data-dz-list="legacy">{analytics.skills.length ? analytics.skills.map((skill) => <div key={`${skill.personagem}:${skill.habilidade}`}><strong>{skill.habilidade}</strong><span>{skill.personagem || 'Personagem'}</span><b>{skill.partidas}</b><small>partidas · {skill.usos} usos registrados</small></div>) : <p className="empty">Sem telemetria de habilidades ainda.</p>}</div></section>
                 </div>
                 </> : <div className="player-performance-empty">
                   <Activity size={20} aria-hidden="true" />
@@ -667,8 +680,8 @@ export function JogadorPanel(props: {
 
       {tab === 'equipe' ? <>
         <section className="panel span-2 player-team-workspace"><div className="team-section-title"><div><p className="eyebrow">Vínculos</p><h2>Minha equipe</h2></div><span className="count-pill"><Users size={14}/>{myTeams.length}</span></div>{myTeams.length === 0 ? <p className="empty">Você ainda não faz parte de uma equipe.</p> : null}<div className="team-line-grid">{myTeams.map((team) => <article className="team-line-card" key={team.id}><img src={dataText(team, 'logo_url') || '/dropzone-icon.png'} alt="" /><div><strong>{rowTitle(team)}</strong><span>{dataText(team, 'tag') || 'Sem tag'}</span></div></article>)}</div><div className="player-lines-inline"><strong>Minhas lines</strong>{myLines.length === 0 ? <p className="empty">Nenhuma line vinculada ao seu elenco.</p> : null}<div className="team-line-grid">{myLines.map((line) => <article className="team-line-card" key={line.id}><img src={dataText(line, 'logo_url') || '/dropzone-icon.png'} alt="" /><div><strong>{rowTitle(line)}</strong><span>{dataText(line, 'tag') || 'Sem tag'}</span></div></article>)}</div></div></section>
-        <section className="panel"><h2>{myTeams.length ? 'Pedir entrada em outra equipe' : 'Encontrar equipe'}</h2><PlayerTeamRequest mode="request_join"/></section>
-        <section className="panel span-3"><div className="team-section-title"><div><p className="eyebrow">Escalação</p><h2>Entrar por convite</h2></div></div><div className="player-lineup-token"><div><KeyRound size={18}/><span><strong>Usar token de escalação</strong><small>Cole o token ou link enviado pela equipe.</small></span></div><div className="player-lineup-token-form"><UiInput value={lineupToken} onChange={(event) => { setLineupToken(event.target.value); setLineupTokenError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openLineupToken() }} placeholder="Token ou link de escalação"/><button type="button" onClick={openLineupToken}>Abrir</button></div>{lineupTokenError ? <small className="player-lineup-token-error">{lineupTokenError}</small> : null}</div></section>
+        {!props.account.data?.delegated_access ? <><section className="panel"><h2>{myTeams.length ? 'Pedir entrada em outra equipe' : 'Encontrar equipe'}</h2><PlayerTeamRequest mode="request_join"/></section>
+        <section className="panel span-3"><div className="team-section-title"><div><p className="eyebrow">Escalação</p><h2>Entrar por convite</h2></div></div><div className="player-lineup-token"><div><KeyRound size={18}/><span><strong>Usar token de escalação</strong><small>Cole o token ou link enviado pela equipe.</small></span></div><div className="player-lineup-token-form"><UiInput value={lineupToken} onChange={(event) => { setLineupToken(event.target.value); setLineupTokenError('') }} onKeyDown={(event) => { if (event.key === 'Enter') openLineupToken() }} placeholder="Token ou link de escalação"/><button type="button" onClick={openLineupToken}>Abrir</button></div>{lineupTokenError ? <small className="player-lineup-token-error">{lineupTokenError}</small> : null}</div></section></> : null}
       </> : null}
       </WorkspaceContent>
     </WorkspaceShell>

@@ -4,6 +4,7 @@ import { requireEquipeAccess } from '../equipes/manager-team-access'
 import { assertProdutoraAprovada } from '../admin/aprovacao'
 import { requireProducerWorkspaceAccess } from '../produtora/workspace-access'
 import { isSystemAdmin } from '../admin/admin-auth'
+import { requireWorkspaceContext } from '../auth/workspace-contexts'
 
 const PROFILE_BUCKETS = new Set(['produtora', 'equipe', 'jogador', 'manager', 'broadcast'])
 
@@ -42,6 +43,11 @@ export async function requireUploadAccess(input: {
     if (input.bucket === 'equipe' && input.entityId) {
       await requireEquipeAccess(input.user.id, accounts, input.entityId, 'editar')
       return
+    }
+    if (input.bucket === 'jogador' && input.entityId) {
+      const context = await requireWorkspaceContext(input.user, input.entityId, 'jogador')
+      if (context.data?.delegated_permissions?.pode_editar) return
+      throw new Error('O líder não liberou a edição deste jogador.')
     }
     // Equipes provisórias pertencem ao workspace ativo. Membro somente leitura
     // não pode usar o upload como atalho para uma operação bloqueada.

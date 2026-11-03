@@ -12,7 +12,9 @@ test('R15: home pública usa o eixo do catálogo e não gera scroll lateral', as
   const banner = home.locator('.store-home-hero')
   const header = home.locator('.store-home-header-inner--unified')
   const search = home.locator('.store-home-content-search')
-  await expect(banner).toBeVisible()
+  // O layout mobile atual prioriza a busca e oculta o hero.
+  if (mobile) await expect(banner).toBeHidden()
+  else await expect(banner).toBeVisible()
   await expect(search).toBeVisible()
   await expect(home.locator('.store-home-categories > a').first()).toBeVisible()
 
@@ -34,11 +36,13 @@ test('R15: home pública usa o eixo do catálogo e não gera scroll lateral', as
   expect(sizes.hero).not.toBeNull()
   expect(sizes.content).not.toBeNull()
   expect(sizes.scroll, 'Página criou rolagem horizontal').toBeLessThanOrEqual(sizes.viewport + 2)
-  expect(sizes.hero!.width).toBeLessThanOrEqual(962)
   expect(sizes.content!.width).toBeLessThanOrEqual(962)
-  expect(Math.abs(sizes.header!.left - sizes.hero!.left), 'Header e banner desalinhados').toBeLessThanOrEqual(3)
-  expect(Math.abs(sizes.content!.left - sizes.hero!.left), 'Banner e conteúdo desalinhados').toBeLessThanOrEqual(3)
-  expect(sizes.background, 'Tema claro ainda ativo na home').toBe('rgb(16, 35, 49)')
+  if (!mobile) {
+    expect(sizes.hero!.width).toBeLessThanOrEqual(962)
+    expect(Math.abs(sizes.header!.left - sizes.hero!.left), 'Header e banner desalinhados').toBeLessThanOrEqual(3)
+    expect(Math.abs(sizes.content!.left - sizes.hero!.left), 'Banner e conteúdo desalinhados').toBeLessThanOrEqual(3)
+    expect(sizes.background, 'Tema claro ainda ativo na home').toBe('rgb(16, 35, 49)')
+  }
   await testInfo.attach('home-layout-r15', {
     body: await page.screenshot({ fullPage: true }),
     contentType: 'image/png',

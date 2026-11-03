@@ -5,6 +5,7 @@ const fs = require('node:fs/promises')
 const http = require('node:http')
 const path = require('node:path')
 const { spawn } = require('node:child_process')
+const { downloadSafeImage, allowedOutputLink } = require('./remote-assets.cjs')
 
 const OUTPUT_PORT = 19386
 const DEFAULT_ORIGIN = 'https://dropzone-cadastros.vercel.app'
@@ -173,24 +174,16 @@ async function authorizedChampionships(auth) {
 
 async function cacheAsset(remoteUrl) {
   if (!remoteUrl) return ''
-  let url
-  try { url = new URL(String(remoteUrl)) } catch { return '' }
-  if (!['https:', 'http:'].includes(url.protocol)) return ''
-  const key = crypto.createHash('sha256').update(url.toString()).digest('hex')
+  const key = crypto.createHash('sha256').update(String(remoteUrl)).digest('hex')
   await fs.mkdir(assetsPath(), { recursive: true })
   const found = await fs.readdir(assetsPath()).catch(() => [])
   const existing = found.find((file) => file.startsWith(key))
   if (existing) return `/asset/${encodeURIComponent(existing)}`
 
-  const response = await fetch(url, { signal: AbortSignal.timeout(12_000) })
-  if (!response.ok) return ''
-  const contentType = String(response.headers.get('content-type') || '').toLowerCase()
-  if (!contentType.startsWith('image/')) return ''
-  const data = Buffer.from(await response.arrayBuffer())
-  if (data.length > 8 * 1024 * 1024) return ''
-  const extension = contentType.includes('webp') ? 'webp' : contentType.includes('jpeg') ? 'jpg' : contentType.includes('gif') ? 'gif' : 'png'
-  const file = `${key}.${extension}`
-  await fs.writeFile(path.join(assetsPath(), file), data)
+  const image = await downloadSafeImage(fetch, remoteUrl)
+  if (!image) return ''
+  const file = `${key}.${image.extension}`
+  await fs.writeFile(path.join(assetsPath(), file), image.data)
   return `/asset/${encodeURIComponent(file)}`
 }
 
@@ -393,7 +386,10 @@ ipcMain.handle('lives:export-png', async (_event, liveId) => {
   }
 })
 ipcMain.handle('system:copy', (_event, value) => clipboard.writeText(String(value || '')))
-ipcMain.handle('system:open', (_event, value) => shell.openExternal(String(value || '')))
+ipcMain.handle('system:open', (_event, value) => {
+  if (!allowedOutputLink(value, OUTPUT_PORT)) throw new Error('Endereço externo não permitido.')
+  return shell.openExternal(String(value))
+})
 
 async function completeGoogleLogin(protocolUrl) {
   if (!isAllowedProtocolUrl(protocolUrl)) return

@@ -1,6 +1,6 @@
 /* Small workspace repairs stay local while the legacy cascade is migrated. */
 .scope :global(.panel-workspace-shell .dz-workspace-header__title-row h2) {
-  color: #1d2126 !important;
+  color: var(--dz-ink) !important;
 }
 
 .scope :global(.producer-layout-ref .producer-dashboard-hero) h2 {
@@ -11,11 +11,11 @@
 .scope :global(.detail-hero-ref p),
 .scope :global(.detail-hero-ref small),
 .scope :global(.detail-hero-ref .detail-stat span) {
-  color: #cbd5e1 !important;
+  color: var(--dz-muted) !important;
 }
 
 .scope :global(.dz-workspace-nav .dz-workspace-nav__item:not(.is-active):not(:disabled)) {
-  color: #334155 !important;
+  color: var(--dz-muted) !important;
 }
 
 .scope :global(.dz-workspace-nav .dz-workspace-nav__item:not(.is-active):not(:disabled) span),

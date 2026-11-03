@@ -1,4 +1,6 @@
 import '@/features/directory/components/championship-directory.css'
 import { DirectoryPage } from '@/features/directory/components/DirectoryPage'
-export const revalidate = 30
+// Dados do diretorio precisam do Supabase apenas em tempo de requisicao.
+// O servico de listagem preserva cache de dados de 30 segundos via unstable_cache.
+export const dynamic = 'force-dynamic'
 export default function Page() { return <DirectoryPage kind="campeonatos" /> }

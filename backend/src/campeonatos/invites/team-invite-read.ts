@@ -9,7 +9,7 @@ import { assertCampeonatoNoAr } from '../../admin/aprovacao'
 import { enrollmentClosedMessage, readEnrollmentStatus } from './enrollment-policy'
 
 const TOKEN_SELECT =
-  'id,token,tipo,status,usado,expira_em,campeonato_id,grupo_id,fase_id,slot_id,nome_equipe_reservada,nome_line_reservada,equipe_id,line_destino_id'
+  'id,token,tipo,status,usado,expira_em,campeonato_id,grupo_id,fase_id,slot_id,nome_equipe_reservada,nome_line_reservada,equipe_id,equipe_destino_id,line_destino_id'
 
 export async function loadTeamInvite(token: string, includeAvailability = true) {
   // The route parameter is already decoded by Next. Percent sequences can be literal token data.

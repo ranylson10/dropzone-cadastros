@@ -56,6 +56,7 @@ const domainMessages: Record<string, number> = {
   'Link sem vagas disponíveis.': 409,
   'Vaga selecionada inválida.': 400,
   'Slot ocupado ou fora do grupo.': 409,
+  'Grupo ou slot bloqueado pela administração.': 409,
   'Line inválida ou inativa.': 400,
   'Informe um nome real para a line.': 400,
   'Esta line já está inscrita ou pendente neste campeonato.': 409,

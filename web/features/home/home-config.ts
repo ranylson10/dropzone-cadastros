@@ -80,12 +80,10 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
     },
   ],
   categories: [
-    { title: 'COPAS', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?tipo=copa' },
-    { title: 'LIGAS', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?tipo=liga' },
-    { title: 'SALAS', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?tipo=diario' },
-    { title: 'X1', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?tipo=confronto' },
-    { title: 'GRÁTIS', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?gratis=1' },
-    { title: 'VAGAS ABERTAS', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?vagas=1' },
+    { title: 'XTREINO', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?tipo=xtreino' },
+    { title: 'COPA', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?tipo=copa' },
+    { title: 'LIGA', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?tipo=liga' },
+    { title: 'DIÁRIO', subtitle: 'VER AGORA', image_url: '', href: '/campeonatos?tipo=diario' },
   ],
   promos: [
     {
@@ -138,13 +136,14 @@ export function normalizeHomeConfig(raw: unknown): HomeConfig {
         side_text: text(current.side_text, fallback.side_text),
       }
     }),
-    categories: DEFAULT_HOME_CONFIG.categories.map((fallback, index) => {
-      const current = categoryInput[index] || {} as Partial<HomeCategory>
+    categories: DEFAULT_HOME_CONFIG.categories.map((fallback) => {
+      // Match saved artwork by type so legacy cards cannot replace the supported categories.
+      const current = categoryInput.find((category) => category?.href === fallback.href) || {} as Partial<HomeCategory>
       return {
-        title: text(current.title, fallback.title),
+        title: fallback.title,
         subtitle: text(current.subtitle, fallback.subtitle),
         image_url: text(current.image_url, fallback.image_url),
-        href: text(current.href, fallback.href),
+        href: fallback.href,
       }
     }),
     promos: DEFAULT_HOME_CONFIG.promos.map((fallback, index) => {

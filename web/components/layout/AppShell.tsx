@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase-browser'
-import { isWebProfileType, type DropZoneRow, type WebProfileType } from '@/lib/types'
+import { isWebProfileType, type AccountIdentity, type DropZoneRow, type WebProfileType } from '@/lib/types'
 import { AppHeader } from './AppHeader'
 import { StorefrontHeader } from './StorefrontHeader'
 import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
@@ -39,7 +39,7 @@ export type AppShellProps = {
   /** Conta já resolvida (painel) — evita segundo /api/me */
   account?: DropZoneRow | null
   /** Identidade da sessão quando ainda não existe cadastro operacional. */
-  identity?: { name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null; complete?: boolean } | null
+  identity?: AccountIdentity | null
   accounts?: DropZoneRow[]
   activeAccountId?: string
   switchingAccountId?: string
@@ -77,7 +77,7 @@ export function AppShell({
   const pathname = usePathname()
   const [sessionAccount, setSessionAccount] = useState<DropZoneRow | null>(null)
   const [sessionAccounts, setSessionAccounts] = useState<DropZoneRow[]>([])
-  const [sessionIdentity, setSessionIdentity] = useState<{ name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null; complete?: boolean } | null>(null)
+  const [sessionIdentity, setSessionIdentity] = useState<AccountIdentity | null>(null)
 
   const controlled = accountProp !== undefined
   const controlledAccounts = (accountsProp || []).filter((item) => isWebProfileType(item.profile_type))
@@ -237,7 +237,16 @@ export function AppShell({
       <a className="app-skip-link" href={`#${resolvedMainId}`}>Pular para o conteúdo</a>
       {showHeader ? (
         resolvedHeaderVariant === 'storefront' ? (
-          <StorefrontHeader authenticated={Boolean(account || identity)} />
+          <StorefrontHeader
+            authenticated={Boolean(account || identity)}
+            identity={identity || account ? {
+              ...identity,
+              name: identity?.name || account?.name || account?.username,
+              username: identity?.username || account?.username,
+              avatar_url: identity?.avatar_url || mediaFor(account),
+            } : null}
+            onSignOut={onSignOutProp || defaultSignOut}
+          />
         ) : (
           <AppHeader
             navItems={navItems}

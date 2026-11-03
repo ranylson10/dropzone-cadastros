@@ -602,7 +602,7 @@ function EquipeManagerDetail(props: {
             </div>
           ) : null}
 
-          <div className="championship-vagas-list">
+          <div className="championship-vagas-list" data-dz-list="legacy">
             {lines.length === 0 ? (
               <div className="vagas-empty-filter">Nenhuma line nesta equipe.</div>
             ) : (
@@ -679,7 +679,7 @@ function EquipeManagerDetail(props: {
           <p className="empty" style={{ margin: '0 0 10px' }}>
             Para entrar em novos eventos, abra o link de inscrição do campeonato — o manager escolhe a equipe na lista.
           </p>
-          <div className="championship-vagas-list">
+          <div className="championship-vagas-list" data-dz-list="legacy">
             {participacoes.length === 0 ? (
               <div className="vagas-empty-filter">Nenhuma line inscrita em campeonato.</div>
             ) : (

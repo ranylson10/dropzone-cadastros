@@ -2,6 +2,7 @@
 
 import { DataList, DataListItem } from '@/components/ui/DataList'
 import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Dialog } from '@/components/ui/Dialog'
 import { Select as UiSelect } from '@/components/ui/Field'
 import statisticsStyles from './PublicStatistics.module.css'
 import {
@@ -16,7 +17,6 @@ import {
   Ticket,
   Users,
   UserCircle2,
-  X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { BuyVacancyModal } from '@/features/billing/BuyVacancyModal'
@@ -367,9 +367,9 @@ export function ChampionshipPublicView({
             {filteredTeams.length === 0 ? (
               <div className="directory-empty compact">Nenhuma equipe neste filtro.</div>
             ) : (
-              <div className="champ-public-team-list">
+              <div className="champ-public-team-list" data-dz-list="true">
                 {filteredTeams.map((team) => (
-                  <article key={team.id} className="champ-public-team-row">
+                  <article key={team.id} className="champ-public-team-row" data-dz-list-item="true">
                     <span className="champ-public-team-avatar">
                       {team.image ? <img src={team.image} alt="" /> : <Users size={18} />}
                     </span>
@@ -760,10 +760,8 @@ function StatsDashboard({
             ) : null}
           </div>
           {filtersOpen ? (
-            <div className="champ-filter-overlay" role="dialog" aria-modal="true" aria-label="Filtros das estatísticas">
-              <button type="button" className="champ-filter-backdrop" onClick={() => setFiltersOpen(false)} aria-label="Fechar filtros" />
+            <Dialog open title="Filtrar estatísticas" onClose={() => setFiltersOpen(false)} closeLabel="Fechar filtros" size="medium" className={statisticsStyles.filters}>
               <div className="champ-filter-sheet">
-                <header><strong>Filtrar estatísticas</strong><button type="button" onClick={() => setFiltersOpen(false)} aria-label="Fechar"><X size={18} /></button></header>
                 <section className="champ-filter-group champ-filter-mode">
                   <h4><SlidersHorizontal size={15} />Modo</h4>
                   <div>
@@ -860,12 +858,12 @@ function StatsDashboard({
                   <button type="button" className="button" onClick={() => setFiltersOpen(false)}>Aplicar</button>
                 </footer>
               </div>
-            </div>
+            </Dialog>
           ) : null}
         </>
       ) : null}
 
-      {view === 'campeao' && championSummary?.campeao ? <section className="champion-public-spotlight"><div className="champion-public-badge">CAMPEÃO</div><div className="champion-public-main"><span className="champion-public-logo">{championSummary.campeao.logo_url ? <img src={championSummary.campeao.logo_url} alt="" /> : championSummary.campeao.nome.slice(0,2).toUpperCase()}</span><div><small>Grande Final concluída</small><h2>{championSummary.campeao.nome}</h2><p>{championSummary.campeao.pontos_total} PTS · {championSummary.campeao.booyahs} BOOYAH · {championSummary.campeao.abates} KILLS · {championSummary.resumo?.quedas || championSummary.campeao.quedas} QUEDAS</p></div></div><div className="champion-public-lineup"><strong>LINE CAMPEÃ</strong><div>{(championSummary.jogadores || []).map((player:any)=><article key={player.campeonato_jogador_id}>{player.foto_url?<img src={player.foto_url} alt=""/>:<span>{String(player.nick||'?').slice(0,1)}</span>}<b>{player.nick}</b><small>{player.abates} kills</small></article>)}</div></div><footer><button type="button" onClick={()=>setView('mvp')}><Flag size={14}/> Ver MVP</button><button type="button" onClick={()=>setView('tabela')}><BarChart3 size={14}/> Estatísticas do campeonato</button></footer></section> : null}
+      {view === 'campeao' && championSummary?.campeao ? <section className={`champion-public-spotlight ${statisticsStyles.champion}`}><div className="champion-public-badge">CAMPEÃO</div><div className="champion-public-main"><span className="champion-public-logo">{championSummary.campeao.logo_url ? <img src={championSummary.campeao.logo_url} alt="" /> : championSummary.campeao.nome.slice(0,2).toUpperCase()}</span><div><small>Grande Final concluída</small><h2>{championSummary.campeao.nome}</h2><p>{championSummary.campeao.pontos_total} PTS · {championSummary.campeao.booyahs} BOOYAH · {championSummary.campeao.abates} KILLS · {championSummary.resumo?.quedas || championSummary.campeao.quedas} QUEDAS</p></div></div><div className="champion-public-lineup"><strong>LINE CAMPEÃ</strong><div data-dz-list="true">{(championSummary.jogadores || []).map((player:any)=><article key={player.campeonato_jogador_id} data-dz-list-item="true">{player.foto_url?<img src={player.foto_url} alt=""/>:<span>{String(player.nick||'?').slice(0,1)}</span>}<b>{player.nick}</b><small>{player.abates} kills</small></article>)}</div></div><footer><button type="button" onClick={()=>setView('mvp')}><Flag size={14}/> Ver MVP</button><button type="button" onClick={()=>setView('tabela')}><BarChart3 size={14}/> Estatísticas do campeonato</button></footer></section> : null}
 
       {view !== 'campeao' ? <div className="champ-stats-table-wrap champ-stats-desktop-table">
         {view === 'tabela' ? (
@@ -963,8 +961,8 @@ function PlayersDirectoryPanel({ players, teams }: { players: PublicPlayerRow[];
       <div className="champ-list-filters single">
         <label><span>Equipe</span><UiSelect value={teamId} onChange={(event) => setTeamId(event.target.value)}><option value="">Todas</option>{teamOptions.map((team) => <option key={team.id} value={team.id}>{team.nome}</option>)}</UiSelect></label>
       </div>
-      {filtered.length ? <div className="champ-public-player-list">{filtered.map((player) => (
-        <article key={player.id} className="champ-public-player-row">
+      {filtered.length ? <div className="champ-public-player-list" data-dz-list="true">{filtered.map((player) => (
+        <article key={player.id} className="champ-public-player-row" data-dz-list-item="true">
           <span className="champ-public-player-avatar"><img src={player.foto_url || '/images/jogador-misterioso.png'} alt="" /></span>
           <span className="champ-public-player-copy"><strong>{player.nick}</strong><small>{player.equipe_nome}</small></span>
           <span className="champ-public-player-kills"><small>Partidas</small><b>{player.partidas}</b></span>

@@ -28,6 +28,7 @@ export function normalizeManagerMode(raw: string | null | undefined): ManagerPan
   if (raw === 'vendas' || raw === 'campeonatos' || raw === 'produtora') return 'produtora'
   if (raw === 'equipes') return 'equipes'
   if (raw === 'jogador') return 'jogador'
-  // Hub removido da UX principal — abre direto em Campeonatos
-  return 'produtora'
+  if (raw === 'hub') return 'hub'
+  // R22: a entrada padrão é um painel de ações; atalhos antigos seguem válidos.
+  return 'hub'
 }

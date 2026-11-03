@@ -1,0 +1,130 @@
+/* DropZone R20 | Arena UI: ações primeiro, ferramentas por contexto.
+   Não altera regras de negócio, apenas composição/navegação. */
+.dz-workspace-more{
+  position:relative;min-width:0;max-width:100%;z-index:8;
+  border:1px solid #d5d9df;border-radius:12px;background:rgba(255,255,255,.93);
+  color:#30343b;box-shadow:0 4px 22px rgba(20,24,33,.035);
+}
+.dz-workspace-more>summary{
+  display:flex;align-items:center;gap:10px;min-height:42px;padding:8px 14px;
+  font-size:13px;font-weight:850;cursor:pointer;list-style:none;
+}
+.dz-workspace-more>summary::-webkit-details-marker{display:none}
+.dz-workspace-more>summary svg:first-child{color:#7751db}
+.dz-workspace-more>summary svg:last-child{margin-left:auto;transition:transform .18s ease}
+.dz-workspace-more[open]>summary svg:last-child{transform:rotate(180deg)}
+.dz-workspace-more.is-active{border-color:#a58ce7;background:#f8f5ff}
+.dz-workspace-more__items{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:7px;padding:4px 10px 11px}
+.dz-workspace-more__items button{
+  display:grid;gap:3px;text-align:left;cursor:pointer;min-width:0;padding:13px;
+  background:#f6f7f9;border:1px solid #e3e5ea;border-radius:9px;color:#222632;
+  transition:transform .18s ease,background-color .18s ease,border-color .18s ease;
+}
+.dz-workspace-more__items button strong{font-size:13px}
+.dz-workspace-more__items button small{font-size:11px;line-height:1.4;color:#6b7380}
+.dz-workspace-more__items button:hover,.dz-workspace-more__items button:focus-visible{transform:translateY(-2px);border-color:#a18cdd;background:#f5f1ff}
+.dz-workspace-more__items button.is-active{background:#ece6ff;border-color:#8f70df}
+
+/* Identidade de console gamer: contraste, corte diagonal e luz contida. */
+.page-authenticated .dz-workspace-header{
+  position:relative;overflow:hidden;min-height:90px;isolation:isolate;
+  border:1px solid #292536;border-left:0;border-radius:16px;
+  background:linear-gradient(113deg,#15141e 0%,#222033 65%,#161620 100%);
+  color:#fff;box-shadow:0 14px 35px rgba(20,16,28,.13);
+}
+.page-authenticated .dz-workspace-header::before{
+  content:'';position:absolute;inset:0 0 0 auto;width:37%;z-index:-1;pointer-events:none;
+  background:repeating-linear-gradient(125deg,transparent 0 29px,rgba(168,137,255,.075) 30px 31px);
+  mask-image:linear-gradient(90deg,transparent,#000);
+}
+.page-authenticated .dz-workspace-header::after{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:linear-gradient(180deg,#b99bff,#f3d07a);
+}
+.page-authenticated .dz-workspace-header__eyebrow{color:#b7a2f5}
+.page-authenticated .dz-workspace-header__title-row h2{color:#fff;letter-spacing:-.045em}
+.page-authenticated .dz-workspace-header__description{color:#c0bdca;font-size:13px}
+.page-authenticated .dz-workspace-header__icon{border:1px solid rgba(199,178,255,.28);background:rgba(166,127,255,.13);color:#dacaff}
+.page-authenticated .dz-workspace-header__actions>span,.page-authenticated .dz-workspace-header__actions>a{
+  color:#e1d9f6;background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.14)
+}
+.page-authenticated .dz-workspace-nav{border-radius:12px;padding:5px;background:#e8e8ee;border-color:#d9d9e4}
+.page-authenticated .dz-workspace-nav .dz-workspace-nav__item{border-radius:9px;text-transform:none;font-size:13px;letter-spacing:0}
+.page-authenticated .dz-workspace-nav .dz-workspace-nav__item.is-active{background:#211b34;box-shadow:inset 0 -3px 0 #b69bff}
+.page-authenticated .dz-workspace-content{animation:dz-r20-enter .26s cubic-bezier(.2,.7,.2,1) both}
+@keyframes dz-r20-enter{from{opacity:.72;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+
+/* Configurar campeonato por etapas: substitui a sensação de painel técnico no topo. */
+.dz-r20-configure{margin:14px 0 18px;padding:16px;border:1px solid #ded9eb;border-radius:16px;background:linear-gradient(135deg,#f8f5ff,#fff 68%)}
+.dz-r20-configure__heading{display:flex;align-items:center;gap:13px;margin-bottom:14px}
+.dz-r20-spark{display:grid;place-items:center;flex:0 0 38px;height:38px;border-radius:12px;background:#251e35;color:#c6a7ff;font-size:23px}
+.dz-r20-configure__heading h3{margin:2px 0 3px;font-size:18px;letter-spacing:-.035em;color:#242130}
+.dz-r20-configure__heading small{font-size:12px;color:#687080}
+.dz-r20-configure__steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.dz-r20-configure__steps button{
+  display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px;min-height:102px;padding:11px;
+  border:1px solid #e3deed;border-radius:11px;background:#fff;color:#222334;
+  text-align:left;cursor:pointer;transition:border-color .2s,transform .2s,box-shadow .2s;
+}
+.dz-r20-configure__steps button>span{font-weight:900;color:#8056d6;font-size:13px}
+.dz-r20-configure__steps button strong{grid-column:1/-1;font-size:13px}
+.dz-r20-configure__steps button small{font-size:11px;color:#69707c}
+.dz-r20-configure__steps button svg{justify-self:end;grid-column:2;grid-row:3;color:#8056d6}
+.dz-r20-configure__steps button:hover,.dz-r20-configure__steps button:focus-visible{
+  transform:translateY(-3px);border-color:#aa91ef;box-shadow:0 9px 22px rgba(90,55,148,.1);
+}
+
+/* Navegação mobile: cinco destinos de primeira classe, sem desktop espremido. */
+@media(max-width:900px){
+  .app-mobile-dock{
+    grid-template-columns:repeat(5,minmax(0,1fr));min-height:65px;
+    padding:5px 4px calc(6px + env(safe-area-inset-bottom));
+    border-top:1px solid #e8e4ef;border-radius:18px 18px 0 0;
+    background:rgba(252,250,255,.98);box-shadow:0 -8px 26px rgba(27,22,39,.13);
+  }
+  .app-mobile-dock a,.app-mobile-dock button{min-height:52px;gap:4px;border-radius:12px;color:#747180}
+  .app-mobile-dock a span,.app-mobile-dock button span{font-size:10px;font-weight:800;letter-spacing:-.012em}
+  .app-mobile-dock a.active,.app-mobile-dock button.active{color:#6b3fd4;background:#eee8fd}
+  .app-mobile-dock a.active svg,.app-mobile-dock button.active svg{stroke-width:2.5px}
+  .app-action-fab{
+    position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:121;
+    display:flex;align-items:center;justify-content:center;gap:6px;min-width:58px;height:48px;
+    padding:0 15px;border:1px solid rgba(255,255,255,.23);border-radius:15px;
+    color:#fff;background:linear-gradient(135deg,#7541ec,#5029b7);
+    box-shadow:0 12px 24px rgba(67,36,148,.25);font:inherit;font-size:12px;font-weight:900;
+    transition:transform .18s ease,box-shadow .18s ease;
+  }
+  .app-action-fab:active{transform:scale(.96)}
+  .app-mobile-login,.app-dashboard-entry{display:flex;align-items:center;gap:9px;min-height:44px;padding:0 12px}
+  .app-mobile-login{color:#fff;background:#6b3fd4;border-radius:10px}
+  .page-authenticated .dz-workspace-header{padding:16px 14px;border-radius:15px}
+  .dz-r20-configure{padding:12px}
+  .dz-r20-configure__steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dz-workspace-more>summary{min-height:46px}
+  .dz-workspace-more__items{grid-template-columns:1fr}
+  .dz-workspace-more__items button{min-height:53px}
+}
+@media(max-width:390px){
+  .app-mobile-dock a span,.app-mobile-dock button span{font-size:9px}
+  .dz-r20-configure__steps{grid-template-columns:1fr 1fr;gap:6px}
+  .dz-r20-configure__steps button{padding:9px;min-height:94px}
+}
+@media(prefers-reduced-motion:reduce){
+  .page-authenticated .dz-workspace-content{animation:none}
+  .dz-r20-configure__steps button,.dz-workspace-more__items button,.app-action-fab{transition:none}
+  .dz-r20-configure__steps button:hover,.dz-workspace-more__items button:hover{transform:none}
+}
+
+@media(max-width:900px){
+ .app-mobile-nav-account .app-mobile-account-trigger{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:#d8cfee;font-size:12px;text-align:left;cursor:pointer}
+ .app-mobile-nav-account .app-mobile-account-trigger:hover{background:#242035;color:#fff}
+ .app-profile .app-profile-menu.linked-account-menu{position:fixed!important;top:auto!important;left:12px!important;right:12px!important;bottom:calc(80px + env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;max-height:min(70dvh,550px)!important;overflow-y:auto!important;z-index:135!important;border-radius:16px!important}
+}
+
+/* Catálogo público também se comporta como app: quatro áreas + Menu. */
+.store-home-mobile-menu .dz-public-panel-entry{display:flex;align-items:center;gap:9px;padding:11px 14px;border-radius:10px;background:#eee8fc;color:#542cc3;font-weight:850;text-decoration:none}
+@media(max-width:900px){
+ .dz-public-bottom-nav{grid-template-columns:repeat(5,minmax(0,1fr));border-radius:18px 18px 0 0;box-shadow:0 -8px 25px rgba(27,22,39,.12)}
+ .dz-public-bottom-nav a,.dz-public-bottom-nav button{min-width:0}
+ .dz-public-bottom-nav a span,.dz-public-bottom-nav button span{font-size:10px;letter-spacing:-.02em}
+}

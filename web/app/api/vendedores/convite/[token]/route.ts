@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { claimSellerInvite, InvitationClaimError } from '@backend/campeonatos/invites/one-time-claims'
 
 function missingRelation(error: any) {
   return ['42P01', '42703', 'PGRST205', 'PGRST204'].includes(error?.code || '')
@@ -102,7 +103,8 @@ async function upsertProdutoraRoster(convite: any, account: any, body: any, what
       .eq('manager_id', account.id)
       .maybeSingle()
     if (existing.data?.id) {
-      await supabaseAdmin.from('produtora_vendedores').update(payload).eq('id', existing.data.id)
+      const update = await supabaseAdmin.from('produtora_vendedores').update(payload).eq('id', existing.data.id)
+      if (update.error) throw update.error
     } else {
       const ins = await supabaseAdmin.from('produtora_vendedores').insert(payload)
       if (ins.error && !missingRelation(ins.error)) throw ins.error
@@ -194,7 +196,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
       autenticado,
       manager,
       modo: convite.modo,
-      valido: convite.status === 'ativo' && (!convite.usado || convite.manager_id === manager?.id),
+      valido: convite.status === 'ativo' && ((convite.usado && convite.manager_id === manager?.id) || (!convite.usado && (!convite.expira_em || Date.parse(convite.expira_em) > Date.now()))),
     })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Convite inválido.' }, { status: 404 })
@@ -215,14 +217,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     if (convite.usado && convite.manager_id && convite.manager_id !== account.id) {
       throw new Error('Este convite já foi aceito por outro manager.')
     }
-    if (convite.usado && convite.manager_id === account.id) {
-      return NextResponse.json({
-        ok: true,
-        modo: convite.modo,
-        painel_url: '/',
-        mensagem: 'Convite já aceito. Configure seu WhatsApp no painel do manager.',
-      })
-    }
 
     // WhatsApp opcional no aceite (preenche depois no painel). Usa o que já tiver no perfil.
     let whatsappUrl: string | null = null
@@ -241,18 +235,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       nome_publico: String(body.nome_publico || '').trim() || account.name,
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('tokens')
-      .update({
-        manager_id: account.id,
-        usado: true,
-        usado_em: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', convite.id)
-      .select('*')
-      .single()
-    if (error) throw error
+    // An interrupted acceptance may be resumed only by the manager that claimed it.
+    const claim = await claimSellerInvite(convite, account.id)
 
     await updateManagerProfile(account.id, acceptBody, whatsappUrl)
     await upsertProdutoraRoster(convite, account, acceptBody, whatsappUrl || '', user.id)
@@ -263,7 +247,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
 
     return NextResponse.json({
       ok: true,
-      vendedor: data,
+      vendedor: { ...convite, manager_id: account.id, usado: true },
+      repetida: claim.replay,
       modo: convite.modo,
       // Painel do manager no app (perfil manager), não a página pública de vendas
       painel_url: '/',
@@ -275,7 +260,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Erro ao aceitar convite.' },
-      { status: 400 },
+      { status: error instanceof InvitationClaimError ? error.status : 400 },
     )
   }
 }

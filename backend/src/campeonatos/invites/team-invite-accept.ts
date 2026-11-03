@@ -2,7 +2,7 @@ import { supabaseAdmin } from '../../shared/supabase-admin'
 import { listControllableEquipes } from '../../equipes/manager-team-access'
 import { inserirParticipacaoNoSlot, resolveLineForInscricao, softRemoveParticipacao } from '../participacao-sync'
 import { loadTeamInvite, teamInviteValid } from './team-invite-read'
-import { assertTeamEnrollmentPermission, type InviteActor } from './types'
+import { assertTeamEnrollmentPermission, assertTeamInviteRecipient, type InviteActor } from './types'
 import { readPagedRows } from '../../shared/paginated-query'
 import { assertEnrollmentOpen } from './enrollment-policy'
 
@@ -33,6 +33,8 @@ export async function acceptTeamInvite(actor: InviteActor, token: string, body: 
     if (!teamInviteValid(convite)) {
       throw new Error('Este convite expirou ou já foi utilizado.')
     }
+    // The destination is part of the invitation, never a client-selectable team/line.
+    assertTeamInviteRecipient(convite, account.id, body.line_id ? String(body.line_id) : null)
     await assertEnrollmentOpen(convite.campeonato_id)
 
     let slotUsado: any = slotFixo
@@ -95,6 +97,7 @@ export async function acceptTeamInvite(actor: InviteActor, token: string, body: 
       logoUrl: account.data?.logo_url || null,
     })
 
+    assertTeamInviteRecipient(convite, account.id, resolved.id)
     const participacao = await inserirParticipacaoNoSlot({
       campeonatoId: convite.campeonato_id, slotId: slotUsado.id,
       lineId: resolved.id, equipeId: account.id, nomeExibicao: resolved.nome,
@@ -104,7 +107,7 @@ export async function acceptTeamInvite(actor: InviteActor, token: string, body: 
     await assertEnrollmentOpen(convite.campeonato_id)
 
     // Marca token como usado de forma condicional (atômico no nível do flag usado)
-    const { data: tokenUsed, error: tokenError } = await supabaseAdmin
+    let tokenUpdate = supabaseAdmin
       .from('tokens')
       .update({
         usado: true,
@@ -118,6 +121,17 @@ export async function acceptTeamInvite(actor: InviteActor, token: string, body: 
       .eq('usado', false)
       .eq('status', 'ativo')
       .or(`expira_em.is.null,expira_em.gt.${new Date().toISOString()}`)
+    // Prevent a destination reassignment between the initial read and token claim.
+    tokenUpdate = convite.equipe_id
+      ? tokenUpdate.eq('equipe_id', convite.equipe_id)
+      : tokenUpdate.is('equipe_id', null)
+    tokenUpdate = convite.equipe_destino_id
+      ? tokenUpdate.eq('equipe_destino_id', convite.equipe_destino_id)
+      : tokenUpdate.is('equipe_destino_id', null)
+    tokenUpdate = convite.line_destino_id
+      ? tokenUpdate.eq('line_destino_id', convite.line_destino_id)
+      : tokenUpdate.is('line_destino_id', null)
+    const { data: tokenUsed, error: tokenError } = await tokenUpdate
       .select('id')
       .maybeSingle()
     if (tokenError) throw tokenError

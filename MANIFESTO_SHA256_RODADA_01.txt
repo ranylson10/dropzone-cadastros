@@ -1,0 +1,12 @@
+DropZone Rodada 01 - manifesto SHA-256
+
+58d01da2b3a6cd6a9a79dc0a091fe4308cd1c47341dde8e043a7849496e605c9  LEIA_PRIMEIRO_RODADA_01.txt
+5f76bd6baa4d15f7c5ff998464699609ab3347c09ca47ce1edf45847e9924576  PROJECT_CONTEXT.md
+9431dda521a3311e52d815b58a3cf3a96890d7d979c64bb07cfe4a41d4e9f85a  TESTAR_RODADA_01.bat
+1b0ab0f253a6c938df31acad7a18919d4431683593602668c8a8e8de5de43798  docs/PLANO_RODADAS_CORRECOES_2026-10-21.md
+ec74a788ad56f86a617414a636531dff3ea55f74099b4a79c31aa76c1cd20ba0  package.json
+4005a0f637386276c17c757016eb4dbb0e12d292e64b728c54d7b19ea4729f01  scripts/testes/test-security-round1.mjs
+31f44980a67585b9063b420fd326a0340ee07476e4b1ef6a847a3c73e0016b0e  tests-e2e/controlled/rodada-58-banner-vitrine-storage.spec.ts
+c3eeb4ec57f1dd2983dbb0a1d6ae71fc254dce2a3e733573c5d7597676e6b00c  web/app/api/i18n/translate/route.ts
+79fd0cd259429480ca41f9e78485585e88dbc8a5ff8c1e14fa54323b3304b4df  web/app/api/media/[bucket]/[...path]/route.ts
+ef0a0d01105c114bac8940ac6949afc098bb8486cfa1caf3ff90e43894154088  web/features/campeonatos/export/templates/PlayerNameOverwrite.sample.json

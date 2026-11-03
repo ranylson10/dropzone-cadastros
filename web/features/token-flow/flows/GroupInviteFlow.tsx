@@ -1313,7 +1313,7 @@ function ConviteGrupoContent() {
                 <h2>Escolha a equipe</h2>
                 <button className="button secondary" type="button" onClick={() => setStep('acompanhar')}>Só acompanhar</button>
               </div>
-              <div className="championship-vagas-list">
+              <div className="championship-vagas-list" data-dz-list="legacy">
                 {(data.equipes_disponiveis || [])
                   .slice()
                   .sort((a, b) => Number(Boolean(b.inscrita_no_grupo)) - Number(Boolean(a.inscrita_no_grupo)))

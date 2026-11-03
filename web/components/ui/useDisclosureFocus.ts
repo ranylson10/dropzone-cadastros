@@ -1,11 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
-import { dialogTabStops } from './dialog-layer'
+import { dialogTabStops, focusDialog } from './dialog-layer'
+import { nextSheetTabTarget } from './sheet-tab-order'
 
-/** Nonmodal popup: enter its controls, dismiss on Escape or when focus leaves.
- * Modal surfaces use Dialog, which also isolates the background. */
-export function useDisclosureFocus<T extends HTMLElement = HTMLDivElement>(open: boolean, onClose: () => void, focusFirstControl = true) {
+/** Popup focus: enter controls, dismiss on Escape or outside interaction.
+ * For mobile navigation sheets, the optional trapTab parameter keeps keyboard navigation within the sheet.
+ * Full application modals use Dialog, which also isolates the background. */
+export function useDisclosureFocus<T extends HTMLElement = HTMLDivElement>(open: boolean, onClose: () => void, focusFirstControl = true, trapTab = false) {
   const panelRef = useRef<T>(null)
   const originRef = useRef<HTMLElement | null>(null)
   const onCloseRef = useRef(onClose)
@@ -29,10 +31,30 @@ export function useDisclosureFocus<T extends HTMLElement = HTMLDivElement>(open:
     function outside(target: EventTarget | null) {
       return target instanceof Node && !panel.contains(target) && !originRef.current?.contains(target)
     }
-    function onFocus(event: FocusEvent) { if (outside(event.target)) close() }
+    function onFocus(event: FocusEvent) {
+      if (!outside(event.target)) return
+      if (trapTab) focusDialog(panel)
+      else close()
+    }
     function onPointer(event: PointerEvent) { if (outside(event.target)) close() }
     function onKey(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.key !== 'Escape') return
+      if (event.defaultPrevented) return
+      if (trapTab && event.key === 'Tab') {
+        const controls = dialogTabStops(panel)
+        if (!controls.length) {
+          event.preventDefault()
+          panel.focus({ preventScroll: true })
+          return
+        }
+        const current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        const target = nextSheetTabTarget(controls, current, event.shiftKey, current !== panel && panel.contains(current))
+        if (target) {
+          event.preventDefault()
+          target.focus({ preventScroll: true })
+        }
+        return
+      }
+      if (event.key !== 'Escape') return
       const target = document.activeElement
       if (!panel.contains(target) && !originRef.current?.contains(target)) return
       event.preventDefault()
@@ -50,7 +72,7 @@ export function useDisclosureFocus<T extends HTMLElement = HTMLDivElement>(open:
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('resize', onResize)
     }
-  }, [open, close, focusFirstControl])
+  }, [open, close, focusFirstControl, trapTab])
 
   return { panelRef, close }
 }

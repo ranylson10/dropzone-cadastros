@@ -33,15 +33,15 @@
 .login-portal .login-profile-head h2 {
   font-size:clamp(26px,3vw,34px);
   line-height:1.14;
-  color:#1d2126 !important;
+  color:var(--dz-rust) !important;
 }
 .login-portal .login-auth-step>p,
-.login-portal .login-profile-head p { font-size:13px;color:#606b75 !important; }
+.login-portal .login-profile-head p { font-size:13px;color:var(--dz-rust) !important; }
 .login-portal .login-panel-step { font-size:12px; }
 .login-portal .login-email-form { gap:12px; }
 .login-portal .login-email-field { gap:6px; }
 .login-portal :is(.login-email-field>span:first-child,.login-otp-field>span,.login-account-avatar-field .field>label) {
-  color:#58616c !important;
+  color:var(--dz-muted) !important;
   font-size:12px !important;
   letter-spacing:.015em;
 }
@@ -51,10 +51,10 @@
 .login-portal .login-username-control,
 .login-portal .login-password-control {
   min-height:44px;
-  border:1px solid #cbd1d7 !important;
+  border:1px solid var(--dz-stroke) !important;
   border-radius:7px !important;
-  background:#fff !important;
-  color:#1d2126 !important;
+  background:var(--dz-white) !important;
+  color:var(--dz-muted) !important;
 }
 .login-portal .login-username-control { grid-template-columns:40px minmax(0,1fr) !important; }
 .login-portal .login-email-field .login-username-control input {
@@ -66,21 +66,21 @@
 .login-portal .login-otp-field input:focus-visible,
 .login-portal .login-username-control:focus-within,
 .login-portal .login-password-control:focus-within {
-  outline:2px solid #b29a1b;
+  outline:2px solid var(--dz-stroke);
   outline-offset:2px;
 }
 .login-portal .login-username-hint,
 .login-portal .login-password-hint,
-.login-portal .login-account-avatar-field .upload-hint-row { color:#5d6771 !important;font-size:12px !important;line-height:1.45; }
+.login-portal .login-account-avatar-field .upload-hint-row { color:var(--dz-muted) !important;font-size:12px !important;line-height:1.45; }
 .login-portal .login-account-identity-fields { grid-template-columns:106px minmax(0,1fr);gap:14px; }
 .login-portal .login-account-avatar-field .upload-picker { width:96px;height:96px;border-radius:8px; }
 .login-portal .login-email-primary { min-height:46px;border-radius:7px !important;font-size:13px;letter-spacing:.02em; }
 .login-portal .login-auth-step .social-login-button {
   min-height:44px;
-  border:1px solid #d4d9de !important;
+  border:1px solid var(--dz-stroke) !important;
   border-radius:7px !important;
-  background:#f8f9fa !important;
-  color:#27313b !important;
+  background:var(--dz-white) !important;
+  color:var(--dz-rust) !important;
   font-size:12px;
   letter-spacing:.02em;
 }
@@ -88,51 +88,51 @@
 .login-portal .login-email-sent,
 .login-portal .login-no-profile {
   border-radius:8px;
-  background:#f5f7f8;
-  color:#27313b;
+  background:var(--dz-white);
+  color:var(--dz-muted);
 }
 .login-portal .login-create-fast-track { margin:14px 0 10px; }
-.login-portal .login-create-fast-track strong { font-size:12px;color:#716000; }
-.login-portal .login-create-fast-track span { font-size:12px;color:#5a6470; }
-.login-portal .login-email-sent strong { font-size:13px;color:#27313b; }
+.login-portal .login-create-fast-track strong { font-size:12px;color:var(--dz-ink); }
+.login-portal .login-create-fast-track span { font-size:12px;color:var(--dz-muted); }
+.login-portal .login-email-sent strong { font-size:13px;color:var(--dz-ink); }
 .login-portal .login-otp-field input { min-height:54px;font-size:24px;letter-spacing:.22em;text-align:center; }
 .login-portal .login-password-toggle { min-width:44px;min-height:44px; }
 .login-portal .login-password-control { display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;overflow:visible; }
 .login-portal .login-password-control .dz-ui-input { width:100%;min-width:0;min-height:44px;border:0 !important;background:transparent !important;box-shadow:none; }
 .login-portal .login-password-control .dz-ui-input:focus-visible { outline:none; }
-.login-portal .login-password-toggle { display:grid;place-items:center;padding:0;border:0;background:transparent;color:#58616c;cursor:pointer; }
-.login-portal .login-create-account { display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:#58616c; }
-.login-portal .login-create-account button { min-height:44px;padding:6px 10px;border:0;border-radius:7px;background:transparent;color:#716000;font:inherit;font-weight:700;cursor:pointer; }
+.login-portal .login-password-toggle { display:grid;place-items:center;padding:0;border:0;background:transparent;color:var(--dz-muted);cursor:pointer; }
+.login-portal .login-create-account { display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--dz-muted); }
+.login-portal .login-create-account button { min-height:44px;padding:6px 10px;border:0;border-radius:7px;background:transparent;color:var(--dz-muted);font:inherit;font-weight:700;cursor:pointer; }
 .login-portal .login-email-actions { gap:8px; }
 .login-portal .login-account-action,
 .login-portal .login-existing-account-actions button { min-height:44px;border-radius:7px !important;font-size:12px;letter-spacing:0; }
 .login-portal .login-account-action.recovery,
-.login-portal .login-existing-account-actions button { border-color:#cdd2d7;background:#fff;color:#414b56; }
+.login-portal .login-existing-account-actions button { border-color:var(--dz-stroke);background:var(--dz-white);color:var(--dz-muted); }
 .login-portal .login-email-link,
 .login-portal .login-email-switch button { font-size:12px;line-height:1.4; }
-.login-portal .login-security-note { font-size:12px;color:#5c6570; }
+.login-portal .login-security-note { font-size:12px;color:var(--dz-muted); }
 .login-portal .login-profile-step { max-height:min(80dvh,720px); }
 .login-portal .login-profile-grid,
 .login-portal .login-create-grid { gap:10px; }
 .login-portal .login-profile-card,
 .login-portal .login-create-grid button {
   min-height:68px;
-  border:1px solid #d7dde2;
+  border:1px solid var(--dz-stroke);
   border-radius:8px;
-  background:#f8f9fa;
-  color:#242b33;
+  background:var(--dz-white);
+  color:var(--dz-muted);
 }
 .login-portal .login-profile-card:hover,
-.login-portal .login-create-grid button:hover { border-color:#b69b13;background:#fffbea; }
-.login-portal .login-profile-card.admin { background:#f2c900;color:#17191c; }
+.login-portal .login-create-grid button:hover { border-color:var(--dz-stroke);background:var(--dz-white); }
+.login-portal .login-profile-card.admin { background:var(--dz-white);color:var(--dz-muted); }
 .login-portal .login-profile-card-copy small,
-.login-portal .login-create-title { font-size:12px;color:#796800; }
+.login-portal .login-create-title { font-size:12px;color:var(--dz-muted); }
 .login-portal .login-profile-card-copy span,
 .login-portal .login-create-grid span,
-.login-portal .login-no-profile p { font-size:12px;color:#5a6470; }
+.login-portal .login-no-profile p { font-size:12px;color:var(--dz-muted); }
 .login-portal .login-create-grid strong { font-size:12px; }
-.login-portal .login-change-account { min-height:44px;font-size:12px;color:#54606c; }
-.login-portal :is(button,a,input):focus-visible { outline:2px solid #af9717;outline-offset:2px; }
+.login-portal .login-change-account { min-height:44px;font-size:12px;color:var(--dz-muted); }
+.login-portal :is(button,a,input):focus-visible { outline:2px solid var(--dz-stroke);outline-offset:2px; }
 
 /* 02. Convites, reivindicação e formulários vinculados a tokens. */
 .invite-page,
@@ -187,7 +187,7 @@
 .invite-page .invite-normal-link code { overflow-wrap:anywhere;word-break:break-word; }
 .invite-page .lineup-slots { min-width:0; }
 .invite-page :is(button,a,input,select,textarea):focus-visible,
-.producer-invite-page :is(button,a,input,select,textarea):focus-visible { outline:2px solid #ae981b;outline-offset:2px; }
+.producer-invite-page :is(button,a,input,select,textarea):focus-visible { outline:2px solid var(--dz-stroke);outline-offset:2px; }
 
 /* 03. Convite de produtora / reivindicação de equipe. */
 .producer-invite-page .producer-invite-card { width:min(620px,100%) !important; }
@@ -212,7 +212,7 @@
 .profile-edit-form :is(.form-grid,.dz-ui-form-grid),
 .player-registration-form { gap:12px; }
 .profile-edit-form :is(button,a):focus-visible,
-.player-registration-form :is(button,a,input,select,textarea):focus-visible { outline:2px solid #ad971a;outline-offset:2px; }
+.player-registration-form :is(button,a,input,select,textarea):focus-visible { outline:2px solid var(--dz-stroke);outline-offset:2px; }
 
 /* 05. Ajustes por largura e acessibilidade. */
 @media (max-width:900px) {
@@ -247,7 +247,7 @@
   .invite-page .historical-team-claim-summary { grid-template-columns:repeat(3,minmax(0,1fr));gap:6px; }
   .invite-page .historical-team-claim-summary strong { font-size:13px; }
   .producer-invite-page .producer-invite-meta { grid-template-columns:minmax(0,1fr); }
-  .producer-invite-page .producer-invite-meta > div+div { border-left:0;border-top:1px solid #d8dde2; }
+  .producer-invite-page .producer-invite-meta > div+div { border-left:0;border-top:1px solid var(--dz-stroke); }
 }
 @media (max-width:380px) {
   .invite-page .historical-team-claim-summary { grid-template-columns:minmax(0,1fr); }

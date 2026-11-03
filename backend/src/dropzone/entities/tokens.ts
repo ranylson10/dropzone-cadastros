@@ -41,17 +41,25 @@ export function isPlayerInviteKind(value: string) {
   return PLAYER_INVITE_TYPES.includes(value)
 }
 
+/** Consome o token em uma única instrução condicional no PostgreSQL.
+ * Isso impede que duas requisições obtenham sucesso para o mesmo convite.
+ * Não substitui uma transação com a criação da participação/jogador.
+ * Tokens são case-sensitive: não transformar códigos base64url em maiúsculas.
+ */
 export async function consumeToken(token: string | null | undefined, tipo?: string | string[]) {
-  const clean = String(token || '').trim().toUpperCase()
+  const clean = String(token || '').trim()
   if (!clean) return null
-  let query = supabaseAdmin.from('tokens').select('*').eq('token', clean).eq('usado', false)
+  const now = new Date().toISOString()
+  let query = supabaseAdmin.from('tokens')
+    .update({ usado: true, usado_em: now, status: 'usado', updated_at: now })
+    .eq('token', clean)
+    .eq('usado', false)
+    .eq('status', 'ativo')
+    .or(`expira_em.is.null,expira_em.gt.${now}`)
   if (Array.isArray(tipo)) query = query.in('tipo', tipo)
   else if (tipo) query = query.eq('tipo', tipo)
-  const { data, error } = await query.maybeSingle()
+  const { data, error } = await query.select('*').maybeSingle()
   if (error) throw error
-  if (!data) throw new Error('Token invalido ou ja utilizado.')
-  if (data.expira_em && new Date(data.expira_em).getTime() < Date.now()) throw new Error('Token expirado.')
-  const { error: updateError } = await supabaseAdmin.from('tokens').update({ usado: true, usado_em: new Date().toISOString() }).eq('id', data.id)
-  if (updateError) throw updateError
+  if (!data) throw new Error('Token inválido, expirado ou já utilizado.')
   return data
 }

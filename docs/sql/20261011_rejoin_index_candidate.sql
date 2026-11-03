@@ -1,5 +1,7 @@
--- CANDIDATE ONLY. Removes the legacy all-status index, preserving active/pending
--- uniqueness. Do not run without fresh preflight, backup and staging validation.
+-- R02 REVISED CANDIDATE ONLY. Replace the legacy all-status uniqueness with
+-- ONE uniqueness rule spanning BOTH live states (ativo + pendente). The two old
+-- per-status indexes alone DO NOT prevent ativo+pendente for the same line.
+-- NOT APPLIED. Requires fresh preflight, backup/restore drill and staging tests.
 begin;
 set local lock_timeout='5s';
 lock table public.campeonato_equipes in share row exclusive mode;
@@ -26,5 +28,24 @@ begin
   end if;
 end;
 $guard$;
+-- Create replacement BEFORE removing the legacy guard, in this same locked
+-- transaction. Historical removido/rejeitado rows are intentionally excluded.
+-- The predicate includes both live statuses together to prevent concurrent
+-- ativo-vs-pendente requests for the same championship/line.
+create unique index campeonato_equipes_line_aberta_unique
+  on public.campeonato_equipes(campeonato_id,line_id)
+  where line_id is not null and status in ('ativo','pendente');
+
+do $guard_index$
+begin
+  if not exists (
+    select 1 from pg_index i
+    where i.indexrelid='public.campeonato_equipes_line_aberta_unique'::regclass
+      and i.indisunique and i.indisvalid and i.indisready
+  ) then
+    raise exception 'Índice combinado não ficou válido. Não retirar o índice legado.';
+  end if;
+end;
+$guard_index$;
 drop index public.campeonato_equipes_campeonato_line_unique;
 commit;

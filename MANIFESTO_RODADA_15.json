@@ -1,0 +1,33 @@
+{
+  "round": "R15",
+  "base": "DROPZONE_RODADA_14_FONTE_COMPLETA.zip",
+  "mode": "cumulative_with_patch",
+  "note": "Nao implanta migrations, nao homologa PostgreSQL nem build Next.js",
+  "changed": [
+    "package.json",
+    "README.md",
+    "PROJECT_CONTEXT.md",
+    "scripts/release/round14-evidence.mjs",
+    "scripts/testes/test-round14-evidence.mjs",
+    ".github/workflows/quality.yml"
+  ],
+  "added": [
+    "TESTAR_RODADA_15.bat",
+    "docs/RODADA_15_HOMOLOGACAO.md",
+    "scripts/release/round15-lab-preflight.mjs",
+    "scripts/testes/test-round15-release.mjs"
+  ],
+  "removed": [],
+  "sha256": {
+    ".github/workflows/quality.yml": "ce844cf159f99e9076dce1c48b707af33bc956b4723ea59bba346f6e7387cf5e",
+    "PROJECT_CONTEXT.md": "61834542a8ed358b9f6028f6f0ef3c8380510f643f89ce2bae85efc1c24ce2e1",
+    "README.md": "e8da9f2826efe80916fc5eae1fe2ac9a725776e3ed718aa64cba6f4524f81ec5",
+    "TESTAR_RODADA_15.bat": "3338fe8c8dbb22ac80856a02846faba15849c487de96256cb6699daf1cc4272c",
+    "docs/RODADA_15_HOMOLOGACAO.md": "73781b069f5e2231849ceb2e6e0b687149de381a90e05f91242c5e202b1ad1c6",
+    "package.json": "d8a3b0489e01d6f1ff56b0f805fd65e1c2bcc448d0c6971a5741dad8596e54a7",
+    "scripts/release/round14-evidence.mjs": "77ec8e5e4e7014dd91a64d17d9e885ec083d91f90b1bcd4c82d14e76b29e6e1d",
+    "scripts/release/round15-lab-preflight.mjs": "d5dddd95f2041b45712500a80b183616036fa9dc86dfeeaf85eb5f04186510e3",
+    "scripts/testes/test-round14-evidence.mjs": "e304e593fc06f14d2216a3c73fc1ca429837a43d86aab846718882864ee7dc77",
+    "scripts/testes/test-round15-release.mjs": "dd6faeb86cf82f00954aa335a361604ca51f92b84f60d7d0038d41799eca06cb"
+  }
+}

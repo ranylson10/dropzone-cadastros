@@ -1,0 +1,41 @@
+{
+  "round": "R16",
+  "base": "DROPZONE_RODADA_15_FONTE_COMPLETA.zip",
+  "mode": "cumulative_with_patch",
+  "scope": "Catalogo historico importado de ZIP original para fixture local; geracao offline de schema. Sem DB real, deploy, build Next ou migracoes aplicadas.",
+  "changed": [
+    ".github/workflows/quality.yml",
+    "PROJECT_CONTEXT.md",
+    "README.md",
+    "package.json",
+    "scripts/release/round14-evidence.mjs",
+    "scripts/release/round15-lab-preflight.mjs",
+    "scripts/testes/postgres-inscricoes/build-schema.mjs",
+    "scripts/testes/test-round14-evidence.mjs",
+    "scripts/testes/test-round15-release.mjs"
+  ],
+  "added": [
+    "IMPORTAR_CATALOGO_R16.bat",
+    "TESTAR_RODADA_16.bat",
+    "docs/RODADA_16_RECUPERACAO_LABORATORIO.md",
+    "scripts/release/importar-catalogo-original.mjs",
+    "scripts/testes/test-round16-lab-catalog.mjs"
+  ],
+  "removed": [],
+  "sha256": {
+    ".github/workflows/quality.yml": "ba1d8f1c22b57a29fafaaa5257796b4068be6835b17352c7edf14ac649033175",
+    "IMPORTAR_CATALOGO_R16.bat": "8810835a31695bf81ae35db8a947852a7f765de5473f6de98e8b53832d54a900",
+    "PROJECT_CONTEXT.md": "b7c57aecdb14b8fc879b71a08844746ef8d42f381fd031dac0ca7771cf1d780b",
+    "README.md": "ed5c5a9a546a5692b27321503119c5c312c038a8ea424600be12b5d7123db818",
+    "TESTAR_RODADA_16.bat": "4dad8c79adda914158f06db63444737a22a3f1f42c472d2113590bd99f4fea14",
+    "docs/RODADA_16_RECUPERACAO_LABORATORIO.md": "be7c757d2ffd722629eb105c55cde15904191db8c435227d503f49fe45df3254",
+    "package.json": "84f9f9c45e4ff0893c02e7c186d3d2021df088f1a163fb4b89d045c4937774e9",
+    "scripts/release/importar-catalogo-original.mjs": "c7c48ca2c4e4fdf022dcfca3b1580237bea57263a1e54123d748366aa53d1f7d",
+    "scripts/release/round14-evidence.mjs": "5fd6c19c572a8cfd0f9674224b69589b460ddf81f92a2a99f15a2e508115a203",
+    "scripts/release/round15-lab-preflight.mjs": "d581b20d8fea548c918cb490157e5816b5bb7035273bc101b561e04466b8ddf3",
+    "scripts/testes/postgres-inscricoes/build-schema.mjs": "bdbd94dc8ff12e9f0208e83972894fd10b21eb4a027b0a34f2a365f8e59f8cbb",
+    "scripts/testes/test-round14-evidence.mjs": "857d148300d7cddf6c1451992b0745cec762d9e91f3ca5e0aea239c1a646ef7d",
+    "scripts/testes/test-round15-release.mjs": "07a8c50dab2abc697969f6e9caab9faf5df016efea0fc084b77478c4af5592bf",
+    "scripts/testes/test-round16-lab-catalog.mjs": "bd87d62c8a3ec820c579ac3cf0d4d4093fff17ba196134e68d05c8d610b6ccb9"
+  }
+}

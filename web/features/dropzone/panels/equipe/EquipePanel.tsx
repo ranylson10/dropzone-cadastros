@@ -16,7 +16,7 @@ import { PlayerTeamRequest } from '@/components/equipes/PlayerTeamRequest'
 import { buildObjectivePerformanceGoals } from '../../performance-goals'
 import { LineRosterManager } from '@/components/equipes/LineRosterManager'
 import { TeamAnalyticsDashboard } from './TeamAnalyticsDashboard'
-import { WorkspaceContent, WorkspaceHeader, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
+import { WorkspaceContent, WorkspaceFocus, WorkspaceHeader, WorkspaceMoreMenu, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
 
 
 type TeamTraining = {
@@ -931,6 +931,7 @@ type CompetitionJourneyPayload = {
 
 export function EquipePanel(props: {
   accountType: string | null
+  delegatedPermissions?: Record<string, boolean>
   activeTeamId: string
   teams: DropZoneRow[]
   managedTeams: DropZoneRow[]
@@ -1005,7 +1006,9 @@ export function EquipePanel(props: {
   const activeManagedTeams = useMemo(() => props.managedTeams.filter((team) => team.id === props.activeTeamId), [props.managedTeams, props.activeTeamId])
   const teamLines = useMemo(() => props.teamLines.filter((line) => line.ref_id === props.activeTeamId), [props.teamLines, props.activeTeamId])
   const teamPlayers = useMemo(() => props.playerTeams.filter((row) => row.ref_id === props.activeTeamId), [props.playerTeams, props.activeTeamId])
-  const showStaffTools = props.accountType !== 'manager'
+  const showStaffTools = !props.delegatedPermissions && props.accountType !== 'manager'
+  const canEdit = !props.delegatedPermissions || Boolean(props.delegatedPermissions.pode_editar)
+  const canScale = canEdit || Boolean(props.delegatedPermissions?.pode_escalar)
   const championshipStats = useMemo(() => {
     const championshipIds = new Set(lineups.map((lineup) => lineup.campeonato_id).filter(Boolean))
     const incomplete = lineups.filter((lineup) => Number(lineup.jogadores_confirmados || 0) < Number(lineup.limite_jogadores || 0)).length
@@ -1042,6 +1045,11 @@ export function EquipePanel(props: {
     void loadLineups()
     void loadCompetitionJourney()
   }, [props.activeTeamId])
+
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get('section')
+    if (section === 'campeonatos') setTab('campeonatos')
+  }, [])
 
   useEffect(() => {
     const section = new URLSearchParams(window.location.search).get('section')
@@ -1522,28 +1530,31 @@ Acesse: ${url}`
   return (
     <WorkspaceShell kind="equipe" className="dashboard team-dashboard">
       <WorkspaceHeader
-          eyebrow={props.accountType === 'manager' ? 'Manager · Equipe' : 'Equipe'}
+          eyebrow="Equipe"
           title="Painel da equipe"
           description="Elenco, competições, agenda e desempenho organizados por tarefa."
           icon={<Shield size={18} />}
         />
         <WorkspaceNav
-          ariaLabel="Áreas da equipe"
-          activeId={['lines', 'jogadores', 'convites'].includes(tab) ? 'elenco' : ['staff', 'config'].includes(tab) ? 'mais' : tab}
-          onChange={(id) => {
-            if (id === 'elenco') return setTab('jogadores')
-            if (id === 'mais') return setTab(showStaffTools ? 'staff' : 'config')
-            setTab(id as typeof tab)
-          }}
+          ariaLabel="Áreas principais da equipe"
+          activeId={['lines', 'jogadores', 'convites'].includes(tab) ? 'elenco' : ['dashboard', 'campeonatos'].includes(tab) ? tab : undefined}
+          onChange={(id) => setTab(id === 'elenco' ? 'jogadores' : id as typeof tab)}
           items={[
             { id: 'dashboard', label: 'Início' },
             { id: 'elenco', label: 'Elenco' },
             { id: 'campeonatos', label: 'Competições' },
-            { id: 'treinos', label: 'Desempenho' },
-            { id: 'mais', label: 'Mais' },
           ]}
         />
-
+        <WorkspaceMoreMenu label="Ferramentas da equipe" activeId={tab}
+          onChange={(id) => setTab(id as typeof tab)}
+          items={[
+            { id: 'treinos', label: 'Desempenho e treinos', detail: 'Indicadores, partidas e evolução' },
+            ...(canEdit ? [{ id: 'lines', label: 'Gerenciar lines', detail: 'Elencos e formações' }] : []),
+            ...(canEdit ? [{ id: 'convites', label: 'Convites', detail: 'Solicitações e entradas' }] : []),
+            ...(showStaffTools ? [{ id: 'staff', label: 'Vice-líderes', detail: 'Escolha quem ajuda e libere funções' }] : []),
+            ...(canEdit ? [{ id: 'config', label: 'Configurações', detail: 'Preferências e equipe' }] : []),
+          ]}
+        />
         {['lines', 'jogadores', 'convites'].includes(tab) ? (
           <WorkspaceSubnav
             ariaLabel="Ferramentas de elenco"
@@ -1551,8 +1562,7 @@ Acesse: ${url}`
             onChange={(id) => setTab(id as typeof tab)}
             items={[
               { id: 'jogadores', label: 'Jogadores' },
-              { id: 'lines', label: 'Lines' },
-              { id: 'convites', label: 'Convites' },
+              ...(canEdit ? [{ id: 'lines', label: 'Lines' }, { id: 'convites', label: 'Convites' }] : []),
             ]}
           />
         ) : null}
@@ -1563,7 +1573,7 @@ Acesse: ${url}`
             activeId={tab}
             onChange={(id) => setTab(id as typeof tab)}
             items={[
-              ...(showStaffTools ? [{ id: 'staff', label: 'Staff' }] : []),
+              ...(showStaffTools ? [{ id: 'staff', label: 'Vice-líderes' }] : []),
               { id: 'config', label: 'Configurações' },
             ]}
           />
@@ -1574,11 +1584,17 @@ Acesse: ${url}`
 
         {tab === 'dashboard' ? (
           <>
-            <div className="team-start-actions" aria-label="Acesso rápido da equipe">
-              <a href="/agenda"><CalendarDays size={18}/><span><strong>Minha agenda</strong><small>Jogos, treinos e compromissos</small></span><ChevronRight size={16}/></a>
-              <button type="button" onClick={() => setTab('jogadores')}><Users size={18}/><span><strong>Gerenciar elenco</strong><small>{teamPlayers.length} jogador(es) vinculado(s)</small></span><ChevronRight size={16}/></button>
-              <a href="/campeonatos?vagas=1"><Search size={18}/><span><strong>Encontrar campeonato</strong><small>Veja competições com vagas</small></span><ChevronRight size={16}/></a>
-            </div>
+            <WorkspaceFocus
+              role="equipe" eyebrow="Centro da equipe"
+              title={teamPlayers.length ? 'Elenco pronto para competir?' : 'Monte seu elenco primeiro'}
+              description="Gerencie jogadores, encontre um campeonato e acompanhe os próximos jogos sem sair desta área."
+              status={`${teamPlayers.length} jogador(es) vinculado(s)`}
+              actions={[
+                { id: 'elenco', title: 'Gerenciar elenco', detail: 'Jogadores, lines e escalação', icon: <Users size={20} />, onClick: () => setTab('jogadores') },
+                { id: 'competir', title: 'Encontrar campeonato', detail: 'Ver competições com vagas', icon: <Trophy size={20} />, href: '/campeonatos?vagas=1' },
+                { id: 'agenda', title: 'Minha agenda', detail: 'Jogos e compromissos', icon: <CalendarDays size={20} />, href: '/agenda' },
+              ]}
+            />
             <TeamAnalyticsDashboard
               equipeId={props.activeTeamId}
               nextGame={championshipStats.nextGame}
@@ -1617,10 +1633,10 @@ Acesse: ${url}`
                   <a href={`/campeonatos/${lineup.campeonato_id}?aba=estatisticas`}><Trophy size={13}/><b>Resultados</b><small>classificação e MVP</small></a>
                 </div>
                 <div className="team-championship-quick-actions">
-                  <button type="button" onClick={() => setExpanded(isOpen ? '' : lineup.campeonato_equipe_id)}>
+                  {canScale ? <button type="button" onClick={() => setExpanded(isOpen ? '' : lineup.campeonato_equipe_id)}>
                     <Users size={14} /> Escalar elenco
-                  </button>
-                  {lineup.link_token ? (
+                  </button> : null}
+                  {canScale && lineup.link_token ? (
                     <>
                       <button type="button" onClick={() => void copyLink(shareText(lineup), lineup.campeonato_equipe_id)}>
                         <Copy size={14} /> Copiar link
@@ -1629,15 +1645,15 @@ Acesse: ${url}`
                         <Copy size={14} /> Copiar token
                       </button>
                     </>
-                  ) : (
+                  ) : canScale ? (
                     <button type="button" onClick={() => void createLineupLink(lineup)} disabled={lineupLoading}>
                       <Link2 size={14} /> Gerar link
                     </button>
-                  )}
+                  ) : null}
                   <a href={`/agenda?scope=campeonato&id=${encodeURIComponent(lineup.campeonato_id)}`}>Agenda <CalendarDays size={14}/></a>
                   <a href={`/campeonatos/${lineup.campeonato_id}`}>Ver campeonato <ChevronRight size={14} /></a>
                 </div>
-                {isOpen ? <div className="team-championship-body">
+                {isOpen && canScale ? <div className="team-championship-body">
                   <div className="team-game-info">
                     <span><CalendarDays size={16}/>{lineup.data_jogo ? new Date(`${lineup.data_jogo}T00:00:00`).toLocaleDateString('pt-BR') : 'Data ainda não definida'}</span>
                     <span>{lineup.horario ? `${String(lineup.horario).slice(0, 5)}h` : 'Horário ainda não definido'}</span>
@@ -1901,7 +1917,7 @@ Acesse: ${url}`
                                 <strong>Por mapa</strong>
                                 <small>Comparação das quedas já processadas.</small>
                               </div>
-                              <div className="team-training-breakdown-list">
+                              <div className="team-training-breakdown-list" data-dz-list="legacy">
                                 {analytics.mapas.map((mapa) => (
                                   <article key={mapa.nome}>
                                     <strong>{mapa.nome}</strong>
@@ -1921,7 +1937,7 @@ Acesse: ${url}`
                                 <strong>Por call</strong>
                                 <small>Somente calls anotadas pela própria equipe.</small>
                               </div>
-                              <div className="team-training-breakdown-list">
+                              <div className="team-training-breakdown-list" data-dz-list="legacy">
                                 {analytics.calls.map((call) => (
                                   <article key={call.nome}>
                                     <strong>{call.nome}</strong>
@@ -2095,7 +2111,7 @@ Acesse: ${url}`
                                       <span><b>{player.sobrevivencia_media ? `${Math.round(player.sobrevivencia_media / 60)} min` : '—'}</b><small>sobreviv.</small></span>
                                       <ChevronDown size={15} />
                                     </summary>
-                                    <div className="team-training-player-map-list">
+                                    <div className="team-training-player-map-list" data-dz-list="legacy">
                                       {player.mapas.map((mapa) => (
                                         <article key={`${player.chave}:${mapa.nome}`}>
                                           <strong>{mapa.nome}</strong>
@@ -2197,7 +2213,7 @@ Acesse: ${url}`
                                   </div>
                                 )}
 
-                                {(training.configuracao_analise.call_fixa || training.configuracao_analise.primeira_safe || training.configuracao_analise.segunda_safe) ? (
+                                {canEdit && (training.configuracao_analise.call_fixa || training.configuracao_analise.primeira_safe || training.configuracao_analise.segunda_safe) ? (
                                   <div className="team-training-drop-notes">
                                     {training.configuracao_analise.call_fixa ? (
                                       <Field label="Call">
@@ -2243,7 +2259,7 @@ Acesse: ${url}`
                           })}
                         </div>
 
-                        <div className="team-training-player-list">
+                        <div className="team-training-player-list" data-dz-list="legacy">
                           <div className="team-training-player-head">
                             <strong>Jogadores</strong>
                             <small>Dados agregados das quedas disponíveis</small>
@@ -2273,7 +2289,7 @@ Acesse: ${url}`
           </div>
         ) : null}
 
-        {tab === 'lines' ? (
+        {tab === 'lines' && canEdit ? (
           <EquipeLinesEditor
             teams={activeManagedTeams}
             uploadPublicFile={props.uploadPublicFile}
@@ -2319,7 +2335,7 @@ Acesse: ${url}`
               </div>
             ) : null}
 
-            <div className="championship-vagas-list seller-managers-list">
+            <div className="championship-vagas-list seller-managers-list" data-dz-list="legacy">
               {staffList.map((row, index) => {
                 const aberta = staffDetail?.id === row.id
                 const permsLine = [
@@ -2538,7 +2554,7 @@ Acesse: ${url}`
           </div>
         ) : null}
 
-        {tab === 'config' ? (
+        {tab === 'config' && canEdit ? (
           <div className="panel-tab-body">
             <div className="team-section-title">
               <div>
@@ -2851,7 +2867,7 @@ function EquipeLinesEditor(props: {
         </div>
       ) : null}
       {loading ? <p className="empty">Carregando...</p> : null}
-      <div className="championship-vagas-list">
+      <div className="championship-vagas-list" data-dz-list="legacy">
         {lines.map((line, index) => {
           const lineLineups = props.lineups.filter((lineup) => String(lineup.line_id || '') === String(line.id))
           const linePlayers = new Set(lineLineups.flatMap((lineup) => (lineup.jogadores || []).map((player) => String(player.id || player.nick))).filter(Boolean))

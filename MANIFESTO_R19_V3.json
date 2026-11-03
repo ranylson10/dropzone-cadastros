@@ -1,0 +1,38 @@
+{
+  "release": "R19_Windows_V3",
+  "date": "2026-10-27",
+  "base": "DROPZONE_R19_CORRIGIDO_V2_COMPLETO.zip",
+  "scope": "test fixture independence and local PostgreSQL ZIP shortcut; no production changes",
+  "changes": [
+    {
+      "file": "HOMOLOGAR_POSTGRES_R19.bat",
+      "sha256": "2f32cce78bbd190a9a0667789b36e21a999723b5d4d88b597a20583fba0effc5",
+      "bytes": 2145,
+      "kind": "alterado"
+    },
+    {
+      "file": "scripts/testes/test-round19-lab-runner.mjs",
+      "sha256": "f5f28a9a2a75ad6a65d402b9f111ff0e6d80f76556f341294e30dc53ba7de808",
+      "bytes": 7225,
+      "kind": "alterado"
+    },
+    {
+      "file": "LEIA_CORRECAO_R19_V3.txt",
+      "sha256": "ce67f50535678bd3afdd88f579b989cb0c838e3898b55469cbef1eb5270088bb",
+      "bytes": 1429,
+      "kind": "novo"
+    },
+    {
+      "file": "README.md",
+      "sha256": "99b0b32b58027603398a2d1922a4183676c0c88fcc0ca47407a59f2aa57452bc",
+      "bytes": 10210,
+      "kind": "alterado"
+    },
+    {
+      "file": "PROJECT_CONTEXT.md",
+      "sha256": "a6520fddabecd04029b40d25d1388d99a9ade6913111b5c172d0d3fba9b14b4c",
+      "bytes": 124051,
+      "kind": "alterado"
+    }
+  ]
+}

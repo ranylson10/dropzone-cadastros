@@ -1,0 +1,29 @@
+DROPZONE R19 - AJUSTE FINAL DE TESTES NO WINDOWS (V3)
+
+RESULTADO CONFIRMADO NO COMPUTADOR DO USUARIO:
+- npm ci: APROVADO (414 pacotes)
+- TypeScript e lint: APROVADOS
+- Next.js build completo: APROVADO (BUILD_WEB_LOCAL_APROVADO)
+- E2E, PostgreSQL isolado, migracoes e deploy: AINDA PENDENTES
+
+O QUE A V3 CORRIGE:
+1. scripts/testes/test-round19-lab-runner.mjs
+   Regressao de segredos usa pastas temporarias independentes. O teste passa
+   tanto com como sem .env.local no Windows, sem ler segredos verdadeiros.
+2. HOMOLOGAR_POSTGRES_R19.bat
+   Procura primeiro dropzone-cadastros-ENVIO.zip e, se nao encontrar,
+   aceita automaticamente DROPZONE_CATALOGO_LAB_PRIVADO.zip na mesma pasta.
+
+COMO APLICAR:
+1. Extraia o projeto completo V3 (ou o patch por cima da V2).
+2. Copie o ZIP separado DROPZONE_CATALOGO_LAB_PRIVADO.zip para a pasta raiz,
+   ao lado de HOMOLOGAR_POSTGRES_R19.bat. NAO EXTRAIA ESSE ZIP.
+3. Execute: TESTAR_RODADA_19.bat
+4. Com Docker Desktop aberto: HOMOLOGAR_POSTGRES_R19.bat
+   Confirme a criacao do container apenas se for o Docker Desktop local.
+
+ATENCAO: o catalogo separado contem metadados historicos de schema de
+11/10/2026, nao contem dados de jogadores ou credenciais reconhecidas.
+TRATE COMO ARQUIVO PRIVADO; nao publique no GitHub nem envie a terceiros.
+O teste PostgreSQL usa fixture sintetica e nao modifica o Supabase real.
+A mensagem de publicacao bloqueada continua esperada ate E2E/migrations.

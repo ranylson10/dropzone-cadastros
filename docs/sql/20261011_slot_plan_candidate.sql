@@ -156,6 +156,24 @@ begin
           and g.campeonato_id=p_campeonato_id and g.fase_id is not distinct from v_slot.fase_id) then
         raise exception using errcode='23514',message='Destino fora da estrutura do campeonato.';
       end if;
+      -- R09: the atomic admin path must enforce the same slot eligibility
+      -- as team/legacy preflight; a status='livre' row is not sufficient.
+      -- Groups/slots are already locked above; non-cooperating writers may
+      -- still insert a new reservation later, requiring integration testing.
+      if exists (select 1 from public.campeonato_grupo_escolha_bloqueios b
+           where b.campeonato_id=p_campeonato_id and b.fase_id=v_slot.fase_id
+             and b.ativo and (b.grupo_id=v_slot.grupo_id or b.slot_id=v_slot.id))
+        or exists (select 1 from public.lili_reservas_slot r
+           where r.campeonato_id=p_campeonato_id and r.slot_id=v_slot.id
+             and r.status='ativa' and r.expira_em>clock_timestamp())
+        or exists (select 1 from public.tokens t
+           where t.campeonato_id=p_campeonato_id and t.slot_id=v_slot.id
+             and t.tipo in ('team_invite','convite_equipe_campeonato')
+             and t.status='ativo' and coalesce(t.usado,false)=false
+             and (t.expira_em is null or t.expira_em>clock_timestamp())) then
+        raise exception using errcode='23505',
+          message='Destino bloqueado ou reservado. Atualize o acompanhamento.';
+      end if;
       if not ((v_slot.status='livre' and v_slot.line_id is null and v_slot.equipe_id is null)
         or (v_slot.status='ocupado' and exists(select 1 from jsonb_to_recordset(v_plan)
           as other(expected_slot_id uuid,expected_line_id uuid,expected_equipe_id uuid)
@@ -226,6 +244,28 @@ begin
   if p_permission='team' then
     -- Recheck elapsed time after participation/history/agenda trigger work as well.
     perform public.dz_assert_team_choice_window(p_campeonato_id,v_self_phase,v_self_change,v_self_group,v_self_slot);
+  end if;
+  -- R09 final recheck catches reservations/blocks committed while triggers
+  -- were running; this is not a substitute for locking protocols in writers.
+  if exists (
+    select 1 from jsonb_to_recordset(v_plan) as t(target_slot_id uuid)
+    join public.campeonato_slots s on s.id=t.target_slot_id
+    where t.target_slot_id is not null and (
+      exists(select 1 from public.campeonato_grupo_escolha_bloqueios b
+        where b.campeonato_id=p_campeonato_id and b.fase_id=s.fase_id
+          and b.ativo and (b.grupo_id=s.grupo_id or b.slot_id=s.id))
+      or exists(select 1 from public.lili_reservas_slot r
+        where r.campeonato_id=p_campeonato_id and r.slot_id=s.id
+          and r.status='ativa' and r.expira_em>clock_timestamp())
+      or exists(select 1 from public.tokens k
+        where k.campeonato_id=p_campeonato_id and k.slot_id=s.id
+          and k.tipo in ('team_invite','convite_equipe_campeonato')
+          and k.status='ativo' and coalesce(k.usado,false)=false
+          and (k.expira_em is null or k.expira_em>clock_timestamp()))
+    )
+  ) then
+    raise exception using errcode='23505',
+      message='Destino bloqueado ou reservado. Atualize o acompanhamento.';
   end if;
   insert into public.movimentacao_recibos(actor_id,request_id,fingerprint,intent_fingerprint,resultado)
     values(p_actor_id,p_request_id,v_fingerprint,p_intent_fingerprint,v_result);

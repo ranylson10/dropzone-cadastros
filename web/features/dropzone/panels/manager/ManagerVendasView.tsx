@@ -334,7 +334,7 @@ export function ManagerVendasView(props: {
           <p className="empty">Nenhum campeonato liberado ainda.</p>
         ) : null}
 
-        <div className="manager-vendas-list">
+        <div className="manager-vendas-list" data-dz-list="legacy">
           {ativos.map((item) => {
             const championship = item.campeonatos || {}
             const producer = item.produtoras || {}
@@ -399,7 +399,7 @@ export function ManagerVendasView(props: {
           <p className="empty">Nenhuma venda assistida gerada ainda.</p>
         ) : null}
 
-        <div className="manager-vendas-list">
+        <div className="manager-vendas-list" data-dz-list="legacy">
           {sales.map((sale) => {
             const canCancel = sale.kind === 'assisted_link' && sale.status === 'aberta'
             return (

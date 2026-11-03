@@ -1,0 +1,124 @@
+{
+  "round": "R24",
+  "baseline": "DROPZONE_RODADA_23_COMPLETO.zip",
+  "scope": "Fechamento do redesign mobile R20-R24; interface, acessibilidade, testes e documentacao; sem alteracoes em APIs, SQL ou pagamentos",
+  "changed_paths": [
+    {
+      "path": ".github/workflows/quality.yml",
+      "size_bytes": 1594,
+      "sha256": "edd66f2f08654bc3a153e0d4c7b7d60fe5703303a71223e4c247bd85a2cb311a"
+    },
+    {
+      "path": "HOMOLOGAR_MOBILE_R24.bat",
+      "size_bytes": 683,
+      "sha256": "8b8b916f7a2ec44a2a805b69edb9577bcc74219ceb39ddd8ba7392889f5d7919"
+    },
+    {
+      "path": "PROJECT_CONTEXT.md",
+      "size_bytes": 126115,
+      "sha256": "0f26c1cd258fb5ed3e1d405deb4785d1082a3c6bd0c5f4e15ae66b76a96374a0"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 11879,
+      "sha256": "82cab933f04db33fb92de266858240f3f9f2a306b2cdf65349ec782729c7db8b"
+    },
+    {
+      "path": "TESTAR_RODADA_24.bat",
+      "size_bytes": 1055,
+      "sha256": "034aee652d431945e32361f7d83271ea9b78154fb385ecc1b5de3ec86b7f81d8"
+    },
+    {
+      "path": "docs/redesign/RELATORIO_TESTES_R24.md",
+      "size_bytes": 2159,
+      "sha256": "102bdd9cd4bf0f64fa881b87c06d8e427b1aed2600f4f095b90ad9e985c6c74e"
+    },
+    {
+      "path": "docs/redesign/RODADA_24_HOMOLOGACAO_REDESIGN.md",
+      "size_bytes": 4842,
+      "sha256": "0e074d8e84259523c0381b55b012444c8d9621a4df193e15332ec63bfe317aca"
+    },
+    {
+      "path": "package.json",
+      "size_bytes": 10291,
+      "sha256": "e811e1ffa0bd54f17c986fc86c2327b2c807cd4e86a63eedc953bb3bcfc6cf5c"
+    },
+    {
+      "path": "scripts/testes/test-round20-ux.mjs",
+      "size_bytes": 5094,
+      "sha256": "99b023fa0077b44d9a3164815330422951560b112628ebf761f52098b903d8a3"
+    },
+    {
+      "path": "scripts/testes/test-round23-mobile-premium.mjs",
+      "size_bytes": 7617,
+      "sha256": "8bf54190f5de8280ea319a31c5b2c6b1523e69e96cfdecefa49e9a4bcac81ae9"
+    },
+    {
+      "path": "scripts/testes/test-round24-redesign-final.mjs",
+      "size_bytes": 7499,
+      "sha256": "e66e3dcc85f141e2b8f4b431c462a139efd70e53b106d915b9663755d623c4b2"
+    },
+    {
+      "path": "tests-e2e/public/rodada-24-mobile-ux.spec.ts",
+      "size_bytes": 1751,
+      "sha256": "49a98e8b02299bf531eba9b5461d43bfbd5701ca54345286191487bfc0f7581c"
+    },
+    {
+      "path": "web/app/layout.tsx",
+      "size_bytes": 2077,
+      "sha256": "261c57fb5036c5c6d76b9abd9e8193cc2d18cdbd300f8615a6bd8e9dafae9f3a"
+    },
+    {
+      "path": "web/components/layout/AppHeader.tsx",
+      "size_bytes": 28535,
+      "sha256": "e5320ea301d7305f03bc8ad5e07b96b19fa901a4a47c293f84fd3a7cd603250b"
+    },
+    {
+      "path": "web/components/layout/StorefrontHeader.tsx",
+      "size_bytes": 12861,
+      "sha256": "bd1875f9c131a241863f00e0a31e4a5886e66bea451809924405b973de640a38"
+    },
+    {
+      "path": "web/components/ui/sheet-tab-order.ts",
+      "size_bytes": 665,
+      "sha256": "a62a74d6f0a1decb82989407990aa941071312a0d31d9d3f6ccf8ae52b2cf482"
+    },
+    {
+      "path": "web/components/ui/useDisclosureFocus.ts",
+      "size_bytes": 3329,
+      "sha256": "2f644a65d80d171e32bc80b06730f28815f9c4bc4199db976872ca26487d922b"
+    },
+    {
+      "path": "web/styles/redesign-qa-r24.css",
+      "size_bytes": 1687,
+      "sha256": "084b6da9219162c1992684ac5db8322019433bdddd581b243991783d7bbe5655"
+    }
+  ],
+  "removed_paths": [
+    "dropzone-platform@0.1.0",
+    "dropzone-web@0.1.0",
+    "eslint",
+    "next",
+    "npm",
+    "tsc"
+  ],
+  "patch_note": "Patch ZIP cannot delete the six harmless empty files; the complete R24 ZIP excludes them.",
+  "tests_passed": {
+    "round20": 37,
+    "round21": 45,
+    "round22": 59,
+    "round23": 63,
+    "round24": 50,
+    "round19_buildfix": 22,
+    "rounds01_12": "local regression tests passed",
+    "rounds13_19": "local tests passed"
+  },
+  "not_tested": [
+    "R24 full Next.js build",
+    "real browser Playwright E2E",
+    "authenticated role workflows",
+    "PostgreSQL concurrency or rollback"
+  ],
+  "release_gate": "BLOCKED pending real-browser QA and production-readiness checks",
+  "production_db_changes": 0
+}

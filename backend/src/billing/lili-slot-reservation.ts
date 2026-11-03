@@ -8,8 +8,14 @@ function reservationCode() {
 }
 
 export async function releaseExpiredLiliReservations() {
-  const { error } = await supabaseAdmin.rpc('fn_lili_liberar_reservas_expiradas')
-  if (error && !['42883', 'PGRST202'].includes(String(error.code || ''))) throw error
+  // R11: opt-in for bounded cleanup under group -> slot locks in staging.
+  // When enabled, an absent RPC MUST fail; never silently use the global legacy writer.
+  const mode = process.env.DROPZONE_LILI_CLEANUP_MODE?.trim() || 'legacy'
+  if (mode !== 'legacy' && mode !== 'atomic') throw new Error('Modo de limpeza de reservas indisponível.')
+  const { error } = mode === 'atomic'
+    ? await supabaseAdmin.rpc('fn_lili_liberar_reservas_expiradas_r11', { p_limit: 100 })
+    : await supabaseAdmin.rpc('fn_lili_liberar_reservas_expiradas')
+  if (error && (mode === 'atomic' || !['42883', 'PGRST202'].includes(String(error.code || '')))) throw error
 }
 
 export async function reserveSlotForLili(input: {
@@ -25,9 +31,13 @@ export async function reserveSlotForLili(input: {
   minutes?: number
   meta?: Record<string, unknown>
 }) {
-  await releaseExpiredLiliReservations()
+  // An opt-in deployment uses the R10 group -> slot RPC and its scoped expiry.
+  // Never call the legacy global cleanup before entering that transaction.
+  const mode = process.env.DROPZONE_LILI_RESERVATION_MODE?.trim() || 'legacy'
+  if (mode !== 'legacy' && mode !== 'atomic') throw new Error('Modo de reserva indisponível.')
+  if (mode === 'legacy') await releaseExpiredLiliReservations()
   const codigo = reservationCode()
-  const { data, error } = await supabaseAdmin.rpc('fn_lili_reservar_slot', {
+  const { data, error } = await supabaseAdmin.rpc(mode === 'atomic' ? 'fn_lili_reservar_slot_r10' : 'fn_lili_reservar_slot', {
     p_codigo: codigo,
     p_campeonato_id: input.campeonatoId,
     p_grupo_id: input.grupoId,
@@ -56,10 +66,27 @@ export async function attachReservationPayment(reservationId: string, compraId?:
 }
 
 export async function confirmLiliReservation(reservationId: string) {
+  // Never confirm an expired, cancelled, or previously finalized reservation.
+  // The predicate is enforced by PostgreSQL in the same UPDATE, not a pre-read.
   const now = new Date().toISOString()
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from('lili_reservas_slot')
     .update({ status: 'confirmada', confirmado_em: now, updated_at: now })
     .eq('id', reservationId)
+    .eq('status', 'ativa')
+    .gt('expira_em', now)
+    .select('id')
+    .maybeSingle()
   if (error) throw error
+  if (data) return
+  // Repeated webhooks may acknowledge an already confirmed reservation.
+  // This read happens only after the guarded UPDATE matched zero rows.
+  const { data: previous, error: previousError } = await supabaseAdmin
+    .from('lili_reservas_slot')
+    .select('status')
+    .eq('id', reservationId)
+    .maybeSingle()
+  if (previousError) throw previousError
+  if (previous?.status === 'confirmada') return
+  throw new Error('Reserva expirada, cancelada ou inexistente; confirme o pagamento manualmente.')
 }

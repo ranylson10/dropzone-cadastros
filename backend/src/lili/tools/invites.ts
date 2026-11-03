@@ -29,7 +29,7 @@ export async function resolveExistingInvite(value: string) {
   const { data: playerTeamInvite, error: playerTeamError } = await supabaseAdmin
     .from('tokens')
     .select('token,tipo,equipe_id,status,expira_em')
-    .ilike('token', token)
+    .eq('token', token)
     .eq('tipo', 'convite_jogador_equipe')
     .maybeSingle()
   if (playerTeamError) throw playerTeamError
@@ -45,7 +45,7 @@ export async function resolveExistingInvite(value: string) {
   const { data: teamInvite, error: teamError } = await supabaseAdmin
     .from('tokens')
     .select('token,tipo,campeonato_id,grupo_id,slot_id,status,expira_em')
-    .ilike('token', token)
+    .eq('token', token)
     .in('tipo', ['convite_equipe_campeonato', 'team_invite'])
     .maybeSingle()
   if (teamError) throw teamError
@@ -62,7 +62,7 @@ export async function resolveExistingInvite(value: string) {
   const { data: lineupLink, error: lineupError } = await supabaseAdmin
     .from('campeonato_links_inscricao')
     .select('token,tipo,campeonato_id,grupo_id,campeonato_equipe_id,line_id,ativo,expira_em')
-    .ilike('token', token)
+    .eq('token', token)
     .eq('tipo', 'escalacao_line')
     .maybeSingle()
   if (lineupError) throw lineupError
@@ -79,7 +79,7 @@ export async function resolveExistingInvite(value: string) {
   const { data: groupLink, error: groupError } = await supabaseAdmin
     .from('campeonato_links')
     .select('token,tipo,campeonato_id,grupo_id,ativo,expira_em')
-    .ilike('token', token)
+    .eq('token', token)
     .maybeSingle()
   if (groupError) throw groupError
   if (groupLink) {
@@ -98,7 +98,7 @@ export async function resolveExistingInvite(value: string) {
   const { data: purchase, error: purchaseError } = await supabaseAdmin
     .from('sistema_compras_vaga')
     .select('token,campeonato_id,status')
-    .ilike('token', token)
+    .eq('token', token)
     .maybeSingle()
   if (purchaseError) throw purchaseError
   if (purchase) {

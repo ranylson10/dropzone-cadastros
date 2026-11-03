@@ -1,0 +1,41 @@
+{
+  "rodada": "R07",
+  "data": "2026-10-26",
+  "base": "DROPZONE_RODADA_06_FONTE_COMPLETA.zip",
+  "escopo": "Validação de bloqueios/reservas e integridade fase/grupo/slot em escolha e restauração legadas de equipe",
+  "testes": "19 cenários HTTP simulados R07 e 9 grupos de regressão R06 aprovados",
+  "ambiente": "local; sem PostgreSQL concorrente, build Next, QA E2E ou deploy",
+  "supabase_producao": "nenhuma alteração",
+  "arquivos": [
+    {
+      "caminho": "README.md",
+      "sha256": "393c472de7c0e0ff7a58d8ff98b378cc78135b57d09705839c8c5a435269785a",
+      "bytes": 2952
+    },
+    {
+      "caminho": "package.json",
+      "sha256": "bbb34ea60abc24b24349836d8707b8313c625fde658bd473ca3227a8751536c1",
+      "bytes": 8484
+    },
+    {
+      "caminho": "TESTAR_RODADA_07.bat",
+      "sha256": "27564d007b82ac29a8bee5f3dd83d0609cd9cc6d83ecfb1bc32232ccd457c9d2",
+      "bytes": 975
+    },
+    {
+      "caminho": "web/app/api/campeonatos/[id]/escolha-grupo/route.ts",
+      "sha256": "48d0916229dc157c50fed27041f7d0ad0b5e3c32b15f00089346b7c115426d0c",
+      "bytes": 20043
+    },
+    {
+      "caminho": "scripts/testes/test-round7-functional.mjs",
+      "sha256": "e46f2a397da437e903982a8d907a79306716550b2dcb92b569b907f3665a47a6",
+      "bytes": 6809
+    },
+    {
+      "caminho": "docs/RODADA_07_ESCOLHA_GRUPOS_2026-10-26.md",
+      "sha256": "e57eb9a3eb0349292ae8878cd5d1fe279f8ce4f8dc5a6258071c2f8f484e3f14",
+      "bytes": 3299
+    }
+  ]
+}

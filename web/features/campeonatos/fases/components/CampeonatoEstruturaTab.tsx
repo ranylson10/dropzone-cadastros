@@ -1301,7 +1301,7 @@ function CampeonatoEstruturaContent({
                               </div>
                             ) : null}
 
-                            <div className="championship-vagas-list group-slots-list">
+                            <div className="championship-vagas-list group-slots-list" data-dz-list="legacy">
                               {slotsOfGroup.length === 0 ? (
                                 <div className="vagas-empty-filter">Nenhum slot neste grupo.</div>
                               ) : (

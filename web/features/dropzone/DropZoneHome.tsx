@@ -22,6 +22,7 @@ import { SystemModal } from '@/components/layout/SystemModal'
 import { initialWorkspaceEntityTypes } from './workspace-entities'
 import { useProducerEntities } from './useProducerEntities'
 import styles from './workspace.module.css'
+import { WorkspaceContextSwitcher } from './WorkspaceContextSwitcher'
 
 const AuthenticatedHomeFeed = dynamic(() => import('@/features/home/AuthenticatedHomeFeed').then((module) => module.AuthenticatedHomeFeed))
 const ProdutoraPanel = dynamic(() => import('./panels/produtora/ProdutoraPanel').then((module) => module.ProdutoraPanel), {
@@ -32,9 +33,6 @@ const EquipePanel = dynamic(() => import('./panels/equipe/EquipePanel').then((mo
 })
 const JogadorPanel = dynamic(() => import('./panels/jogador/JogadorPanel').then((module) => module.JogadorPanel), {
   loading: () => <DropzoneLoader label="Carregando painel do jogador" />,
-})
-const ManagerPanel = dynamic(() => import('./panels/manager/ManagerPanel').then((module) => module.ManagerPanel), {
-  loading: () => <DropzoneLoader label="Carregando painel do afiliado" />,
 })
 type AuthMode = 'entrar' | 'criar' | 'recuperar'
 const AUTH_RESEND_COOLDOWN_SECONDS = 60
@@ -105,7 +103,7 @@ const typeLabels: Record<ProfileType, string> = {
   produtora: 'Produtora',
   equipe: 'Equipe',
   jogador: 'Jogador',
-  manager: 'Afiliado',
+  manager: 'Manager',
   broadcast: 'Integração técnica (legado)',
 }
 
@@ -113,7 +111,7 @@ const typeDescriptions: Record<ProfileType, string> = {
   produtora: 'Painel de campeonatos e gestao geral.',
   equipe: 'Acesso do lider para montar elenco e entrar em eventos.',
   jogador: 'Cadastro competitivo e inscricoes em partidas.',
-  manager: 'Área de afiliados para divulgar campeonatos e acompanhar vendas.',
+  manager: 'Vice-líder de equipes e jogadores, com funções liberadas pelo líder.',
   broadcast: 'Perfil técnico legado, fora da experiência principal do site.',
 }
 
@@ -161,6 +159,7 @@ export function DropZoneHome() {
   const [recentProfiles, setRecentProfiles] = useState<any[]>([])
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
+  const [workspaceContexts, setWorkspaceContexts] = useState<DropZoneRow[]>([])
   const [linkingProfile, setLinkingProfile] = useState(false)
   const [storedRows, setRows] = useState<DropZoneRow[]>([])
   const [message, setMessage] = useState('')
@@ -744,8 +743,19 @@ export function DropZoneHome() {
 
     const loadedAccounts = ((meJson.accounts || [meJson.account]).filter(Boolean) as DropZoneRow[])
       .filter((item) => isWebProfileType(item.profile_type))
-    const selectedAccount = (storedId ? loadedAccounts.find((item) => item.id === storedId) : null)
-      || loadedAccounts.find((item) => item.profile_type === storedType)
+    let contexts = loadedAccounts
+    if (loadedAccounts.some(item => item.profile_type === 'manager')) {
+      const contextResponse = await fetch('/api/me/contexts', { headers: authHeaders(accessToken), cache: 'no-store' })
+      const contextPayload = await contextResponse.json()
+      if (loadVersion !== profileLoadVersion.current) return
+      if (!contextResponse.ok) throw new Error(contextPayload.error || 'Não foi possível verificar suas áreas.')
+      contexts = contextPayload.contexts || loadedAccounts
+    }
+    setWorkspaceContexts(contexts)
+    if (preferredId && !contexts.some(item => item.id === preferredId)) throw new Error('Você não tem mais acesso a este painel.')
+    const selectedAccount = (storedId ? contexts.find((item) => item.id === storedId) : null)
+      || contexts.find((item) => item.profile_type === storedType)
+      || contexts.find((item) => item.profile_type !== 'manager')
       || loadedAccounts[0]
       || null
     if (!selectedAccount) {
@@ -764,7 +774,7 @@ export function DropZoneHome() {
     // Mostra imediatamente o perfil escolhido e os últimos dados conhecidos.
     setAccounts(loadedAccounts)
     setAccount(selectedAccount)
-    setRows(readPanelCache(selectedAccount.id))
+    setRows(selectedAccount.data?.delegated_access ? [] : readPanelCache(selectedAccount.id))
     setActiveAuthType(null)
     setLinkingProfile(false)
     localStorage.setItem('dropzone_active_profile_type', String(selectedAccount.profile_type || ''))
@@ -782,7 +792,7 @@ export function DropZoneHome() {
     // evitando piscar a seleção de perfil ou um painel incompleto.
     setRows(rowsJson.rows || [])
     if (selectedAccount.profile_type === 'produtora') producerEntities.refresh()
-    savePanelSnapshot(selectedAccount, loadedAccounts, rowsJson.rows || [])
+    if (!selectedAccount.data?.delegated_access) savePanelSnapshot(selectedAccount, loadedAccounts, rowsJson.rows || [])
     saveRecentProfiles(loadedAccounts)
   }
 
@@ -829,10 +839,13 @@ export function DropZoneHome() {
     try {
       localStorage.setItem('dropzone_active_profile_type', String(nextAccount.profile_type || ''))
       localStorage.setItem('dropzone_active_profile_id', nextAccount.id)
-      setAccount(nextAccount)
-      setRows(readPanelCache(nextAccount.id))
+      setRows([])
       setMessage(`Abrindo ${typeLabels[nextAccount.profile_type as WebProfileType].toLowerCase()}...`)
       await loadMeAndRows(undefined, nextAccount.profile_type as WebProfileType, nextAccount.id)
+      const url = new URL(window.location.href)
+      url.searchParams.set('perfil', String(nextAccount.profile_type))
+      url.searchParams.set('perfil_id', nextAccount.id)
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
       setMessage('')
     } catch (err: any) {
       setError(err?.message || 'Não foi possível abrir esta área.')
@@ -1639,7 +1652,7 @@ export function DropZoneHome() {
         withAuthOffset={false}
       >
         <div className="shell panel-workspace-shell">
-          <AuthenticatedHomeFeed account={null} accounts={[]} onOpenPanel={openProfilePanel} />
+          <AuthenticatedHomeFeed account={null} accounts={[]} identity={authIdentity} onSignOut={signOut} onOpenPanel={openProfilePanel} />
         </div>
       </AppShell>
     )
@@ -1664,11 +1677,11 @@ export function DropZoneHome() {
         <div className="shell panel-workspace-shell">
         {!account || linkingProfile ? (
           <>
-          {authIdentity ? <AuthenticatedHomeFeed account={account} accounts={accounts} onOpenPanel={openProfilePanel} /> : null}
+          {authIdentity ? <AuthenticatedHomeFeed account={account} accounts={accounts} identity={authIdentity} onSignOut={signOut} onOpenPanel={openProfilePanel} /> : null}
           <SystemModal
             open
             title={`Cadastrar ${typeLabels[profileType].toLowerCase()}`}
-            description="Complete somente os dados necessários para continuar esta ação."
+            description="Cadastro rápido: primeiro o essencial; complete o perfil quando quiser."
             onClose={closeContextualRegistration}
             size="medium"
           >
@@ -1691,6 +1704,7 @@ export function DropZoneHome() {
                     </div>
 
                     <div className="register-main-fields">
+                      <p className="eyebrow">Cadastro rápido · dados essenciais</p>
                       <div className="mini-grid tight-grid">
                           <Field label={
                             profileType === 'equipe' ? 'Nome da equipe'
@@ -1719,26 +1733,27 @@ export function DropZoneHome() {
                           ) : null}
 
                           {profileType === 'jogador' ? (
-                            <>
-                              <Field label="ID de jogo">
-                                <UiInput value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" required />
-                              </Field>
-                              <Field label="Função">
-                                <UiSelect value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
-                                  <option value="support">Support</option>
-                                  <option value="rush">Rush</option>
-                                  <option value="sniper">Sniper</option>
-                                  <option value="bomber">Bomber</option>
-                                </UiSelect>
-                              </Field>
-                            </>
+                            <Field label="ID de jogo">
+                              <UiInput value={registerData.id_jogo} onChange={(e) => updateRegisterData('id_jogo', e.target.value)} placeholder="ID Free Fire" required />
+                            </Field>
                           ) : null}
                       </div>
                     </div>
 
+                    <p className="profile-quick-note">Pronto para começar? Os detalhes do perfil podem ser configurados depois, em Meu painel → Perfil.</p>
                     <details className="profile-onboarding-optional">
-                      <summary>Adicionar foto/logo e localização <span>Opcional</span></summary>
+                      <summary>Personalizar perfil <span>Opcional</span></summary>
                       <div className="profile-onboarding-optional-grid">
+                        {profileType === 'jogador' ? (
+                          <Field label="Função no jogo">
+                            <UiSelect value={registerData.funcao} onChange={(e) => updateRegisterData('funcao', e.target.value)}>
+                              <option value="support">Support</option>
+                              <option value="rush">Rush</option>
+                              <option value="sniper">Sniper</option>
+                              <option value="bomber">Bomber</option>
+                            </UiSelect>
+                          </Field>
+                        ) : null}
                         <UploadField
                           label={profileType === 'equipe' || profileType === 'produtora' ? 'Logo' : 'Foto'}
                           value={mediaUrl}
@@ -1769,6 +1784,8 @@ export function DropZoneHome() {
               <AuthenticatedHomeFeed
                 account={account}
                 accounts={accounts}
+                identity={authIdentity}
+                onSignOut={signOut}
                 onOpenPanel={openProfilePanel}
               />
             ) : (
@@ -1786,7 +1803,7 @@ export function DropZoneHome() {
                   )}
                 </div>
                 <div className="account-strip-head">
-                  <p className="eyebrow">Conta ativa</p>
+                  <p className="eyebrow">{account.data?.delegated_access ? 'Gestão compartilhada' : 'Sua área'}</p>
                   <strong role="heading" aria-level={1}>
                     {account.name}{' '}
                     <span>
@@ -1813,7 +1830,7 @@ export function DropZoneHome() {
                   <span>{account.profile_type === 'produtora' ? 'Em aprovação' : 'Inscrições'}</span>
                 </div>
               </div>
-              <button
+              {!account.data?.delegated_access || account.data?.delegated_permissions?.pode_editar ? <button
                 type="button"
                 className="icon-action-button account-strip-action"
                 onClick={() => setShowAccountProfile((v) => !v)}
@@ -1822,9 +1839,9 @@ export function DropZoneHome() {
               >
                 <Pencil size={16} />
                 <span>{showAccountProfile ? 'Fechar' : 'Perfil'}</span>
-              </button>
+              </button> : null}
             </section>
-            {showAccountProfile && account.profile_type ? (
+            {showAccountProfile && account.profile_type && (!account.data?.delegated_access || account.data?.delegated_permissions?.pode_editar) ? (
               <section className="panel span-3" style={{ marginBottom: 12 }}>
                 <ProfileEditForm
                   profileType={account.profile_type as 'equipe' | 'manager' | 'jogador' | 'produtora'}
@@ -1855,6 +1872,8 @@ export function DropZoneHome() {
             ) : null}
 
             {account.profile_type === 'produtora' ? (
+              <>
+              <WorkspaceContextSwitcher account={account} contexts={workspaceContexts} busy={loading} onChange={switchLinkedAccount} />
               <ProdutoraPanel
                 key={account.id}
                 account={account}
@@ -1918,11 +1937,16 @@ export function DropZoneHome() {
                 error={error}
                 uploadPublicFile={uploadPublicFile}
               />
+              </>
             ) : null}
 
             {account.profile_type === 'equipe' ? (
+              <>
+              <WorkspaceContextSwitcher account={account} contexts={workspaceContexts} busy={loading} onChange={switchLinkedAccount} />
               <EquipePanel
+                key={account.id}
                 accountType={account.profile_type}
+                delegatedPermissions={account.data?.delegated_access ? account.data?.delegated_permissions : undefined}
                 activeTeamId={managedTeams.find((managedTeam) => managedTeam.id === account.id)?.id || managedTeams[0]?.id || account.id}
                 teams={teams}
                 managedTeams={managedTeams}
@@ -1945,19 +1969,24 @@ export function DropZoneHome() {
                 loading={loading}
                 uploadPublicFile={uploadPublicFile}
               />
+              </>
             ) : null}
 
             {account.profile_type === 'manager' ? (
-              <ManagerPanel
-                account={account}
-                accounts={accounts}
-                onSwitchAccount={switchLinkedAccount}
-                onCreateLinkedProfile={startLinkedProfile}
-              />
+              <section className="panel dz-context-hub" aria-label="Suas áreas de controle">
+                <h2>Sua área</h2>
+                <a href="/equipes"><div><strong>Minhas equipes</strong><small>Elenco, escalações e competições</small></div><Users size={22} /></a>
+                <a href="/jogadores"><div><strong>Meus jogadores</strong><small>Perfil e trajetória competitiva</small></div><Users size={22} /></a>
+                <a href="/campeonatos"><div><strong>Meus campeonatos</strong><small>Organização, inscrições e resultados</small></div><Trophy size={22} /></a>
+                <a href="/afiliados"><div><strong>Afiliados</strong><small>Divulgação e vendas de campeonatos</small></div></a>
+              </section>
             ) : null}
 
             {account.profile_type === 'jogador' ? (
+              <>
+              <WorkspaceContextSwitcher account={account} contexts={workspaceContexts} busy={loading} onChange={switchLinkedAccount} />
               <JogadorPanel
+                key={account.id}
                 account={account}
                 registrations={myRegistrations}
                 playerTeams={playerTeams}
@@ -1965,6 +1994,7 @@ export function DropZoneHome() {
                 teamLines={teamLines}
                 championships={championships}
               />
+              </>
             ) : null}
 
             {message ? <div className="message floating">{message}</div> : null}

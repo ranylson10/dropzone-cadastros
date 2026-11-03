@@ -6,7 +6,7 @@
     "web"
   ],
   "scripts": {
-    "test:security": "node scripts/testes/test-security-audit.mjs && node scripts/testes/test-private-entity-reads.mjs && node scripts/testes/test-lili-services.mjs && node scripts/testes/test-workspace-loading.mjs && node scripts/testes/test-directory-pagination.mjs && node scripts/testes/test-championship-catalog.mjs && node scripts/testes/test-mobile-fetch.mjs && node scripts/testes/test-public-profile-scope.mjs && node scripts/testes/test-statistics-pagination.mjs && node scripts/testes/test-ranking-publication.mjs && node scripts/testes/test-registration-safety.mjs && node scripts/testes/test-group-invite-safety.mjs && node scripts/testes/test-atomic-enrollment-transport.mjs && node scripts/testes/test-enrollment-attempt.mjs && node scripts/testes/test-mobile-enrollment-attempt.mjs && node scripts/testes/test-group-choice-window.mjs && node scripts/testes/test-slot-transfer.mjs && node scripts/testes/test-slot-permissions.mjs && node scripts/testes/test-mobile-slot-transfer.mjs && node scripts/testes/test-group-choice-transport.mjs && node scripts/testes/test-group-choice-attempt.mjs && node scripts/testes/test-structure-delete.mjs && node scripts/testes/test-slot-batch.mjs && node scripts/testes/test-participation-transport.mjs && node scripts/testes/test-participation-clients.mjs && node scripts/testes/test-participation-snapshots.mjs && node scripts/testes/test-liga-operational-plan.mjs && node scripts/testes/test-slot-movement-clients.mjs && node scripts/testes/test-mobile-championship-operations.mjs && node scripts/testes/test-atomic-operation-routes.mjs && node scripts/testes/test-progression-preview.mjs && node scripts/testes/test-advanced-structure-read.mjs && node scripts/testes/test-progression-atomic.mjs && node scripts/testes/test-league-season.mjs && node scripts/testes/test-league-season-atomic.mjs && node scripts/testes/test-daily-group-atomic.mjs && node scripts/testes/test-edition-atomic.mjs && node scripts/testes/test-lifecycle-safety.mjs && node scripts/testes/test-lifecycle-atomic.mjs && node scripts/testes/test-mobile-lifecycle.mjs && node scripts/testes/test-invite-architecture.mjs && node scripts/testes/test-structure-group-atomic.mjs && node scripts/testes/test-mobile-group-write.mjs",
+    "test:security": "npm run test:security:round1 && node scripts/testes/test-security-audit.mjs && node scripts/testes/test-private-entity-reads.mjs && node scripts/testes/test-lili-services.mjs && node scripts/testes/test-workspace-loading.mjs && node scripts/testes/test-directory-pagination.mjs && node scripts/testes/test-championship-catalog.mjs && node scripts/testes/test-mobile-fetch.mjs && node scripts/testes/test-public-profile-scope.mjs && node scripts/testes/test-statistics-pagination.mjs && node scripts/testes/test-ranking-publication.mjs && node scripts/testes/test-registration-safety.mjs && node scripts/testes/test-group-invite-safety.mjs && node scripts/testes/test-atomic-enrollment-transport.mjs && node scripts/testes/test-enrollment-attempt.mjs && node scripts/testes/test-mobile-enrollment-attempt.mjs && node scripts/testes/test-group-choice-window.mjs && node scripts/testes/test-slot-transfer.mjs && node scripts/testes/test-slot-permissions.mjs && node scripts/testes/test-mobile-slot-transfer.mjs && node scripts/testes/test-group-choice-transport.mjs && node scripts/testes/test-group-choice-attempt.mjs && node scripts/testes/test-structure-delete.mjs && node scripts/testes/test-slot-batch.mjs && node scripts/testes/test-participation-transport.mjs && node scripts/testes/test-participation-clients.mjs && node scripts/testes/test-participation-snapshots.mjs && node scripts/testes/test-liga-operational-plan.mjs && node scripts/testes/test-slot-movement-clients.mjs && node scripts/testes/test-mobile-championship-operations.mjs && node scripts/testes/test-atomic-operation-routes.mjs && node scripts/testes/test-progression-preview.mjs && node scripts/testes/test-advanced-structure-read.mjs && node scripts/testes/test-progression-atomic.mjs && node scripts/testes/test-league-season.mjs && node scripts/testes/test-league-season-atomic.mjs && node scripts/testes/test-daily-group-atomic.mjs && node scripts/testes/test-edition-atomic.mjs && node scripts/testes/test-lifecycle-safety.mjs && node scripts/testes/test-lifecycle-atomic.mjs && node scripts/testes/test-mobile-lifecycle.mjs && node scripts/testes/test-invite-architecture.mjs && node scripts/testes/test-structure-group-atomic.mjs && node scripts/testes/test-mobile-group-write.mjs && npm run test:workspace-delegation",
     "check:release": "npm run check:code && node scripts/testes/check-production-audit.mjs",
     "dev": "npm run dev --workspace dropzone-web",
     "build": "npm run build --workspace dropzone-web",
@@ -70,7 +70,33 @@
     "test:e2e:r207": "playwright test tests-e2e/controlled/rodada-196-ui-foundation.spec.ts tests-e2e/controlled/rodada-197-championship-card-global.spec.ts tests-e2e/controlled/rodada-198-entity-components.spec.ts tests-e2e/controlled/rodada-199-workspace-components.spec.ts tests-e2e/controlled/rodada-199-1-shell-desktop-overflow.spec.ts tests-e2e/controlled/rodada-200-form-foundation.spec.ts tests-e2e/controlled/rodada-201-form-migration.spec.ts tests-e2e/controlled/rodada-201-1-form-migration-admin.spec.ts tests-e2e/controlled/rodada-201-3-admin-home-integration.spec.ts tests-e2e/controlled/rodada-202-data-display.spec.ts tests-e2e/controlled/rodada-203-feedback-system.spec.ts tests-e2e/controlled/rodada-204-commerce-integration.spec.ts tests-e2e/controlled/rodada-205-token-flows.spec.ts tests-e2e/controlled/rodada-206-structural-cleanup.spec.ts tests-e2e/controlled/rodada-207-auditoria-final.spec.ts --project=chromium-desktop --project=chromium-mobile --workers=1",
     "audit:championship-catalog": "node scripts/testes/audit-championship-catalog.mjs",
     "test:e2e:r208": "playwright test --config=playwright.r208.config.ts tests-e2e/controlled/rodada-208-catalogo-campeonatos-unificado.spec.ts --project=chromium-desktop --project=chromium-mobile --workers=1",
-    "check:code": "npm run test:security && npm run typecheck && npm run lint && npm run build"
+    "check:code": "npm run test:security && npm run typecheck && npm run lint && npm run build",
+    "test:security:round1": "node scripts/testes/test-security-round1.mjs",
+    "test:rounds": "node scripts/testes/test-round6-release.mjs && node scripts/testes/test-round7-functional.mjs && node scripts/testes/test-round8-admin-choice.mjs && node scripts/testes/test-round9-atomic-db.mjs && node scripts/testes/test-round10-writers.mjs && node scripts/testes/test-round11-invites.mjs && node scripts/testes/test-round12-token-writers.mjs",
+    "test:round11": "node scripts/testes/test-round11-invites.mjs",
+    "test:round12": "node scripts/testes/test-round12-token-writers.mjs",
+    "test:round13": "node scripts/testes/test-round13-release-gate.mjs",
+    "release:readiness": "node scripts/release/round14-readiness.mjs",
+    "test:round14": "node scripts/testes/test-round14-evidence.mjs",
+    "test:round15": "node scripts/testes/test-round15-release.mjs",
+    "release:lab-preflight": "node scripts/release/round15-lab-preflight.mjs",
+    "release:verify": "node scripts/release/round14-evidence.mjs",
+    "test:round16": "node scripts/testes/test-round16-lab-catalog.mjs",
+    "test:round17": "node scripts/testes/test-round17-lab-identity.mjs",
+    "release:catalog:import": "node scripts/release/importar-catalogo-original.mjs",
+    "release:catalog:emit": "node scripts/testes/postgres-inscricoes/build-schema.mjs --emit-only",
+    "test:round18": "node scripts/testes/test-round18-invite-destinations.mjs",
+    "test:round19": "node scripts/testes/test-round19-lab-runner.mjs",
+    "release:lab:plan": "node scripts/release/round19-laboratorio.mjs",
+    "test:round19:buildfix": "node scripts/testes/test-round19-buildfix.mjs",
+    "test:round20": "node scripts/testes/test-round20-ux.mjs",
+    "test:round21": "node scripts/testes/test-round21-quick-create.mjs",
+    "test:round22": "node scripts/testes/test-round22-role-hubs.mjs",
+    "test:round23": "node scripts/testes/test-round23-mobile-premium.mjs",
+    "test:round24": "node scripts/testes/test-round24-redesign-final.mjs",
+    "test:workspace-delegation": "node scripts/testes/test-workspace-delegation.mjs",
+    "audit:theme-contract": "node scripts/design/check-theme-contract.mjs",
+    "audit:identity": "node scripts/design/audit-identity.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1"

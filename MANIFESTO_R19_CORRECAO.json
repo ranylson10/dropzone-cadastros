@@ -1,0 +1,59 @@
+{
+  "release": "R19-correcao-pos-testes",
+  "baseline": "DROPZONE_RODADA_19_FONTE_COMPLETA.zip",
+  "changed_files": [
+    {
+      "path": "HOMOLOGAR_POSTGRES_R19.bat",
+      "sha256": "143ec40b09d2e97ac9d02a023ffd01408caa3fa000a8b038863ed39ad59163c9"
+    },
+    {
+      "path": "README.md",
+      "sha256": "444b66f0efab81125376a604470e2a7270f99605217bcd23fa9dcc9ed2a4c224"
+    },
+    {
+      "path": "TESTAR_RODADA_19.bat",
+      "sha256": "a7e68e8ff9abfff0e25d51aea8c6b0dcef89c2cf3c5e599b355455b2f7958e8e"
+    },
+    {
+      "path": "docs/POST_TESTES_R19_CORRECAO.md",
+      "sha256": "85f8791d5b451b46c8b1e413ced3828ca78ccb83009949f0c31d5156d35ee5fc"
+    },
+    {
+      "path": "package.json",
+      "sha256": "4686f1d915fae8d0ba34f5a901c576af94d33e716bbd356ca03dbc7680220788"
+    },
+    {
+      "path": "scripts/release/round19-web-check.mjs",
+      "sha256": "838f6883f0ea9a1db7e5c31de0d5e023605a5abb1ee7744ccb707c74c0684161"
+    },
+    {
+      "path": "scripts/testes/test-round19-buildfix.mjs",
+      "sha256": "6fad6324fa16e6d579be0184bbb25f92f8526b7a598f31998f74f3f53834bb0c"
+    },
+    {
+      "path": "scripts/testes/test-round19-lab-runner.mjs",
+      "sha256": "7f43d59b6e2ba1f318fd2b8c95124cd3fc86efe967cd1e50f0352177fc147f6c"
+    },
+    {
+      "path": "web/app/campeonatos/page.tsx",
+      "sha256": "924062e546515d10d175337fa28f6ee33387f8b4d0bb6d68271f333bfc2614cc"
+    },
+    {
+      "path": "web/app/equipes/page.tsx",
+      "sha256": "68032591717f6c794568e17bfadd08dee918293b2b47a71fd2e39220e06d159f"
+    },
+    {
+      "path": "web/app/jogadores/page.tsx",
+      "sha256": "b7a36a73e3e9513dcacf0bedc17e54c39dbde3561b4b3a308f15064bf75f639d"
+    },
+    {
+      "path": "web/app/managers/page.tsx",
+      "sha256": "cd0e97354f25a9bd599975f3c32f418fa3bd5a4f7a87ce60ddc643c5d988eb5e"
+    },
+    {
+      "path": "web/app/produtoras/page.tsx",
+      "sha256": "721cad5f35b39dcdd7679a793abb6dd90c63705aec0e2380cb6fde6b9f918e84"
+    }
+  ],
+  "removed_files": []
+}

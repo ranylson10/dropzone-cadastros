@@ -3,7 +3,7 @@
 import Link from 'next/link'
 
 import { Input as UiInput } from '@/components/ui/Field'
-import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Search, Shield, Trophy, UsersRound, Wallet, X } from 'lucide-react'
+import { CalendarDays, Camera, ChevronDown, Globe2, Home, LayoutDashboard, Loader2, LogOut, Menu, Plus, Search, Shield, Trophy, UsersRound, UserRound, Wallet, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { Dialog } from '@/components/ui/Dialog'
 import { useDisclosureFocus } from '@/components/ui/useDisclosureFocus'
@@ -11,7 +11,7 @@ import { usePathname } from 'next/navigation'
 import { isWebProfileType, type DropZoneRow, type WebProfileType } from '@/lib/types'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { SystemLogo } from '@/components/brand/SystemLogo'
-import { APP_NAV, type AppNavItem } from './nav'
+import { APP_NAV, resolveActiveNavLabel, type AppNavItem } from './nav'
 import { supabase } from '@/lib/supabase-browser'
 import { useGlobalLocale } from '@/features/i18n/global-locale'
 import { uploadPublicFile } from '@/lib/upload-public'
@@ -48,7 +48,7 @@ function areaLabel(type?: string | null) {
   if (type === 'equipe') return 'Minha equipe'
   if (type === 'jogador') return 'Perfil competitivo'
   if (type === 'produtora') return 'Minha produtora'
-  if (type === 'manager') return 'Afiliados'
+  if (type === 'manager') return 'Minha área'
   return 'Área da conta'
 }
 
@@ -135,8 +135,9 @@ export function AppHeader({
   const menuId = useId().replace(/:/g, '')
   const profilePopup = useDisclosureFocus(profileOpen, () => setProfileOpen(false))
   const languagePopup = useDisclosureFocus(languageOpen, () => setLanguageOpen(false))
-  const mobilePopup = useDisclosureFocus<HTMLElement>(mobileOpen, () => setMobileOpen(false))
+  const mobilePopup = useDisclosureFocus<HTMLElement>(mobileOpen, () => setMobileOpen(false), true, true)
   const pathname = usePathname()
+  const navActive = resolveActiveNavLabel(pathname) || activeLabel
   const isAuthenticated = Boolean(profileName && onSignOut)
   const visibleAccounts = accounts.filter((item) => isWebProfileType(item.profile_type))
   const activeAccount = visibleAccounts.find((item) => item.id === activeAccountId) || visibleAccounts[0] || null
@@ -151,7 +152,7 @@ export function AppHeader({
     : activeProfileType === 'equipe'
       ? [
           { label: 'Encontrar campeonato', detail: 'Ver vagas abertas', href: '/campeonatos?vagas=1', icon: Trophy },
-          { label: 'Minha equipe', detail: 'Elenco, lines e gestão', href: '/?painel=1&section=campeonatos', icon: UsersRound },
+          { label: 'Minha equipe', detail: 'Elenco, lines e gestão', href: '/?painel=1&section=dashboard', icon: UsersRound },
           { label: 'Agenda', detail: 'Próximos jogos', href: '/agenda', icon: CalendarDays },
         ]
       : activeProfileType === 'jogador'
@@ -266,8 +267,8 @@ export function AppHeader({
             <SystemLogo size={44} alt="" fit="contain" variant="default" />
           </span>
           <span className="app-brand-copy">
-            <strong aria-label="DropZone"><span>Drop</span><span>Zone</span></strong>
-            <small>COMPETITIVE SYSTEM</small>
+            <strong aria-label="DropZone">DROPZONE<span className="dz-brand-period">.</span></strong>
+            <small>O SEU JOGO COMEÇA AQUI</small>
           </span>
         </Link>
 
@@ -293,11 +294,16 @@ export function AppHeader({
             type="button"
             className="app-mobile-nav-backdrop"
             aria-label="Fechar navegação"
-            onClick={() => setMobileOpen(false)}
+            onClick={() => mobilePopup.close(true)}
           />
         ) : null}
 
-        <nav ref={mobilePopup.panelRef} id={`${menuId}-navigation`} className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} aria-label="Navegação principal">
+        <nav ref={mobilePopup.panelRef} id={`${menuId}-navigation`} className={`app-main-nav ${mobileOpen ? 'is-open' : ''}`} tabIndex={-1} aria-label="Navegação principal">
+          <div className="app-mobile-sheet-heading">
+            <div><small>DROPZONE / PAINEL</small><strong>Menu da plataforma</strong></div>
+            <button type="button" onClick={() => mobilePopup.close(true)} aria-label="Fechar menu"><X size={21} aria-hidden="true" /></button>
+          </div>
+          {isAuthenticated ? <Link href="/?painel=1" className="app-dashboard-entry" onClick={() => setMobileOpen(false)}><LayoutDashboard size={17} aria-hidden="true" /> Meu painel</Link> : null}
           {navItems.map((item) => {
             const hasChildren = Boolean(item.children?.length)
             if (!hasChildren) {
@@ -305,7 +311,7 @@ export function AppHeader({
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={activeLabel === item.label ? 'active' : ''}
+                  className={navActive === item.label ? 'active' : ''}
                   onClick={() => setMobileOpen(false)}
                 >
                   {item.label}
@@ -315,11 +321,11 @@ export function AppHeader({
             return (
               <div
                 key={item.label}
-                className={`app-nav-dropdown ${activeLabel === item.label ? 'active' : ''}`}
+                className={`app-nav-dropdown ${navActive === item.label ? 'active' : ''}`}
               >
                 <Link
                   href={item.href}
-                  className={`app-nav-parent ${activeLabel === item.label ? 'active' : ''}`}
+                  className={`app-nav-parent ${navActive === item.label ? 'active' : ''}`}
                   onClick={() => setMobileOpen(false)}
                 >
                   {item.label}
@@ -345,6 +351,10 @@ export function AppHeader({
                 <LayoutDashboard size={16} />
                 <span>Meu painel</span>
               </Link>
+              <button type="button" className="app-mobile-account-trigger" onClick={() => {
+                setMobileOpen(false)
+                setProfileOpen(true)
+              }}><UserRound size={16} aria-hidden="true" /><span>Trocar perfil e configurações da conta</span></button>
               {showWallet ? (
                 <Link href="/carteira" onClick={() => setMobileOpen(false)}>
                   <Wallet size={16} />
@@ -366,68 +376,39 @@ export function AppHeader({
                 </Link>
               ) : null}
             </div>
-          ) : null}
+          ) : <Link className="app-mobile-login" href={loginHref} onClick={() => setMobileOpen(false)}>{loginLabel}</Link>}
         </nav>
 
-        <nav className="app-mobile-dock" aria-label="Navegação rápida">
-          <Link href="/" className={activeLabel === 'Início' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
-            <Home size={19} aria-hidden />
-            <span>Início</span>
+        <nav className="app-mobile-dock" aria-label="Navegação inferior do aplicativo">
+          <Link href="/" className={pathname === '/' ? 'active' : ''} aria-current={pathname === '/' ? 'page' : undefined} onClick={() => setQuickOpen(false)}>
+            <Home size={20} aria-hidden /><span>Início</span>
           </Link>
-          <Link href="/campeonatos" className={activeLabel === 'Competições' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
-            <Trophy size={19} aria-hidden />
-            <span>Competições</span>
+          <Link href="/campeonatos" className={pathname === '/campeonatos' || pathname?.startsWith('/campeonatos/') ? 'active' : ''} aria-current={pathname === '/campeonatos' || pathname?.startsWith('/campeonatos/') ? 'page' : undefined} onClick={() => setQuickOpen(false)}>
+            <Trophy size={20} aria-hidden /><span>Campeonatos</span>
           </Link>
-          <button
-            type="button"
-            className={`app-mobile-quick-trigger ${quickOpen ? 'active' : ''}`}
-            aria-label="Abrir ações rápidas"
-            aria-expanded={quickOpen}
-            aria-haspopup="dialog"
+          <Link href="/equipes" className={pathname === '/equipes' || pathname?.startsWith('/equipes/') ? 'active' : ''} aria-current={pathname === '/equipes' || pathname?.startsWith('/equipes/') ? 'page' : undefined} onClick={() => setQuickOpen(false)}>
+            <UsersRound size={20} aria-hidden /><span>Equipes</span>
+          </Link>
+          <Link href="/jogadores" className={pathname === '/jogadores' || pathname?.startsWith('/jogadores/') ? 'active' : ''} aria-current={pathname === '/jogadores' || pathname?.startsWith('/jogadores/') ? 'page' : undefined} onClick={() => setQuickOpen(false)}>
+            <UserRound size={20} aria-hidden /><span>Jogadores</span>
+          </Link>
+          <button type="button" className={`app-mobile-menu-action ${mobileOpen ? 'active' : ''}`}
+            aria-expanded={mobileOpen} aria-controls={`${menuId}-navigation`}
+            aria-label={mobileOpen ? "Fechar menu completo" : "Abrir menu completo"}
             onClick={(event) => {
               event.currentTarget.focus({ preventScroll: true })
-              setMobileOpen(false)
-              setProfileOpen(false)
-              setLanguageOpen(false)
-              setQuickOpen((value) => !value)
-            }}
-          >
-            <span className="app-mobile-quick-icon"><Plus size={23} aria-hidden /></span>
-            <span>Ações</span>
+              setProfileOpen(false); setQuickOpen(false); setLanguageOpen(false)
+              setMobileOpen((value) => !value)
+            }}>
+            {mobileOpen ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
+            <span>Menu</span>
           </button>
-          <Link href="/equipes" className={activeLabel === 'Equipes' ? 'active' : ''} onClick={() => setQuickOpen(false)}>
-            <UsersRound size={19} aria-hidden />
-            <span>Equipes</span>
-          </Link>
-          {isAuthenticated ? (
-            <button
-              type="button"
-              className={`app-mobile-profile-switcher ${profileOpen ? 'active' : ''}`}
-              onClick={(event) => {
-                event.currentTarget.focus({ preventScroll: true })
-                setMobileOpen(false)
-                setQuickOpen(false)
-                setLanguageOpen(false)
-                setProfileOpen((value) => !value)
-              }}
-              aria-expanded={profileOpen}
-              aria-controls={profileOpen ? `${menuId}-account` : undefined}
-              aria-label="Abrir minha conta"
-            >
-              <LockedAvatar
-                src={accountAvatar || undefined}
-                size={24}
-                fallback={String(profileName).slice(0, 2).toUpperCase()}
-              />
-              <span>Conta</span>
-            </button>
-          ) : (
-            <Link href={loginHref} className="app-mobile-profile-switcher" onClick={() => setQuickOpen(false)}>
-              <UsersRound size={19} aria-hidden />
-              <span>Entrar</span>
-            </Link>
-          )}
         </nav>
+        {isAuthenticated ? <button type="button" className="app-action-fab"
+          aria-label="Abrir ações rápidas" aria-expanded={quickOpen}
+          onClick={() => { setMobileOpen(false); setProfileOpen(false); setQuickOpen((value) => !value) }}>
+          <Plus size={22} aria-hidden /><span>Ação</span>
+        </button> : null}
 
         <Dialog open={quickOpen} title="Ações rápidas" description="O que você quer fazer?"
           onClose={() => setQuickOpen(false)} size="medium" closeLabel="Fechar ações rápidas" className="app-quick-dialog">

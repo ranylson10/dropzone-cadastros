@@ -29,6 +29,7 @@
     "asar": true,
     "files": [
       "main.cjs",
+      "remote-assets.cjs",
       "preload.cjs",
       "renderer/**/*"
     ],

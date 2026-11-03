@@ -1,0 +1,32 @@
+{
+  "name": "Correção R19 Windows — variáveis de ambiente e ZIP original",
+  "based_on": "DROPZONE_R19_CORRIGIDO_COMPLETO.zip",
+  "contains_production_database_changes": false,
+  "test_scope": "22 R19 buildfix checks, 33 R19 lab checks, R01–R18 regressions passed with global TypeScript link for unavailable dependencies. Next.js build, PostgreSQL native and authenticated E2E not executed here.",
+  "changed_files": [
+    {
+      "path": "HOMOLOGAR_POSTGRES_R19.bat",
+      "sha256": "7baf4686fd6000a31066852febf941655c36a5114fa87e90cda50a0ca0f98201"
+    },
+    {
+      "path": "HOMOLOGAR_WEB_R19.bat",
+      "sha256": "d5ce5a15d7491030901ef756d65254144aaf9237736a8b3276b188edde3725d9"
+    },
+    {
+      "path": "README.md",
+      "sha256": "7df5c56790878cb74b665ed34e297ce896a8a217519d30c1625bde15a1523efc"
+    },
+    {
+      "path": "docs/CORRECAO_R19_WINDOWS_ENV_E_ZIP.md",
+      "sha256": "86d1f59930f10a064c33c308f2c3ffea779de0fc15c6ad11d63383bd771139f4"
+    },
+    {
+      "path": "scripts/release/round19-check-catalog-zip.mjs",
+      "sha256": "5e528e3d05f4902be8b488545b79ad1f60e2e668a38b1dcaa01dc15ec9ab4f89"
+    },
+    {
+      "path": "scripts/testes/test-round19-buildfix.mjs",
+      "sha256": "7ac394d46b7f52391e395f2ba2840f0e4614b288038f4086ebc2cd092277ab90"
+    }
+  ]
+}

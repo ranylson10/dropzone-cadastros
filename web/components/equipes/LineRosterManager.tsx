@@ -218,7 +218,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
 
     <section className="line-roster-block">
       <div className="line-roster-title with-action"><div><strong>Jogadores da line</strong><span>Adicione quem já está no elenco ou convide um novo jogador.</span></div>{data.permissions?.pode_editar || data.permissions?.pode_gerar_token ? <button type="button" className="line-small-action" disabled={Boolean(busy)} onClick={() => void createInvite()}>{busy === 'invite:line' ? <Loader2 className="spin" size={14}/> : <Link2 size={14}/>} Convidar</button> : null}</div>
-      <div className="line-roster-list">
+      <div className="line-roster-list" data-dz-list="legacy">
         {(data.roster || []).map((player: any) => {
           const member = memberIds.has(String(player.id))
           return <article key={player.id} className={member ? 'selected' : ''}>
@@ -235,7 +235,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
         })}
       </div>
       {!data.roster?.length ? <div className="line-roster-empty"><Users size={24}/><span>O elenco geral da equipe ainda está vazio.</span></div> : null}
-      {invites.length ? <div className="line-roster-list">
+      {invites.length ? <div className="line-roster-list" data-dz-list="legacy">
         {invites.map((invite: any) => <article key={invite.id}>
           <span className="line-roster-avatar"><Link2 size={15}/></span>
           <div><strong>{invite.campeonato_equipe_id ? 'Convite para formação' : 'Convite da line'}</strong><small>Expira em {invite.expira_em ? new Date(invite.expira_em).toLocaleString('pt-BR') : 'data não informada'}</small></div>
@@ -248,7 +248,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
 
     <section className="line-roster-block">
       <div className="line-roster-title"><div><strong>Formações por campeonato</strong><span>Cada campeonato usa apenas os jogadores permitidos por sua regra.</span></div></div>
-      <div className="line-event-list">
+      <div className="line-event-list" data-dz-list="legacy">
         {(data.events || []).map((event: any) => {
           const open = openEvent === String(event.id)
           const draft = drafts[event.id] || []
@@ -261,7 +261,7 @@ export function LineRosterManager({ accessToken, equipeId, line, compact = false
             {open ? <div className="line-event-editor">
               {!event.pode_alterar ? <div className="line-event-lock"><Lock size={15}/><span>{event.bloqueio_motivo || 'Formação bloqueada.'}</span></div> : null}
               {data.permissions?.pode_gerar_token || data.permissions?.pode_editar ? <button type="button" className="line-invite-formation" disabled={Boolean(busy)} onClick={() => void createInvite(String(event.id))}>{busy === `invite:${event.id}` ? <Loader2 className="spin" size={14}/> : <UserPlus size={14}/>} Convidar jogador para esta formação</button> : null}
-              <div className="line-formation-list">
+              <div className="line-formation-list" data-dz-list="legacy">
                 {(data.members || []).map((player: any) => {
                   const selected = draft.some((row) => row.equipe_jogador_id === String(player.id))
                   const row = draft.find((item) => item.equipe_jogador_id === String(player.id))

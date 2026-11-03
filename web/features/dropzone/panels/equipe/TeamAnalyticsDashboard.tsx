@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { Select as UiSelect } from '@/components/ui/Field'
 import { type ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { Activity, CalendarDays, ChevronRight, CircleDollarSign, Crosshair, Loader2, MapPinned, RefreshCw, Target, Trophy, Users } from 'lucide-react'
@@ -310,7 +312,13 @@ export function TeamAnalyticsDashboard({
       {error ? <div className="message error">{error}</div> : null}
       {loading && !data ? <div className="team-analytics-loading"><Loader2 className="spin" size={18} /> Carregando dados reais da equipe...</div> : null}
 
-      {data ? (
+      {data && data.meta.resultados_considerados === 0 ? (
+        <section className="dz-team-first-result">
+          <Trophy size={28} aria-hidden="true" />
+          <div><h3>O próximo resultado começa aqui.</h3><p>Quando as partidas deste período forem pontuadas, você acompanha a evolução da equipe neste espaço.</p></div>
+          <Link href="/campeonatos?vagas=1">Encontrar campeonato <ChevronRight size={16} /></Link>
+        </section>
+      ) : data ? (
         <>
           <section className="team-analytics-entry-strip" aria-label="Participações em campeonatos">
             <article><CalendarDays size={17} /><span><small>Jogou hoje</small><strong>{data.participacoes.hoje}</strong></span></article>
@@ -343,7 +351,7 @@ export function TeamAnalyticsDashboard({
             <article className="team-analytics-card team-analytics-prize">
               <header><div><span>Premiações</span><strong>Valores atualmente em disputa</strong></div><CircleDollarSign size={18} /></header>
               <div className="team-analytics-prize-total"><strong>{currencyText(data.premios.em_disputa)}</strong><span>Somatório das premiações numéricas dos campeonatos ativos em que a equipe participa.</span></div>
-              <div className="team-analytics-prize-list">
+              <div className="team-analytics-prize-list" data-dz-list="legacy">
                 {data.premios.eventos.slice(0, 5).map((item) => <div key={item.campeonato_id}><span><strong>{item.nome}</strong>{item.descricao ? <small>{item.descricao}</small> : null}</span><b>{currencyText(item.valor)}</b></div>)}
                 {!data.premios.eventos.length ? <p>Nenhuma premiação numérica ativa cadastrada para este recorte de equipe/line.</p> : null}
               </div>
@@ -351,7 +359,7 @@ export function TeamAnalyticsDashboard({
 
             <article className="team-analytics-card team-analytics-map-card">
               <header><div><span>Mapas</span><strong>Onde a equipe rende melhor</strong></div><MapPinned size={18} /></header>
-              <div className="team-analytics-ranked-list">
+              <div className="team-analytics-ranked-list" data-dz-list="legacy">
                 {data.mapas.slice(0, 7).map((item) => <div className="team-analytics-ranked-row" key={item.codigo}>
                   <span className="identity"><strong>{item.nome}</strong><small>{item.quedas} quedas · {item.booyahs} booyah(s) · Top 5 {percentText(item.top5_percentual)}</small></span>
                   <span className="metric"><b>{numberText(item.pontos_media, 1)}</b><small>pts/q</small></span>
@@ -381,7 +389,7 @@ export function TeamAnalyticsDashboard({
 
             <article className="team-analytics-card team-analytics-players-card">
               <header><div><span>Jogadores</span><strong>Desempenho individual</strong></div><Users size={18} /></header>
-              <div className="team-analytics-mini-list">
+              <div className="team-analytics-mini-list" data-dz-list="legacy">
                 {data.jogadores.slice(0, 6).map((player, index) => <div key={player.id}>
                   <span className="rank">{index + 1}</span>
                   <img src={player.foto_url || '/images/jogador-misterioso.png'} alt="" />
@@ -396,7 +404,7 @@ export function TeamAnalyticsDashboard({
 
             <article className="team-analytics-card team-analytics-lines-card">
               <header><div><span>Lines</span><strong>Comparativo interno</strong></div><Users size={18} /></header>
-              <div className="team-analytics-mini-list line-list">
+              <div className="team-analytics-mini-list line-list" data-dz-list="legacy">
                 {data.lines.slice(0, 6).map((line, index) => <div key={line.id}>
                   <span className="rank">{index + 1}</span>
                   <span className="line-avatar">{line.logo_url ? <img src={line.logo_url} alt="" /> : line.nome.slice(0, 1).toUpperCase()}</span>

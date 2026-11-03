@@ -1,0 +1,49 @@
+{
+  "label": "R24-MOBILE-E2E-HOTFIX-20261103",
+  "baseline": "DROPZONE_R24_COMPLETO_CORRIGIDO.zip",
+  "reason": "Playwright failed at 768px (Lili overlay on menu) and first navigation at 320px (30s timeout)",
+  "changes": [
+    {
+      "path": "LEIA_HOTFIX_R24_MOBILE_20261103.txt",
+      "size_bytes": 894,
+      "sha256": "0d001b759374e6e3d8bdce8bf087edd5b49dde90267c67314d80f262f0237fec"
+    },
+    {
+      "path": "docs/redesign/RODADA_24_HOMOLOGACAO_REDESIGN.md",
+      "size_bytes": 6206,
+      "sha256": "11c64e0bf94ce2756280c0f4feeae4f56298e6391b3cd6c9aa63022cc17650c5"
+    },
+    {
+      "path": "scripts/testes/test-round24-redesign-final.mjs",
+      "size_bytes": 8584,
+      "sha256": "edab491ae81a338833542b2e8cb6228525b61d89a9242157840b29f18e436355"
+    },
+    {
+      "path": "tests-e2e/public/rodada-24-mobile-ux.spec.ts",
+      "size_bytes": 2132,
+      "sha256": "a1fb3c22d4b0574672ab13deea031312b96f8a0a8f3874309bbd1fc0b63c4240"
+    },
+    {
+      "path": "web/styles/redesign-qa-r24.css",
+      "size_bytes": 2028,
+      "sha256": "85c74f8e6b8299670ece28acc74c8823a0f9a9c2b5930b04bc81c87309fbee07"
+    }
+  ],
+  "removed_files": [],
+  "local_test_results": {
+    "round24": 55,
+    "round23": 63,
+    "round22": 59,
+    "round21": 45,
+    "round20": 37,
+    "round19_buildfix": 22,
+    "round19_lab": 38
+  },
+  "not_yet_validated": [
+    "real Playwright browser after patch",
+    "full Next build after patch",
+    "authenticated mobile flows",
+    "PostgreSQL concurrency"
+  ],
+  "production_changes": false
+}

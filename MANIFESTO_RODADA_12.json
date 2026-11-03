@@ -1,0 +1,80 @@
+{
+  "rodada": "12",
+  "data": "2026-10-26",
+  "base": "DROPZONE_RODADA_11_FONTE_COMPLETA.zip",
+  "scope": "Reivindicação condicional e retomada de convites de jogadores e vendedores, manutenção de tokens de elenco e pesquisa case-sensitive",
+  "changes": [
+    {
+      "path": "PROJECT_CONTEXT.md",
+      "action": "modified",
+      "bytes": 120560,
+      "sha256": "3ab658ca77163659ada7624e4cbcb9766c4699fe9f4c3f95e7979c72a0fd0ba0"
+    },
+    {
+      "path": "README.md",
+      "action": "modified",
+      "bytes": 5464,
+      "sha256": "12b835fe995b882400c0a733c71479ec2bed301a4d541440a4274a53dfe48af3"
+    },
+    {
+      "path": "TESTAR_RODADA_12.bat",
+      "action": "added",
+      "bytes": 667,
+      "sha256": "1f50e3afdb3dbbd80011db0a1af24e1e00c8eca00abc1367a46f6e2e4f817866"
+    },
+    {
+      "path": "backend/src/campeonatos/invites/one-time-claims.ts",
+      "action": "added",
+      "bytes": 4174,
+      "sha256": "6ac6ec779660882b91e3b3101be03716ddb008996d8c45b1e7b9c5356403fd84"
+    },
+    {
+      "path": "backend/src/lili/tools/invites.ts",
+      "action": "modified",
+      "bytes": 4221,
+      "sha256": "55fc67d4e3835877afbb2ca4849202c917cc913cd12a74e80e4fc7cca2f1dd24"
+    },
+    {
+      "path": "docs/RODADA_12_TOKENS_ESCRITORES_2026-10-26.md",
+      "action": "added",
+      "bytes": 3966,
+      "sha256": "3cf6abd6eec4b45af875d47dd661cb7bdd4b5db5721dc21b555f606b6408ec94"
+    },
+    {
+      "path": "package.json",
+      "action": "modified",
+      "bytes": 8877,
+      "sha256": "0fdb29a70a445202dd2eb9ea71b5c41e7847199c5bac14d5d77359e53b5e1554"
+    },
+    {
+      "path": "scripts/testes/test-round12-token-writers.mjs",
+      "action": "added",
+      "bytes": 13514,
+      "sha256": "f380aa1e64964efef26ea5ca74f3cee0a641f699d617cfc5a493ef786c256522"
+    },
+    {
+      "path": "web/app/api/equipes/convites-elenco/[token]/route.ts",
+      "action": "modified",
+      "bytes": 8979,
+      "sha256": "f93cc18a9c769ddc91f17481fdbac94eba510eb33f48144a44bf70d0d8058e2a"
+    },
+    {
+      "path": "web/app/api/equipes/convites-elenco/route.ts",
+      "action": "modified",
+      "bytes": 7508,
+      "sha256": "b9f31fa52a00fffff4417ccafac6880c819ec27c98d1e165a5a34893f0919e0e"
+    },
+    {
+      "path": "web/app/api/vendedores/convite/[token]/route.ts",
+      "action": "modified",
+      "bytes": 10756,
+      "sha256": "0463367d299e9c15ac72280e479ae53a636fab35ad471f7329e32750be5c65db"
+    }
+  ],
+  "sql_changes": false,
+  "production_db_changed": false,
+  "postgres_concurrency_tested": false,
+  "full_build_tested": false,
+  "tests": "95 verificações locais R12 aprovadas + regressões acumuladas R01-R11 aprovadas",
+  "limitations": "Consumo condicional indivisível não equivale a transação para gravações subsequentes de jogador/vendedor"
+}

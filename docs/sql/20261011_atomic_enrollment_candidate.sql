@@ -235,10 +235,48 @@ begin
     where s.campeonato_id=v_camp_id and s.grupo_id=v_group_id
       and (v_requested_slot is null or s.id=v_requested_slot)
       and s.equipe_id is null and s.line_id is null
+      -- A group link cannot claim a reserved invite/Lili slot. A fixed team
+      -- invite may claim ITS own reserved slot, but never an arbitrary one.
+      and (s.status='livre' or
+        (p_kind='team' and v_fixed_slot is not null and s.id=v_fixed_slot
+         and s.status='reservado'
+         and not exists(select 1 from public.tokens other_token
+           where other_token.slot_id=s.id and other_token.id<>v_source_id
+             and other_token.tipo in ('team_invite','convite_equipe_campeonato')
+             and other_token.status='ativo' and coalesce(other_token.usado,false)=false
+             and (other_token.expira_em is null or other_token.expira_em>clock_timestamp()))))
+      -- Reservation rows may race with old writers: hold the slot row lock;
+      -- the Lili reservation code also locks the slot before writing.
+      and not exists(select 1 from public.lili_reservas_slot reservation
+        where reservation.slot_id=s.id and reservation.status='ativa'
+          and reservation.expira_em>clock_timestamp())
       and not exists(select 1 from public.campeonato_equipes ce where ce.campeonato_id=v_camp_id
         and ce.status='ativo' and (ce.slot_id=s.id or (ce.grupo_id=v_group_id and ce.slot_numero=s.slot_numero)))
     order by s.slot_numero,s.id limit 1 for update of s;
   if not found then raise exception using errcode='23505',message='Slot ocupado ou fora do grupo.'; end if;
+
+  -- R09: a manual block must deny enrollment even if status is livre.
+  -- Does not affect the exception for a fixed invite's OWN reserved token.
+  if exists(select 1 from public.campeonato_grupo_escolha_bloqueios b
+    where b.campeonato_id=v_camp_id and b.fase_id=v_slot.fase_id and b.ativo
+      and (b.grupo_id=v_group_id or b.slot_id=v_slot.id)) then
+    raise exception using errcode='23505',
+      message='Grupo ou slot bloqueado pela administração.';
+  end if;
+  -- Recheck in a NEW READ COMMITTED statement AFTER locking the slot. An
+  -- in-flight Lili reservation or invite trigger could have finished while
+  -- SELECT ... FOR UPDATE waited for that row's previous owner.
+  if exists(select 1 from public.lili_reservas_slot reservation
+      where reservation.slot_id=v_slot.id and reservation.status='ativa'
+        and reservation.expira_em>clock_timestamp())
+    or exists(select 1 from public.tokens other_token
+      where other_token.slot_id=v_slot.id
+        and (p_kind is distinct from 'team' or other_token.id<>v_source_id)
+        and other_token.tipo in ('team_invite','convite_equipe_campeonato')
+        and other_token.status='ativo' and coalesce(other_token.usado,false)=false
+        and (other_token.expira_em is null or other_token.expira_em>clock_timestamp())) then
+    raise exception using errcode='23505',message='Slot reservado por outro convite ou reserva.';
+  end if;
 
   if p_line_id is not null then
     select * into v_line from public.equipe_lines where id=p_line_id and equipe_id=p_equipe_id for update;
@@ -351,6 +389,14 @@ begin
       'precisa_pagamento',coalesce(v_amount>=1,false),
       'link',jsonb_build_object('limite_vagas',v_limit,'usos',v_uses,'restantes',greatest(0,v_limit-v_uses),'encerrado',v_closed),
       'mensagem',case when v_created then format('Line "%s" criada e inscrita no slot %s.',v_line.nome,v_letter) else format('Line "%s" inscrita no slot %s.',v_line.nome,v_letter) end);
+  end if;
+  -- R09: repeat the block check after triggers/metadata work, before
+  -- finalizing the receipt, so a detected conflict rolls back every write.
+  if exists(select 1 from public.campeonato_grupo_escolha_bloqueios b
+    where b.campeonato_id=v_camp_id and b.fase_id=v_slot.fase_id and b.ativo
+      and (b.grupo_id=v_group_id or b.slot_id=v_slot.id)) then
+    raise exception using errcode='23505',
+      message='Grupo ou slot bloqueado pela administração.';
   end if;
   insert into public.inscricao_recibos(actor_id,request_id,fingerprint,resultado)
     values(p_actor_id,p_request_id,v_fingerprint,v_result);

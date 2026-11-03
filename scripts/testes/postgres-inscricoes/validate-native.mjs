@@ -81,8 +81,47 @@ await test('Index: native removed-line reinsertion fails before candidate',async
 })
 await test('Index: guarded replacement preserves active/pending protections',async()=>{
  await runFile('docs/sql/20261011_rejoin_index_candidate.sql')
- const out=await json(`select jsonb_build_object('global',to_regclass('public.campeonato_equipes_campeonato_line_unique'),'active',to_regclass('public.campeonato_equipes_line_unique'),'pending',to_regclass('public.campeonato_equipes_line_pendente_unique'),'slot',to_regclass('public.campeonato_equipes_slot_ativo_unique'));`)
- assert.equal(out.global,null);assert.ok(out.active&&out.pending&&out.slot);return out
+ const out=await json(`select jsonb_build_object('global',to_regclass('public.campeonato_equipes_campeonato_line_unique'),'active',to_regclass('public.campeonato_equipes_line_unique'),'pending',to_regclass('public.campeonato_equipes_line_pendente_unique'),'open',to_regclass('public.campeonato_equipes_line_aberta_unique'),'slot',to_regclass('public.campeonato_equipes_slot_ativo_unique'));`)
+ assert.equal(out.global,null);assert.ok(out.active&&out.pending&&out.slot);assert.ok(out.open,'Missing combined active/pending guard');return out
+})
+await test('Index: cannot simultaneously create pending and active for same line',async()=>{
+ const f=await fixture();
+ await sql(`${service}insert into public.campeonato_equipes(campeonato_id,equipe_id,line_id,status)
+   values('${f.camp}','${id(100)}','${id(200)}','pendente');`)
+ await rejected(sql(`${service}insert into public.campeonato_equipes(campeonato_id,equipe_id,line_id,status)
+   values('${f.camp}','${id(100)}','${id(200)}','ativo');`),/campeonato_equipes_line_aberta_unique/)
+ await sql(`${service}update public.campeonato_equipes set status='rejeitado'
+   where campeonato_id='${f.camp}' and line_id='${id(200)}' and status='pendente';`)
+ await sql(`${service}insert into public.campeonato_equipes(campeonato_id,equipe_id,line_id,status)
+   values('${f.camp}','${id(100)}','${id(200)}','ativo');`)
+ assert.equal(Number(await sql(`select count(*) from public.campeonato_equipes where campeonato_id='${f.camp}' and line_id='${id(200)}' and status in ('ativo','pendente');`)),1)
+})
+await test('Atomic: group invite never consumes Lili or token-reserved slots',async()=>{
+ const f=await fixture(2,2)
+ await sql(`${service}update public.campeonato_slots set status='reservado' where id='${f.slots[0]}';`)
+ await rejected(accept(f,{kind:'group',slot:f.slots[0]}),/Slot ocupado/)
+ await sql(`${service}insert into public.lili_reservas_slot(codigo,campeonato_id,grupo_id,slot_id,auth_user_id,metodo,expira_em)
+   values('fixture-lili-${f.n}','${f.camp}','${f.group}','${f.slots[1]}','${id(1)}','pix',clock_timestamp()+interval '10 minutes');`)
+ await rejected(accept(f,{kind:'group',slot:f.slots[1]}),/Slot ocupado/)
+ assert.equal(Number(await sql(`select count(*) from public.campeonato_equipes where campeonato_id='${f.camp}';`)),0)
+})
+await test('Atomic: fixed team token may claim only its own reserved slot',async()=>{
+ const f=await fixture(2,2)
+ await sql(`${service}update public.tokens set slot_id='${f.slots[0]}' where id='${f.token}';
+   update public.campeonato_slots set status='reservado' where id='${f.slots[0]}';`)
+ const out=await accept(f,{kind:'team',slot:f.slots[0]})
+ assert.equal(out.result.slot.id,f.slots[0])
+ const row=await json(`select jsonb_build_object('status',status,'line',line_id) from public.campeonato_slots where id='${f.slots[0]}';`)
+ assert.equal(row.status,'ocupado');assert.equal(row.line,id(200))
+})
+await test('Atomic: fixed token refuses slot with another active invitation',async()=>{
+ const f=await fixture(2,2)
+ await sql(`${service}update public.tokens set slot_id='${f.slots[0]}' where id='${f.token}';
+   insert into public.tokens(token,tipo,campeonato_id,grupo_id,fase_id,slot_id)
+   values('fixture-second-${f.n}','team_invite','${f.camp}','${f.group}','${f.phase}','${f.slots[0]}');
+   update public.campeonato_slots set status='reservado' where id='${f.slots[0]}';`)
+ await rejected(accept(f,{kind:'team',slot:f.slots[0]}),/Slot ocupado|Slot reservado/)
+ assert.equal(Number(await sql(`select count(*) from public.campeonato_equipes where campeonato_id='${f.camp}';`)),0)
 })
 await test('Atomic: removed participation can rejoin and remove/rejoin again',async()=>{
  const f=await fixture();await sql(`${service}insert into public.campeonato_equipes(campeonato_id,equipe_id,line_id,status)values('${f.camp}','${id(100)}','${id(200)}','removido');`)

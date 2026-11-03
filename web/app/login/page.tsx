@@ -6,7 +6,6 @@ import type { Session } from '@supabase/supabase-js'
 import { Eye, EyeOff, Loader2, LogOut, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import { AppShell } from '@/components/layout'
 import { SystemLogo } from '@/components/brand/SystemLogo'
-import { LealtMotionScene } from '@/components/effects/LealtMotionScene'
 import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_PROFILE_KEY, OAUTH_RETURN_KEY, SocialLogin } from '@/features/auth/SocialLogin'
 import { buildProfileCreationHref, isDirectAuthReturnPath, parseProfileType, safeInternalPath } from '@/features/auth/auth-return'
@@ -672,15 +671,15 @@ export default function LoginPage() {
 
   return (
     <AppShell header="never" withAuthOffset={false} mainClassName="login-portal" activeLabel="Início">
-      <section className="login-portal-stage" data-lealt-motion-host>
-        <LealtMotionScene className="lealt-motion-login" />
+      <section className="login-portal-stage">
+
         <div className="login-portal-overlay" aria-hidden="true" />
 
         <div className="login-portal-content">
           <div className="login-portal-intro">
             <div className="login-portal-brand">
               <SystemLogo size={52} alt="DropZone" variant="accent" />
-              <div><strong>DROPZONE</strong><span>COMPETITIVE SYSTEM</span></div>
+              <div><strong>DROPZONE</strong><span>O SEU JOGO COMEÇA AQUI</span></div>
             </div>
 
             <div className="login-portal-copy lealt-scroll-reveal">

@@ -42,7 +42,7 @@ export function CompetitiveProfilePanel({ profile }: { profile: DirectoryProfile
             {competitive.highlights.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value || 'Sem dados'}</dd></div>)}
           </dl>
         </section>
-        <section className="competitive-trend">
+        <section className="competitive-trend" data-identity-color="semantic">
           <header><Activity size={15} /><strong>Histórico por partida</strong></header>
           {competitive.trend.length ? <div className="competitive-bars" aria-label="Histórico de desempenho por partida">
             {competitive.trend.map((item) => <div key={item.label} className="competitive-bar-item" title={`${item.label}: ${item.abates} abates, ${item.dano.toLocaleString('pt-BR')} dano`}>

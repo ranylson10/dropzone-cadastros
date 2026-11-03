@@ -1,0 +1,84 @@
+{
+  "rodada": "10",
+  "data": "2026-10-26",
+  "base": "DROPZONE_RODADA_09_FONTE_COMPLETA.zip",
+  "escopo": "concorrencia e idempotencia de reservas/bloqueios",
+  "changes": [
+    {
+      "path": "README.md",
+      "action": "modified",
+      "bytes": 4534,
+      "sha256": "b080956eff3779601f627451cfe453c367fdaf0d3de92b534df41e26b7cfc220"
+    },
+    {
+      "path": "TESTAR_RODADA_10.bat",
+      "action": "added",
+      "bytes": 781,
+      "sha256": "d93aab9b18d206d495bb7b16c87f18bb00012538a611c58dd4958d8a8acf434a"
+    },
+    {
+      "path": "backend/src/billing/lili-slot-reservation.ts",
+      "action": "modified",
+      "bytes": 3391,
+      "sha256": "f727ab3cb7a24492bedf105f0bce55e18ae05e6bf9333387354e8f74c64f1cfa"
+    },
+    {
+      "path": "backend/src/campeonatos/group-block-transport.ts",
+      "action": "added",
+      "bytes": 3453,
+      "sha256": "97f6ab2f801f4930058bde97f727c8b3f38ac44189155176c55f6ecb93298656"
+    },
+    {
+      "path": "docs/RODADA_10_PROTOCOLO_CONCORRENCIA_2026-10-26.md",
+      "action": "added",
+      "bytes": 4948,
+      "sha256": "e226099faa5b11dd0b16731bdbeda52b8a8e5787f8b649608ede81f2f0cef723"
+    },
+    {
+      "path": "docs/sql/20261026_round10_block_writer_candidate.sql",
+      "action": "added",
+      "bytes": 5752,
+      "sha256": "4f06b62e4166de611a6ab7350890e40db44774bba61df45415396df0b0875af2"
+    },
+    {
+      "path": "docs/sql/20261026_round10_lili_writer_candidate.sql",
+      "action": "added",
+      "bytes": 6374,
+      "sha256": "61798484bd527f7a0e138efa0117a71c4be3c6ca79b4e798e2863c3eaa212eb2"
+    },
+    {
+      "path": "docs/sql/20261026_round10_readiness_readonly.sql",
+      "action": "added",
+      "bytes": 2392,
+      "sha256": "54884d63bf033bacc7145afc0ac0965be6deba8da7230889b90949c1b7d9d390"
+    },
+    {
+      "path": "package.json",
+      "action": "modified",
+      "bytes": 8633,
+      "sha256": "6f5ea196db43e56f2139cdc47973a60f2b4e7b0c8cde94028fa937e5f884448b"
+    },
+    {
+      "path": "scripts/testes/test-round10-writers.mjs",
+      "action": "added",
+      "bytes": 12674,
+      "sha256": "a1e3deff7dc0e4c097662875d9df502ce1bb2c8a528ff865e2210220c1bd78b9"
+    },
+    {
+      "path": "web/app/api/campeonatos/[id]/estrutura-avancada/route.ts",
+      "action": "modified",
+      "bytes": 39579,
+      "sha256": "98248b575f5ca492bd5aa6d2c6095408d766164bf4bd3fbe345ee8368e767724"
+    },
+    {
+      "path": "web/features/campeonatos/estrutura-avancada/AdvancedStructureTab.tsx",
+      "action": "modified",
+      "bytes": 55407,
+      "sha256": "e89f1e873b629b1b63d6dff01dab35bdce3cf11d512c73d71f1f145001d80e56"
+    }
+  ],
+  "production_db_changed": false,
+  "candidate_sql_applied": false,
+  "tests": "R01-R09 + 78 local R10 passed; live concurrent PostgreSQL untested",
+  "flags_default": "legacy"
+}

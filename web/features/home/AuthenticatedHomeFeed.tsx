@@ -8,16 +8,14 @@ import { SystemLogo } from '@/components/brand/SystemLogo'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
+  CalendarDays,
   ChevronDown,
-  Gift,
+  Dumbbell,
   Search,
   Shield,
-  Swords,
   Trophy,
-  UserPlus,
-  UsersRound,
 } from 'lucide-react'
-import type { DropZoneRow } from '@/lib/types'
+import type { AccountIdentity, DropZoneRow } from '@/lib/types'
 import { StorefrontHeader } from '@/components/layout/StorefrontHeader'
 import { ChampionshipCard } from '@/components/championship'
 import type { VacancyCatalogItem } from '@/features/vacancies/VacancyCard'
@@ -29,6 +27,8 @@ import './home-platform-v15.css'
 type Props = {
   account: DropZoneRow | null
   accounts: DropZoneRow[]
+  identity?: AccountIdentity | null
+  onSignOut?: () => void | Promise<void>
   onOpenPanel: (target?: DropZoneRow) => void | Promise<void>
 }
 
@@ -42,9 +42,9 @@ function safeHref(value: string, fallback = '/campeonatos') {
 }
 
 
-const CATEGORY_ICONS = [Trophy, Shield, UsersRound, Swords, Gift, UserPlus] as const
+const CATEGORY_ICONS = [Dumbbell, Trophy, Shield, CalendarDays] as const
 
-export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
+export function AuthenticatedHomeFeed({ account, identity, onSignOut, onOpenPanel }: Props) {
   const router = useRouter()
   const [vacancies, setVacancies] = useState<VacancyCatalogItem[]>([])
   const [loadingVacancies, setLoadingVacancies] = useState(true)
@@ -72,6 +72,7 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
 
   useEffect(() => {
     if (homeConfig.hero_slides.length <= 1) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const timer = window.setInterval(() => {
       setHeroIndex((current) => (current + 1) % homeConfig.hero_slides.length)
     }, 8000)
@@ -94,7 +95,14 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
   return (
     <div className="store-home home-platform-v15">
       <StorefrontHeader
-        authenticated={Boolean(account)}
+        authenticated={Boolean(account || identity)}
+        identity={account || identity ? {
+          ...identity,
+          name: identity?.name || account?.name || account?.username,
+          username: identity?.username || account?.username,
+          avatar_url: identity?.avatar_url || account?.data?.avatar_url || account?.data?.foto_url || account?.data?.logo_url,
+        } : null}
+        onSignOut={onSignOut}
         onAccountClick={account ? () => void onOpenPanel(account) : undefined}
       />
 
@@ -106,7 +114,7 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
           <div className="store-home-hero-shade" />
           <div className="store-home-width store-home-hero-inner">
             <div className="store-home-hero-copy">
-              <small>{hero.eyebrow}</small>
+              <small><span className="dz-live-marker" /> FREE FIRE / COMPETITIVO</small>
               <h1>{hero.title}<em>{hero.accent}</em></h1>
               <p>{hero.description}</p>
               <div className="store-home-hero-buttons">
@@ -121,10 +129,12 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
                     className={index === heroIndex ? 'active' : ''}
                     onClick={() => setHeroIndex(index)}
                     aria-label={`Destaque ${index + 1}`}
+                    aria-pressed={index === heroIndex}
                   />
                 ))}
               </div>
             </div>
+            <span className="dz-hero-watermark" aria-hidden="true">DZ</span>
             {featured.some((item) => item.banner_url || item.logo_url) ? (
               <div className="store-home-hero-previews" aria-label="Campeonatos em destaque">
                 {featured.filter((item) => item.banner_url || item.logo_url).slice(0, 3).map((item) => (
@@ -144,6 +154,7 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
         </section>
 
         <div className="store-home-width store-home-content">
+          <div className="dz-home-search-heading"><span>ENCONTRE SEU PRÓXIMO DESAFIO</span><small>DA INSCRIÇÃO AO BOOYAH.</small></div>
           <form className="store-home-content-search" onSubmit={submitSearch} role="search">
             <Search size={18} aria-hidden="true" />
             <UiInput type="search" value={searchValue} onChange={(event) => setSearchValue(event.target.value)}
@@ -163,7 +174,8 @@ export function AuthenticatedHomeFeed({ account, onOpenPanel }: Props) {
                     <span className="store-home-category-media">
                       {category.image_url ? <img src={category.image_url} alt="" /> : <Icon aria-hidden /> }
                     </span>
-                    <span className="store-home-category-copy"><strong>{category.title}</strong><small>{category.subtitle} <ArrowRight size={11} /></small></span>
+                    <span className="store-home-category-copy"><strong>{category.title}</strong><small>{['Prepare seu elenco', 'Dispute o título', 'Jogue a temporada', 'Entre na próxima queda'][index % 4]} <ArrowRight size={11} /></small></span>
+                    <span className="dz-category-index" aria-hidden="true">0{index + 1}</span>
                   </Link>
                 )
               })}

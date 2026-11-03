@@ -1,0 +1,62 @@
+{
+  "round": "R06",
+  "date": "2026-10-25",
+  "base": "DROPZONE_RODADA_05_FONTE_COMPLETA.zip",
+  "scope": "CI, build gate, package security; no production changes",
+  "supabase_changed": false,
+  "deploy_changed": false,
+  "critical_finding": "R05 ZIP included Playwright storageState JSON files with access/refresh tokens; removed from R06 full archive",
+  "tests": {
+    "historical_suites_executed": [
+      "R01",
+      "R02",
+      "R03",
+      "R04",
+      "Engine",
+      "R05"
+    ],
+    "ts_js_parse_files": 1084,
+    "json_parsed": 29,
+    "suite_groups": 9,
+    "build": "blocked: npm packages unavailable offline",
+    "browser": "blocked: chromium timeout",
+    "real_database_tests": "not run"
+  },
+  "changes": {
+    ".github/workflows/quality.yml": {
+      "sha256": "a54cc03eb7bb700707059359368bdc1aa4009ccb1cec8d16a97a329da038c213",
+      "bytes": 1143,
+      "status": "modified"
+    },
+    "package.json": {
+      "sha256": "9af5364c315be8c0c633dc703f48ba44d6632922ced6a39a77509d8794ccff29",
+      "bytes": 8434,
+      "status": "modified"
+    },
+    "README.md": {
+      "sha256": "589aac0112bde67206e8a49e14e5334811022e7356ad6d37f34a86d68b0148a1",
+      "bytes": 2519,
+      "status": "modified"
+    },
+    "TESTAR_RODADA_06.bat": {
+      "sha256": "8bb6b94ce596bacae36829d29f13b9babf8ce163b28cf2a6e915385f8fa6dcbe",
+      "bytes": 1056,
+      "status": "added"
+    },
+    "scripts/release/empacotar-fonte.mjs": {
+      "sha256": "925aff957fcaf21f17e55707a9722dd508180af0e81e9ab79561d50d17a83b54",
+      "bytes": 5712,
+      "status": "added"
+    },
+    "scripts/testes/test-round6-release.mjs": {
+      "sha256": "0ad61426188726259b7d0d641b683ed13ede36422c71f5f0c2ef7905b78fe1bb",
+      "bytes": 4088,
+      "status": "added"
+    },
+    "docs/RODADA_06_HOMOLOGACAO_E_DISTRIBUICAO.md": {
+      "sha256": "08dd37ee9fe273b5b50b1cc1d00520ba7250f51289cdc61797ba4ee69a4f4bc6",
+      "bytes": 3675,
+      "status": "added"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+DROPZONE R24 - CORRECAO PONTUAL DO TESTE R15 NO WINDOWS
+
+ERRO CORRIGIDO:
+AssertionError: Preflight deve produzir diagnostico, nunca falhar por Docker ausente
+
+CAUSA:
+O teste da R15 passava a propriedade .pathname de uma URL file: como caminho
+para node.exe. No Windows isso pode produzir /E:/... em vez de E:\... e abortar
+o processo de preflight antes da emissao do JSON esperado.
+
+AJUSTE:
+Usar fileURLToPath(new URL(...)) da biblioteca nativa do Node.js. Inclui
+mensagem de diagnostico caso outro erro inesperado aconteca no futuro.
+
+COMO APLICAR O PATCH:
+1. Abra DROPZONE_R24_HOTFIX_R15_WINDOWS_PATCH.zip.
+2. Extraia o conteudo DENTRO de E:\dropzone-cadastros, preservando as pastas.
+3. Aceite substituir scripts\testes\test-round15-release.mjs.
+4. No CMD, execute:
+   cd /d E:\dropzone-cadastros
+   npm run test:round15
+   TESTAR_RODADA_24.bat
+
+Nao precisa executar npm ci novamente nem repetir o build para corrigir esse
+teste. O build Web passou no log recebido anteriormente.
+
+IMPORTANTE: Testes R15 e R16-R19 + R20-R24 foram executados localmente nesta
+correcao; a execucao especifica no Windows e os testes E2E autenticados ainda
+precisam de verificacao na maquina do usuario.
+
+AVISO DE DEPENDENCIAS: o npm ci anterior informou 19 vulnerabilidades (16
+moderadas, 1 alta, 2 criticas). Execute 'npm audit' para identificar os pacotes.
+Nao execute 'npm audit fix --force' sem revisar as alteracoes; pode quebrar o
+projeto. Revise dependencias de producao antes da publicacao.

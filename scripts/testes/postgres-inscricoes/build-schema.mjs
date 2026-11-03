@@ -73,6 +73,8 @@ grant all on all sequences in schema public to service_role;
 revoke all on all functions in schema public from public,anon,authenticated;
 grant execute on all functions in schema public to service_role;
 `
+// A primeira emissao offline nao possui diretorio de relatorios; crie-o sem acessar o Docker.
+fs.mkdirSync(directory,{recursive:true})
 fs.writeFileSync(directory+'/schema-reconstruction.sql',ddl)
 fs.writeFileSync(directory+'/reconstructed-triggers.json',JSON.stringify(reconstructed,null,2))
 if(process.argv.includes('--emit-only')){console.log('Reconstruction emitted; recovered equipe_lines.public_id and sistema_auditoria.id identities from local migrations.');process.exit(0)}

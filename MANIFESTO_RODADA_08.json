@@ -1,0 +1,66 @@
+{
+  "rodada": "R08",
+  "data": "2026-10-26",
+  "base": "DROPZONE_RODADA_07_FONTE_COMPLETA.zip",
+  "escopo": "Equipe/admin: pré-validação unificada e integridade antes de gravação em slots",
+  "validacoes": {
+    "r08_cenarios_http_simulados": 29,
+    "r07_cenarios_http_simulados": 19,
+    "r06_grupos_regressao": 9,
+    "postgres_concorrente": "NAO_EXECUTADO",
+    "next_build": "NAO_EXECUTADO",
+    "supabase_producao": "SEM ALTERACAO"
+  },
+  "arquivos": [
+    {
+      "caminho": "PROJECT_CONTEXT.md",
+      "sha256": "c4a81079c14f2e415234d753159f6733acccac4d510d72f5015861e4f92a5be1",
+      "bytes": 118790
+    },
+    {
+      "caminho": "README.md",
+      "sha256": "0993dc5510668f7286676059611228bf52d150047b3cfc2e001c46586557acdc",
+      "bytes": 3495
+    },
+    {
+      "caminho": "TESTAR_RODADA_08.bat",
+      "sha256": "68be7122106bbd824d2a4c00d91079b7e98166f00fd500e8a1ae1ac6fb3620f4",
+      "bytes": 845
+    },
+    {
+      "caminho": "backend/src/campeonatos/legacy-slot-eligibility.ts",
+      "sha256": "7ebee873d69c99da7e0bf5256f7dbf929b8dd0bb208fdb56314d98e485cc58f4",
+      "bytes": 1883
+    },
+    {
+      "caminho": "docs/RODADA_08_INTEGRIDADE_ESCOLHAS_2026-10-26.md",
+      "sha256": "10c5772b3cfd665d8fa982e407c268d520057bcfa3bebac12f095135ad73bb13",
+      "bytes": 2835
+    },
+    {
+      "caminho": "docs/sql/20261026_round8_choice_readonly.sql",
+      "sha256": "da20f9de8d270975c0614d0a1aaee1b7ef2133697414334bed639de60e761304",
+      "bytes": 2530
+    },
+    {
+      "caminho": "package.json",
+      "sha256": "dc8ba6bf7ab39784292aaa33bcc04dbd54bcae09caa0d25197ab7a381e4451b2",
+      "bytes": 8536
+    },
+    {
+      "caminho": "scripts/testes/test-round8-admin-choice.mjs",
+      "sha256": "e5d9197969ca9fc5110f530def39e779ad6e74f3141a94c7b251d338815e10e4",
+      "bytes": 7922
+    },
+    {
+      "caminho": "web/app/api/campeonatos/[id]/escolha-grupo/route.ts",
+      "sha256": "a2979b4255f4d98c1b505738745766c9b1ffc754873a742c45a60a72d223f6ad",
+      "bytes": 18457
+    },
+    {
+      "caminho": "web/app/api/campeonatos/[id]/estrutura-avancada/route.ts",
+      "sha256": "7b765ce4a7ef04cc7cbb02828870cdbe18b12b7899c38c0cf5c8b86f8127eeac",
+      "bytes": 39162
+    }
+  ]
+}

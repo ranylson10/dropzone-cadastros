@@ -1,0 +1,88 @@
+{
+  "round": "R23",
+  "baseline": "DROPZONE_RODADA_22_COMPLETO.zip",
+  "scope": "Visual mobile e UX, sem alterações no banco/API",
+  "changed_paths": [
+    {
+      "path": ".github/workflows/quality.yml",
+      "bytes": 1560,
+      "sha256": "7527a05859f0e3664adaf40d158b0e8ba000858b5096d0ea125f8c7c9e6fb464"
+    },
+    {
+      "path": "PROJECT_CONTEXT.md",
+      "bytes": 125612,
+      "sha256": "cf5eb4a5b9b30a72804675c8f12317794637431c33315a352fcb2faa3f6e3323"
+    },
+    {
+      "path": "README.md",
+      "bytes": 11380,
+      "sha256": "c347312cad9413b30782778781b3ece00820a281509eeed72c296bdc9e82bfa2"
+    },
+    {
+      "path": "TESTAR_RODADA_23.bat",
+      "bytes": 670,
+      "sha256": "3a91f86c5df0ecc28417ff942b9057bef6f33e11528932b7dc7742db820dde74"
+    },
+    {
+      "path": "docs/redesign/RODADA_23_VISUAL_MOBILE.md",
+      "bytes": 2036,
+      "sha256": "85f0237f8829bc4e1aeb342810f4804cc35814185e8e14836486a2b26fc98b2a"
+    },
+    {
+      "path": "package.json",
+      "bytes": 10216,
+      "sha256": "baf1c87a1b7f1ccf0d361da67184d83c3888cef462ced7274f3281aa7d68d8db"
+    },
+    {
+      "path": "scripts/testes/test-round22-role-hubs.mjs",
+      "bytes": 6751,
+      "sha256": "7f73557d7c114ae360a531027ae2777b78d6609bee420d2a222368c0684dddd7"
+    },
+    {
+      "path": "scripts/testes/test-round23-mobile-premium.mjs",
+      "bytes": 7605,
+      "sha256": "fb31a6c100859f78110f5f696819f4e630ea68910f70a5236e9dc794a533c489"
+    },
+    {
+      "path": "web/app/layout.tsx",
+      "bytes": 2039,
+      "sha256": "cd7219b0ff22d8886c51acf5342131e2bf54bfe8f352eacaa2b8455f9efd6b40"
+    },
+    {
+      "path": "web/components/layout/AppHeader.tsx",
+      "bytes": 28421,
+      "sha256": "002341b98c7d79287f54816c12a1304de34e04b79cc516607b49e7f0de4ec981"
+    },
+    {
+      "path": "web/components/layout/StorefrontHeader.tsx",
+      "bytes": 12735,
+      "sha256": "351aa11c65fbf865b25ce2f71dc5f2ba8e7f64ee748ab6d6db714283c07c82e4"
+    },
+    {
+      "path": "web/components/workspace/WorkspaceFocus.tsx",
+      "bytes": 2040,
+      "sha256": "e5807bce02e288f268ce71d07448ccfe91c48252e742a84f4b6093a5da370f1e"
+    },
+    {
+      "path": "web/styles/arena-motion-r23.css",
+      "bytes": 11275,
+      "sha256": "85296f0a5065f2cc7de18d3e8f003b6b8dd41a3456c9999897176c5ca2e90dc6"
+    }
+  ],
+  "test_results": {
+    "round23": 63,
+    "round22": 59,
+    "round21": 45,
+    "round20": 37,
+    "rounds_01_to_19": "regressões locais executadas"
+  },
+  "not_tested": [
+    "Next.js build completo nesta sessão",
+    "E2E autenticado",
+    "navegação visual real em dispositivo",
+    "PostgreSQL"
+  ],
+  "security": {
+    "no_secrets_or_sessions_by_path": true
+  }
+}

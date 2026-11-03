@@ -1,0 +1,52 @@
+{
+  "round": 22,
+  "base": "DROPZONE_RODADA_21_COMPLETO.zip",
+  "description": "Painéis de Produtora, Equipe, Jogador, Manager e Vendedor; UI apenas",
+  "files_changed": {
+    ".github/workflows/quality.yml": "b9191a84d18c458b8b80175d03b8cf08c1905e9b0e297d9ebc3f6c3744b21868",
+    "PROJECT_CONTEXT.md": "31127da7a849093e60e67e884fb67cbae8cb71f4b0af3610709901f72c2a61ef",
+    "README.md": "082c8faa7a2718b4fe38e4bab0966a70dcf2dd19042708de15d797e038566f6e",
+    "TESTAR_RODADA_22.bat": "d99d4aa8b1b2ad5ee328c3ba94329ee949dfebc46eb93b5c1e1de849e010e3d9",
+    "docs/redesign/RODADA_22_PAINEIS_POR_PERFIL.md": "24dd3f62726b33a97324d03b4daecfb6e7898efb49934ace0855b5bad30a27b2",
+    "package.json": "c6cd2622822ae39441df9e8eecaca65e96d0923e659777c179c89c2c5f19686a",
+    "scripts/testes/test-round22-role-hubs.mjs": "ed8091a134de978923fcf99af39e7acd4f159de6f77e38096557f26112ab4199",
+    "web/app/layout.tsx": "d191967b716399f3d729727147e7af885086000ca126ff2981c207a32b3c0658",
+    "web/components/workspace/WorkspaceFocus.tsx": "59214824ef18a34f88be184dfff9c37ae1bc4c778fb65538d1afb18fdea72824",
+    "web/components/workspace/index.ts": "a2c79286a69acc51cae30ea6140b64e71403baffdb5755534bd310af2bf9fded",
+    "web/features/dropzone/panels/equipe/EquipePanel.tsx": "522607c4910e3d62f9aa4bf71effcb7a1a34daa43b32945210b36c11ce7ec457",
+    "web/features/dropzone/panels/jogador/JogadorPanel.tsx": "63c46ec96d675f69943a9dab991fe4cc0d90ebbc43e2ff0fc92d8c1707d0bc71",
+    "web/features/dropzone/panels/manager/ManagerPanel.tsx": "a4d555ec676c22fc67ea5f432afedb7480ecaff491a2eadd0fb00ce5f1ef6577",
+    "web/features/dropzone/panels/manager/manager-modes.ts": "73fc4d13ad6e41d42a2a2374924cb4b8d2e3a972eed4812e07c64dde841698c1",
+    "web/features/dropzone/panels/produtora/ProdutoraPanel.tsx": "f1a1925ec5f0eac93bf9248a900c55efe933a9b7c23698851d65fd8d4df7a29d",
+    "web/styles/workspace-r22.css": "757d38b5427e758325ad0e14e98e5c93a6361fda0f267fe09e7d3a886996d2aa"
+  },
+  "files_added": [
+    "TESTAR_RODADA_22.bat",
+    "docs/redesign/RODADA_22_PAINEIS_POR_PERFIL.md",
+    "scripts/testes/test-round22-role-hubs.mjs",
+    "web/components/workspace/WorkspaceFocus.tsx",
+    "web/styles/workspace-r22.css"
+  ],
+  "files_removed": [],
+  "database_changes": false,
+  "executed_tests": [
+    "test:round22",
+    "test:round21",
+    "test:round20",
+    "test:round19:buildfix",
+    "test:round19",
+    "test:rounds",
+    "test:round18",
+    "test:round17",
+    "test:round16",
+    "test:round15",
+    "test:round14",
+    "test:round13",
+    "test-round4-ui"
+  ],
+  "pending": [
+    "Next.js full build in clean environment",
+    "Visual authenticated browser E2E (mobile and desktop)",
+    "PostgreSQL concurrency"
+  ]
+}

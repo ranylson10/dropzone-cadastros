@@ -1,0 +1,37 @@
+{
+  "round": "R18",
+  "base": "DROPZONE_RODADA_17_FONTE_COMPLETA.zip",
+  "mode": "cumulative_with_patch",
+  "scope": "Validação da equipe/line destinatárias em convites e candidatas SQL Lili e renovação, testes offline, sem SQL nativo/build/deploy.",
+  "changed": [
+    ".github/workflows/quality.yml",
+    "PROJECT_CONTEXT.md",
+    "README.md",
+    "backend/src/campeonatos/invites/team-invite-accept.ts",
+    "backend/src/campeonatos/invites/team-invite-read.ts",
+    "backend/src/campeonatos/invites/types.ts",
+    "docs/sql/20261026_round10_lili_writer_candidate.sql",
+    "docs/sql/20261026_round11_invite_writer_candidate.sql",
+    "package.json"
+  ],
+  "added": [
+    "TESTAR_RODADA_18.bat",
+    "docs/RODADA_18_DESTINATARIOS_CONVITES.md",
+    "scripts/testes/test-round18-invite-destinations.mjs"
+  ],
+  "removed": [],
+  "sha256": {
+    ".github/workflows/quality.yml": "5c285a46dd2798c1349c27ff9a0b9baa03719093490ec2623d5440dea35422fd",
+    "PROJECT_CONTEXT.md": "c7c71c07d2a6b9e1903a02bd85a0e9fd43226b2c4b17a88ea11155b231dc35e3",
+    "README.md": "1224c1856e568cf7fad745290e1f8786613277aa6a524b1816a734bcb96e25b5",
+    "TESTAR_RODADA_18.bat": "9141fc90c04b54c5c9c2bef56fecc0a0155f26e30bf89c1066ca038c795411c0",
+    "backend/src/campeonatos/invites/team-invite-accept.ts": "868858c572060107ee54d92fd367a96940865fef1ca8d92c16636e3496f35d0f",
+    "backend/src/campeonatos/invites/team-invite-read.ts": "a4efd1473e634f544428322f05f0f6a36ad2671712416f9472498a7a3481a46f",
+    "backend/src/campeonatos/invites/types.ts": "c892bc17a51342acf6903f753339e30d990611d03bafff5cf005c71da8db884b",
+    "docs/RODADA_18_DESTINATARIOS_CONVITES.md": "e445340276ea53bcfe9e62d694f6aec93d7232348987e93b7c25791c27388683",
+    "docs/sql/20261026_round10_lili_writer_candidate.sql": "8063c26c6641175854e0b69df4a4b1d7b25988691a49f7159095ab69d9fb0892",
+    "docs/sql/20261026_round11_invite_writer_candidate.sql": "5128209934b2882a344b6be3d32678296b91988da072ab772803351d396f4ea4",
+    "package.json": "6bee2e3afd20b92b966d6abc40b82928759b8a1346255667a5e643c7d070dd26",
+    "scripts/testes/test-round18-invite-destinations.mjs": "31c2f7e6506a586d9a638cf77a088812196487232d2c713f9e85ce2b78c85632"
+  }
+}

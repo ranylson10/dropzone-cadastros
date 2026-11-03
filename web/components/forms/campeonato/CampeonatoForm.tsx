@@ -8,6 +8,7 @@ import type { DropZoneRow } from '@/lib/types'
 import { championshipThemeStyle } from '@/lib/championship-theme'
 import { Field, UploadField, resolvePendingImageUpload } from '@/features/dropzone/components/form-fields'
 import { PremiacaoDivisaoEditor } from './PremiacaoDivisaoEditor'
+import './campeonato-quick-r21.css'
 
 export type CampeonatoFormValue = {
   nome: string
@@ -414,6 +415,7 @@ export function CampeonatoForm({
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
 }) {
   const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
+  const [creationFlow, setCreationFlow] = useState<'quick' | 'complete'>('quick')
   const [formPage, setFormPage] = useState<'origin' | 'identity' | 'season' | 'format' | 'matches' | 'operation' | 'scoring' | 'review'>('origin')
   const [originChoice, setOriginChoice] = useState<'novo' | 'modelo' | 'season' | null>(mode === 'edit' ? value.origem_criacao : null)
   const [sourceSearch, setSourceSearch] = useState('')
@@ -427,6 +429,7 @@ export function CampeonatoForm({
 
   useEffect(() => {
     setStep(mode === 'edit' ? 'form' : 'type')
+    setCreationFlow('quick')
     setFormPage(mode === 'edit' ? 'identity' : 'origin')
     setSourceSearch('')
     setSourceError('')
@@ -617,6 +620,7 @@ export function CampeonatoForm({
   }
 
   function selectType(type: ChampionshipType) {
+    setCreationFlow('quick')
     const nextFormat = defaultFormat(type)
     const guidedPlan = type === 'copa'
       ? guidedCupPlan('96', '12', '6')
@@ -675,7 +679,7 @@ export function CampeonatoForm({
     })
     setStep('form')
     setFormPage('origin')
-    setOriginChoice(null)
+    setOriginChoice('novo')
     setSourceSearch('')
     setSourceError('')
   }
@@ -1117,7 +1121,59 @@ export function CampeonatoForm({
     update('xtreino_mapas', next)
   }
 
+  // R21: o cadastro rápido reaproveita as regras e os planos do mesmo formulário completo.
+  // Não publica o campeonato: aprovação, cobrança e criação das fases continuam no fluxo existente.
+  function updateQuickVacancies(raw: string) {
+    const number = Number(raw)
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(number) || number < 2 || number > 500) {
+      update('numero_vagas', raw)
+      return
+    }
+    if (value.tipo === 'copa') updateGuidedCup(raw)
+    else if (value.tipo === 'diario') {
+      if (number <= 52) updateGuidedDaily(raw)
+      else update('numero_vagas', raw)
+    } else if (value.tipo === 'xtreino') {
+      if (number <= 15) updateXtreinoTeams(raw)
+      else update('numero_vagas', raw)
+    } else if (value.tipo === 'liga') {
+      const divisions = value.liga_divisoes.length ? value.liga_divisoes : []
+      if (divisions.length === 1 && divisions[0].entradas?.length === 1 && divisions[0].entradas[0]?.tipo === 'classificatoria_aberta') {
+        const first = divisions[0]
+        onChange({ ...value, numero_vagas: raw, liga_divisoes: [{ ...first, equipes: raw, entradas: [{ id: first.entradas?.[0]?.id || crypto.randomUUID(), tipo: 'classificatoria_aberta', quantidade: raw, origem_agrupamento_id: '' }] }] })
+      } else update('numero_vagas', raw)
+    } else update('numero_vagas', raw)
+  }
+
+  function quickCreationError() {
+    if (mode !== 'create' || creationFlow !== 'quick') return ''
+    if (originChoice !== 'novo' || value.origem_criacao !== 'novo') return 'Escolha Criar novo ou use o assistente completo para modelos e seasons.'
+    if (!value.tipo) return 'Escolha o formato do campeonato.'
+    if (!value.nome.trim()) return 'Informe o nome do campeonato.'
+    if (!value.logo_url.trim()) return 'Envie a logo do campeonato.'
+    const vacancies = Number(value.numero_vagas)
+    if (!Number.isSafeInteger(vacancies) || vacancies < 2 || vacancies > 500) return 'Informe de 2 a 500 vagas.'
+    if (value.tipo === 'confronto' && vacancies !== 2) return 'Confronto deve ter exatamente 2 equipes.'
+    if (value.tipo === 'xtreino' && vacancies > 15) return 'X-Treino permite de 2 a 15 equipes por sala.'
+    if (value.tipo === 'diario' && vacancies > 52) return 'Diário permite até 52 equipes por horário.'
+    if (value.inscricao_paga && !(Number(value.valor_inscricao) > 0)) return 'Informe o valor da inscrição paga.'
+    if (value.tipo === 'liga' && (value.liga_divisoes.length !== 1 || Number(value.liga_divisoes[0]?.equipes) !== vacancies || Number(value.liga_divisoes[0]?.entradas?.[0]?.quantidade) !== vacancies)) return 'Ajuste a organização da Liga no assistente completo.'
+    if (value.tipo === 'copa' && (!value.estrutura_planejada.length || Number(value.estrutura_planejada[0]?.equipes_por_grupo) < 2)) return 'Confira a estrutura inicial da Copa.'
+    if (value.tipo === 'diario' && !normalizedDailySchedules().length) return 'Configure um horário no assistente completo.'
+    return ''
+  }
+
+  function selectCreationFlow(flow: 'quick' | 'complete') {
+    if (flow === 'quick' && originChoice !== 'novo') selectCreationOrigin('novo')
+    setCreationFlow(flow)
+    setWizardError('')
+    // Volta ao início para evitar pular as validações das etapas completas.
+    setFormPage('origin')
+  }
+
   async function submitWithImages() {
+    const quickError = quickCreationError()
+    if (quickError) { setWizardError(quickError); setFormPage('origin'); return }
     if (mode === 'create') setCreateStatus('preparing')
     setWizardError('')
     try {
@@ -1179,7 +1235,9 @@ export function CampeonatoForm({
     )
   }
 
-  const wizardPages: Array<{ id: typeof formPage; label: string }> = mode === 'edit'
+  const wizardPages: Array<{ id: typeof formPage; label: string }> = mode === 'create' && creationFlow === 'quick'
+    ? [{ id: 'origin', label: 'Dados essenciais' }, { id: 'review', label: 'Confirmar' }]
+    : mode === 'edit'
     ? [
         { id: 'identity', label: 'Identidade' },
         { id: 'season', label: 'Temporada' },
@@ -1225,7 +1283,11 @@ export function CampeonatoForm({
   const pageVisible = (page: typeof formPage) => formPage === page
   function goNext() {
     setWizardError('')
-    if (formPage === 'origin') {
+    if (formPage === 'origin' && mode === 'create' && creationFlow === 'quick') {
+      const error = quickCreationError()
+      if (error) return setWizardError(error)
+    }
+    if (formPage === 'origin' && creationFlow !== 'quick') {
       if (!originChoice) return setWizardError('Escolha como deseja criar o campeonato.')
       if (value.origem_criacao !== 'novo' && !value.campeonato_origem_id) return setWizardError('Selecione o campeonato de origem.')
       if (!value.nome.trim() || !value.logo_url) return setWizardError('Informe o nome e envie a logo para continuar.')
@@ -1324,10 +1386,10 @@ export function CampeonatoForm({
           </Field>
           <UploadField label="Logo *" value={value.logo_url} bucket="campeonato" onChange={(url) => update('logo_url', url)} onUpload={uploadPublicFile} />
         </div>
-        <div className="championship-banner-upload">
+        {creationFlow === 'complete' ? <div className="championship-banner-upload">
           <UploadField label="Banner da vitrine" value={value.banner_url} bucket="campeonato" cropTarget="campeonato_banner" onChange={(url) => update('banner_url', url)} onUpload={uploadPublicFile} />
           <p>O banner é opcional. Se enviar, ele será ajustado e compactado automaticamente.</p>
-        </div>
+        </div> : null}
       </div>
     )
   }
@@ -1364,6 +1426,12 @@ export function CampeonatoForm({
         ) : null}
       </div>
 
+      {mode === 'create' ? (
+        <div className="champ-r21-mode" role="group" aria-label="Modo de criação">
+          <button type="button" className={creationFlow === 'quick' ? 'active' : ''} aria-pressed={creationFlow === 'quick'} onClick={() => selectCreationFlow('quick')} disabled={loading}>Criar rápido</button>
+          <button type="button" className={creationFlow === 'complete' ? 'active' : ''} aria-pressed={creationFlow === 'complete'} onClick={() => selectCreationFlow('complete')} disabled={loading}>Assistente completo</button>
+        </div>
+      ) : null}
       <div className="championship-wizard-steps" aria-label={mode === 'edit' ? 'Seções da edição' : 'Etapas da criação'}>
           {wizardPages.map((page, index) => (
             <button
@@ -1379,6 +1447,34 @@ export function CampeonatoForm({
 
       {mode === 'create' ? (
         <section className="form-section-card championship-origin-card" hidden={!pageVisible('origin')}>
+          {creationFlow === 'quick' ? (
+            <div className="champ-r21-essential">
+              <div className="championship-guided-copy">
+                <span>Cadastro rápido</span>
+                <strong>Crie agora. Configure os detalhes depois.</strong>
+                <small>Somente nome, logo, vagas e inscrição. Fases, horários, jogos, pontuação, premiação e identidade avançada ficam para o painel do campeonato.</small>
+              </div>
+              {renderGuidedIdentity()}
+              <div className="mini-grid two champ-r21-fields">
+                {value.tipo !== 'confronto' ? (
+                  <Field label={value.tipo === 'diario' ? 'Equipes por horário' : 'Quantidade de vagas'}>
+                    <UiInput type="number" inputMode="numeric" min="2" max={value.tipo === 'xtreino' ? '15' : value.tipo === 'diario' ? '52' : '500'} value={value.tipo === 'diario' ? value.diario_equipes_por_horario || value.numero_vagas : value.numero_vagas} onChange={(event) => updateQuickVacancies(event.target.value)} />
+                  </Field>
+                ) : <p className="champ-r21-locked">Confronto direto · 2 equipes</p>}
+                <div className="champ-r21-payment">
+                  <strong>Inscrição</strong>
+                  <div className="championship-guided-choice-row">
+                    <button type="button" aria-pressed={!value.inscricao_paga} className={!value.inscricao_paga ? 'active' : ''} onClick={() => updateGuidedEntry(false)}>Gratuita</button>
+                    <button type="button" aria-pressed={!!value.inscricao_paga} className={value.inscricao_paga ? 'active' : ''} onClick={() => updateGuidedEntry(true)}>Paga</button>
+                  </div>
+                  {value.inscricao_paga ? <Field label="Valor por vaga">
+                    <UiInput inputMode="numeric" value={moneyDisplay(value.valor_inscricao)} onChange={(event) => update('valor_inscricao', moneyValue(event.target.value))} placeholder="R$ 0,00" />
+                  </Field> : null}
+                </div>
+              </div>
+              <p className="champ-r21-note">O campeonato será criado como pendente. A aprovação e o pagamento do pacote DropZone continuam necessários; nenhuma publicação automática será feita.</p>
+            </div>
+          ) : <>
           <div className="championship-guided-copy">
             <span>Passo 1 · Como começar</span>
             <strong>Como você quer criar este campeonato?</strong>
@@ -1478,6 +1574,7 @@ export function CampeonatoForm({
               {sourceError ? <div className="message error">{sourceError}</div> : null}
             </div>
           ) : null}
+          </>}
         </section>
       ) : null}
 
@@ -2527,6 +2624,7 @@ export function CampeonatoForm({
 
       {mode === 'create' && formPage === 'review' ? (
         <section className="form-section-card championship-review-card">
+          {creationFlow === 'quick' ? <p className="champ-r21-note">Configuração inicial criada com padrões seguros para o formato escolhido. Revise a cotação do pacote abaixo. Depois da criação, ajuste o campeonato na área Dados e inscrição, Fases e grupos, Equipes e Jogos.</p> : null}
           <p className="eyebrow">Revisão da criação</p>
           <div className="championship-review-grid">
             <div><small>Campeonato</small><strong>{value.nome || 'Não informado'}</strong></div>

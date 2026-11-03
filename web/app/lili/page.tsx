@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Send, LogIn, RotateCcw, ChevronDown, Globe2, Bot, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { AppShell } from '@/components/layout'
 import { supabase } from '@/lib/supabase-browser'
 import { OAUTH_RETURN_KEY } from '@/features/auth/SocialLogin'
 import type { LiliAction, LiliCard, LiliChatResponse, LiliClientContext, LiliIntent, LiliLocale } from '@/features/lili/types'
@@ -105,6 +106,7 @@ export default function LiliPage() {
   const [context, setContext] = useState<LiliClientContext>({ locale: 'pt-BR' })
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
+  const [embedded, setEmbedded] = useState(false)
   const [ready, setReady] = useState(false)
   const [account, setAccount] = useState<DropZoneRow | null>(null)
   const [accounts, setAccounts] = useState<DropZoneRow[]>([])
@@ -118,6 +120,7 @@ export default function LiliPage() {
 
   useEffect(() => {
     try {
+      setEmbedded(window.parent !== window && new URLSearchParams(window.location.search).get('embedded') === '1')
       const globalLocale = readGlobalLocale()
       const stored = sessionStorage.getItem(STORAGE_KEY)
       if (stored) {
@@ -594,7 +597,8 @@ export default function LiliPage() {
   }, [automaticPaymentCheck?.messageId, automaticPaymentCheck?.expiresAt, session?.access_token])
 
   return (
-    <main className={`lili-hub-page dz-mobile-utility ${styles.scope}`}>
+    <AppShell header={embedded ? "never" : "always"} headerVariant="storefront" withAuthOffset={false} loadSession={!embedded} mainClassName={`lili-platform-page${embedded ? " lili-embedded" : ""}`}>
+    <div className={`lili-hub-page ${styles.scope}`}>
       <header className="lili-hub-header">
         <Link href="/" className="lili-mobile-back" aria-label="Voltar ao início"><ArrowLeft size={20} /></Link>
         <div className="lili-hub-identity">
@@ -713,6 +717,7 @@ export default function LiliPage() {
         <button type="submit" disabled={typing || !input.trim()} aria-label={ui.send}><Send size={20} /></button>
       </form>
 
-    </main>
+    </div>
+    </AppShell>
   )
 }

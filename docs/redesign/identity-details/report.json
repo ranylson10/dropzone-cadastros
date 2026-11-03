@@ -1,0 +1,177 @@
+{
+  "baseURL": "http://localhost:3001",
+  "createdAt": "2026-11-03T11:55:57.758Z",
+  "results": [
+    {
+      "route": "/rank",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 1440,
+      "state": "method-dialog",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 1440,
+      "state": "detail-dialog",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 1440,
+      "state": "Equipes",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 1440,
+      "state": "Jogadores",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 1440,
+      "state": "Estatísticas",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 1440,
+      "state": "MVP",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 1440,
+      "state": "Informações",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 390,
+      "state": "method-dialog",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 390,
+      "state": "detail-dialog",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 390,
+      "state": "Equipes",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 390,
+      "state": "Jogadores",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 390,
+      "state": "Estatísticas",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 390,
+      "state": "MVP",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 390,
+      "state": "statistics-filters",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/d9fd2723-800c-418b-bd35-b5a5186b685e",
+      "width": 390,
+      "state": "Informações",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    }
+  ]
+}

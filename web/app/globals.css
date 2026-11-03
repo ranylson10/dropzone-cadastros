@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap"); /*  CSS consolidado: uma definição oficial por seletor e breakpoint. Gerado a partir da última cascata válida.  */ @keyframes dzDrop {
+/*  CSS consolidado: uma definição oficial por seletor e breakpoint. Gerado a partir da última cascata válida.  */ @keyframes dzDrop {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 } @keyframes systemModalFade {
@@ -2804,7 +2804,8 @@ button.invite-slot-button.selected strong{ color: var(--text);
 } .admin-section h2{ margin: 2px 0 0;
 } .admin-section>header input{ width: min(360px,100%); height: 40px; border: 1px solid #d7dbe1; padding: 0 11px;
 } .admin-table-wrap{ overflow: auto;
-} .admin-table-wrap td:first-child{ display: flex; flex-direction: column;
+} .admin-table-wrap td:first-child{ display: table-cell; vertical-align: middle;
+} .admin-table-wrap td:first-child > :is(strong,small){ display: block;
 } .admin-table-wrap small{ color: #818791;
 } .admin-status.ativo,
 .admin-status.resolvida{ background: #e9f8ef; color: #167044;
@@ -4996,15 +4997,6 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
 }  :root{
   color-scheme: dark;
   /* Fundação única do produto: superfícies escuras e destaque dourado. */
-  --ui-bg: #0c0d0f;
-  --ui-surface: #141518;
-  --ui-surface-soft: #17181b;
-  --ui-surface-raised: #1a1b1f;
-  --ui-text: #f5f3ed;
-  --ui-text-muted: #92949a;
-  --ui-accent: #c9b766;
-  --ui-gold: #c9b766;
-  --ui-gold-light: #dfcf85;
   --ui-radius-sm: 6px;
   --ui-radius-md: 10px;
   --ui-radius-lg: 14px;
@@ -5047,13 +5039,9 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   --page-max: 1240px;
   --bg-texture: none;
   --bg-texture-size: auto;
-  --dz-ink: var(--ui-text);
   --dz-ink-soft: #d8d5cd;
-  --dz-paper: var(--ui-bg);
   --dz-surface: var(--ui-surface);
-  --dz-white: var(--ui-text);
   --dz-line: rgba(245, 243, 237, .10);
-  --dz-muted: var(--ui-text-muted);
   --dz-accent: var(--ui-accent);
   --dz-accent-strong: var(--ui-gold-light);
   --dz-gold: var(--ui-gold);
@@ -6250,7 +6238,7 @@ textarea{ font: inherit; color: var(--text); border-radius: 2px; box-shadow: non
   padding:9px clamp(14px,3vw,44px);
   border:0;
   border-bottom:1px solid rgba(255,255,255,.08);
-  background:#0d141d;
+  background:transparent;
 }
 .panel-workspace-shell .panel-workspace-return button{
   color:#c7d0da;
@@ -8855,3 +8843,6 @@ body .player-competition-empty a{margin-top:5px;padding:9px 12px;background:var(
   body .player-competition-actions a{justify-content:center}
   body .player-competition-actions a:last-child{grid-column:1/-1}
 }
+
+/* Arena R21 · explicação curta após o cadastro rápido */
+.contextual-registration-form .profile-quick-note{margin:0 0 10px;padding:10px 12px;border-inline-start:3px solid #a58af5;background:rgba(129,97,224,.08);border-radius:0 9px 9px 0;font-size:13px;line-height:1.5}

@@ -2,6 +2,14 @@ export const PROFILE_TYPES = ['produtora', 'equipe', 'jogador', 'manager', 'broa
 
 export type ProfileType = (typeof PROFILE_TYPES)[number]
 
+export type AccountIdentity = {
+  name?: string | null
+  username?: string | null
+  email?: string | null
+  avatar_url?: string | null
+  complete?: boolean
+}
+
 /** Perfis que fazem parte do produto Web. `broadcast` fica somente como legado técnico/integracao. */
 export const WEB_PROFILE_TYPES = ['produtora', 'equipe', 'jogador', 'manager'] as const
 export type WebProfileType = (typeof WEB_PROFILE_TYPES)[number]

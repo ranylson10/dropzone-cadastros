@@ -1,0 +1,10 @@
+.account-edit-form { display: grid; gap: 16px; }
+.account-edit-avatar { display: grid; grid-template-columns: 72px minmax(0,1fr); align-items: center; gap: 12px; }
+.account-edit-avatar > img,.account-edit-avatar > span { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: #233d50; color: #f1cc25; font-size: 22px; font-weight: 800; }
+.account-edit-avatar input { width: 100%; min-width: 0; font-size: 12px; }
+.account-edit-avatar > button { grid-column: 2; justify-self: start; border: 0; padding: 4px 0; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; }
+.account-edit-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.account-edit-actions button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--ui-line,#546b7c); border-radius: 8px; background: var(--ui-surface,#233d50); color: var(--ui-text,#f4f8fc); cursor: pointer; font-weight: 700; }
+.account-edit-actions button[type="submit"] { background: #f1cc25; color: #172a38; border-color: #f1cc25; }
+.account-edit-form button:disabled { opacity: .6; cursor: wait; }
+.account-edit-form [role="alert"] { margin: 0; color: var(--ui-danger,#d76c6c); }

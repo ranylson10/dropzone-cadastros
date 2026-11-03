@@ -1,3 +1,6 @@
+-- OBSOLETO PARA R02: fingerprints anteriores à revisão do SQL de inscrição.
+-- NÃO EXECUTAR após R02; regenerar e validar em laboratório antes de qualquer rollback.
+-- Para reverter SOMENTE o índice: 20261021_rejoin_rollback_candidate.sql.
 -- REVIEWED ROLLBACK CANDIDATE. Not applied to production.
 -- Disable/reroute the new RPC consumer first. This restores the previous mirror
 -- behavior (including DBR01). Prefer fixing forward if rejoin history now exists.

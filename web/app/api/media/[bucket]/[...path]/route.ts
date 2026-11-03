@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, supabaseUrl } from '@backend/shared/supabase-admin'
+import { supabaseUrl } from '@backend/shared/supabase-admin'
 
 export const runtime = 'nodejs'
 
@@ -17,26 +17,17 @@ async function deliver(req: NextRequest, context: { params: Promise<{ bucket: st
   const objectPath = path.map(encodeURIComponent).join('/')
   const source = `${String(supabaseUrl).replace(/\/$/, '')}/storage/v1/object/public/${encodeURIComponent(bucket)}/${objectPath}`
   const range = req.headers.get('range')
-  let upstream = await fetch(source, {
+  const upstream = await fetch(source, {
     headers: range ? { Range: range } : undefined,
     // O Data Cache do Next rejeita objetos maiores que 2 MB. Mídia já possui
     // chave imutável no caminho; deixe o CDN e o navegador guardarem a resposta.
     cache: 'no-store',
   })
 
-  // Alguns buckets de mídia são intencionalmente privados no Storage. O app ainda
-  // pode exibir arquivos de perfil/vitrine porque esta rota restringe os buckets
-  // permitidos e assina somente o objeto solicitado, por poucos segundos.
-  if (!upstream.ok && upstream.status !== 206) {
-    const storagePath = path.join('/')
-    const { data: signed, error } = await supabaseAdmin.storage.from(bucket).createSignedUrl(storagePath, 60)
-    if (error || !signed?.signedUrl) return new NextResponse('Não encontrado.', { status: upstream.status || 404 })
-    upstream = await fetch(signed.signedUrl, {
-      headers: range ? { Range: range } : undefined,
-      cache: 'no-store',
-    })
-  }
-
+  // Esta rota é PUBLICA e atende apenas objetos publicos do Storage.
+  // NUNCA gere uma URL assinada com service_role como fallback: isso
+  // permitiria a usuarios anonimos contornar a privacidade de um bucket
+  // que venha a ser alterado para privado no futuro.
   if (!upstream.ok && upstream.status !== 206) return new NextResponse('Não encontrado.', { status: upstream.status })
 
   const headers = new Headers({

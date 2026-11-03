@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import localFont from 'next/font/local'
 import './globals.css'
 import '@/styles/dz-layout-tokens.css'
 import '@/styles/ui-foundation.css'
@@ -27,9 +28,18 @@ import '@/styles/commerce-density-r07.css'
 import '@/styles/auth-invites-density-r08.css'
 import '@/styles/admin-broadcast-density-r09.css'
 import '@/styles/unified-platform-r14.css'
-import '@/styles/mobile-app.css'
-import '@/styles/mobile-ui.css'
+import '@/styles/redesign-r20.css'
+import '@/styles/workspace-r22.css'
+import '@/styles/redesign-qa-r24.css'
+import '@/styles/dropzone-identity.css'
 import { ApplicationRuntime } from '@/components/layout/ApplicationRuntime'
+
+const barlow = localFont({ src: [
+  { path: './fonts/Barlow-Regular.ttf', weight: '400', style: 'normal' },
+  { path: './fonts/Barlow-SemiBold.ttf', weight: '600', style: 'normal' },
+], variable: '--font-body', display: 'swap' })
+const barlowCondensed = localFont({ src: './fonts/BarlowCondensed-Bold.ttf', weight: '700',
+  variable: '--font-display', display: 'swap' })
 
 
 export const viewport: Viewport = {
@@ -45,7 +55,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={`${barlow.variable} ${barlowCondensed.variable}`}>
       <body id="dropzone-app"><ApplicationRuntime>{children}</ApplicationRuntime></body>
     </html>
   )

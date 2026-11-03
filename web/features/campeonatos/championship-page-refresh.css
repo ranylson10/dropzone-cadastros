@@ -9,12 +9,12 @@
    ========================================================= */
 .directory-market-page{
   --champ-bg:transparent;
-  --champ-surface:#fff;
-  --champ-surface-2:#f3f5f7;
-  --champ-text:#171a1f;
-  --champ-muted:#69717c;
+  --champ-surface:var(--dz-white);
+  --champ-surface-2:var(--surface-soft);
+  --champ-text:var(--dz-ink);
+  --champ-muted:var(--dz-muted);
   --champ-accent:var(--dz-yellow,#f2c900);
-  --champ-accent-strong:#927900;
+  --champ-accent-strong:var(--brand-2);
   min-height:100dvh;
   background:transparent!important;
   color:var(--champ-text)!important;

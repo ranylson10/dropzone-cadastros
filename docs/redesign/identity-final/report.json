@@ -1,0 +1,595 @@
+{
+  "baseURL": "http://localhost:3001",
+  "createdAt": "2026-11-03T11:51:59.658Z",
+  "results": [
+    {
+      "route": "/",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 1440,
+      "state": "method-dialog",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 1440,
+      "state": "detail-dialog",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/agenda",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos",
+      "width": 1440,
+      "state": "filters",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/jogadores",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/equipes",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/managers",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/produtoras",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/carrinho",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/carteira",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/central-campeonato",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/afiliados",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/login",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/lili",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/atualizar-senha",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/termos-de-servico",
+      "width": 1440,
+      "state": "page",
+      "title": "Termos de Serviço | DropZone",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/exclusao-de-dados",
+      "width": 1440,
+      "state": "page",
+      "title": "Exclusão de Dados | DropZone",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/politica-de-privacidade",
+      "width": 1440,
+      "state": "page",
+      "title": "Política de Privacidade | DropZone",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 390,
+      "state": "method-dialog",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/rank",
+      "width": 390,
+      "state": "detail-dialog",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/agenda",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos",
+      "width": 390,
+      "state": "filters",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/jogadores",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/equipes",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/managers",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/produtoras",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/carrinho",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/carteira",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/afiliados",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/central-campeonato",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/login",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/lili",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/atualizar-senha",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/termos-de-servico",
+      "width": 390,
+      "state": "page",
+      "title": "Termos de Serviço | DropZone",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/politica-de-privacidade",
+      "width": 390,
+      "state": "page",
+      "title": "Política de Privacidade | DropZone",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/exclusao-de-dados",
+      "width": 390,
+      "state": "page",
+      "title": "Exclusão de Dados | DropZone",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 1440,
+      "state": "Equipes",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 1440,
+      "state": "Jogadores",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 1440,
+      "state": "Estatísticas",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 1440,
+      "state": "MVP",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 1440,
+      "state": "Informações",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 390,
+      "state": "Equipes",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 390,
+      "state": "Jogadores",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 390,
+      "state": "Estatísticas",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 390,
+      "state": "MVP",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 390,
+      "state": "statistics-filters",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/campeonatos/24bc1d2b-758b-4cbb-a6b7-b815b2d9f493",
+      "width": 390,
+      "state": "Informações",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/jogadores/c189a4e8-cfc9-489d-9f7a-5e5c7730b3ae",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [
+        {
+          "selector": "b",
+          "values": {
+            "background": "rgb(100, 113, 134)"
+          },
+          "semantic": true,
+          "count": 1,
+          "sample": ""
+        }
+      ],
+      "lowContrast": []
+    },
+    {
+      "route": "/jogadores/c189a4e8-cfc9-489d-9f7a-5e5c7730b3ae",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [
+        {
+          "selector": "b",
+          "values": {
+            "background": "rgb(100, 113, 134)"
+          },
+          "semantic": true,
+          "count": 1,
+          "sample": ""
+        }
+      ],
+      "lowContrast": []
+    },
+    {
+      "route": "/equipes/b85a889c-0f86-4f01-90c8-d72540b68bd6",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [
+        {
+          "selector": "b",
+          "values": {
+            "background": "rgb(100, 113, 134)"
+          },
+          "semantic": true,
+          "count": 1,
+          "sample": ""
+        }
+      ],
+      "lowContrast": []
+    },
+    {
+      "route": "/equipes/b85a889c-0f86-4f01-90c8-d72540b68bd6",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [
+        {
+          "selector": "b",
+          "values": {
+            "background": "rgb(100, 113, 134)"
+          },
+          "semantic": true,
+          "count": 1,
+          "sample": ""
+        }
+      ],
+      "lowContrast": []
+    },
+    {
+      "route": "/produtoras/87cb0efb-fd93-4c59-a0d6-aa2f085cd5f3",
+      "width": 1440,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    },
+    {
+      "route": "/produtoras/87cb0efb-fd93-4c59-a0d6-aa2f085cd5f3",
+      "width": 390,
+      "state": "page",
+      "title": "DropZone — Campeonatos de Free Fire",
+      "overflow": false,
+      "findings": [],
+      "lowContrast": []
+    }
+  ]
+}

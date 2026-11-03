@@ -1,0 +1,52 @@
+{
+  "round": "13",
+  "date": "2026-10-26",
+  "base": "DROPZONE_RODADA_12_FONTE_COMPLETA.zip",
+  "status": "HOMOLOGACAO_PARCIAL; PUBLICACAO_BLOQUEADA",
+  "tests": {
+    "local_rounds": "pass",
+    "r13_structural": "9 checks passed",
+    "release_gate_strict": "blocked expected, exit 2",
+    "npm_ci": "failed EAI_AGAIN",
+    "next_build": "not run",
+    "postgres_concurrency": "not run",
+    "supabase_production_mutations": "none"
+  },
+  "files": [
+    {
+      "path": ".github/workflows/quality.yml",
+      "bytes": 1177,
+      "sha256": "c741cba85f50c1326257bfa406549aa7aa4721766a09b0c656275d761fd672eb"
+    },
+    {
+      "path": "package.json",
+      "bytes": 9021,
+      "sha256": "4b05401b4b6c0bb3df9f72cac7dad18e11080bffbe6370157b73019377923a8a"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5910,
+      "sha256": "842d2031289a9652466f94c136d4f79709db5b3f8c1a37fd138a937fbe1a7acc"
+    },
+    {
+      "path": "TESTAR_RODADA_13.bat",
+      "bytes": 606,
+      "sha256": "c372cbe65d63bd0a7ebd2ebc17fa67385572379ba62336d66abbcbde9022675e"
+    },
+    {
+      "path": "docs/RODADA_13_HOMOLOGACAO_2026-10-26.md",
+      "bytes": 3261,
+      "sha256": "4dde945953b6455cc8b97bb3dbff47b882fc69693c2fcd9346605f1feabd93c9"
+    },
+    {
+      "path": "scripts/testes/test-round13-release-gate.mjs",
+      "bytes": 4566,
+      "sha256": "b05616e7c98239f5eef1522dc26317f9c341ba4d0f218df69369f326988c201f"
+    },
+    {
+      "path": "scripts/release/round13-readiness.mjs",
+      "bytes": 1600,
+      "sha256": "a28c06ae07f9ac8b213a86cc2727f8268a0ec2a1d4dc89135e220e98c1c6d935"
+    }
+  ]
+}

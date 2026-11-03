@@ -1,0 +1,63 @@
+{
+  "rodada": "09",
+  "base": "DROPZONE_RODADA_08_FONTE_COMPLETA.zip",
+  "date": "2026-10-26",
+  "scope": "SQL candidate safeguards + offline tests; no production database writes",
+  "files": [
+    {
+      "path": "PROJECT_CONTEXT.md",
+      "sha256": "20636fc235bdf47ad2ce92c163506536d5770d2ffc4513a43ce5a0e2131291cf",
+      "size": 119169
+    },
+    {
+      "path": "README.md",
+      "sha256": "4e5cc2898803283f477b2c6f55395e31e6b73a04236bc2ea6b32e3017235520a",
+      "size": 3979
+    },
+    {
+      "path": "TESTAR_RODADA_09.bat",
+      "sha256": "8dae3f91fc57b98aab1b48b0ae08929d34ac46b51fbe0231cf6f6fd3e57d5049",
+      "size": 833
+    },
+    {
+      "path": "backend/src/campeonatos/invites/atomic-enrollment.ts",
+      "sha256": "f3ee3e34b2889a22e6c735c394c3643de0b08d46a3627fe3f943e50be9bcec73",
+      "size": 7335
+    },
+    {
+      "path": "docs/RODADA_09_TRANSACOES_POSTGRES_2026-10-26.md",
+      "sha256": "c224c839a75557e4f3593f0dfb5428dacc7f48c025cb8ac788e133cb275e7740",
+      "size": 4850
+    },
+    {
+      "path": "docs/sql/20261011_atomic_enrollment_candidate.sql",
+      "sha256": "a843e2b6612a7c0f8522ef1345053820bfcb88eb025bc85ccb7aeeeb396c27b0",
+      "size": 25631
+    },
+    {
+      "path": "docs/sql/20261011_slot_plan_candidate.sql",
+      "sha256": "70980883328096c001b78c7a12958c31ad0d4a5e2f2679f8ad9236ea9ffbbd91",
+      "size": 18059
+    },
+    {
+      "path": "docs/sql/20261026_round9_atomic_readiness_readonly.sql",
+      "sha256": "460967b5417f080dd5a099e6ae03138bcb418a02a8b9f112c747851a0738d061",
+      "size": 3469
+    },
+    {
+      "path": "package.json",
+      "sha256": "4f11f6a8fa666c24b721cef125384876731a1c477d535e6ee3a4b72b6115d6b1",
+      "size": 8585
+    },
+    {
+      "path": "scripts/testes/test-round9-atomic-db.mjs",
+      "sha256": "af9554cdf0e6bce4ccb816f7e40bfeba63fe2474ce60e01151305098b6594ccc",
+      "size": 3939
+    }
+  ],
+  "notes": [
+    "SQL files are NOT applied migrations.",
+    "PostgreSQL concurrency NOT executed.",
+    "No backend deploy or Supabase production writes."
+  ]
+}

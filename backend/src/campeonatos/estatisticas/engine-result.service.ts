@@ -31,6 +31,10 @@ export function validateEngineResultV1(campeonatoId: string, partidaId: string, 
   const key = requireText(body.idempotency_key, 'idempotency_key')
   if (key.length > 128) throw new Error('idempotency_key excede 128 caracteres.')
   if (!Array.isArray(body.teams) || body.teams.length === 0 || !Array.isArray(body.players)) throw new Error('Equipes/jogadores do resultado são inválidos.')
+  if ((body.weapons != null && !Array.isArray(body.weapons))
+    || (body.loadouts != null && !Array.isArray(body.loadouts))) {
+    throw new Error('Armas/loadouts devem ser listas.')
+  }
   const teams = new Set<string>()
   for (const team of body.teams) {
     const id = requireText(team?.campeonato_equipe_id, 'campeonato_equipe_id')
@@ -44,6 +48,12 @@ export function validateEngineResultV1(campeonatoId: string, partidaId: string, 
     if (players.has(id)) throw new Error('campeonato_jogador_id duplicado no resultado.')
     if (!teams.has(requireText(player?.campeonato_equipe_id, 'campeonato_equipe_id do jogador'))) throw new Error('Jogador referencia equipe ausente.')
     if (!Number.isInteger(player.kills) || player.kills < 0) throw new Error('Abates de jogador inválidos.')
+    for (const field of ['damage', 'assists', 'revives'] as const) {
+      const value = player[field]
+      if (value !== undefined && value !== null && (!Number.isSafeInteger(value) || value < 0)) {
+        throw new Error(`${field} de jogador inválido.`)
+      }
+    }
     players.add(id)
   }
   return body

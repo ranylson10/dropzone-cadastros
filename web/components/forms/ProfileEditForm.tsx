@@ -152,7 +152,7 @@ export function ProfileEditForm(props: {
         value={logo}
         bucket={bucket}
         onChange={setLogo}
-        onUpload={async (file, b) => uploadPublicFile(file, b, props.profileType)}
+        onUpload={async (file, b) => uploadPublicFile(file, b, props.profileType, { profileId: props.profileId, entityId: props.profileId })}
       />
       <Field label="Bio curta (até 280 caracteres)">
         <Textarea

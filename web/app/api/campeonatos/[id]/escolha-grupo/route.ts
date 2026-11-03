@@ -3,6 +3,7 @@ import { getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { groupChoiceWindowIsOpen } from '@backend/campeonatos/group-choice-window'
 import { tryAtomicGroupChoice } from '@backend/campeonatos/group-choice-transport'
+import { assertLegacySlotEligible } from '@backend/campeonatos/legacy-slot-eligibility'
 import { slotTransferErrorResponse } from '@backend/campeonatos/slot-transfer'
 
 function text(value: unknown, max = 100) { return String(value || '').trim().slice(0, max) }
@@ -108,16 +109,11 @@ async function choose(request: NextRequest, campeonatoId: string, userId: string
   const config = await assertOpenConfig(campeonatoId, String(group.fase_id))
   if (participation.grupo_id && !config.permite_troca) throw new Error('A troca de grupo está bloqueada nesta fase.')
 
-  const { data: blockRows, error: blockError } = await supabaseAdmin.from('campeonato_grupo_escolha_bloqueios').select('grupo_id,slot_id,motivo').eq('campeonato_id', campeonatoId).eq('fase_id', group.fase_id).eq('ativo', true)
-  if (blockError) throw blockError
-  const groupBlock = (blockRows || []).find((row) => String(row.grupo_id || '') === groupId)
-  if (groupBlock) throw new Error(groupBlock.motivo ? `Grupo bloqueado: ${groupBlock.motivo}` : 'Este grupo está bloqueado pela administração.')
-  const slotBlock = (blockRows || []).find((row) => String(row.slot_id || '') === slotId)
-  if (slotBlock) throw new Error(slotBlock.motivo ? `Slot bloqueado: ${slotBlock.motivo}` : 'Este slot está bloqueado pela administração.')
+  await assertLegacySlotEligible(campeonatoId, String(group.fase_id), groupId, slotId)
 
   const { data: chosenSlot, error: slotError } = await supabaseAdmin.from('campeonato_slots').select('*').eq('id', slotId).eq('campeonato_id', campeonatoId).eq('grupo_id', groupId).eq('status', 'livre').is('equipe_id', null).is('line_id', null).maybeSingle()
   if (slotError) throw slotError
-  if (!chosenSlot) throw new Error('O slot selecionado não está mais disponível.')
+  if (!chosenSlot || String(chosenSlot.fase_id || '') !== String(group.fase_id)) throw new Error('O slot não pertence à fase do grupo selecionado.')
 
   const { data: reserved, error: reserveError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: participation.equipe_id, line_id: participation.line_id, status: 'ocupado' }).eq('id', chosenSlot.id).eq('status', 'livre').is('equipe_id', null).is('line_id', null).select('id,slot_numero').maybeSingle()
   if (reserveError) throw reserveError
@@ -225,9 +221,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const config = await assertOpenConfig(campeonatoId, String(cancelled.fase_id))
     if (!config.permite_troca) throw new Error('A restauração está bloqueada nesta fase.')
 
-    const { data: slot, error: slotError } = await supabaseAdmin.from('campeonato_slots').select('id,slot_numero,status,equipe_id,line_id').eq('id', cancelled.slot_anterior_id).eq('campeonato_id', campeonatoId).eq('grupo_id', cancelled.grupo_anterior_id).maybeSingle()
+    const { data: restoreGroup, error: restoreGroupError } = await supabaseAdmin.from('campeonato_grupos')
+      .select('id,fase_id').eq('id', cancelled.grupo_anterior_id).eq('campeonato_id', campeonatoId).maybeSingle()
+    if (restoreGroupError) throw restoreGroupError
+    if (!restoreGroup || String(restoreGroup.fase_id || '') !== String(cancelled.fase_id))
+      throw new Error('O grupo anterior não pertence mais à fase original.')
+    const { data: slot, error: slotError } = await supabaseAdmin.from('campeonato_slots').select('id,fase_id,slot_numero,status,equipe_id,line_id').eq('id', cancelled.slot_anterior_id).eq('campeonato_id', campeonatoId).eq('grupo_id', cancelled.grupo_anterior_id).maybeSingle()
     if (slotError) throw slotError
-    if (!slot || slot.status !== 'livre' || slot.equipe_id || slot.line_id) throw new Error('O slot anterior não está mais disponível. Escolha outro grupo e slot.')
+    if (!slot || String(slot.fase_id || '') !== String(restoreGroup.fase_id)
+      || slot.status !== 'livre' || slot.equipe_id || slot.line_id)
+      throw new Error('O slot anterior não está mais disponível na fase original. Escolha outro grupo e slot.')
+    await assertLegacySlotEligible(campeonatoId, String(restoreGroup.fase_id), String(restoreGroup.id), String(slot.id))
     const { data: reserved, error: reserveError } = await supabaseAdmin.from('campeonato_slots').update({ equipe_id: participation.equipe_id, line_id: participation.line_id, status: 'ocupado' }).eq('id', slot.id).eq('status', 'livre').is('equipe_id', null).is('line_id', null).select('id,slot_numero').maybeSingle()
     if (reserveError) throw reserveError
     if (!reserved) throw new Error('O slot anterior acabou de ser ocupado.')

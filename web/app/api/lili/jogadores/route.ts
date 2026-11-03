@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { listWorkspaceContexts } from '@backend/auth/workspace-contexts'
 
 function isActive(value: unknown) {
   return !['inativo', 'deletado', 'removido', 'cancelado', 'encerrado'].includes(String(value || 'ativo').toLowerCase())
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const accounts = await getAccountsForUser(user)
-    const playerAccounts = accounts.filter((item: any) => item.profile_type === 'jogador')
+    const playerAccounts = (await listWorkspaceContexts(user, accounts)).filter((item) => item.profile_type === 'jogador')
     const requestedId = String(req.nextUrl.searchParams.get('id') || '').trim()
 
     if (!requestedId) {
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
     const { data: rosterRows, error: rosterError } = await supabaseAdmin
       .from('equipe_jogadores')
       .select('*')
-      .eq('jogador_auth_user_id', user.id)
+      .eq(account.data?.delegated_access ? 'jogador_id' : 'jogador_auth_user_id', account.data?.delegated_access ? account.id : user.id)
       .order('created_at', { ascending: false })
     if (rosterError) throw rosterError
 

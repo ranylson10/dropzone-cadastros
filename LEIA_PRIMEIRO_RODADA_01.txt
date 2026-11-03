@@ -1,0 +1,28 @@
+DROPZONE - RODADA 01 - 21/10/2026
+
+Pacote de ajustes locais. Ainda NAO publicado no GitHub, Vercel ou Supabase.
+
+1. Antes de substituir arquivos, faça uma cópia de segurança do seu projeto atual.
+2. Se optar pelo ZIP PATCH, extraia os arquivos na RAIZ do projeto DropZone,
+   mantendo exatamente as pastas (web/, scripts/, docs/, tests-e2e/).
+3. Preserve o web/.env.local e o app/.env - NAO substitua suas chaves.
+4. Instale as dependencias normalmente no seu projeto original, se necessario.
+5. Execute TESTAR_RODADA_01.bat ou use:
+   npm run test:security:round1
+6. Antes de publicar, execute no ambiente configurado:
+   npm run check:code
+   (inclui build e suites de testes que dependem de instalacao e credenciais)
+
+O ZIP FONTE contem a copia completa do projeto SEM node_modules, .next,
+.expo/cache e arquivos locais de ambiente. NAO substitui a configuracao do PC.
+
+Foram ajustados:
+- proxy /api/media: retirado fallback administrativo para assinaturas;
+- /api/i18n/translate: defesa em camadas, limites de tamanho/custo por instancia;
+- JSON de exemplo PlayerNameOverwrite do SPEC: arquivo valido;
+- teste de regressao e teste historico atualizados;
+- documentacao e plano de rodadas.
+
+Ajustes ainda nao feitos: migracoes SQL transacionais, DBR01/DBR02,
+limite DISTRIBUIDO para traducao, revisao completa das telas e integracoes.
+Nenhuma migration foi aplicada ao Supabase em producao.

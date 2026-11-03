@@ -505,7 +505,7 @@ export function DirectoryListClient({ items, kind }: { items: DirectoryItem[]; k
             </div>
           ) : null}
 
-          <div className={`directory-list directory-list-${items[0]?.kind || 'empty'} directory-list--table`}>
+          <div data-dz-list="true" className={`directory-list directory-list-${items[0]?.kind || 'empty'} directory-list--table`}>
             {filtered.map((item) => (
               <EntityListRow
                 key={item.id}

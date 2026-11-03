@@ -22,7 +22,7 @@
 .panel-workspace-return button{
   min-height:36px!important;padding:0 12px!important;
   border:1px solid #d1d6dc!important;border-radius:6px!important;
-  background:#fff!important;color:#505963!important;font-size:12px!important;font-weight:900!important;text-transform:uppercase!important;
+  background:#fff!important;color:var(--dz-muted)!important;font-size:12px!important;font-weight:900!important;text-transform:uppercase!important;
 }
 .panel-workspace-return button:hover{border-color:#aeb5bd!important;color:#171a1f!important;background:#fafbfc!important}
 .panel-workspace-shell .account-workspace-hero{

@@ -89,7 +89,7 @@ export async function listEntities(context: EntityContext, searchParams: URLSear
             if (account.profile_type === 'jogador') {
                 return uniqueRows(await Promise.all([
                     selectRows('equipe_jogadores', type, mapPlayer, { filters: [{ column: 'jogador_id', op: 'eq', value: account.id }] }),
-                    selectRows('equipe_jogadores', type, mapPlayer, { filters: [{ column: 'jogador_auth_user_id', op: 'eq', value: user.id }] }),
+                    ...(account.data?.delegated_access ? [] : [selectRows('equipe_jogadores', type, mapPlayer, { filters: [{ column: 'jogador_auth_user_id', op: 'eq', value: user.id }] })]),
                 ]));
             }
             const scope = await teamScope();
@@ -131,7 +131,7 @@ export async function listEntities(context: EntityContext, searchParams: URLSear
             if (account.profile_type === 'produtora') return selectRows('campeonato_jogadores', type, mapRegistration, { filters: scoped });
             if (account.profile_type === 'jogador') return uniqueRows(await Promise.all([
                 selectRows('campeonato_jogadores', type, mapRegistration, { filters: [...scoped, { column: 'jogador_id', op: 'eq', value: account.id }] }),
-                selectRows('campeonato_jogadores', type, mapRegistration, { filters: [...scoped, { column: 'criado_por', op: 'eq', value: user.id }] }),
+                ...(account.data?.delegated_access ? [] : [selectRows('campeonato_jogadores', type, mapRegistration, { filters: [...scoped, { column: 'criado_por', op: 'eq', value: user.id }] })]),
             ]));
             const scope = await teamScope();
             return selectRows('campeonato_jogadores', type, mapRegistration, { filters: [...scoped, { column: 'equipe_id', op: 'in', value: scope.managedIds }] });

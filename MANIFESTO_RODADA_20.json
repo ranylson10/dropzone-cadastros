@@ -1,0 +1,79 @@
+{
+  "round": "R20",
+  "base_zip": "dropzone-cadastros-ENVIO(2).zip",
+  "purpose": "Arena UI: navegacao de aplicativo e funcoes por perfil",
+  "created_utc": "2026-10-31T18:06:58.673428+00:00",
+  "changed_or_added": {
+    ".github/workflows/quality.yml": {
+      "sha256": "2a9872cbb1144bb8bdb139542a374cca530ae2795df643ff00ac6f361619ed04",
+      "bytes": 1458
+    },
+    "LEIA_PRIMEIRO_REDESIGN_R20.md": {
+      "sha256": "bdd5142227dfa8334aa699ddec4519155958f7eb12139081356ce5c78367243d",
+      "bytes": 1861
+    },
+    "TESTAR_RODADA_20.bat": {
+      "sha256": "68d88949c976dc02b769c70c98a2ebe53b3852b1ac3ad6dca2b777eff7f94c90",
+      "bytes": 545
+    },
+    "docs/redesign/PLANO_DROPZONE_R20_R24.md": {
+      "sha256": "5bbcdeca7aea3c794250684c53a8249f86c670b67a4db6be320d8b088b908e69",
+      "bytes": 3432
+    },
+    "package.json": {
+      "sha256": "86efe390d66a61ac4822a9dec7799100481e11ef962fff4059a4a1ef66bf5702",
+      "bytes": 9998
+    },
+    "scripts/testes/test-round20-ux.mjs": {
+      "sha256": "20e4a2be55b8d72645b8a6e853a58edb98ac392cc08ebabb4cefcceb90e8ae03",
+      "bytes": 5054
+    },
+    "web/app/layout.tsx": {
+      "sha256": "5aad6680384c3c11caaaa3dc3bbc2ea3a46653561a810d5abe18f4771af69dda",
+      "bytes": 1964
+    },
+    "web/components/layout/AppHeader.tsx": {
+      "sha256": "ba98ffdc9386fcfbe1b2138631e4a45b9ae81071dd7ae610f46be1e7f3c2a08e",
+      "bytes": 27761
+    },
+    "web/components/layout/StorefrontHeader.tsx": {
+      "sha256": "03686460a7b84d04e1047bd605aa0a0d31f6ebf94475add2fb22080016c9d919",
+      "bytes": 12057
+    },
+    "web/components/layout/nav.ts": {
+      "sha256": "0e4e4935d1b7aff34095113c8b64acffaee0e3fb988bdb6de73c84d20d033dae",
+      "bytes": 1932
+    },
+    "web/components/workspace/WorkspaceMoreMenu.tsx": {
+      "sha256": "0691ac95394c7d4e774352bb130365c22fd5aa8d341cac245f3993e201be5146",
+      "bytes": 1394
+    },
+    "web/components/workspace/index.ts": {
+      "sha256": "6b5afd4fbd297337703e54de23c9862e561c2e5469358cdd9a1cedf61a61900d",
+      "bytes": 233
+    },
+    "web/features/dropzone/panels/equipe/EquipePanel.tsx": {
+      "sha256": "c4c234c5a71a538330f2a8260a790ffef8ef03682f9fc7cefffc70808d243b3a",
+      "bytes": 159248
+    },
+    "web/features/dropzone/panels/jogador/JogadorPanel.tsx": {
+      "sha256": "a0e9aa1e50e5c69a73353e479136cf840c7a8fa05145b1854dbf69e918f96b76",
+      "bytes": 48379
+    },
+    "web/features/dropzone/panels/manager/ManagerPanel.tsx": {
+      "sha256": "99bb273f290eb23911badce81cbb24bc917d45e182bdefbda4554477624d1254",
+      "bytes": 13351
+    },
+    "web/features/dropzone/panels/produtora/ProdutoraPanel.tsx": {
+      "sha256": "75ce2d56aab692cf682109f158ed7b852758183a38d19b455513fe1006cd0228",
+      "bytes": 193265
+    },
+    "web/styles/redesign-r20.css": {
+      "sha256": "666df92cf1897f373ac21acf4aca694cf379c654b62dd9ce0df3e459013f8812",
+      "bytes": 8921
+    }
+  },
+  "not_in_new_package": [],
+  "unchanged_files_from_baseline": 1987,
+  "note": "Comparacao por SHA-256 com ultimo ZIP enviado; sem alteracoes no banco. Arquivos de dependencias e credenciais excluidos."
+}

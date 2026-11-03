@@ -1,22 +1,23 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { assertLineupWindowOpen, assertPlayerNotInAnotherTeam } from '@backend/campeonatos/lineup-window'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { saveTeamPlayer } from '@backend/equipes/player-roster'
+import { claimPlayerRosterInvite, isFreshPlayerReplay, InvitationClaimError } from '@backend/campeonatos/invites/one-time-claims'
 
 function activeStatus(value: unknown) {
   return !['finalizado', 'cancelado', 'encerrado', 'inativo'].includes(String(value || '').toLowerCase())
 }
 
-async function convite(token: string) {
+async function convite(token: string, allowClaimReplay = false) {
   const { data, error } = await supabaseAdmin
     .from('tokens')
-    .select('id,equipe_id,line_id,campeonato_equipe_id,status,usado,expira_em,equipes:equipe_id(id,nome,tag,logo_url),line:line_id(id,nome,tag),participacao:campeonato_equipe_id(id,campeonato_id,line_id,grupo_id,status,campeonato:campeonato_id(id,nome,logo_url,status,jogadores_por_equipe,reservas))')
+    .select('id,equipe_id,line_id,campeonato_equipe_id,status,usado,expira_em,usado_em,jogador_id,equipes:equipe_id(id,nome,tag,logo_url),line:line_id(id,nome,tag),participacao:campeonato_equipe_id(id,campeonato_id,line_id,grupo_id,status,campeonato:campeonato_id(id,nome,logo_url,status,jogadores_por_equipe,reservas))')
     .eq('token', token)
     .eq('tipo', 'convite_jogador_equipe')
     .maybeSingle()
   if (error) throw error
-  if (!data || data.status !== 'ativo' || data.usado || (data.expira_em && new Date(data.expira_em).getTime() < Date.now())) {
+  if (!data || (data.usado && !allowClaimReplay) || (!data.usado && (data.status !== 'ativo' || (data.expira_em && new Date(data.expira_em).getTime() <= Date.now())))) {
     throw new Error('Convite inválido, usado ou expirado.')
   }
   return data as any
@@ -120,14 +121,25 @@ async function tryAddFormation(item: any, equipeJogador: any, jogador: any, user
   return { added: true, reason: null }
 }
 
-export async function GET(_: NextRequest, context: { params: Promise<{ token: string }> }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
-    const item = await convite((await context.params).token)
+    const item = await convite((await context.params).token, true)
+    if (item.usado) {
+      // GET may only expose a consumed invite to the player recovering the same claim.
+      const user = await getBearerUser(req)
+      const { data: player, error } = await supabaseAdmin.from('jogadores')
+        .select('id').eq('auth_user_id', user.id).maybeSingle()
+      if (error) throw error
+      if (!player || !isFreshPlayerReplay(item, player.id, Date.now())) {
+        throw new Error('Convite inválido, usado ou expirado.')
+      }
+    }
     return NextResponse.json({
       equipe: item.equipes,
       line: item.line || null,
       campeonato: item.participacao?.campeonato || null,
       destino: item.participacao ? 'formacao' : item.line ? 'line' : 'elenco',
+      retomada: Boolean(item.usado),
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Convite inválido.' }, { status: 404 })
@@ -137,7 +149,7 @@ export async function GET(_: NextRequest, context: { params: Promise<{ token: st
 export async function POST(req: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const user = await getBearerUser(req)
-    const item = await convite((await context.params).token)
+    const item = await convite((await context.params).token, true)
     const { data: jogador, error: playerError } = await supabaseAdmin
       .from('jogadores')
       .select('id,nome,avatar_url,id_jogo,funcao,localidade')
@@ -145,6 +157,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       .maybeSingle()
     if (playerError) throw playerError
     if (!jogador) throw new Error('Crie ou acesse seu perfil de jogador para aceitar o convite.')
+
+    // Claim before modifying roster/line/formation. If a downstream write fails,
+    // the same player can retry this claim for a short recovery window.
+    await claimPlayerRosterInvite(item, jogador.id)
 
     const rosterPayload = {
       equipe_id: item.equipe_id,
@@ -175,15 +191,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
     }
 
     const formation = await tryAddFormation(item, equipeJogador, jogador, user.id)
-    const { error: tokenError } = await supabaseAdmin.from('tokens').update({
-      usado: true,
-      usado_em: new Date().toISOString(),
-      status: 'usado',
-      jogador_id: jogador.id,
-      updated_at: new Date().toISOString(),
-    }).eq('id', item.id)
-    if (tokenError) throw tokenError
-
     return NextResponse.json({
       success: true,
       equipe: item.equipes,
@@ -192,6 +199,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ token:
       formation_reason: formation.reason,
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erro ao aceitar convite.' }, { status: 400 })
+    return NextResponse.json({ error: error?.message || 'Erro ao aceitar convite.' }, { status: error instanceof InvitationClaimError ? error.status : 400 })
   }
 }

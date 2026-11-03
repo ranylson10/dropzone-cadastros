@@ -1,0 +1,62 @@
+[
+  {
+    "file": "web/app/carteira/page.tsx",
+    "count": 3
+  },
+  {
+    "file": "web/components/equipes/LineRosterManager.tsx",
+    "count": 4
+  },
+  {
+    "file": "web/components/notifications/NotificationBell.tsx",
+    "count": 1
+  },
+  {
+    "file": "web/features/agenda/components/AgendaCalendar.tsx",
+    "count": 2
+  },
+  {
+    "file": "web/features/campeonatos/fases/components/CampeonatoEstruturaTab.tsx",
+    "count": 1
+  },
+  {
+    "file": "web/features/campeonatos/jogadores/components/CampeonatoJogadoresTab.tsx",
+    "count": 2
+  },
+  {
+    "file": "web/features/directory/components/DirectoryProfileTabs.tsx",
+    "count": 2
+  },
+  {
+    "file": "web/features/dropzone/panels/equipe/EquipePanel.tsx",
+    "count": 6
+  },
+  {
+    "file": "web/features/dropzone/panels/equipe/TeamAnalyticsDashboard.tsx",
+    "count": 4
+  },
+  {
+    "file": "web/features/dropzone/panels/jogador/JogadorPanel.tsx",
+    "count": 3
+  },
+  {
+    "file": "web/features/dropzone/panels/manager/ManagerCampeonatosView.tsx",
+    "count": 1
+  },
+  {
+    "file": "web/features/dropzone/panels/manager/ManagerContextsView.tsx",
+    "count": 2
+  },
+  {
+    "file": "web/features/dropzone/panels/manager/ManagerVendasView.tsx",
+    "count": 2
+  },
+  {
+    "file": "web/features/dropzone/panels/produtora/ProdutoraPanel.tsx",
+    "count": 6
+  },
+  {
+    "file": "web/features/token-flow/flows/GroupInviteFlow.tsx",
+    "count": 1
+  }
+]

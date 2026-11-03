@@ -568,7 +568,7 @@ export function ManagerCampeonatosView(props: {
                     <p className="empty">Nenhum jogo cadastrado ainda.</p>
                   ) : null}
 
-                  <div className="championship-vagas-list">
+                  <div className="championship-vagas-list" data-dz-list="legacy">
                     {(estrutura?.jogos || []).map((jogo, index) => {
                       const fase = jogo.fase_id ? fasesById.get(jogo.fase_id) : null
                       return (

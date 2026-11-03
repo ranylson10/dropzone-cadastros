@@ -1,0 +1,48 @@
+/* R24 — revisão mobile: leitura, toque, safe areas e ausência de overflow. */
+@media(max-width:900px){
+  /* Preserve rolabilidade do menu dentro da altura útil, inclusive com teclado virtual. */
+  .app-header .app-main-nav.is-open,
+  .store-home-header .store-home-mobile-menu{
+    max-height:min(82dvh,740px);
+    overscroll-behavior-y:contain;
+    touch-action:pan-y;
+    scrollbar-width:thin;
+  }
+  /* Links e controles de fechamento com áreas reais de toque. */
+  .app-header .app-mobile-sheet-heading button,
+  .store-home-header .dz-public-menu-heading > button{
+    min-width:44px;min-height:44px;
+  }
+  .app-mobile-dock :is(a,button),
+  .dz-public-bottom-nav :is(a,button){min-width:0;max-width:100%;touch-action:manipulation}
+  .app-mobile-dock :is(a,button) span,
+  .dz-public-bottom-nav :is(a,button) span{
+    display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  /* Evita que descrições extensas dos perfis ampliem a largura da tela. */
+  .dz-focus__action-copy,.dz-focus__intro,.dz-workspace-header__title-row{min-width:0}
+  .dz-focus__action-copy :is(strong,small),.dz-focus__intro :is(h3,p){overflow-wrap:anywhere}
+}
+@media(max-width:380px){
+  /* Cinco destinos cabem em 320px sem empilhar nem reduzir os alvos de toque. */
+  .app-mobile-dock :is(a,button) span,
+  .dz-public-bottom-nav :is(a,button) span{
+    font-size:clamp(9px,2.55vw,10px);letter-spacing:-.025em;
+  }
+  .app-header .app-main-nav.is-open,
+  .store-home-header .store-home-mobile-menu{padding-inline:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-mobile-dock :is(a,button),
+  .dz-public-bottom-nav :is(a,button){transition:none!important}
+}
+
+/* R24 mobile hotfix: the public bottom dock exists up to 1023px.
+   Keep the floating Lili launcher out of its click targets across that
+   ENTIRE range; Lili remains available inside the public Menu sheet. */
+@media (max-width: 1023px) {
+  body#dropzone-app .lili-global-launcher.lili-mobile-in-menu {
+    display: none !important;
+  }
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsByUserId, getBearerUser } from '@backend/auth/server-auth'
 import { listControllableEquipes } from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { requireWorkspaceContext } from '@backend/auth/workspace-contexts'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,7 +50,9 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getBearerUser(req)
     const accounts = await getAccountsByUserId(user.id)
-    const directPlayerIds = unique(accounts.filter((account) => account.profile_type === 'jogador').map((account) => account.id))
+    const requestedPlayer = req.nextUrl.searchParams.get('jogador_id')
+    const playerContext = requestedPlayer ? await requireWorkspaceContext(user, requestedPlayer, 'jogador') : null
+    const directPlayerIds = playerContext ? [playerContext.id] : unique(accounts.filter((account) => account.profile_type === 'jogador').map((account) => account.id))
     const controllableTeams = await listControllableEquipes(user.id, accounts)
     const teamIds = unique(controllableTeams.map((team) => team.id))
 

@@ -7,34 +7,18 @@
   --dz-yellow:#f2c900;
   --dz-yellow-strong:#ffd814;
   --dz-yellow-soft:#fff5bf;
-  --dz-ink:#171a1f;
   --dz-ink-2:#22262d;
   --dz-ink-3:#30353d;
-  --dz-paper:#f1f3f5;
   --dz-paper-2:#e7eaee;
   --dz-card:#ffffff;
   --dz-card-muted:#f7f8f9;
   --dz-line:#d6dbe1;
   --dz-text:#171a1f;
-  --dz-muted:#69717c;
   --dz-success:#16895b;
   --dz-danger:#c94b3c;
   --dz-radius:8px;
   --dz-radius-lg:12px;
   --dz-shadow:0 8px 28px rgba(22,26,31,.08);
-  --ui-bg:var(--dz-paper);
-  --ui-surface:var(--dz-card);
-  --ui-surface-soft:var(--dz-card-muted);
-  --ui-surface-raised:var(--dz-card);
-  --ui-text:var(--dz-text);
-  --ui-text-soft:#3e4650;
-  --ui-text-muted:var(--dz-muted);
-  --ui-muted:var(--dz-muted);
-  --ui-line:var(--dz-line);
-  --ui-accent:var(--dz-yellow);
-  --ui-gold:var(--dz-yellow);
-  --ui-gold-light:var(--dz-yellow-strong);
-  --ui-accent-strong:#b49400;
   color-scheme:light;
 }
 

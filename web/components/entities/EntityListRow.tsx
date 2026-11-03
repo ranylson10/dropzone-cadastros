@@ -64,6 +64,7 @@ export function EntityListRow({
         className={classes}
         href={href}
         data-entity-kind={kind}
+        data-dz-list-item="true"
       >
         <span className="dz-entity-table-identity">
           <EntityAvatar
@@ -74,7 +75,7 @@ export function EntityListRow({
             alt=""
           />
           <span className="dz-entity-table-main">
-            {eyebrow ? <small>{eyebrow}</small> : null}
+            {eyebrow && !repeatedEyebrow ? <small>{eyebrow}</small> : null}
             <strong>{name}{eyebrow && !repeatedEyebrow && !username ? <span className="dz-entity-mobile-tag">{eyebrow}</span> : null}</strong>
             {username ? <small className="dz-entity-mobile-handle">@{username}</small> : null}
             <span className="dz-entity-mobile-summary">
@@ -106,6 +107,7 @@ export function EntityListRow({
       className={classes}
       href={href}
       data-entity-kind={kind}
+        data-dz-list-item="true"
     >
       <EntityAvatar
         name={name}

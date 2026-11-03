@@ -1,0 +1,72 @@
+{
+  "round": "R21",
+  "baseline": "DROPZONE_RODADA_20_COMPLETO.zip",
+  "scope": "Redesign: criacao rapida de campeonato; onboarding essencial equipe/jogador; pos-criacao configurar",
+  "database_modified": false,
+  "production_deployed": false,
+  "changed": [
+    {
+      "file": ".github/workflows/quality.yml",
+      "sha256": "c095850c7deb69e1b43efc8bb265f0810929914ddd448ebec96d02598d115a27"
+    },
+    {
+      "file": "PROJECT_CONTEXT.md",
+      "sha256": "bf1a09609970155b21dedfba9c7d39169807048327263c29b407b44a9ab94333"
+    },
+    {
+      "file": "README.md",
+      "sha256": "e314dee94c97eec447311b9da555a99330b5d809c63d81c15db3005fbd7e84eb"
+    },
+    {
+      "file": "docs/redesign/PLANO_DROPZONE_R20_R24.md",
+      "sha256": "a3ddd0d47414464f9bab37ece07547e0c179b19d852437c78fe9bd56187822e4"
+    },
+    {
+      "file": "package.json",
+      "sha256": "383f5a9fedb6f90e96a49625de859f5eee6ff20d30a97c7276ae1d4413bd9aef"
+    },
+    {
+      "file": "web/app/globals.css",
+      "sha256": "dc91af523ec1311bb813d1b9c0fe40b79d9092077ea25dc10bc3d41af51fad3e"
+    },
+    {
+      "file": "web/components/forms/campeonato/CampeonatoForm.tsx",
+      "sha256": "d3455d469980639f13facce0890424066fb1e1d452fa56dfa319b3878facffef"
+    },
+    {
+      "file": "web/features/dropzone/DropZoneHome.tsx",
+      "sha256": "eb55cfff48e96662d241b0b68f8210e1ce32dd33149dd48f2f50fa6da54c1244"
+    },
+    {
+      "file": "web/features/dropzone/panels/produtora/ProdutoraPanel.tsx",
+      "sha256": "f8929b2a2cf236f3bb7e7bbe22516beddb4d9a640ad9ae8f3b2868fd29f3e9ff"
+    }
+  ],
+  "added": [
+    {
+      "file": "TESTAR_RODADA_21.bat",
+      "sha256": "21c7ed953278121fe4f42eba0da742b96a2f4dde372e52bf4a271dfc86ca6ef2"
+    },
+    {
+      "file": "docs/redesign/RODADA_21_CRIACAO_RAPIDA.md",
+      "sha256": "86b4ee8a45e45b1aa100304ee19ae7fabde99469b422a28a6c80247dde4dee1a"
+    },
+    {
+      "file": "scripts/testes/test-round21-quick-create.mjs",
+      "sha256": "aa6e5774d3505fdb90feae54d36190893f07005711b9cd789b9d339424e0dc3a"
+    },
+    {
+      "file": "web/components/forms/campeonato/campeonato-quick-r21.css",
+      "sha256": "c1c55c1712343e8f581198890f9bd07694313bc3be9a686ec65996ad5ec09e37"
+    }
+  ],
+  "deleted": [],
+  "validation": {
+    "R21": "45 checks incl. 23 executable validation cases",
+    "R20": "37 structural",
+    "rounds_1_12": "passed; mocked/structural",
+    "R13_R19": "passed offline",
+    "web_build": "not executed in this environment",
+    "E2E": "not executed"
+  }
+}

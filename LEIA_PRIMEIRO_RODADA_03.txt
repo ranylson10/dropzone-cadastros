@@ -1,0 +1,18 @@
+DROPZONE - RODADA 03 - 21/10/2026
+
+BASE: CODIGO R01 + R02 PRESERVADO, COM AUDITORIA E GATES R03 ADICIONADOS.
+
+REALIZADO:
+- Comparadas as 28 migrations locais com as 28 do Supabase ativo.
+- Consultado o banco REAL somente para leitura: nenhum slot ou participacao inconsistente nos testes.
+- Confirmadas 118 tabelas com RLS, 46 policies, 84 tabelas sem policies, sem permitir execucao de funcoes privilegiadas pelos roles anon/authenticated.
+- Preparados diagnostico SQL e 3 indices OPCIONAIS para homologacao, sem implantar.
+- Adicionados testes locais R03; verificacoes R02 preservadas.
+
+TESTAR NO WINDOWS: execute TESTAR_RODADA_03.bat (Node 22+).
+RELATORIO: docs/RODADA_03_SUPABASE_2026-10-21.md
+
+NAO EXECUTAR OS SQLs CANDIDATOS NA PRODUCAO.
+NAO LIGAR FLAGS ATOMIC/ESCRITA ATE VALIDAR EM HOMOLOGACAO.
+
+O BANCO DE PRODUCAO NAO FOI ALTERADO.

@@ -61,8 +61,12 @@ export async function PATCH(req: NextRequest) {
     if (!item || item.usado || item.status !== 'ativo') throw new Error('Este convite não pode mais ser renovado.')
 
     const expiraEm = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    const { error } = await supabaseAdmin.from('tokens').update({ expira_em: expiraEm, updated_at: new Date().toISOString() }).eq('id', tokenId)
+    const { data: updated, error } = await supabaseAdmin.from('tokens')
+      .update({ expira_em: expiraEm, updated_at: new Date().toISOString() })
+      .eq('id', tokenId).eq('tipo', 'convite_jogador_equipe').eq('equipe_id', equipeId)
+      .eq('status', 'ativo').eq('usado', false).select('id').maybeSingle()
     if (error) throw error
+    if (!updated) throw new Error('Convite alterado por outra operação. Atualize a lista.')
     return NextResponse.json({ success: true, expires_at: expiraEm })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao renovar convite.' }, { status: 400 })
@@ -88,10 +92,14 @@ export async function DELETE(req: NextRequest) {
       .maybeSingle()
     if (readError) throw readError
     if (!item) throw new Error('Convite não encontrado.')
-    if (item.usado) throw new Error('Convites já utilizados não podem ser cancelados.')
+    if (item.usado || item.status !== 'ativo') throw new Error('Somente convites ativos e não utilizados podem ser cancelados.')
 
-    const { error } = await supabaseAdmin.from('tokens').update({ status: 'cancelado', updated_at: new Date().toISOString() }).eq('id', tokenId)
+    const { data: cancelled, error } = await supabaseAdmin.from('tokens')
+      .update({ status: 'cancelado', updated_at: new Date().toISOString() })
+      .eq('id', tokenId).eq('tipo', 'convite_jogador_equipe').eq('equipe_id', equipeId)
+      .eq('status', 'ativo').eq('usado', false).select('id').maybeSingle()
     if (error) throw error
+    if (!cancelled) throw new Error('Convite alterado por outra operação. Atualize a lista.')
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao cancelar convite.' }, { status: 400 })

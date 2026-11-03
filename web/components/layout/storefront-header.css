@@ -47,6 +47,20 @@
 .store-home-open-slots { min-height: 38px; display: flex; align-items: center; padding: 0 14px; border: 1px solid rgba(242,201,0,.45); border-radius: 8px; color: #f2c900!important; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .store-home-mobile-toggle { display: none!important; }
 .store-home-mobile-menu { display: none; }
+.store-home-account { position: relative; flex: 0 0 auto; }
+.store-home-account-toggle { display: grid; place-items: center; width: var(--dz-v1-touch-target,44px); height: var(--dz-v1-touch-target,44px); border: 0; border-radius: 8px; background: transparent; color: #f2c900; cursor: pointer; }
+.store-home-account-toggle:hover,.store-home-account-toggle[aria-expanded="true"] { background: #344251; }
+.store-home-account-toggle > img,.store-home-account-toggle > span { display: grid; place-items: center; width: 32px; height: 32px; max-width: 32px; border: 1px solid #657585; border-radius: 50%; object-fit: cover; background: #233d50; font-size: 12px; font-weight: 800; }
+.store-home-account-menu { position: absolute; z-index: 100; right: 0; top: calc(100% + 8px); display: grid; width: 260px; max-width: calc(100vw - 24px); padding: 6px; border: 1px solid #4b5e70; border-radius: 10px; background: #202b36; color: #f3f5f7; box-shadow: 0 16px 36px #0006; }
+.store-home-account-info { display: grid; gap: 4px; min-width: 0; padding: 10px; margin-bottom: 4px; border-bottom: 1px solid #435160; }
+.store-home-account-info strong,.store-home-account-info small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.store-home-account-info small { color: #b5c0cb; font-size: 12px; }
+.store-home-account-menu > :is(button,a) { display: flex; gap: 10px; align-items: center; width: 100%; min-height: 44px; padding: 10px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: 700 13px Arial,Helvetica,sans-serif; text-align: left; cursor: pointer; }
+.store-home-account-menu > :is(button,a):hover { background: #344251; }
+.store-home-account-menu > button:disabled { opacity: .6; cursor: wait; }
+.store-home-account-menu > p { padding: 0 10px; color: #ffb4b4; font-size: 12px; }
+.dz-public-bottom-nav > button { display: grid; align-content: center; justify-items: center; gap: 3px; min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: 12px; line-height: 1.15; cursor: pointer; }
+.dz-public-bottom-nav > button:focus-visible { outline: 2px solid #f2c900; outline-offset: -3px; }
 
 /* Discovery sidebar exists only for catalog, homepage and public profiles. */
 .dz-discovery-sidebar { position: fixed; z-index: 79; top: var(--dz-v1-header-h); left: 0; bottom: 0; width: var(--dz-v1-sidebar-w); border-right: 1px solid var(--dz-v1-rail-line); background: var(--dz-v1-rail-bg); color: var(--dz-v1-rail-text); }

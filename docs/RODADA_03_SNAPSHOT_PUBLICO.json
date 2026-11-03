@@ -1,0 +1,60 @@
+{
+  "collected_date": "2026-10-21",
+  "environment": "DropZone — Supabase principal (consulta somente leitura)",
+  "source": "Conector Supabase: list_migrations, list_tables, get_advisors e SELECT",
+  "applied_migrations": [
+    "20260814042254_integrar_elenco_matchresult_garena",
+    "20260814061000_matchresult_elenco_historico",
+    "20260815093000_sistema_pontuacao_campeonatos",
+    "20260815114500_xtreino_configuracao_analise",
+    "20260815122000_xtreino_anotacoes_privadas_queda",
+    "20260821110000_agenda_compromissos_projetados",
+    "20260821120000_agenda_compromissos_sem_data",
+    "20260821130000_fix_rebuild_agenda_compromissos",
+    "20260821140000_agenda_compromissos_cores",
+    "20260821150000_perfis_cobranca",
+    "20260821160000_vendas_assistidas_checkout",
+    "20260822170000_line_public_id_numerico",
+    "20260829230000_live_data_key_and_public_stats_delay",
+    "20260829231000_stream_transmission_state",
+    "20260907010000_dpz_engine_resultado_idempotente",
+    "20260908120000_validar_identidade_equipe_jogadores",
+    "20260908130000_consolidar_indices_redundantes",
+    "20260908204329_bloquear_execucao_publica_funcoes_agenda",
+    "20260908205236_otimizar_policies_rls",
+    "20260908205559_remover_policies_redundantes_roles_bypassrls",
+    "20260909123000_account_identities",
+    "20260910103342_equipes_provisorias_logos_em_bloco",
+    "20260924173500_notificacoes_realtime_privado",
+    "20260924200853_produtora_workspaces_convites",
+    "20260924200939_produtora_workspaces_convites_indices",
+    "20260924213031_produtora_financeiro_gerencial",
+    "20261004051145_site_home_config",
+    "20261011023433_harden_public_profile_columns"
+  ],
+  "schema": {
+    "public_tables": 118,
+    "tables_with_rls": 118,
+    "rls_policies": 46,
+    "tables_without_policies": 84
+  },
+  "advisors": {
+    "unindexed_foreign_keys": 191,
+    "unused_index": 32,
+    "rls_enabled_no_policy": 84,
+    "auth_db_connections_absolute": 1
+  },
+  "enrollments": {
+    "slots": 456,
+    "occupied": 14,
+    "active": 14,
+    "pending": 0
+  },
+  "deploy_state": {
+    "legacy_line_index_present": true,
+    "new_open_line_index_present": false,
+    "inscription_receipts_present": false,
+    "atomic_enrollment_rpc_present": false
+  },
+  "note": "Snapshot de diagnostico, nao prova permanente: recalcule antes da implantacao. Nao contem linhas pessoais."
+}

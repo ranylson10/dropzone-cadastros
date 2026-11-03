@@ -1,0 +1,208 @@
+/* DropZone R23 — Arena UI: movimento funcional, densidade móvel e navegação de aplicativo.
+   Sem dependências de animação: apenas transform/opacity, sem loops, sem parallax. */
+:root{
+  --dz-r23-ease:cubic-bezier(.22,1,.36,1);
+  --dz-r23-line:rgba(163,140,228,.28);
+  --dz-r23-glow:rgba(125,82,223,.12);
+}
+/* Microinterações hierárquicas: o foco é a tarefa, não a decoração. */
+.dz-workspace .dz-focus{
+  border-color:rgba(169,152,208,.28);
+  background:
+    radial-gradient(ellipse at 2% 5%,rgba(154,101,243,.15),transparent 52%),
+    linear-gradient(117deg,#171a25 0%,#252a39 67%,#292b40 100%);
+}
+.dz-workspace .dz-focus::after{
+  content:"";position:absolute;top:0;left:0;width:130px;height:2px;pointer-events:none;
+  background:linear-gradient(90deg,#f2c900,#a88aff,transparent);
+}
+.dz-focus__action{will-change:auto;transition:transform .23s var(--dz-r23-ease),border-color .23s,background-color .23s,box-shadow .23s}
+.dz-focus__action.is-primary{box-shadow:0 6px 19px rgba(242,201,0,.11)}
+.dz-focus__action:active:not(:disabled){transform:scale(.985)}
+.dz-focus__pulse{animation:dz-r23-beacon 2.8s ease-in-out infinite}
+@keyframes dz-r23-beacon{0%,100%{box-shadow:0 0 0 4px rgba(242,201,0,.12)}50%{box-shadow:0 0 0 7px rgba(242,201,0,.045)}}
+/* Entrada curta sem reordenar layout — nenhuma informação é escondida durante carga. */
+@media (prefers-reduced-motion:no-preference){
+  .dz-workspace .dz-focus__intro{animation:dz-r23-appear .35s var(--dz-r23-ease) both}
+  .dz-workspace .dz-focus__action{animation:dz-r23-appear .32s var(--dz-r23-ease) both}
+  .dz-workspace .dz-focus__action:nth-child(2){animation-delay:45ms}
+  .dz-workspace .dz-focus__action:nth-child(3){animation-delay:85ms}
+  .dz-r20-configure__steps>button{transition:transform .2s var(--dz-r23-ease),box-shadow .2s,border-color .2s}
+}
+@keyframes dz-r23-appear{from{opacity:.72;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+/* Navegação operacional mais legível e confortável no toque. */
+.page-authenticated .dz-workspace-nav .dz-workspace-nav__item:focus-visible,
+.dz-workspace-more>summary:focus-visible,
+.dz-r20-configure__steps button:focus-visible,
+.dz-public-bottom-nav :is(a,button):focus-visible,
+.app-mobile-dock :is(a,button):focus-visible{
+  outline:3px solid #a88aff;outline-offset:2px;
+}
+.dz-workspace-nav,.dz-workspace-subnav{scroll-snap-type:x proximity}
+.dz-workspace-nav__item{scroll-snap-align:start}
+.dz-r20-configure__steps button:active{transform:scale(.986)}
+
+/* Public navigation: bottom sheet instead of top dropdown. */
+.dz-public-menu-scrim{display:none}
+.dz-public-menu-heading,.app-mobile-sheet-heading{display:none}
+@media(max-width:1023px){
+  body:has(.store-home-mobile-menu){overflow:hidden}
+  .store-home-header .dz-public-menu-scrim{
+    display:block;position:fixed;inset:0;z-index:93;border:0;
+    background:rgba(6,9,17,.66);backdrop-filter:blur(3px);cursor:pointer;
+  }
+  .store-home-header .store-home-mobile-menu{
+    position:fixed;z-index:94;left:0;right:0;top:auto;bottom:0;
+    width:100%;max-height:min(82dvh,740px);overflow:auto;
+    overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    border:1px solid rgba(193,180,226,.27);border-bottom:0;
+    border-radius:24px 24px 0 0;
+    padding:8px 16px calc(18px + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(155deg,#252237,#161a25 73%);
+    color:#f5f2ff;
+    box-shadow:0 -26px 66px rgba(0,0,0,.4);
+  }
+  .dz-public-menu-heading{
+    display:grid;grid-template-columns:minmax(0,1fr) 44px;
+    align-items:center;column-gap:10px;min-height:72px;margin-bottom:10px;
+    padding:14px 0 6px;position:relative;
+  }
+  .dz-public-menu-handle{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:42px;height:4px;border-radius:99px;background:#777287;
+  }
+  .dz-public-menu-heading div{display:grid;gap:4px}
+  .dz-public-menu-heading small{font-size:10px;color:#bbb0e1;letter-spacing:.13em;font-weight:800}
+  .dz-public-menu-heading strong{font-size:20px;line-height:1.15;letter-spacing:-.035em;font-weight:900}
+  .dz-public-menu-heading>button{
+    display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(255,255,255,.14);
+    border-radius:13px;background:rgba(255,255,255,.08);color:inherit;cursor:pointer;
+  }
+  .store-home-header .store-home-mobile-menu form{
+    min-height:50px;border-radius:13px;background:#131720;border-color:#48415c;
+  }
+  .store-home-header .store-home-mobile-menu nav{gap:9px}
+  .store-home-header .store-home-mobile-menu nav a{
+    min-height:60px;border-radius:13px;padding:11px 12px;gap:9px;
+    background:rgba(255,255,255,.045);border-color:rgba(200,186,227,.17);
+    font-size:13px;line-height:1.2;font-weight:750;
+  }
+  .store-home-header .store-home-mobile-menu nav a svg{color:#c1a4ff;flex:0 0 auto}
+  .store-home-header .store-home-mobile-menu nav a.active{background:#3d3257;border-color:#9d81db}
+  .store-home-header .store-home-mobile-menu nav a:focus-visible,
+  .store-home-header .dz-public-menu-heading>button:focus-visible{outline:3px solid #f2c900;outline-offset:2px}
+  .dz-public-bottom-nav{
+    background:rgba(29,28,42,.98);color:#e4def0;
+    border-top:1px solid rgba(191,168,244,.19);
+    box-shadow:0 -10px 34px rgba(10,8,20,.24);
+  }
+  .dz-public-bottom-nav :is(a,button){position:relative;min-height:48px;transition:color .2s,background-color .2s}
+  .dz-public-bottom-nav :is(a,button).active{color:#f0d675;background:rgba(167,136,244,.13);border-radius:12px}
+  .dz-public-bottom-nav :is(a,button).active::before{
+    content:"";position:absolute;top:0;left:36%;right:36%;height:2px;
+    border-radius:3px;background:#f2c900;
+  }
+}
+@media(max-width:900px){
+  /* Área autenticada também usa um menu inferior, com todas as rotas preservadas. */
+  body:has(.app-main-nav.is-open){overflow:hidden}
+  .app-header .app-mobile-nav-backdrop{
+    inset:0;z-index:122;background:rgba(6,9,17,.69);backdrop-filter:blur(3px);
+  }
+  .app-header .app-main-nav.is-open{
+    top:auto;bottom:0;left:0;right:0;z-index:124;
+    width:100%;height:auto;max-width:none;max-height:min(82dvh,740px);
+    overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    padding:14px 14px calc(22px + env(safe-area-inset-bottom,0px));
+    border:1px solid rgba(189,170,230,.25);border-bottom:0;
+    border-radius:24px 24px 0 0;
+    background:linear-gradient(155deg,#282237 0%,#171923 76%);
+    box-shadow:0 -22px 65px rgba(0,0,0,.37);
+  }
+  .app-mobile-sheet-heading{
+    display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;
+    gap:12px;padding:12px 2px 13px;min-height:72px;
+    border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:8px;
+  }
+  .app-mobile-sheet-heading div{display:grid;gap:4px}
+  .app-mobile-sheet-heading small{font-size:10px;font-weight:900;letter-spacing:.12em;color:#bbace1}
+  .app-mobile-sheet-heading strong{font-size:20px;line-height:1.2;color:#fff;letter-spacing:-.03em}
+  .app-mobile-sheet-heading button{
+    display:grid;place-items:center;width:44px;height:44px;border-radius:12px;
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:#fff;
+  }
+  .app-header .app-main-nav.is-open > a,
+  .app-header .app-main-nav.is-open .app-nav-parent{
+    min-height:52px;border-radius:12px;padding:10px 13px;
+    background:rgba(255,255,255,.055);color:#e6dff2;
+    font-size:13px;
+  }
+  .app-header .app-main-nav.is-open :is(a,button):focus-visible{
+    outline:3px solid #f2c900;outline-offset:2px;
+  }
+  .app-header .app-main-nav.is-open .app-nav-submenu{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;
+    padding:9px 2px 4px;
+  }
+  .app-header .app-main-nav.is-open .app-nav-submenu a{
+    min-height:44px;padding:8px 9px;border-radius:10px;
+    background:rgba(255,255,255,.04);color:#d1cbdc;
+  }
+  .app-header .app-main-nav.is-open .app-nav-submenu a::before{display:none}
+  .app-header .app-main-nav.is-open .app-mobile-nav-account{
+    margin-top:10px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14);
+  }
+  .app-header .app-main-nav.is-open .app-mobile-nav-account :is(a,button){min-height:50px}
+  .app-mobile-dock :is(a,button).active{position:relative}
+  .app-mobile-dock :is(a,button).active::before{
+    content:"";position:absolute;top:0;left:32%;right:32%;height:2px;
+    border-radius:4px;background:currentColor;
+  }
+  .app-action-fab{box-shadow:0 10px 26px rgba(79,42,154,.29)}
+}
+@media(max-width:480px){
+  /* Hero da conta fica compacto. Uma ação primária seguida de duas lado a lado. */
+  .dz-workspace .dz-focus{gap:8px;padding:10px;border-radius:16px}
+  .dz-focus__intro{padding:8px 8px 5px}
+  .dz-workspace .dz-focus h3{margin:6px 0 4px;font-size:clamp(20px,5.4vw,24px);line-height:1.12}
+  .dz-focus__status{margin-top:7px}
+  .dz-focus__actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .dz-focus__action.is-primary{grid-column:1/-1;min-height:60px}
+  .dz-focus__action:not(.is-primary){flex-direction:column;align-items:flex-start;gap:8px;min-height:110px;padding:11px}
+  .dz-focus__action:not(.is-primary) .dz-focus__action-icon{width:32px;height:32px;flex:0 0 32px}
+  .dz-focus__action:not(.is-primary)>svg:last-child{display:none}
+  .dz-workspace .dz-focus__action-copy strong{font-size:12px;overflow-wrap:anywhere}
+  .dz-workspace .dz-focus__action-copy small{font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+  .page-authenticated .dz-workspace-header{min-height:0;padding:13px 14px}
+  .page-authenticated .dz-workspace-header__description{font-size:12px}
+  .page-authenticated .dz-workspace-nav{gap:3px;padding:4px}
+  .page-authenticated .dz-workspace-nav .dz-workspace-nav__item{min-height:46px;padding:0 11px}
+  .dz-workspace-content{gap:10px}
+  .store-home-header .store-home-mobile-menu{padding-inline:12px}
+  .app-header .app-main-nav.is-open{padding-inline:12px}
+}
+@media(max-width:350px){
+  .dz-focus__actions{grid-template-columns:1fr}
+  .dz-focus__action:not(.is-primary){flex-direction:row;align-items:center;min-height:54px}
+  .dz-focus__action:not(.is-primary)>svg:last-child{display:block;margin-left:auto}
+  .dz-r20-configure__steps{grid-template-columns:1fr}
+  .store-home-header .store-home-mobile-menu nav{grid-template-columns:1fr}
+  .app-header .app-main-nav.is-open .app-nav-submenu{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){
+  .store-home-header .store-home-mobile-menu,
+  .app-header .app-main-nav.is-open{animation:dz-r23-sheet-in .34s var(--dz-r23-ease) both}
+  .store-home-header .dz-public-menu-scrim,
+  .app-header .app-mobile-nav-backdrop{animation:dz-r23-scrim-in .2s ease-out both}
+}
+@keyframes dz-r23-sheet-in{from{opacity:.75;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes dz-r23-scrim-in{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){
+  .dz-focus__pulse{animation:none!important;box-shadow:none}
+  .dz-focus__action,.dz-focus__intro,.dz-workspace-content,
+  .store-home-header .store-home-mobile-menu,.store-home-header .dz-public-menu-scrim,
+  .app-header .app-main-nav.is-open,.app-header .app-mobile-nav-backdrop{
+    animation:none!important;transition:none!important;transform:none!important;
+  }
+  .dz-r20-configure__steps button:active{transform:none}
+}

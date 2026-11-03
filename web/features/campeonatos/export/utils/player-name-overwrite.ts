@@ -116,7 +116,8 @@ function parsePlayerId(idJogo: string | null | undefined): number | null {
   if (!digits) return null
   // PlayerID no arquivo original cabe em number; IDs longos usam Number (pode perder precisão >2^53)
   const n = Number(digits)
-  if (!Number.isFinite(n) || n <= 0) return null
+  // SPEC recebe PlayerID numérico; nunca exportar um ID arredondado (> 2^53-1).
+  if (!Number.isSafeInteger(n) || n <= 0) return null
   return n
 }
 

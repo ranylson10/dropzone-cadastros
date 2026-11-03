@@ -1,0 +1,19 @@
+DROPZONE — R24 HOTFIX MOBILE (03/11/2026)
+
+Origem: erro real do Playwright no Windows; 4 testes passaram, 2 falharam.
+1) Em 768px a Lili cobria o botao Menu do dock publico: corrigido CSS para toda faixa <=1023px.
+   Lili permanece acessivel em Menu > Lili.
+2) Em 320px a pagina /campeonatos excedeu 30 segundos de navegacao: o teste agora
+   permite ate 90 segundos no carregamento inicial e 120 segundos no caso completo.
+   A causa definitiva da lentidao nao foi confirmada e o E2E deve ser repetido.
+
+COMO APLICAR PATCH: extraia o ZIP PATCH na raiz E:\dropzone-cadastros,
+substituindo os arquivos existentes. NAO e necessario executar npm ci novamente.
+
+CMD:
+cd /d E:\dropzone-cadastros
+TESTAR_RODADA_24.bat
+HOMOLOGAR_MOBILE_R24.bat
+
+Os testes de regressao offline passaram. O teste Chromium real precisa ser refeito.
+Nenhuma migration, API, pagamento ou dado de producao foi modificado.

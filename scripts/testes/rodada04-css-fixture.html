@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="../../web/app/globals.css" />
+<link rel="stylesheet" href="../../web/styles/data-display.css" />
+</head><body id="dropzone-app">
+<main style="width:320px;max-width:100%"><div class="wallet-history">
+  <div class="dz-data-table-viewport admin-table-wrap" role="region" aria-label="Histórico de movimentações da carteira" tabindex="0">
+    <table class="dz-data-table" style="min-width:650px"><thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Saldo após</th></tr></thead><tbody>
+      <tr><td><strong>01/10/2026</strong><small>Detalhe</small></td><td>Crédito</td><td>R$ 10</td><td>R$ 10</td></tr>
+    </tbody></table>
+  </div>
+</div></main>
+<output id="result"></output>
+<script>
+window.addEventListener('load', () => {
+ const region = document.querySelector('[role=region]'), first = region.querySelector('td'), th = region.querySelector('th');
+ const data = {firstDisplay:getComputedStyle(first).display, wrapperTabIndex:region.tabIndex, wrapperRole:region.getAttribute('role'), wrapperLabel:region.getAttribute('aria-label'), clientWidth:region.clientWidth, scrollWidth:region.scrollWidth, firstColWidth:Math.round(first.getBoundingClientRect().width), headerColWidth:Math.round(th.getBoundingClientRect().width), canScroll:region.scrollWidth > region.clientWidth};
+ document.getElementById('result').textContent = JSON.stringify(data);
+});
+</script></body></html>

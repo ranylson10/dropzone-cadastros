@@ -81,7 +81,7 @@ export function AffiliatePage() {
         mainClassName="affiliate-dashboard-page page-authenticated"
       >
         <div className="affiliate-dashboard-shell">
-          <ManagerPanel account={state.affiliate} accounts={state.accounts} initialMode="vendas" />
+          <ManagerPanel account={state.affiliate} accounts={state.accounts} initialMode="vendas" commercialOnly />
         </div>
       </AppShell>
     )

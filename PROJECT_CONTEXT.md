@@ -1,10 +1,61 @@
+## Circuito — identidade, listas e publicação (03/11/2026)
+
+- Identidade visual centralizada, navegação compartilhada e listas compactas com faixas alternadas em desktop e mobile.
+- Subabas de campeonatos, filtros em diálogo e hierarquia numérica do ranking revisados.
+- Manager utiliza os contextos normais de equipe/jogador, com funções concedidas pelo líder.
+- Build, TypeScript, lint e 42 cenários E2E aprovados. A varredura pública cobriu 61 estados de 22 rotas; ajustes finais foram reconferidos em 19 estados.
+- Publicação no GitHub e na Vercel solicitada expressamente pelo proprietário nesta data. Os registros antigos abaixo descrevem as condições de cada rodada, sem representar o estado desta publicação de interface.
+- Não foram aplicados SQLs candidatos nem alterados os modos de escrita do banco nesta revisão. A homologação PostgreSQL continua sendo uma frente distinta.
+- Detalhes: `docs/redesign/IDENTIDADE_LISTAS_20261103.md` e `docs/redesign/CIRCUITO_20261103.md`.
+
+## R18 — Destinatários de convites (26/10/2026)
+- Convite de equipe: valida equipe reservada (`equipe_id`), destino (`equipe_destino_id`) e line vinculada (`line_destino_id`) antes de criar participação, e fixa estes valores no UPDATE condicional final do token. Convites abertos sem destino explícito seguem aceitos.
+- R10 Lili SQL candidata: valida também `equipe_destino_id` e `line_destino_id` em reservas com convite.
+- R11 renovação SQL candidata: não renova convite de grupo/slot com bloqueio administrativo ativo; cancelamento permitido.
+- 32 testes novos offline (mock/contrato) aprovados; regressões R01–R17 aprovadas no escopo disponível. Build, E2E nativo e concorrência PostgreSQL continuam pendentes. Sem implantação de SQL nem deploy.
+- Guia: `docs/RODADA_18_DESTINATARIOS_CONVITES.md`.
+
+## R17 — Proteção do laboratório (26/10/2026)
+- Executor Docker PostgreSQL passou a validar a identidade a cada operação, fixar ID completo e executar por ID (não nome).
+- Novo teste offline `npm run test:round17` (26 verificações). Pipeline/Windows atualizados.
+- Não houve build real, testes PostgreSQL nativos ou migração de produção nesta rodada.
+
 # CONTEXTO CENTRAL — DROPZONE
 
 > Este é o primeiro arquivo que deve ser lido antes de alterar o projeto.
 > Atualize-o ao fim de cada rodada relevante.
 
-**Última atualização:** 12 de outubro de 2026
+**Última atualização:** 22 de outubro de 2026 (R05 local acumulada; histórico anterior mantido)
 **Estado:** auditoria das 43 rotas e correções locais em continuidade. Quatro P1 originais corrigidos; 20 achados originais corrigidos no escopo documentado e seis parciais. Duas pendências adicionais de banco (DBR01/P1 e DBR02/P2), transação completa e QA integral ainda impedem considerar a publicação pronta. GitHub/Vercel não atualizados. Relatório: `docs/CORRECOES_AUDITORIA_2026-10-11.md`.
+
+## Estado adicional — Rodada 12 (26/10/2026)
+
+- Convites de jogador/vendedor: consumo `UPDATE` condicional com filtro status/tipo/validade/uso antes dos efeitos; retries pelo mesmo destinatário (jogador 30min) para permitir recuperação parcial. Não garante transação única do elenco/vendedor.
+- Renovação/cancelamento de convites de elenco protegidos contra atualização obsoleta; Lili faz consultas exatas de tokens case-sensitive.
+- 95 verificações locais da R12 e regressões R01–R11 aprovadas; PostgreSQL simultâneo, E2E e build completo ainda pendentes. Sem SQL/deploy alterado.
+- Ver `docs/RODADA_12_TOKENS_ESCRITORES_2026-10-26.md`.
+
+## Estado adicional — Rodada 11 (26/10/2026)
+
+- Token genérico: uso atômico por UPDATE condicional; conserva token case-sensitive; ainda não inclui inscrição no mesmo commit.
+- Convites por slot: RPC candidata R11 para cancelamento/renovação com recibos, locks grupo->slot->token e reconciliação de reservas; transporte opt-in `DROPZONE_TEAM_INVITE_WRITE_MODE=atomic`; padrão legado.
+- Limpeza Lili: RPC candidata por lote com locks, opt-in `DROPZONE_LILI_CLEANUP_MODE=atomic`; padrão legado.
+- Testes R11: mocks, rotas, interface e contratos; PostgreSQL concorrente, build integral e deploy ainda pendentes.
+- Documentação: `docs/RODADA_11_CONVITES_TOKENS_RESERVAS_2026-10-26.md`. Nenhuma alteração em produção.
+
+## Estado adicional — Rodada 05 (22/10/2026)
+
+- Versão acumulada R01–R05: bloqueios de URL, download limitado por fluxo e link externo restrito no Electron; validação de campos do Engine; fallback de vínculos MatchStats; PlayerID seguro no SPEC.
+- 55 testes unitários/estruturais da R05 aprovados sem serviços reais, além das regressões R02/R03/R04 e contrato Engine R11.
+- Não publicado e sem alteração remota Supabase; detalhes e limites: `docs/RODADA_05_INTEGRACOES_SPEC_ENGINE_ELECTRON.md`.
+
+## Estado adicional — Rodada 01 (21/10/2026)
+
+- Auditoria de leitura do Supabase de produção confirmou 118 tabelas públicas com RLS habilitada; os 456 slots e 14 ocupados tinham vínculos consistentes na checagem agregada.
+- Rodada 01 executada apenas na cópia local: proxy de mídia sem fallback com `service_role`, proteção incremental na tradução, modelo JSON de PlayerNameOverwrite corrigido, novo teste `npm run test:security:round1`.
+- Teste novo executado e aprovado localmente; suíte completa e build ainda requerem dependências/credenciais e ambiente homologado.
+- Banco remoto, deploy, GitHub/Vercel **não foram alterados**.
+- Sequência de trabalho e pendências: `docs/PLANO_RODADAS_CORRECOES_2026-10-21.md`.
 
 ## 1. Objetivo do sistema
 
@@ -500,7 +551,7 @@ Reprodução do candidato antigo passou a exigir banco/pasta explícitos e usa a
 <!-- liga-native-context-start -->
 ### Continuação atual: Liga SQL validada em laboratório — execução manual verificada
 
-**324 testes nativos passaram, zero falhas:** 59 participação  +91 cotas Liga +40 batch +35 escolha +33 transferência +35 convite +31 plano. O usuário executou o controlador no PowerShell; foram conferidos os sete JSONs, contagens/listas de resultados e hashes registrados. SHA256 do candidato coincide com as suítes de participação/Liga e o arquivo local atual. **LG02 foi corrigido e validado no candidato local**, ainda sem aplicação no banco publicado. Baseline antigo reproduziu duas inclusões com quota 1.5; as91 verificações recusam frações/tipos inválidos/somas inseguras/grupos ambíguos, preservam rollback, disputam última cota e repetem o resultado original após mudança do plano. Cinco reproduções antigas do plano ficam separadas do total 324.
+**324 testes nativos passaram, zero falhas:** 59 participação  +91 cotas Liga +40 batch +35 escolha +33 transferência +35 convite +31 plano. O usuário executou o controlador no PowerShell; foram conferidos os sete JSONs, contagens/listas de resultados e hashes registrados. SHA256 do candidato coincide com as suítes de participação/Liga e o arquivo local atual. **LG02 foi corrigido e validado no candidato local**, ainda sem aplicação no banco publicado. Baseline antigo reproduziu duas inclusões com quota 1.5; as95 verificações recusam frações/tipos inválidos/somas inseguras/grupos ambíguos, preservam rollback, disputam última cota e repetem o resultado original após mudança do plano. Cinco reproduções antigas do plano ficam separadas do total 324.
 
 **Falha real do controlador, corrigida:** depois de todas as suítes passarem, a soma por Measure-Object -Property passed não reconheceu as chaves dos hashtables no Windows PowerShell. Por isso run-result.json ficou nativeCompleted=false/passed 0, sem invalidar os resultados SQL. O resumo original foi preservado; foi criado resultado reconciliado com 324/0 após conferir provas individuais. Controlador agora soma chaves em foreach; as próprias instruções extraídas do arquivo foram executadas contra sete registros reais em **Windows PowerShell 5.1.19041.6456 e PowerShell 7.6.5**, obtendo 324. Não repetir PostgreSQL para esse ajuste de relatório.
 
@@ -711,3 +762,64 @@ Fechamento em13/10/2026. Diálogo compartilhado corrigido: somente a janela supe
 Formulários em 13/10/2026: Field associa nomes, dicas e erros aos controles compartilhados, preserva ARIA/IDs explícitos e sinaliza obrigatório sem impor validação nativa. Localidade aceita setas/Enter/Escape/Tab, mantém foco e separa Escape da lista e do diálogo. Checkbox causava largura327 em viewport320; CSS compartilhado corrigido e largura final320, sem elementos excedentes.38 cenários de formulários,38 regressões de diálogo/14 amostras e29 checks estáticos passaram; código43 suítes/tipos/lint/build aprovado após o CSS final. Matriz43 rotas/16 subáreas/327 fontes, sem certificação visual integral. Rede dos testes interceptada, IBGE fictício; cadastro real usado como componente, sem gravação/upload/aceite de convite. Leitor de tela, zoom real, dispositivos e todos os estados continuam pendentes.18 SQLs/dependências anteriores iguais; sem novo audit/banco/SQL-MCP ao projeto ou publicação. Originais20 corrigidos/seis parciais; L03 parcial. Falta de espaço impediu uma autorização automática; após aumento do espaço, execução retomada com revisão. Audit online da raiz não verificado por escolha do usuário.
 
 [Relatório](E:/dropzone-cadastros/docs/FORMULARIOS_ACESSIBILIDADE_2026-10-13.md) · [Verificação](E:/dropzone-cadastros/relatorios-testes/formularios-2026-10-13/final-verification.json).
+
+<!-- rodada-04-interfaces-20261021 -->
+
+### R04 — navegação e tabelas (21/10/2026)
+
+Corrigido na cópia local: atalho Minha equipe aponta dashboard; destaque de Equipes no dock móvel por rota; cabeçalho público autenticado sempre oferece acesso ao painel; estilos de link/botão de conta; primeira célula das tabelas preserva `display:table-cell`; tabelas de Administração (3) e Carteira (1) possuem wrappers com rolagem, foco e nome acessível; filtro do admin ganhou `aria-label`. 15 verificações estruturais R04, 6 R02 e 7 R03 passaram; 4 TSX e 2 CSS parse sem erros. Chromium headless travou, portanto nenhuma certificação visual; build/typecheck/lint completo e QA autenticado/device ainda pendentes. **Nenhuma alteração no Supabase, na produção ou no backend.** Documentação: `docs/RODADA_04_UI_NAVEGACAO_TABELAS.md`.
+
+## Rodada 08 — 2026-10-26 (código local, não implantado)
+
+- Objetivo: reduzir falhas de integridade no fluxo legado de escolha/restauração/cancelamento de grupo por administradores.
+- `legacy-slot-eligibility.ts` concentra a política prévia de bloqueios administrativos, reservas Lili e convites ativos que equipe e administração usam.
+- `estrutura-avancada/route.ts`: valida fase do grupo/slot, participação ativa e espelho ocupado pertencente à mesma equipe/line antes de alterar registros; as ações atômicas continuam delegadas sem leituras legadas.
+- `scripts/testes/test-round8-admin-choice.mjs`: 29 cenários HTTP simulados, todos aprovados; testes acumulados R01–R07 aprovados.
+- `docs/sql/20261026_round8_choice_readonly.sql`: diagnósticos por contagem, sem escrita.
+- NÃO equivale à atomicidade real; PostgreSQL concorrente, E2E, build completo e deploy pendentes. Sem alteração de banco de produção.
+
+
+## Rodada 09 (26/10/2026)
+
+Contratos candidatos de transações SQL revisados: verificação de bloqueios administrativos/reservas/convites no plano de slots e bloqueios no convite atômico. Sem deployment, sem mudança no banco real; testes estruturais em `scripts/testes/test-round9-atomic-db.mjs`, requisitos pendentes em `docs/RODADA_09_TRANSACOES_POSTGRES_2026-10-26.md`.
+
+
+### R15: release gate completo e preflight seguro (2026-10-26)
+- Fingerprint R14 reforçado com todo `app`, E2E, Playwright, workflows e migrations, com testes de alteração/deleção e exclusão de segredos.
+- `build_next_completo` separado da compilação; provas externas continuam mandatórias e não podem ser aprovadas por flags locais.
+- Pré-diagnóstico Docker somente leitura com fail-closed; banco de produção intocado.
+- Ver `docs/RODADA_15_HOMOLOGACAO.md`.
+
+### R16 — recuperação do catálogo histórico para laboratório (2026-10-26)
+- Fonte original `dropzone-cadastros-ENVIO.zip` contém o JSON `relatorios-testes\\banco-publicado.json`: 118 BASE TABLE, 14 VIEW, capturado em 2026-10-11, SHA-256 f6d97d7334166ee39da1b86e6b0a5e34ae7f9e0baf573774f6190c0a5cc3aeb2. Catálogo não incluído nos ZIPs.
+- Importador Node sem dependências descompacta apenas o JSON validado, com CRC32 e limite de tamanho; caminho fixo em `relatorios-testes` ignorado.
+- `build-schema.mjs --emit-only` corrigido para criar diretório antes de escrever. SQL sintético gerado offline, mas **não executado** em PostgreSQL.
+- Preflight informa idade e estrutura do catálogo; Docker/PostgreSQL faltando; scripts CI incluem teste R16. Sem mudanças na produção nem nos modos atômicos.
+
+
+### R19 — homologação executável, sem deploy (27/10/2026)
+
+Novos atalhos: `HOMOLOGAR_POSTGRES_R19.bat`, `HOMOLOGAR_WEB_R19.bat`, `TESTAR_RODADA_19.bat`; novo runner `scripts/release/round19-laboratorio.mjs` sem conexão remota; teste `scripts/testes/test-round19-lab-runner.mjs`. R14 evidencia R17–R19 e inclui `.bat/.ps1` na impressão digital. O PostgreSQL nativo e o build completo continuam pendentes de infraestrutura; nenhum SQL aplicado à produção.
+
+
+## Hotfix R19 V3 — Teste Windows
+Em 27/10/2026 o usuário confirmou typecheck, lint e build Next.js integral aprovados em Windows (`BUILD_WEB_LOCAL_APROVADO`). Corrigida a asserção do teste R19 que pressupunha remoção de chaves mesmo com `.env.local` presente: o executor substitui-as por placeholders e o teste agora valida ambos os cenários em diretório temporário. O BAT PostgreSQL aceita ZIP de catálogo privado separado (não distribuído dentro do projeto). E2E, concorrência PostgreSQL, migrations e produção seguem pendentes.
+
+## Arena UI R21 (31/10/2026)
+- Implementado caminho de criação rápida no `CampeonatoForm.tsx`, mantendo edição, assistente completo, cotação de pacote, pagamento e aprovação existentes. Tipos e planos gerados pelo mesmo código anterior.
+- Pós-criação: a produtora pode abrir o campeonato imediatamente para configurar dados, fases/grupos, equipes e jogos. Perfil de equipe/jogador já era curto; personalização extra foi recolhida em detalhes opcionais.
+- Mudanças de UI apenas, sem API, SQL, migrations, Supabase de produção ou publicação.
+- Novas verificações em `test-round21-quick-create.mjs`; homologação E2E e build da R21 pendentes no ambiente de publicação.
+
+## R22 (redesign de painel por perfil)
+- Base acumulada R21 preservada. Componente `WorkspaceFocus` com até três ações prioritárias em Produtora/Equipe/Jogador/Manager/Vendedor.
+- `manager-modes.ts` mantém rotas legadas e passa a abrir painel inicial (`hub`) por padrão; Vendas é seção própria dentro do perfil manager, não um novo tipo no banco.
+- CSS responsivo R22 em `web/styles/workspace-r22.css` após R20. Nenhuma migração ou alteração de API.
+- `TESTAR_RODADA_22.bat`, `npm run test:round22`; build e visual autenticado ainda dependem do Windows/CI.
+
+## Redesign — Rodada 23
+Somente a experiência visual e mobile foi modificada; APIs e Supabase permanecem sem alteração. O menu público usa painel inferior, e os hubs R22 têm adaptação para ações prioritárias no celular. Documentação: `docs/redesign/RODADA_23_VISUAL_MOBILE.md`.
+
+## R24 — revisão final de UX (03/11/2026)
+
+Base R23. Melhoria de teclado, foco, scroll de menu e etiquetas para dispositivos estreitos nos cabeçalhos público/autenticado. Teste Node R24 verifica o comportamento de Tab/Shift+Tab; roteiro Playwright público incluído, não executado no ambiente sem Next/Chromium operacional. Sem alterações no Supabase, backend ou dados. Redesign de código encerrado na R24, condicionado a QA visual autenticado + build/infraestrutura para liberar produção.

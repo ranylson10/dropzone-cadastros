@@ -1,13 +1,13 @@
 :root {
-  --dz-ui-bg: var(--bg, #0c0d0f);
-  --dz-ui-surface: var(--surface, #ffffff);
-  --dz-ui-surface-soft: var(--surface-soft, #f5f5f5);
-  --dz-ui-surface-muted: var(--surface-muted, #eceff2);
-  --dz-ui-text: var(--text, #16191d);
-  --dz-ui-muted: var(--muted, #68707a);
-  --dz-ui-line: var(--line, #d7dbe0);
-  --dz-ui-accent: var(--brand, #ffd400);
-  --dz-ui-accent-ink: var(--on-brand, #151515);
+  --dz-ui-bg: var(--dz-paper);
+  --dz-ui-surface: var(--dz-white);
+  --dz-ui-surface-soft: var(--surface-soft);
+  --dz-ui-surface-muted: var(--surface-muted);
+  --dz-ui-text: var(--dz-ink);
+  --dz-ui-muted: var(--dz-muted);
+  --dz-ui-line: var(--dz-stroke);
+  --dz-ui-accent: var(--dz-rust);
+  --dz-ui-accent-ink: var(--on-brand);
   --dz-ui-danger: var(--danger, #d84b55);
   --dz-ui-success: var(--success, #2b8a57);
   --dz-ui-warning: var(--warning, #a76a00);

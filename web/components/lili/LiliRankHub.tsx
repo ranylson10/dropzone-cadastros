@@ -197,7 +197,7 @@ export function LiliRankHub() {
         </div>
       ) : null}
 
-      <ol className="dz-ranking-list" aria-busy={loading} aria-label={`Classificação: ${mode === 'teams' ? 'equipes' : mode === 'players' ? 'jogadores' : 'campeonatos'}`}>
+      <ol data-dz-list="true" className="dz-ranking-list" aria-busy={loading} aria-label={`Classificação: ${mode === 'teams' ? 'equipes' : mode === 'players' ? 'jogadores' : 'campeonatos'}`}>
         {rows.map((row) => {
           const image = row.logo_url || row.foto_url || row.avatar_url || ''
           const title = (mode === 'players' ? row.nick : row.nome) || 'Sem nome'
@@ -220,6 +220,7 @@ export function LiliRankHub() {
             <button
               type="button"
               className="dz-ranking-item"
+              data-dz-list-item="true"
               aria-label={`Ver estatísticas de ${title}, posição ${row.rank}, score ${score}`}
               onClick={() => setSelectedRow(row)}
             >

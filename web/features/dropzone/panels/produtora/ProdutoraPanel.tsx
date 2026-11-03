@@ -17,7 +17,7 @@ import { SystemModal } from '@/components/layout/SystemModal'
 import { dataText, rowTitle } from '../../utils'
 import { producerTabs, producerWorkspaceForTab, producerWorkspaceTabs, type ProducerTab } from './producer-tabs'
 import { WhatsappPhoneField } from '@/components/forms/WhatsappPhoneField'
-import { WorkspaceContent, WorkspaceHeader, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
+import { WorkspaceContent, WorkspaceFocus, WorkspaceHeader, WorkspaceMoreMenu, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { producerEntityRequest, producerRequestKey, type ProducerEntityRequest, type ProducerSection } from '../../workspace-entities'
 import type { ProducerWorkspaceSummary } from '@backend/dropzone/entities/producer-summary'
@@ -1495,13 +1495,20 @@ ${params.url}`
       <WorkspaceHeader
         eyebrow="Produtora"
         title={props.account ? rowTitle(props.account) : 'Workspace da produtora'}
-        description="Campeonatos, financeiro, equipe interna e configurações no mesmo workspace."
+        description="Crie campeonatos rapidamente. Organize o restante quando precisar."
         icon={<FolderOpen size={18} />}
         actions={<span><ShieldCheck size={14} /> {workspaceRole === 'proprietario' ? 'Proprietário' : workspaceRole}</span>}
       />
       <WorkspaceNav
-        ariaLabel="Áreas da produtora"
-        activeId={producerSection}
+        ariaLabel="Áreas principais da produtora"
+        activeId={['visao', 'campeonatos'].includes(producerSection) ? producerSection : undefined}
+        onChange={(id) => setProducerSection(id as ProducerSection)}
+        items={[
+          { id: 'visao', label: 'Início', icon: <FolderOpen size={16} /> },
+          { id: 'campeonatos', label: 'Campeonatos', icon: <Trophy size={16} /> },
+        ]}
+      />
+      <WorkspaceMoreMenu label="Gestão avançada" activeId={producerSection}
         onChange={(id) => {
           const next = id as ProducerSection
           setProducerSection(next)
@@ -1509,11 +1516,9 @@ ${params.url}`
           if (next === 'equipe' && !canManageMembers) setProducerTeamView('provisorias')
         }}
         items={[
-          { id: 'visao', label: 'Visão geral', icon: <FolderOpen size={16} /> },
-          { id: 'campeonatos', label: 'Campeonatos', icon: <Trophy size={16} /> },
-          ...(canFinanceWorkspace || canCommercialWorkspace ? [{ id: 'financeiro', label: 'Financeiro', icon: <CreditCard size={16} /> }] : []),
-          ...(canManageMembers || canOperateWorkspace ? [{ id: 'equipe', label: 'Equipe', icon: <Users size={16} /> }] : []),
-          ...(canAdminWorkspace ? [{ id: 'configuracoes', label: 'Configurações', icon: <ShieldCheck size={16} /> }] : []),
+          ...(canFinanceWorkspace || canCommercialWorkspace ? [{ id: 'financeiro', label: 'Financeiro e vendas', detail: 'Comissões, cobranças e vendedores' }] : []),
+          ...(canManageMembers || canOperateWorkspace ? [{ id: 'equipe', label: 'Equipe interna', detail: 'Membros e cadastros provisórios' }] : []),
+          ...(canAdminWorkspace ? [{ id: 'configuracoes', label: 'Configurações', detail: 'Permissões e recursos privados' }] : []),
         ]}
       />
       <WorkspaceContent>
@@ -1521,17 +1526,18 @@ ${params.url}`
 
       {producerSection === 'visao' ? (
         <section className="producer-workspace-dashboard" aria-label="Visão geral da produtora">
-          <header className="producer-dashboard-hero">
-            <div>
-              <p className="eyebrow">Workspace da produtora</p>
-              <h2>{props.account ? rowTitle(props.account) : 'Produtora'}</h2>
-              <p>Organize campeonatos sem navegar por tabelas internas. O fluxo principal vai de participantes até resultado publicado.</p>
-            </div>
-            <div className="producer-dashboard-actions">
-              <button type="button" className="button" disabled={produtoraAprovacao !== 'aprovado' || !canCreateChampionship} onClick={() => setShowCreateChamp(true)}><Plus size={16} /> Novo campeonato</button>
-              <button type="button" className="button secondary" onClick={() => setProducerSection('campeonatos')}><Trophy size={16} /> Abrir campeonatos</button>
-            </div>
-          </header>
+          <WorkspaceFocus
+            role="produtora"
+            eyebrow="Central da produtora"
+            title={props.championships.length ? 'Seu próximo campeonato começa aqui' : 'Vamos criar seu primeiro campeonato?'}
+            description="Criar, acompanhar inscrições e organizar a competição: as outras ferramentas ficam na gestão avançada."
+            status={producerPendingChampionships > 0 ? `${producerPendingChampionships} campeonato(s) aguardando liberação` : `${props.championships.length} campeonato(s) no seu painel`}
+            actions={[
+              { id: 'novo', title: 'Criar campeonato', detail: 'Cadastro rápido, configuração depois', icon: <Plus size={20} />, disabled: produtoraAprovacao !== 'aprovado' || !canCreateChampionship, onClick: () => setShowCreateChamp(true) },
+              { id: 'campeonatos', title: 'Meus campeonatos', detail: 'Inscrições, participantes e operação', icon: <Trophy size={20} />, onClick: () => setProducerSection('campeonatos') },
+              { id: 'equipes', title: 'Acompanhar equipes', detail: 'Selecione um campeonato para gerenciar', icon: <Users size={20} />, onClick: () => { setProducerSection('campeonatos'); setTab('equipes') } },
+            ]}
+          />
 
           <div className="producer-dashboard-kpis">
             <article><small>Campeonatos</small><strong>{props.championships.length}</strong><span>Total no workspace</span></article>
@@ -1540,7 +1546,6 @@ ${params.url}`
             <article><small>Jogos</small><strong>{producerGamesCount}</strong><span>Programados no sistema</span></article>
           </div>
 
-          {producerPendingChampionships > 0 ? <p className="producer-dashboard-mobile-pending">{producerPendingChampionships} campeonato{producerPendingChampionships === 1 ? '' : 's'} aguardando liberação.</p> : null}
           <button type="button" className="producer-dashboard-help-toggle" aria-expanded={flowHelpOpen}
             aria-controls="producer-dashboard-flow-help" onClick={() => setFlowHelpOpen(value => !value)}>
             Como organizar campeonatos <ChevronDown size={16} aria-hidden="true" />
@@ -1591,7 +1596,7 @@ ${params.url}`
                 {producerCatalogLink ? <a className="button secondary" href={producerCatalogLink} target="_blank" rel="noreferrer"><Store size={15} /> Página de vagas</a> : null}
               </div>
               {sellerError ? <div className="message error">{sellerError}</div> : null}
-              <div className="producer-simple-list">
+              <div className="producer-simple-list" data-dz-list="legacy">
                 {sellerLoading ? <p className="empty">Carregando vendedores...</p> : null}
                 {!sellerLoading && sellerRows.length === 0 ? <p className="empty">Nenhum vendedor vinculado.</p> : null}
                 {sellerRows.map((seller) => (
@@ -1751,6 +1756,20 @@ ${params.url}`
             <button
               type="button"
               className="button"
+              onClick={() => {
+                if (!createdChampAction) return
+                props.setSelectedChampId(createdChampAction.id)
+                setProducerSection('campeonatos')
+                setChampionshipDetailOpen(true)
+                setTab('visao')
+                setCreatedChampAction(null)
+              }}
+            >
+              Configurar campeonato
+            </button>
+            <button
+              type="button"
+              className="button secondary"
               disabled={payBusy}
               onClick={() => {
                 if (!createdChampAction) return
@@ -1968,6 +1987,19 @@ ${params.url}`
                 ))}
               </div>
             </header>
+
+            <section className="dz-r20-configure" aria-label="Configurar campeonato por etapas">
+              <div className="dz-r20-configure__heading">
+                <span className="dz-r20-spark" aria-hidden="true">✦</span>
+                <div><p className="eyebrow">Próximos passos</p><h3>Configure seu campeonato</h3><small>Comece pelo essencial. O restante pode ser ajustado depois.</small></div>
+              </div>
+              <div className="dz-r20-configure__steps">
+                <button type="button" onClick={() => startEditChampionship(selectedChamp)}><span>01</span><strong>Dados e inscrição</strong><small>Editar informações</small><ChevronRight size={16} aria-hidden /></button>
+                <button type="button" onClick={() => setTab('grupos')}><span>02</span><strong>Fases e grupos</strong><small>Montar estrutura</small><ChevronRight size={16} aria-hidden /></button>
+                <button type="button" onClick={() => setTab('equipes')}><span>03</span><strong>Equipes</strong><small>Gerenciar participantes</small><ChevronRight size={16} aria-hidden /></button>
+                <button type="button" onClick={() => setTab('jogos')}><span>04</span><strong>Jogos</strong><small>Agenda e quedas</small><ChevronRight size={16} aria-hidden /></button>
+              </div>
+            </section>
 
             <nav className="champ-workspace-nav" aria-label="Áreas do campeonato">
               {visibleChampWorkspaces.map((item) => (
@@ -2420,7 +2452,7 @@ ${params.url}`
                             <h2>{pending.length} caso(s) para decidir</h2>
                           </div>
                         </div>
-                        <div className="manager-vendas-list">
+                        <div className="manager-vendas-list" data-dz-list="legacy">
                           {pending.map((item) => {
                             const waiting = item.revisao_status === 'aguardando_regularizacao'
                             const busy = Boolean(financialBusy[item.id])
@@ -2476,7 +2508,7 @@ ${params.url}`
                             <h2>Últimas decisões</h2>
                           </div>
                         </div>
-                        <div className="manager-vendas-list">
+                        <div className="manager-vendas-list" data-dz-list="legacy">
                           {history.map((item) => (
                             <article key={item.id} className="manager-vendas-row">
                               <div className="manager-vendas-row-logo">
@@ -2561,7 +2593,7 @@ ${params.url}`
                     ) : null}
 
                     {!sellerLoading && (activeSellers.length > 0 || rosterOnly.length > 0) ? (
-                      <div className="championship-vagas-list seller-managers-list">
+                      <div className="championship-vagas-list seller-managers-list" data-dz-list="legacy">
                         {activeSellers.map((seller, index) => {
                           const manager = seller.managers || {}
                           const limite = Number(seller.vinculo_atual?.limite_vagas ?? seller.limite_vagas_atual ?? 0)
@@ -2862,7 +2894,7 @@ ${params.url}`
                     ) : null}
 
                     {!sellerLoading && pendingInvites.length > 0 ? (
-                      <div className="championship-vagas-list seller-managers-list" style={{ marginTop: 12 }}>
+                      <div className="championship-vagas-list seller-managers-list" style={{ marginTop: 12 }} data-dz-list="legacy">
                         {pendingInvites.map((c) => (
                           <article key={c.id} className="championship-vaga-row status-reservada">
                             <div className="vaga-row-summary" style={{ cursor: 'default' }}>
@@ -3164,7 +3196,7 @@ ${params.url}`
                       </button>
                     </div>
                   ) : null}
-                  <div className="links-invite-list">
+                  <div className="links-invite-list" data-dz-list="legacy">
                     <div className="section-head compact-head">
                       <div>
                         <p className="eyebrow">Convites gerados</p>

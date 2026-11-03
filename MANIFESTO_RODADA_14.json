@@ -1,0 +1,17 @@
+{
+  "round": "R14",
+  "base": "R13",
+  "changed": {
+    ".github/workflows/quality.yml": "ca40160d51f7c3c892d390ec926d2c42bad9cb5ac982990318b7ace2221565c9",
+    "README.md": "897cd7bf1fa80de96203e792149d883049ff3b86a85a449b7cd7eff7c8727ce3",
+    "TESTAR_RODADA_14.bat": "7fef7c12eeb015240aabf5292e3b51c579b9723f9e2af252e0d15286bb87a21f",
+    "docs/RODADA_14_VALIDACAO_E_LIBERACAO_2026-10-26.md": "a320a354688ab0f5b87e7ed56c14255c55c76fa693df4562abd48b8fad96f5f5",
+    "package.json": "1d1d40b21369565d4a089d5c2b3c8155219bbe903cf54a154b01a556e56c5ae1",
+    "scripts/release/round14-evidence.mjs": "de45c0f33dffa97efe7d6846ff0932fcdffcaed0976c5df06ab80d9a83d64ab4",
+    "scripts/release/round14-readiness.mjs": "c980ff9d7a136a5f1b966addb9b363c6cdc9375bafa015d75dbc55f909defc03",
+    "scripts/testes/test-round14-evidence.mjs": "5c0148a5a0e235735945cc2a957806eeab85b190f2cea7c115a84e04ca78b708"
+  },
+  "deleted": [],
+  "total_files": 1848,
+  "status": "release_blocked_pending_real_homologation"
+}

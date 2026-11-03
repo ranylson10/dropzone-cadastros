@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAccountsForUser, getBearerUser } from '@backend/auth/server-auth'
+import { getAccountsForUser, getBearerUser, mapProfile, toClientProfile } from '@backend/auth/server-auth'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 import { requireProducerWorkspaceAccess } from '@backend/produtora/workspace-access'
+import { requireWorkspaceContext } from '@backend/auth/workspace-contexts'
 
 const TABLES: Record<string, { table: string; logoField: string; nameField: string }> = {
   equipe: { table: 'equipes', logoField: 'logo_url', nameField: 'nome' },
@@ -22,7 +23,14 @@ export async function PATCH(req: NextRequest) {
     const meta = TABLES[profileType]
     if (!meta) throw new Error('Tipo de perfil inválido.')
 
-    const account = accounts.find((a) => a.profile_type === profileType && (!profileId || a.id === profileId))
+    let account = accounts.find((a) => a.profile_type === profileType && (!profileId || a.id === profileId))
+    if (!account && profileId && ['equipe', 'jogador'].includes(profileType)) {
+      const delegated = await requireWorkspaceContext(user, profileId, profileType)
+      if (!delegated.data?.delegated_permissions?.pode_editar) throw new Error('O líder não liberou a edição deste perfil.')
+      account = delegated
+      // Ownership, identifiers and account status are never delegated.
+      if (['username', 'status', 'papel'].some(key => body[key] !== undefined)) throw new Error('Somente o líder pode alterar estes dados.')
+    }
     if (!account) throw new Error('Perfil não encontrado neste login.')
     if (profileType === 'produtora') await requireProducerWorkspaceAccess(user.id, account.id, 'administrar')
 
@@ -91,14 +99,14 @@ export async function PATCH(req: NextRequest) {
         if (retry.error) throw retry.error
         return NextResponse.json({
           ok: true,
-          profile: retry.data,
+          profile: account.data?.delegated_access ? toClientProfile(mapProfile(retry.data, account.profile_type!)).data : retry.data,
           warning: 'Coluna bio ainda não existe. Rode database/migrations/20260716_perfil_bio.sql',
         })
       }
       throw error
     }
 
-    return NextResponse.json({ ok: true, profile: data })
+    return NextResponse.json({ ok: true, profile: account.data?.delegated_access ? toClientProfile(mapProfile(data, account.profile_type!)).data : data })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erro ao atualizar perfil.' }, { status: 400 })
   }

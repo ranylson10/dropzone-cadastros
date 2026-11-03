@@ -1,12 +1,12 @@
 /* Perfil público: mesma linguagem escura, limpa e direta do diretório. */
 .profile-command-page {
-  --profile-accent: #d7c461;
-  --profile-bg: #0b0d10;
-  --profile-surface: #12151a;
-  --profile-surface-raised: #171b21;
-  --profile-line: rgba(255, 255, 255, .1);
-  --profile-muted: #9298a3;
-  --profile-ink: #f5f3ed;
+  --profile-accent: var(--dz-rust);
+  --profile-bg: var(--dz-paper);
+  --profile-surface: var(--dz-white);
+  --profile-surface-raised: var(--dz-white);
+  --profile-line: var(--dz-stroke);
+  --profile-muted: var(--dz-muted);
+  --profile-ink: var(--dz-ink);
   min-height: 100%;
   padding-bottom: 56px;
   background: var(--profile-bg);

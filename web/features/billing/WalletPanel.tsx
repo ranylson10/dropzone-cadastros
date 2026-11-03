@@ -1,6 +1,6 @@
 'use client'
 
-import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow, DataTableViewport } from '@/components/ui/DataTable'
 import { Input as UiInput } from '@/components/ui/Field'
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Wallet } from 'lucide-react'
@@ -168,7 +168,7 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
 
       <div className="wallet-history">
         <div className="wallet-history-head"><span>Histórico</span><small>Movimentações da carteira</small></div>
-        <div className="admin-table-wrap">
+        <DataTableViewport className="admin-table-wrap" aria-label="Histórico de movimentações da carteira">
         <DataTable>
           <DataTableHead>
             <DataTableRow>
@@ -200,7 +200,7 @@ export function WalletPanel({ title = 'Carteira DropZone', compact = false }: Pr
             )}
           </DataTableBody>
         </DataTable>
-        </div>
+        </DataTableViewport>
       </div>
     </section>
   )

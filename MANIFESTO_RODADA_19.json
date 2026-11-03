@@ -1,0 +1,41 @@
+{
+  "round": "R19",
+  "base": "DROPZONE_RODADA_18_FONTE_COMPLETA.zip",
+  "mode": "cumulative_with_patch",
+  "scope": "Executor guiado de homologação PostgreSQL 17 isolado e build Web; gate R17–R19 e entradas BAT/PS1 no fingerprint. Testes offline aprovados; sem Docker/Next build/staging/deploy neste ambiente.",
+  "changed": [
+    ".github/workflows/quality.yml",
+    "PROJECT_CONTEXT.md",
+    "README.md",
+    "package.json",
+    "scripts/release/round14-evidence.mjs",
+    "scripts/testes/test-round14-evidence.mjs",
+    "scripts/testes/test-round15-release.mjs"
+  ],
+  "added": [
+    "HOMOLOGAR_POSTGRES_R19.bat",
+    "HOMOLOGAR_WEB_R19.bat",
+    "TESTAR_RODADA_19.bat",
+    "docs/RODADA_19_LABORATORIO_EXECUTAVEL.md",
+    "scripts/release/round19-laboratorio.mjs",
+    "scripts/release/round19-web-check.mjs",
+    "scripts/testes/test-round19-lab-runner.mjs"
+  ],
+  "removed": [],
+  "sha256": {
+    ".github/workflows/quality.yml": "9efd08535ac563d91294b449a4777b10853a4ed899ea8fa77530dda3c10b4f91",
+    "HOMOLOGAR_POSTGRES_R19.bat": "083f47783f9987c024a5f7844677c33ba89c417b0bb7547615fd8c9d30a1131e",
+    "HOMOLOGAR_WEB_R19.bat": "12d747e9312007c0c900948cf114773e16dfa626b8a5395a3afd04f91275073e",
+    "PROJECT_CONTEXT.md": "b8eee98f36f1e7c554df8bce510faf522fe8d2dde4ec3c46191f5fe0e05b6b54",
+    "README.md": "b304ddb59640e84afc5d395723bf27615961841f277642957175f3c0f970ad5d",
+    "TESTAR_RODADA_19.bat": "4bb446ae319a0843d73b2b0b2ef0a108fc6b4f8e321d35a1e5f8f84f9fde0386",
+    "docs/RODADA_19_LABORATORIO_EXECUTAVEL.md": "2e95959bedf3a2929b4e79a2e85b44dd5ba30454fbfb620728d455cd2cb00b10",
+    "package.json": "60397fb91041a1391f11bfd7d85f663148c40728a537651ddcd878b05bf34dc7",
+    "scripts/release/round14-evidence.mjs": "acd87255abeb1e1192bd4c10fa6cb766c991cce8bf038130772e931847afff48",
+    "scripts/release/round19-laboratorio.mjs": "226603a821d7d5908d176d7515d943cab27931830f636b3044e48cd23bd0730e",
+    "scripts/release/round19-web-check.mjs": "3b2ec42a62141d5a16020e2f94d597051b5d3227120a5c8d459a3a9d8949675b",
+    "scripts/testes/test-round14-evidence.mjs": "19c731d35f9960a3748c38f4abbf7fd241bef36fcc2f703edb4c52251c504c4b",
+    "scripts/testes/test-round15-release.mjs": "0a1742dbfd2841126c2b3dae06e628714d6debd3b90896c62ecf0775124d7d28",
+    "scripts/testes/test-round19-lab-runner.mjs": "6630b8b895ac0fda209e6cdc063b1c3f8766dfb7fbdebb5670859099353e98de"
+  }
+}

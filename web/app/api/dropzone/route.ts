@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { getActiveAccount, getBearerUser } from '@backend/auth/server-auth'
+import { getWorkspaceReadContext } from '@backend/auth/workspace-contexts'
 import { listEntities } from '@backend/dropzone/entities/list-entities'
 import { createEntity } from '@backend/dropzone/entities/create-entity'
 import { updateEntity } from '@backend/dropzone/entities/update-entity'
@@ -9,7 +10,8 @@ import type { EntityContext } from '@backend/dropzone/entities/context'
 
 async function contextFor(req: NextRequest): Promise<EntityContext> {
   const user = await getBearerUser(req)
-  const account = await getActiveAccount(req, user)
+  const active = await getActiveAccount(req, user)
+  const account = req.method === 'GET' ? await getWorkspaceReadContext(req, user, active) : active
   return { user, account, origin: req.nextUrl.origin, invalidateTag: tag => revalidateTag(tag, { expire: 0 }), invalidatePath: revalidatePath }
 }
 

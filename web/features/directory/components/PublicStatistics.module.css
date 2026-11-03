@@ -1,4 +1,22 @@
 .statistics :global(.champ-stats-filters) label > span,
 .statistics :global(.champ-stats-filters-mobile) label > span {
-  color: var(--profile-muted, #b1c1cf);
+  color: var(--dz-muted);
 }
+
+.filters :global(.champ-filter-sheet) { position:static; max-height:none; padding:0; border:0; border-radius:0; background:var(--dz-white); box-shadow:none; }
+.filters :global(.champ-filter-group) { padding:14px 0; border-bottom:1px solid var(--dz-stroke); }
+.filters :global(.champ-filter-group h4) { display:flex; align-items:center; gap:8px; margin:0 0 10px; font-size:18px; color:var(--dz-ink); }
+.filters :global(.champ-filter-group>div) { display:flex; flex-wrap:wrap; gap:6px; }
+.filters :global(.champ-filter-group button) { min-height:44px; padding:8px 14px; border:1px solid var(--dz-stroke); border-radius:var(--radius-sm); background:var(--dz-white); color:var(--dz-ink); cursor:pointer; }
+.filters :global(.champ-filter-group button.active) { background:var(--dz-rust)!important; color:var(--dz-white)!important; border-color:var(--dz-rust)!important; box-shadow:none!important; }
+.filters :global(.champ-filter-hint),.filters :global(.champ-filter-empty p) { color:var(--dz-muted); font-size:13px; }
+.filters :global(.champ-filter-empty) { padding:16px 0; }
+.filters :global(.champ-filter-sheet>footer) { position:static; display:flex; justify-content:flex-end; gap:8px; padding-top:16px; background:var(--dz-white); }
+.champion { background:var(--dz-coal)!important; color:var(--dz-paper)!important; border-color:var(--dz-coal)!important; }
+.champion :global(.champion-public-badge) { background:var(--dz-orange)!important; color:var(--dz-coal)!important; }
+.champion :global(.champion-public-main) :is(h2,p,small) { color:var(--dz-paper)!important; }
+.champion :global(.champion-public-lineup) { background:var(--dz-white)!important; color:var(--dz-ink)!important; }
+.champion :global(.champion-public-lineup) :is(strong,b) { color:var(--dz-ink)!important; }
+.champion :global(.champion-public-lineup) small { color:var(--dz-muted)!important; }
+.champion :global(.champion-public-lineup>div) { grid-template-columns:1fr; }
+.champion :global(footer button) { background:var(--dz-white); color:var(--dz-ink); }

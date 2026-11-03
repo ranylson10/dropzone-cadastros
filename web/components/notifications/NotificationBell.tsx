@@ -313,7 +313,7 @@ export function NotificationBell() {
             <p className="empty compact-empty">Nenhuma mensagem por enquanto.</p>
           ) : null}
 
-          <div className="notif-inbox-list">
+          <div className="notif-inbox-list" data-dz-list="legacy">
             {items.map((item) => {
               const actionable = ACTIONABLE_NOTIFICATION_TYPES.has(item.tipo)
               const unreadItem = item.status === 'nao_lida'

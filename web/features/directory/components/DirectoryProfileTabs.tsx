@@ -58,7 +58,7 @@ export function StructureTree({ items, depth = 0 }: { items: DirectorySectionIte
   const allSlots = items.every((item) => !item.children?.length && item.badge)
   if (allSlots) {
     return (
-      <div className="championship-vagas-list directory-public-slots">
+      <div className="championship-vagas-list directory-public-slots" data-dz-list="legacy">
         {items.map((item) => (
           <SlotVagaRow key={item.id} item={item} />
         ))}
@@ -126,7 +126,7 @@ export function StructureTree({ items, depth = 0 }: { items: DirectorySectionIte
 
 export function renderSectionItems(items: DirectorySectionItem[]) {
   return (
-    <div className="directory-related-list">
+    <div className="directory-related-list" data-dz-list="legacy">
       {items.map((item) => {
         const body = (
           <>

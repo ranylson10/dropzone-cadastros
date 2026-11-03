@@ -1,0 +1,14 @@
+/* DropZone Arena · R21 · cadastro curto, mantendo todo o assistente anterior */
+.champ-r21-mode{display:flex;gap:5px;padding:5px;border:1px solid var(--border,rgba(255,255,255,.15));border-radius:13px;background:rgba(120,105,220,.06);margin:12px 0}
+.champ-r21-mode button{flex:1;min-width:0;border:0;border-radius:10px;background:transparent;color:inherit;padding:11px 8px;font:inherit;font-size:.88rem;font-weight:600;cursor:pointer;transition:background-color .16s,box-shadow .16s}
+.champ-r21-mode button.active{background:rgba(132,102,241,.20);box-shadow:inset 0 0 0 1px rgba(181,148,255,.4)}
+.champ-r21-mode button:focus-visible{outline:2px solid #b99bff;outline-offset:2px}
+.champ-r21-essential{display:grid;gap:16px;min-width:0}
+.champ-r21-essential .championship-guided-identity{padding:0;margin:0}
+.champ-r21-fields{align-items:start}
+.champ-r21-payment{display:grid;gap:10px;min-width:0}
+.champ-r21-payment>strong{font-size:.88rem}
+.champ-r21-note{margin:0;font-size:.86rem;line-height:1.5;border-left:3px solid #b39af4;padding:10px 12px;background:rgba(130,102,220,.08);border-radius:0 10px 10px 0}
+.champ-r21-locked{font-size:.9rem;align-self:center}
+@media(max-width:600px){.champ-r21-fields{display:grid;grid-template-columns:minmax(0,1fr)}.champ-r21-mode button{padding:12px 6px;font-size:.83rem}.champ-r21-essential .championship-guided-identity-grid{display:grid;grid-template-columns:minmax(0,1fr)} }
+@media(prefers-reduced-motion:reduce){.champ-r21-mode button{transition:none}}

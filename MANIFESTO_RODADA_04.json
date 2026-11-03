@@ -1,0 +1,57 @@
+{
+  "round": "R04",
+  "date": "2026-10-21",
+  "source": "DROPZONE_RODADA_03_FONTE_COMPLETA.zip",
+  "remote_changes": false,
+  "note": "UI and navigation fixes; not yet visually validated or deployed",
+  "files": {
+    "PROJECT_CONTEXT.md": {
+      "sha256": "7708a9342c8c0f9d7d6029ab0f0682c7c89197e9cf473dfa452f70c6477b423c",
+      "status": "modified"
+    },
+    "README.md": {
+      "sha256": "b552c3b688a0b02d4747c76861ffa2f0f569e8f5b6a48c1132e400f8045ecdb3",
+      "status": "modified"
+    },
+    "TESTAR_RODADA_04.bat": {
+      "sha256": "a658e8cd1945174b9b17823a81ea8b4ba44c9833e70c3d998d7dfd237985d1ac",
+      "status": "added"
+    },
+    "docs/RODADA_04_UI_NAVEGACAO_TABELAS.md": {
+      "sha256": "20303522f59fb5ac587cd8a10d0b26ff3b7eb1030582b63b807d6085741b9bba",
+      "status": "added"
+    },
+    "scripts/testes/rodada04-css-fixture.html": {
+      "sha256": "fe21be4e505fd703327314f8d5c05df87e1e08400c3d01953151b7cd900d4b1d",
+      "status": "added"
+    },
+    "scripts/testes/test-round4-ui.mjs": {
+      "sha256": "aeff12e5ee7ddca9ea98a4c66dba921c4355294c1d5752effc038b2799843a03",
+      "status": "added"
+    },
+    "web/app/admin/page.tsx": {
+      "sha256": "703a2256bafea36c06d65d4379a4a52b251696d492c7878f364751cbcdebd9e9",
+      "status": "modified"
+    },
+    "web/app/globals.css": {
+      "sha256": "8f8cb97783bcadba2489936b47c941b3ebb18ef12e56c28a8d3a9c3af2e9a449",
+      "status": "modified"
+    },
+    "web/components/layout/AppHeader.tsx": {
+      "sha256": "5c9c9507a11cba122bd31870af6cb60acdcbe9a9a1e5085697293aa76d22658e",
+      "status": "modified"
+    },
+    "web/components/layout/StorefrontHeader.tsx": {
+      "sha256": "074cae818e0490edfc89025b5bdc5298bd71d40ff2c0d21ddc14944f229bbd5e",
+      "status": "modified"
+    },
+    "web/components/layout/storefront-header.css": {
+      "sha256": "f0f271ddb795c99bf63131b70b87a973a5dea422cc9c46b6b47204093dad7358",
+      "status": "modified"
+    },
+    "web/features/billing/WalletPanel.tsx": {
+      "sha256": "ab9350eb9eccbb634c90e17551e5f61ba094e1af3c6da7f682f315a69b1d35af",
+      "status": "modified"
+    }
+  }
+}

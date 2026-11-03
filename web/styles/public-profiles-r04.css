@@ -3,14 +3,14 @@
  * A cor de tema de cada campeonato continua configurável.
  */
 .directory-profile-page.directory-v1-profile {
-  --dz-r04-surface: #19252f;
-  --dz-r04-surface-alt: #202e3a;
-  --dz-r04-border: rgba(217, 232, 244, .12);
-  --dz-r04-text: #f1f5f9;
-  --dz-r04-muted: #adbcca;
+  --dz-r04-surface: var(--dz-white);
+  --dz-r04-surface-alt: var(--dz-paper);
+  --dz-r04-border: var(--dz-stroke);
+  --dz-r04-text: var(--dz-ink);
+  --dz-r04-muted: var(--dz-muted);
   --dz-r04-radius: 12px;
   --dz-r04-gap: 16px;
-  background: #101a23;
+  background: var(--dz-white);
   color: var(--dz-r04-text);
   min-width: 0;
 }
@@ -18,7 +18,7 @@
 
 /* Perfis de equipe, jogador, produtora e manager. */
 .directory-v1-profile .profile-command-page {
-  --profile-bg: #101a23;
+  --profile-bg: var(--dz-paper);
   --profile-surface: var(--dz-r04-surface);
   --profile-surface-raised: var(--dz-r04-surface-alt);
   --profile-line: var(--dz-r04-border);
@@ -112,7 +112,7 @@
 .directory-v1-profile .profile-command-actions a.primary { border-color: var(--profile-accent); }
 .directory-v1-profile .profile-command-actions :is(a,button):focus-visible,
 .directory-v1-profile .directory-profile-tabs button:focus-visible,
-.directory-v1-profile .champ-public-nav-btn:focus-visible { outline: 2px solid #f6ca63; outline-offset: 2px; }
+.directory-v1-profile .champ-public-nav-btn:focus-visible { outline: 2px solid var(--dz-stroke); outline-offset: 2px; }
 
 /* Painel competitivo: KPIs iguais, histórico preservado sem truncar dados. */
 .directory-v1-profile .competitive-profile-panel,

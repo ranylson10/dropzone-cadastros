@@ -44,9 +44,10 @@ test('vitrine faz download sob demanda e a entrega fica em cache', () => {
 })
 
 
-test('proxy de mídia consegue servir bucket privado por URL assinada', () => {
+test('proxy de mídia NÃO assina arquivos de buckets privados para usuários anônimos', () => {
   const route = source('web/app/api/media/[bucket]/[...path]/route.ts')
-  expect(route).toContain("import { supabaseAdmin, supabaseUrl } from '@backend/shared/supabase-admin'")
-  expect(route).toContain("supabaseAdmin.storage.from(bucket).createSignedUrl(storagePath, 60)")
-  expect(route).toContain("upstream = await fetch(signed.signedUrl")
+  expect(route).toContain("import { supabaseUrl } from '@backend/shared/supabase-admin'")
+  expect(route).not.toContain('supabaseAdmin')
+  expect(route).not.toContain('createSignedUrl(')
+  expect(route).toContain('storage/v1/object/public/')
 })

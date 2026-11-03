@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountsByUserId, getBearerUser } from '@backend/auth/server-auth'
-import { listControllableEquipes } from '@backend/equipes/manager-team-access'
+import { listControllableEquipes, requireEquipeAccess } from '@backend/equipes/manager-team-access'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
 
 async function managedTeamIds(userId: string) {
@@ -375,6 +375,7 @@ export async function PATCH(req: NextRequest) {
       .maybeSingle()
     if (participacaoError) throw participacaoError
     if (!participacao) throw new Error('Você não tem permissão para editar a análise desta equipe.')
+    await requireEquipeAccess(user.id, await getAccountsByUserId(user.id), participacao.equipe_id, 'editar')
 
     const [{ data: campeonato, error: campeonatoError }, { data: partida, error: partidaError }, { data: config, error: configError }] = await Promise.all([
       supabaseAdmin.from('campeonatos').select('id,tipo').eq('id', participacao.campeonato_id).maybeSingle(),

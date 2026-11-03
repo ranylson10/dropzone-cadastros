@@ -1,0 +1,29 @@
+{
+  "round": "R17",
+  "base": "DROPZONE_RODADA_16_FONTE_COMPLETA.zip",
+  "mode": "cumulative_with_patch",
+  "scope": "Executor do PostgreSQL sintetico revalida identidade por operacao e vincula exec ao ID imutavel; sem SQL nativo, build, migracoes ou deploy.",
+  "changed": [
+    ".github/workflows/quality.yml",
+    "PROJECT_CONTEXT.md",
+    "README.md",
+    "package.json",
+    "scripts/testes/postgres-inscricoes/docker-lab.mjs"
+  ],
+  "added": [
+    "TESTAR_RODADA_17.bat",
+    "docs/RODADA_17_SEGURANCA_LABORATORIO.md",
+    "scripts/testes/test-round17-lab-identity.mjs"
+  ],
+  "removed": [],
+  "sha256": {
+    ".github/workflows/quality.yml": "3d27a0f45642c0a11bdeee074367cc112640d2e47c157fd02a40ac5a3f5db692",
+    "PROJECT_CONTEXT.md": "a4ceeb0b2168e6b85a12694adbea77ea617cde6be3f4a1b50779e8218e965738",
+    "README.md": "0ef1d9760863e7e9ce323a00ad6ec0c7230140c6e5998bb6914d44483b0b95c4",
+    "TESTAR_RODADA_17.bat": "769195509401fcae280c97208f7764565d8a0cc72dc8f9f49c2f96220d80c347",
+    "docs/RODADA_17_SEGURANCA_LABORATORIO.md": "39dad3e841f41bc9f8e3ef065ec0fd8094f3e8fa4d26ce32b302fb411162f17d",
+    "package.json": "2dcdd622ed7222e65b119d02d62727a203fe459b1bed1a496cd90c013e1c8a56",
+    "scripts/testes/postgres-inscricoes/docker-lab.mjs": "8d1582f3aaab94d19b1e768083602c2259c0b39643f4ef8c6bb883d73ef6bfbc",
+    "scripts/testes/test-round17-lab-identity.mjs": "f116952cba4b9a9acd69f750bf5c17f6a8398afa57329208da6d55f513044910"
+  }
+}

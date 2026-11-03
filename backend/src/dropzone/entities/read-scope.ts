@@ -6,14 +6,16 @@ import type { EntityContext } from './context'
 
 /** Resolve access independently of the entity types included in the response. */
 export async function entityTeamReadScope({ user, account }: EntityContext) {
-  const accounts = [...await getAccountsByUserId(user.id), account]
+  const accounts = await getAccountsByUserId(user.id)
+  // A delegated context is a view of an entity, never an owned login profile.
+  if (!account.data?.delegated_access && !accounts.some(item => item.id === account.id)) accounts.push(account)
   const controlled = await listControllableEquipes(user.id, accounts)
   const managedIds = controlled.filter(team => team.permissoes.pode_ver).map(team => team.id)
   const memberIds: string[] = []
   if (account.profile_type === 'jogador') {
     const queries = [
       supabaseAdmin.from('equipe_jogadores').select('equipe_id').eq('jogador_id', account.id).order('id'),
-      supabaseAdmin.from('equipe_jogadores').select('equipe_id').eq('jogador_auth_user_id', user.id).order('id'),
+      ...(account.data?.delegated_access ? [] : [supabaseAdmin.from('equipe_jogadores').select('equipe_id').eq('jogador_auth_user_id', user.id).order('id')]),
     ]
     const batches = await Promise.all(queries.map(query => readPagedRows<{ equipe_id: string }>(query)))
     memberIds.push(...batches.flat().map(row => row.equipe_id).filter(Boolean))
@@ -36,7 +38,7 @@ export async function entityChampionshipReadScope(context: EntityContext, teamSc
   if (account.profile_type === 'jogador') {
     const queries = [
       supabaseAdmin.from('campeonato_jogadores').select('campeonato_id').eq('jogador_id', account.id).order('id'),
-      supabaseAdmin.from('campeonato_jogadores').select('campeonato_id').eq('criado_por', user.id).order('id'),
+      ...(account.data?.delegated_access ? [] : [supabaseAdmin.from('campeonato_jogadores').select('campeonato_id').eq('criado_por', user.id).order('id')]),
     ]
     const batches = await Promise.all(queries.map(query => readPagedRows<{ campeonato_id: string }>(query)))
     ids.push(...batches.flat().map(row => row.campeonato_id))

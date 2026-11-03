@@ -1,12 +1,12 @@
 /* Campeonato usa o mesmo perfil escuro; a cor configurada só aparece como detalhe. */
 .champ-public {
-  --champ-ink: #f5f3ed;
-  --champ-muted: #9298a3;
-  --champ-line: rgba(255, 255, 255, .1);
-  --champ-surface: #12151a;
-  --champ-gold: #d7c461;
+  --champ-ink: var(--dz-ink);
+  --champ-muted: var(--dz-muted);
+  --champ-line: var(--dz-stroke);
+  --champ-surface: var(--dz-white);
+  --champ-gold: var(--dz-rust);
   padding-bottom: 52px;
-  background: #0b0d10;
+  background: var(--dz-paper);
 }
 
 .champ-public .directory-profile-banner {
@@ -204,14 +204,14 @@
   box-shadow: none;
 }
 
-.champ-public .directory-related-list > a > span,
-.champ-public .directory-related-list > article > span,
-.champ-public .champ-public-team-row > span,
-.champ-public .champ-public-player-row > span,
+.champ-public .directory-related-list > a > span:first-child,
+.champ-public .directory-related-list > article > span:first-child,
+.champ-public .champ-public-team-avatar,
+.champ-public .champ-public-player-avatar,
 .champ-public .directory-public-slots .vaga-row-avatar {
   border: 0;
   border-radius: 999px;
-  background: #1a1e24;
+  background: var(--surface-soft);
 }
 
 .champ-public .directory-related-list strong,

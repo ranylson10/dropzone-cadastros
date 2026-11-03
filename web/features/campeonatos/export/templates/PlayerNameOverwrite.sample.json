@@ -340,10 +340,8 @@
      {"TeamID" : 10 ,"TeamRegion" : "RERS","Color":"#000000"},
      {"TeamID" : 11 ,"TeamRegion" : "KINGS LEGACY","Color":"#000000"},
      {"TeamID" : 12 ,"TeamRegion" : "THE LAST DANCE","Color":"#000000"}
- ]
-}
-}
-  "TextColor": [
+ ],
+ "TextColor": [
     {"TeamPlayer1": "#FFFFFF", "TeamPlayer2": "#FFFFFF", "TeamPlayer3": "#FFFFFF", "TeamPlayer4": "#FFFFFF","TeamPlayer1Num": "#FFFFFF", "TeamPlayer2Num": "#FFFFFF", "TeamPlayer3Num": "#FFFFFF", "TeamPlayer4Num": "#FFFFFF","Alive": "#04ff00", "Knockdown": "#FFFF00", "Eliminated": "#ff0000"}
   ]
 }

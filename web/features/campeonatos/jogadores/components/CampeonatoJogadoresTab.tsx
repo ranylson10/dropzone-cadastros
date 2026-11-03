@@ -191,7 +191,7 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
       </div>
 
       {view === 'jogadores' ? (
-        <div className="championship-vagas-list">
+        <div className="championship-vagas-list" data-dz-list="legacy">
           {players.length === 0 ? (
             <div className="vagas-empty-filter">Nenhum jogador neste filtro.</div>
           ) : (
@@ -228,7 +228,7 @@ export function CampeonatoJogadoresTab({ campeonatoId }: { campeonatoId: string 
           )}
         </div>
       ) : (
-        <div className="championship-vagas-list">
+        <div className="championship-vagas-list" data-dz-list="legacy">
           {participacoes.length === 0 ? (
             <div className="vagas-empty-filter">Nenhuma line neste filtro.</div>
           ) : (

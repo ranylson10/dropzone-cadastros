@@ -97,7 +97,7 @@ async function fetchMatchStats(matchId: string): Promise<JsonRecord> {
   return payload
 }
 
-async function findPlayerLinks(importacaoId: string, campeonatoId: string) {
+export async function findPlayerLinks(importacaoId: string, campeonatoId: string) {
   const [{ data: jogadores, error: jogadoresError }, { data: equipes, error: equipesError }, { data: participacoes, error: participacoesError }] = await Promise.all([
     supabaseAdmin
     .from('matchresult_importacoes_jogadores')
@@ -127,12 +127,19 @@ async function findPlayerLinks(importacaoId: string, campeonatoId: string) {
   }]))
   // The import-specific link is the strongest source; existing championship
   // participation repairs older MatchResults that were interrupted midway.
-  for (const item of jogadores || []) links.set(idKey(item.id_jogo), {
-    campeonato_jogador_id: item.campeonato_jogador_id,
-    jogador_id: item.jogador_id,
-    jogador_temporario_id: item.jogador_temporario_id,
-    campeonato_equipe_id: teamsByImportId.get(item.importacao_equipe_id) || null,
-  })
+  for (const item of jogadores || []) {
+    const key = idKey(item.id_jogo)
+    if (!key) continue
+    // MatchResult legado pode omitir identificadores que ja foram resolvidos
+    // na inscricao do campeonato. Nao substituir um vinculo valido por null.
+    const previous = links.get(key)
+    links.set(key, {
+      campeonato_jogador_id: item.campeonato_jogador_id || previous?.campeonato_jogador_id || null,
+      jogador_id: item.jogador_id || previous?.jogador_id || null,
+      jogador_temporario_id: item.jogador_temporario_id || previous?.jogador_temporario_id || null,
+      campeonato_equipe_id: teamsByImportId.get(item.importacao_equipe_id) || previous?.campeonato_equipe_id || null,
+    })
+  }
   return { links, teamsByName }
 }
 

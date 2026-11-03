@@ -1,0 +1,103 @@
+{
+  "rodada": "11",
+  "data": "2026-10-26",
+  "base": "DROPZONE_RODADA_10_FONTE_COMPLETA.zip",
+  "scope": "convites, consumo condicional de tokens e limpeza de reservas",
+  "changes": [
+    {
+      "path": "PROJECT_CONTEXT.md",
+      "action": "modified",
+      "bytes": 119902,
+      "sha256": "06a2568467bab1bce6922396788afc80f143445e60f41721f31a8516b26a08cf"
+    },
+    {
+      "path": "README.md",
+      "action": "modified",
+      "bytes": 4961,
+      "sha256": "92609ee7ba76e255ed99cd38ac4e7cb266ba109c0bed7fe765aa68f21ecdc99e"
+    },
+    {
+      "path": "TESTAR_RODADA_11.bat",
+      "action": "added",
+      "bytes": 630,
+      "sha256": "99c587ac4640a079eb7ad6d8eda9276c8f26f321d7acf60ba307544f4d784735"
+    },
+    {
+      "path": "backend/src/billing/lili-slot-reservation.ts",
+      "action": "modified",
+      "bytes": 3874,
+      "sha256": "acf6edf4a80764834b62ca51624581d15243c2c4c8320ff502de69e7e9fe4372"
+    },
+    {
+      "path": "backend/src/campeonatos/invites/team-invite-mutation-transport.ts",
+      "action": "added",
+      "bytes": 2888,
+      "sha256": "0d4322887927dfb54cffeb96b61b8420eab277334909f6da9b3e4c3cd7ee767c"
+    },
+    {
+      "path": "backend/src/dropzone/entities/tokens.ts",
+      "action": "modified",
+      "bytes": 2486,
+      "sha256": "a9cf969f7725ceb96cdf6f72048188534756cd31dac198c5a37b70bc17c97f76"
+    },
+    {
+      "path": "docs/RODADA_11_CONVITES_TOKENS_RESERVAS_2026-10-26.md",
+      "action": "added",
+      "bytes": 5379,
+      "sha256": "436342412726ff307953c625d3cfdfa184eb83c173e72c94c0bb857fda67496a"
+    },
+    {
+      "path": "docs/sql/20261026_round11_invite_writer_candidate.sql",
+      "action": "added",
+      "bytes": 7510,
+      "sha256": "c149877e57a252920ec804676c30c9139d981f3ae1e5be83e5c5c45cd0231e29"
+    },
+    {
+      "path": "docs/sql/20261026_round11_readiness_readonly.sql",
+      "action": "added",
+      "bytes": 1976,
+      "sha256": "fd03ba39c431928ee1b73b657737150862495336320263dda53d923f1680f21c"
+    },
+    {
+      "path": "docs/sql/20261026_round11_scoped_expiry_candidate.sql",
+      "action": "added",
+      "bytes": 2842,
+      "sha256": "fbe2e137aa4d473803078c508edc508ec0cd1d61e88d80c3f092310c2527310f"
+    },
+    {
+      "path": "package.json",
+      "action": "modified",
+      "bytes": 8749,
+      "sha256": "591c4afbce2fbb5a8560b8f97889f5b4a865dab9b8cc6d8c1815b4cac2f71d89"
+    },
+    {
+      "path": "scripts/testes/test-round11-invites.mjs",
+      "action": "added",
+      "bytes": 11209,
+      "sha256": "eed04faeedc5411a74fc5b53a4e81f2aea004fb9f7db10d174febb1047d475ec"
+    },
+    {
+      "path": "web/app/api/campeonatos/[id]/convites-equipe/[tokenId]/renovar/route.ts",
+      "action": "modified",
+      "bytes": 4121,
+      "sha256": "fd48c92d9aef9b4a7789c3e93a58de82017aef240d4cfb181ea2d2881a2d4e88"
+    },
+    {
+      "path": "web/app/api/campeonatos/[id]/convites-equipe/[tokenId]/route.ts",
+      "action": "modified",
+      "bytes": 3929,
+      "sha256": "614555e68a059092523f0f64da94a348ef59639952369921ff9d7ba22b531256"
+    },
+    {
+      "path": "web/features/campeonatos/equipes/services/campeonato-equipes.service.ts",
+      "action": "modified",
+      "bytes": 3637,
+      "sha256": "cc360586020c67d5dcb476fcdeb4385bedb892125b5dc4ebe11c16f5da51d976"
+    }
+  ],
+  "production_db_changed": false,
+  "sql_candidates_applied": false,
+  "postgres_concurrency_tested": false,
+  "tests": "84 local R11 checks + regressions R01-R10 passed; full build and real PostgreSQL not executed",
+  "default_mode": "legacy"
+}

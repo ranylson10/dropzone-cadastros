@@ -18,6 +18,21 @@ jobs:
           cache: npm
       - run: npm ci --no-audit
       - run: npm run test:security
+      - run: npm run test:rounds
+      - run: npm run test:round13
+      - run: npm run test:round14
+      - run: npm run test:round15
+      - run: npm run test:round16
+      - run: npm run test:round17
+      - run: npm run test:round18
+      - run: npm run test:round19
+      - run: npm run test:round19:buildfix
+      - run: npm run test:round20
+      - run: npm run test:round21
+      - run: npm run test:round22
+      - run: npm run test:round23
+      - run: npm run test:round24
+      - run: npm run audit:theme-contract
       - run: npm run typecheck
       - run: npm run lint
       # Code validation only: the owner declined the root registry audit.

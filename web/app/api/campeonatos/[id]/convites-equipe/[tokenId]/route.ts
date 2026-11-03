@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getBearerUser } from '@backend/auth/server-auth'
 import { requireCampeonatoTokenPermission } from '@backend/campeonatos/campeonato-permissions'
 import { supabaseAdmin } from '@backend/shared/supabase-admin'
+import { tryAtomicTeamInviteMutation, TeamInviteMutationError } from '@backend/campeonatos/invites/team-invite-mutation-transport'
 
 
 export async function PATCH(
@@ -58,38 +59,41 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string; tokenId: string }> },
 ) {
   try {
     const { id, tokenId } = await context.params
-    const user = await getBearerUser(_req)
+    const user = await getBearerUser(req)
     await requireCampeonatoTokenPermission(user.id, id)
+
+    const atomic = await tryAtomicTeamInviteMutation({
+      actorId: user.id, campeonatoId: id, tokenId, action: 'cancel',
+      requestId: req.headers.get('Idempotency-Key'),
+    })
+    if (atomic) return NextResponse.json({ ok: true, repetida: atomic.repetida === true })
 
     const { data: convite } = await supabaseAdmin
       .from('tokens')
-      .select('id, slot_id, usado, status')
+      .select('id, slot_id, usado, status, tipo')
       .eq('id', tokenId)
       .eq('campeonato_id', id)
       .single()
-    if (!convite || convite.usado) throw new Error('Convite não pode ser cancelado.')
+    if (!convite || convite.usado || convite.status !== 'ativo' || !['team_invite', 'convite_equipe_campeonato'].includes(convite.tipo)) throw new Error('Convite não pode ser cancelado.')
 
-    await supabaseAdmin.from('tokens').update({ status: 'cancelado' }).eq('id', tokenId)
-
-    if (convite.slot_id) {
-      await supabaseAdmin
-        .from('campeonato_slots')
-        .update({ status: 'livre', updated_at: new Date().toISOString() })
-        .eq('id', convite.slot_id)
-        .eq('status', 'reservado')
-        .is('line_id', null)
-    }
+    // O trigger do banco é o proprietário do espelho do slot. Não forçar
+    // "livre" via REST: pode existir outro convite ou reserva Lili ativa.
+    const { data: cancelled, error: cancelError } = await supabaseAdmin.from('tokens')
+      .update({ status: 'cancelado' }).eq('id', tokenId).eq('campeonato_id', id)
+      .eq('status', 'ativo').eq('usado', false).select('id').maybeSingle()
+    if (cancelError) throw cancelError
+    if (!cancelled) throw new Error('Convite alterado por outra operação.')
 
     return NextResponse.json({ ok: true })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Erro ao cancelar convite.' },
-      { status: 400 },
+      { status: error instanceof TeamInviteMutationError ? error.status : 400 },
     )
   }
 }

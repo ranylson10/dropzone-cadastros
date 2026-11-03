@@ -1,0 +1,67 @@
+import { expect, test } from '@playwright/test'
+import { deputyFixture } from '../helpers/circuito-fixture'
+import { assertSharedIdentity } from '../helpers/shared-identity'
+
+test.setTimeout(90_000)
+
+test('mobile navigation traps focus, closes with Escape and survives a short viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto('/')
+  const menu = page.getByRole('button', { name: 'Abrir menu completo', exact: true })
+  await menu.click()
+  const dialog = page.getByRole('dialog', { name: 'Menu completo do DropZone' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('link', { name: 'Produtoras', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('link', { name: 'Managers', exact: true })).toHaveCount(0)
+  for (let i = 0; i < 20; i++) {
+    await page.keyboard.press('Tab')
+    expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true)
+  }
+  await dialog.getByRole('link', { name: 'Termos de uso' }).scrollIntoViewIfNeeded()
+  await expect(dialog.getByRole('link', { name: 'Termos de uso' })).toBeInViewport()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(menu).toBeFocused()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false)
+})
+
+test('directory opens a team in the normal panel and switches between delegated teams', async ({ page }, testInfo) => {
+  const fixture = await deputyFixture(page)
+  await page.goto('/equipes')
+  const switcher = page.getByLabel('Trocar equipe', { exact: true })
+  await expect(switcher).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Minha equipe', exact: true })).toHaveAttribute('href', /perfil_id=team-a/)
+  await page.getByRole('link', { name: 'Minha equipe', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Painel da equipe', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Editar perfil', exact: true })).toHaveCount(0)
+  await page.getByText('Ferramentas da equipe', { exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Configurações', exact: false })).toHaveCount(0)
+  await page.getByLabel('Trocar equipe', { exact: true }).selectOption('team-b')
+  await expect(page.getByRole('heading', { name: /Equipe Brasa/ })).toBeVisible()
+  await expect(page).toHaveURL(/perfil_id=team-b/)
+  await expect(page.getByRole('button', { name: 'Editar perfil', exact: true })).toBeVisible()
+  await page.getByText('Ferramentas da equipe', { exact: true }).click()
+  await expect(page.getByRole('button', { name: /Configurações/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Staff', exact: true })).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('team-panel.png'), fullPage: true })
+  await assertSharedIdentity(page)
+  expect(fixture.errors).toEqual([])
+})
+
+test('players and championships preserve the selected context and granted actions', async ({ page }) => {
+  const fixture = await deputyFixture(page)
+  await page.goto('/jogadores')
+  await page.getByLabel('Trocar jogador', { exact: true }).selectOption('player-b')
+  await expect(page.getByRole('link', { name: 'Meus jogadores', exact: true })).toHaveAttribute('href', /perfil_id=player-b/)
+  await page.getByRole('link', { name: 'Meus jogadores', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Meu painel', exact: true })).toBeVisible()
+  await page.getByLabel('Trocar jogador', { exact: true }).selectOption('player-a')
+  await expect(page.getByRole('heading', { name: /Jogador Aurora/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Editar perfil', exact: true })).toHaveCount(0)
+  await page.goto('/campeonatos')
+  await page.getByLabel('Gerenciar como', { exact: true }).selectOption('team-b')
+  await expect(page.getByRole('link', { name: 'Meus campeonatos', exact: true })).toHaveAttribute('href', /perfil_id=team-b&section=campeonatos/)
+  await page.getByRole('link', { name: 'Meus campeonatos', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Minhas competições', exact: true })).toBeVisible()
+  expect(fixture.errors).toEqual([])
+})

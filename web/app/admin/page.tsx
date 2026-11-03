@@ -1,7 +1,7 @@
 'use client'
 
 import { confirmAction, promptAction } from '@/components/feedback'
-import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow, DataTableViewport } from '@/components/ui/DataTable'
 import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase-browser'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { currentInternalPath, redirectToLogin } from '@/features/auth/auth-return'
+import { AppShell } from '@/components/layout'
 import { HomePageEditor } from '@/features/admin/HomePageEditor'
 
 function bytes(value: number) {
@@ -348,7 +349,7 @@ export default function AdminPage() {
   const infra = metrics.infra || {}
 
   return (
-    <main className="system-admin-page">
+    <AppShell headerVariant="storefront" withAuthOffset={false} loadSession mainClassName="system-admin-page">
       <header className="system-admin-header">
         <div>
           <SystemLogo size={44} alt="" variant="accent" />
@@ -524,7 +525,7 @@ export default function AdminPage() {
             </section>
           ) : null}
 
-          <div className="admin-table-wrap">
+          <DataTableViewport className="admin-table-wrap" aria-label="Lista de produtoras">
             <DataTable>
               <DataTableHead><DataTableRow><DataTableHeaderCell>Produtora</DataTableHeaderCell><DataTableHeaderCell>Status</DataTableHeaderCell><DataTableHeaderCell>Criada em</DataTableHeaderCell><DataTableHeaderCell>Modelo</DataTableHeaderCell></DataTableRow></DataTableHead>
               <DataTableBody>
@@ -539,7 +540,7 @@ export default function AdminPage() {
                 {!producerAccounts.length ? <DataTableRow><DataTableCell colSpan={4}><span className="empty">Nenhuma produtora cadastrada.</span></DataTableCell></DataTableRow> : null}
               </DataTableBody>
             </DataTable>
-          </div>
+          </DataTableViewport>
         </section>
       ) : null}
 
@@ -653,7 +654,7 @@ export default function AdminPage() {
               <strong>{precos.exemplo.valor_total_brl}</strong>
             </p>
           ) : null}
-          <div className="admin-table-wrap">
+          <DataTableViewport className="admin-table-wrap" aria-label="Tabela de preços do sistema">
             <DataTable>
               <DataTableHead>
                 <DataTableRow>
@@ -714,7 +715,7 @@ export default function AdminPage() {
                 ))}
               </DataTableBody>
             </DataTable>
-          </div>
+          </DataTableViewport>
         </section>
       ) : null}
 
@@ -809,9 +810,10 @@ export default function AdminPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Pesquisar nome, usuário ou tipo"
+              aria-label="Pesquisar contas por nome, usuário ou tipo"
             />
           </header>
-          <div className="admin-table-wrap">
+          <DataTableViewport className="admin-table-wrap" aria-label="Moderação de contas">
             <DataTable>
               <DataTableHead>
                 <DataTableRow>
@@ -860,7 +862,7 @@ export default function AdminPage() {
                 ))}
               </DataTableBody>
             </DataTable>
-          </div>
+          </DataTableViewport>
           <h3>Campeonatos/publicações</h3>
           <div className="admin-publication-grid">
             {(data?.championships || []).map((item: any) => (
@@ -960,6 +962,6 @@ export default function AdminPage() {
           </div>
         </section>
       ) : null}
-    </main>
+    </AppShell>
   )
 }

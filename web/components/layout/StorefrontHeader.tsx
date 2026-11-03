@@ -6,19 +6,24 @@ import Form from 'next/form'
 import { Input as UiInput } from '@/components/ui/Field'
 import { SystemLogo } from '@/components/brand/SystemLogo'
 import { useDisclosureFocus } from '@/components/ui/useDisclosureFocus'
+import { AccountEditDialog } from '@/features/auth/AccountEditDialog'
+import type { AccountIdentity } from '@/lib/types'
+import { signOutEverywhere } from '@/lib/auth-client-state'
 import { hasPublicDiscoveryNavigation } from './nav'
 import {
   CalendarDays, ChevronLeft, ChevronRight, Heart, Home, Menu, MessageCircle,
-  Search, ShoppingBag, Trophy, UserRound, UsersRound, X,
+  LogOut, Pencil, Search, ShoppingBag, Trophy, UserRound, UsersRound, X,
   type LucideIcon,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState, type MouseEvent } from 'react'
 import './storefront-header.css'
 
 type Props = {
   authenticated?: boolean
+  identity?: AccountIdentity | null
   onAccountClick?: () => void
+  onSignOut?: () => void | Promise<void>
 }
 
 type StoreNavItem = { label: string; href: string; icon: LucideIcon; shortLabel?: string; active?: boolean }
@@ -27,10 +32,10 @@ const PRIMARY_NAV: StoreNavItem[] = [
   { label: 'Campeonatos', href: '/campeonatos', icon: Trophy },
   { label: 'Equipes', href: '/equipes', icon: UsersRound },
   { label: 'Jogadores', href: '/jogadores', icon: UserRound },
-  { label: 'Ranking', href: '/rank', icon: Trophy },
-  { label: 'Produtoras', href: '/produtoras', icon: UsersRound },
 ]
 const SECONDARY_NAV: StoreNavItem[] = [
+  { label: 'Produtoras', href: '/produtoras', icon: UsersRound },
+  { label: 'Ranking', href: '/rank', icon: Trophy },
   { label: 'Agenda', href: '/agenda', icon: CalendarDays },
   { label: 'Favoritos', href: '/campeonatos?favoritos=1', icon: Heart },
   { label: 'Carrinho', href: '/carrinho', icon: ShoppingBag },
@@ -57,19 +62,55 @@ function StoreNavLink({ item, pathname, onNavigate }: {
   )
 }
 
-export function StorefrontHeader({ authenticated = false, onAccountClick }: Props) {
+export function StorefrontHeader({ authenticated = false, identity, onAccountClick, onSignOut }: Props) {
   const pathname = usePathname() || '/'
   const returnTo = encodeURIComponent(pathname)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const mobilePopup = useDisclosureFocus(mobileOpen, () => setMobileOpen(false), false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [editingAccount, setEditingAccount] = useState(false)
+  const [savedIdentity, setSavedIdentity] = useState<AccountIdentity | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
+  const [accountError, setAccountError] = useState('')
+  const accountMenuId = useId()
+  const accountPopup = useDisclosureFocus(accountOpen, () => setAccountOpen(false))
+  const mobilePopup = useDisclosureFocus(mobileOpen, () => setMobileOpen(false), true, true)
   const [collapsed, setCollapsed] = useState(false)
   const discovery = hasPublicDiscoveryNavigation(pathname)
-  const profileHref = authenticated ? '/?painel=1' : `/login?returnTo=${returnTo}`
+  const isAuthenticated = authenticated || Boolean(identity)
+  const profile = savedIdentity || identity || {}
+  const profileName = profile.name || profile.username || 'Conta DropZone'
+  const profileHref = isAuthenticated ? '/?painel=1' : `/login?returnTo=${returnTo}`
 
   useEffect(() => {
     try { setCollapsed(localStorage.getItem('dz_discovery_sidebar_collapsed') === '1') } catch { /* private mode */ }
   }, [])
-  useEffect(() => { setMobileOpen(false) }, [pathname])
+  useEffect(() => { setMobileOpen(false); setAccountOpen(false) }, [pathname])
+  useEffect(() => { setSavedIdentity(null) }, [identity?.name, identity?.username, identity?.email, identity?.avatar_url])
+
+  function toggleAccount(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.focus({ preventScroll: true })
+    setMobileOpen(false)
+    setAccountOpen((value) => !value)
+  }
+
+  async function signOut() {
+    if (signingOut) return
+    setSigningOut(true)
+    setAccountError('')
+    try {
+      if (onSignOut) await onSignOut()
+      else {
+        await signOutEverywhere()
+        window.location.assign('/')
+      }
+      setAccountOpen(false)
+      setSavedIdentity(null)
+    } catch (cause) {
+      setAccountError(cause instanceof Error ? cause.message : 'Não foi possível sair da conta.')
+    } finally {
+      setSigningOut(false)
+    }
+  }
 
   function toggleSidebar() {
     setCollapsed((value) => {
@@ -84,7 +125,7 @@ export function StorefrontHeader({ authenticated = false, onAccountClick }: Prop
         <div className={`store-home-width store-home-header-inner ${discovery ? 'store-home-header-inner--unified' : ''} ${pathname === '/campeonatos' ? 'store-home-header-inner--catalog' : ''}`}>
           <Link className="store-home-brand" href="/" aria-label="DropZone — início">
             <SystemLogo size={44} alt="" variant="accent" />
-            <span><strong>DROPZONE</strong><small>COMPETITIVE SYSTEM</small></span>
+            <span><strong>DROPZONE<span className="dz-brand-period">.</span></strong><small>O SEU JOGO COMEÇA AQUI</small></span>
           </Link>
 
           <Form className="store-home-header-search" action="/campeonatos" role="search">
@@ -96,13 +137,31 @@ export function StorefrontHeader({ authenticated = false, onAccountClick }: Prop
             <Link href="/campeonatos?vagas=1" className="store-home-open-slots">Vagas abertas</Link>
             <Link href="/campeonatos?favoritos=1" aria-label="Favoritos" title="Favoritos"><Heart size={20} /></Link>
             <Link className="store-home-cart" href="/carrinho" aria-label="Carrinho" title="Carrinho"><ShoppingBag size={20} /></Link>
-            {authenticated && onAccountClick ? (
-              <button type="button" onClick={onAccountClick} aria-label="Abrir minha área" title="Minha área"><UserRound size={20} /></button>
+            {isAuthenticated ? (
+              <div className="store-home-account">
+                <button type="button" className="store-home-account-toggle" onClick={toggleAccount}
+                  aria-label="Abrir menu da conta" title={profileName} aria-expanded={accountOpen} aria-controls={accountMenuId}>
+                  {profile.avatar_url ? <img src={profile.avatar_url} alt="Foto do perfil" width={32} height={32} /> : <span aria-hidden="true">{profileName.slice(0, 2).toUpperCase()}</span>}
+                </button>
+                {accountOpen ? (
+                  <div ref={accountPopup.panelRef} id={accountMenuId} className="store-home-account-menu" role="region" aria-label="Minha conta">
+                    <div className="store-home-account-info"><strong>{profileName}</strong><small>{profile.username ? `@${profile.username}` : profile.email}</small></div>
+                    <button type="button" onClick={() => { accountPopup.close(true); setEditingAccount(true) }}><Pencil size={17} /> Editar informações</button>
+                    {onAccountClick ? (
+                      <button type="button" onClick={() => { setAccountOpen(false); onAccountClick() }}><UserRound size={17} /> Minha área</button>
+                    ) : (
+                      <Link href="/?painel=1" onClick={() => setAccountOpen(false)}><UserRound size={17} /> Minha área</Link>
+                    )}
+                    <button type="button" disabled={signingOut} onClick={() => void signOut()}><LogOut size={17} /> {signingOut ? 'Saindo…' : 'Sair da conta'}</button>
+                    {accountError ? <p role="alert">{accountError}</p> : null}
+                  </div>
+                ) : null}
+              </div>
             ) : (
-              <Link href={profileHref} aria-label={authenticated ? 'Minha área' : 'Entrar'} title={authenticated ? 'Minha área' : 'Entrar'}><UserRound size={20} /></Link>
+              <Link href={profileHref} aria-label="Entrar" title="Entrar"><UserRound size={20} /></Link>
             )}
             <button className="store-home-mobile-toggle" type="button"
-              onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setMobileOpen((value) => !value) }}
+              onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setAccountOpen(false); setMobileOpen((value) => !value) }}
               aria-expanded={mobileOpen} aria-controls="dz-public-mobile-menu"
               aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}>
               {mobileOpen ? <X size={21} /> : <Menu size={21} />}
@@ -110,17 +169,37 @@ export function StorefrontHeader({ authenticated = false, onAccountClick }: Prop
           </div>
         </div>
         {mobileOpen ? (
-          <div ref={mobilePopup.panelRef} id="dz-public-mobile-menu" className="store-home-mobile-menu">
-            <Form action="/campeonatos" role="search" onSubmit={() => setMobileOpen(false)}>
-              <Search size={17} /><UiInput name="q" placeholder="Buscar campeonatos" aria-label="Buscar campeonatos" />
-              <button type="submit">Buscar</button>
-            </Form>
-            <nav aria-label="Menu completo">
-              {[...PRIMARY_NAV, ...SECONDARY_NAV].map((item) => (
-                <StoreNavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
-              ))}
-            </nav>
-          </div>
+          <>
+            <button type="button" className="dz-public-menu-scrim"
+              aria-label="Fechar menu de navegação" onClick={() => mobilePopup.close(true)} />
+            <div ref={mobilePopup.panelRef} id="dz-public-mobile-menu" className="store-home-mobile-menu" tabIndex={-1}
+              role="dialog" aria-modal="true" aria-label="Menu completo do DropZone">
+              <div className="dz-public-menu-heading">
+                <span className="dz-public-menu-handle" aria-hidden="true" />
+                <div><small>FORA DO LOBBY. DENTRO DO JOGO.</small><strong>Seu próximo movimento<span className="dz-brand-period">.</span></strong></div>
+                <button type="button" aria-label="Fechar menu" onClick={() => mobilePopup.close(true)}><X size={21} aria-hidden="true" /></button>
+              </div>
+              <Form action="/campeonatos" role="search" onSubmit={() => setMobileOpen(false)}>
+                <Search size={17} /><UiInput name="q" placeholder="Buscar campeonatos" aria-label="Buscar campeonatos" />
+                <button type="submit">Buscar</button>
+              </Form>
+              <div className="dz-menu-account-entry">
+                <UserRound size={22} aria-hidden="true" />
+                <div><strong>{isAuthenticated ? profileName : 'Faça parte do jogo'}</strong><span>{isAuthenticated ? 'Suas equipes, jogadores e competições' : 'Sua equipe e suas competições, no mesmo lugar.'}</span></div>
+                <Link href={profileHref} onClick={() => setMobileOpen(false)} aria-label={isAuthenticated ? 'Abrir minha área' : 'Entrar na minha conta'}><ChevronRight size={22} /></Link>
+              </div>
+              <nav className="dz-menu-primary" aria-label="Explorar">
+                {PRIMARY_NAV.map((item) => (
+                  <StoreNavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+                ))}
+              </nav>
+              <div className="dz-menu-section-label">ACOMPANHE E ORGANIZE</div>
+              <nav className="dz-menu-secondary" aria-label="Mais destinos">
+                {SECONDARY_NAV.map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />)}
+              </nav>
+              <div className="dz-menu-footer"><span>DROPZONE / FREE FIRE</span><Link href="/termos-de-servico">Termos de uso</Link></div>
+            </div>
+          </>
         ) : null}
       </header>
 
@@ -151,14 +230,18 @@ export function StorefrontHeader({ authenticated = false, onAccountClick }: Prop
               </Link>
             </div>
           </aside>
-          <nav className="dz-public-bottom-nav" aria-label="Navegação inferior">
-            {[
-              PRIMARY_NAV[0], { ...PRIMARY_NAV[1], shortLabel: 'Competir' }, PRIMARY_NAV[2], SECONDARY_NAV[0],
-              { label: 'Minha área', shortLabel: 'Conta', href: profileHref, icon: UserRound, active: false },
-            ].map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} />)}
+          <nav className="dz-public-bottom-nav" aria-label="Navegação inferior do aplicativo">
+            {PRIMARY_NAV.map((item) => <StoreNavLink key={item.href} item={item} pathname={pathname} />)}
+            <button type="button" className={mobileOpen ? 'active' : ''}
+              onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setAccountOpen(false); setMobileOpen((value) => !value) }}
+              aria-label={mobileOpen ? "Fechar menu completo" : "Abrir menu completo"} aria-expanded={mobileOpen} aria-controls="dz-public-mobile-menu">
+              {mobileOpen ? <X size={19} aria-hidden="true" /> : <Menu size={19} aria-hidden="true" />}
+              <span>Menu</span>
+            </button>
           </nav>
         </>
       ) : null}
+      {editingAccount && isAuthenticated ? <AccountEditDialog identity={profile} onClose={() => setEditingAccount(false)} onSaved={(next) => { setSavedIdentity(next); setEditingAccount(false) }} /> : null}
     </>
   )
 }

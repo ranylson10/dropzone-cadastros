@@ -293,7 +293,7 @@ export default function CarteiraPage() {
         {tab === 'extrato' ? (
           <section className="bank-section">
             <h2>Extrato</h2>
-            <ul className="bank-tx-list">
+            <ul className="bank-tx-list" data-dz-list="legacy">
               {extrato.length === 0 ? (
                 <li className="bank-tx-empty">Nenhum lançamento ainda.</li>
               ) : (
@@ -354,7 +354,7 @@ export default function CarteiraPage() {
             </div>
 
             <h3>Histórico de saques</h3>
-            <ul className="bank-tx-list">
+            <ul className="bank-tx-list" data-dz-list="legacy">
               {(data?.saques || []).length === 0 ? (
                 <li className="bank-tx-empty">Nenhum saque.</li>
               ) : (
@@ -389,7 +389,7 @@ export default function CarteiraPage() {
         {tab === 'pagamentos' ? (
           <section className="bank-section">
             <h2>Pagamentos</h2>
-            <ul className="bank-tx-list">
+            <ul className="bank-tx-list" data-dz-list="legacy">
               {(data?.pagamentos || []).length === 0 ? (
                 <li className="bank-tx-empty">Nenhum pagamento registrado.</li>
               ) : (

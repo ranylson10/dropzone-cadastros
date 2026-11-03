@@ -472,7 +472,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
             </div>
             <small>Atualização automática</small>
           </header>
-          <div className="agenda-next-list">
+          <div className="agenda-next-list" data-dz-list="legacy">
             {upcomingItems.length ? upcomingItems.map((item) => (
               <button key={item.id} type="button" className="agenda-next-item" onClick={() => jumpToEvent(item)}>
                 <span className="agenda-next-date">
@@ -716,7 +716,7 @@ export function AgendaCalendar(props: AgendaCalendarProps) {
               <span><strong>{group.name}</strong><small>{group.items.length} jogo{group.items.length === 1 ? '' : 's'}</small></span>
               <span>{expandedChampionship === group.id ? '−' : '+'}</span>
             </button>
-            {expandedChampionship === group.id ? <div className="agenda-championship-games">{group.items.map((item) => <article key={item.id} className="agenda-event-list-item">
+            {expandedChampionship === group.id ? <div className="agenda-championship-games" data-dz-list="legacy">{group.items.map((item) => <article key={item.id} className="agenda-event-list-item">
               <button type="button" className="agenda-event-list-open" onClick={() => jumpToEvent(item)}><time>{item.data ? `${item.data.slice(8, 10)}/${item.data.slice(5, 7)} · ${item.horario_inicio.slice(0, 5)}` : 'PARA AGENDAR'}</time><strong>{item.titulo}</strong></button>
               {item.editable ? <button type="button" className="agenda-event-list-edit" onClick={() => openGameEditor(item)}>Ajustar</button> : null}
             </article>)}</div> : null}

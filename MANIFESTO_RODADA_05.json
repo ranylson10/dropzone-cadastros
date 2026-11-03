@@ -1,0 +1,71 @@
+{
+  "round": "R05",
+  "date": "2026-10-22",
+  "base": "DROPZONE_RODADA_04_FONTE_COMPLETA.zip",
+  "supabase_changes": false,
+  "deploy_changes": false,
+  "tests": {
+    "round5_checks": 55,
+    "round2_structural": 6,
+    "round3_structural": 7,
+    "round4_structural": 15,
+    "engine_contract": "passed"
+  },
+  "files": {
+    "backend/src/campeonatos/estatisticas/engine-result.service.ts": {
+      "sha256": "8ed9840b50cf24c4ab67cda81e153ad7c8d2f8cec5b75ef28c40b8b80314a72f",
+      "bytes": 4318,
+      "status": "modified"
+    },
+    "backend/src/campeonatos/estatisticas/garena-matchstats.service.ts": {
+      "sha256": "17f2b000d014eede5cc3c06f19343b1a2ff6fee08a41307aee6c2b77ac738e51",
+      "bytes": 17184,
+      "status": "modified"
+    },
+    "desktop/main.cjs": {
+      "sha256": "7e050e7796b3ba06a14b70de87656065b319e14ae9fa90dd4877fb1aa6682fe5",
+      "bytes": 28656,
+      "status": "modified"
+    },
+    "desktop/package.json": {
+      "sha256": "d983829afe3d4a01014209f04c075d6371501a2b3bb825e5857cf8289b758b38",
+      "bytes": 1114,
+      "status": "modified"
+    },
+    "desktop/remote-assets.cjs": {
+      "sha256": "5d6c9551339c00d9e18caabcc9ccab298cc21a7b0867e488dea1ed4812b746ad",
+      "bytes": 3218,
+      "status": "added"
+    },
+    "web/features/campeonatos/export/utils/player-name-overwrite.ts": {
+      "sha256": "00023a93a1e5c1fc5aaafe76931e12327f7c1c60eb548231b5261875242d3699",
+      "bytes": 7782,
+      "status": "modified"
+    },
+    "scripts/testes/test-round5-integrations.mjs": {
+      "sha256": "a3e1cb8cf0999310782b7693b121722e9ca57a6427dc246d10dbcb5e43eb26cd",
+      "bytes": 8944,
+      "status": "added"
+    },
+    "TESTAR_RODADA_05.bat": {
+      "sha256": "4a26cbdb0eff812f348bc0adb4d3e8a8e258d2e2d4f009fcefc5907ca602bc2a",
+      "bytes": 1261,
+      "status": "added"
+    },
+    "docs/RODADA_05_INTEGRACOES_SPEC_ENGINE_ELECTRON.md": {
+      "sha256": "d74a4f22c3f9dcbe8b9909f87041b34284c3193fc7051f413fc8ff0eb229b404",
+      "bytes": 4906,
+      "status": "added"
+    },
+    "PROJECT_CONTEXT.md": {
+      "sha256": "dd444fb575d0579576ed42e80dcce485d6b9a3dcc48772f7843582a1f01c8ae3",
+      "bytes": 117854,
+      "status": "modified"
+    },
+    "README.md": {
+      "sha256": "d6443a1d6ecef3fad24cb9fd64339b329327c166da194e44934b9249cc3e3f5e",
+      "bytes": 1903,
+      "status": "modified"
+    }
+  }
+}

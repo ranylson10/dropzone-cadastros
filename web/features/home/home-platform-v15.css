@@ -179,7 +179,7 @@
   border: 3px solid #a7b8c5;
   border-radius: 8px;
   overflow: hidden;
-  background: #1a3045;
+  background: var(--dz-coal);
   box-shadow: 0 12px 26px #06142166;
   transform: rotate(-6deg);
 }
@@ -239,7 +239,7 @@
 .store-home.home-platform-v15 .store-home-section-head a {display: inline-flex;gap: 5px;align-items: center;color: #cbdbe5;font-size: 12px;font-weight: 700;white-space: nowrap;}
 .store-home.home-platform-v15 .store-home-section-head a:hover {color: var(--dz-home-accent);}
 .store-home.home-platform-v15 .store-home-categories {
-  display: grid;grid-template-columns: repeat(6,minmax(0,1fr));gap: 9px;
+  display: grid;grid-template-columns: repeat(4,minmax(0,1fr));gap: 9px;
 }
 .store-home.home-platform-v15 .store-home-categories > a {
   display: flex;flex-direction: column;align-items: center;justify-content: center;gap: 7px;
@@ -376,7 +376,7 @@
   .store-home.home-platform-v15 .store-home-hero-previews {position: absolute;z-index: 0;top: 24px;right: -55px;width: 55%;opacity: .24;pointer-events: none;}
   .store-home.home-platform-v15 .store-home-hero-buttons {gap: 7px;}
   .store-home.home-platform-v15 .store-home-hero-buttons a {min-height: 37px;min-width: 0;padding-inline: 9px;font-size: 12px;}
-  .store-home.home-platform-v15 .store-home-categories {grid-template-columns: repeat(3,minmax(0,1fr));}
+  .store-home.home-platform-v15 .store-home-categories {grid-template-columns: repeat(2,minmax(0,1fr));}
   .store-home.home-platform-v15 .store-home-products {grid-template-columns: repeat(2,minmax(0,1fr));gap: 9px;}
   .store-home.home-platform-v15 .store-home-promos {grid-template-columns: 1fr;}
   .store-home.home-platform-v15 .store-home-newsletter-inner {grid-template-columns: 1fr;}

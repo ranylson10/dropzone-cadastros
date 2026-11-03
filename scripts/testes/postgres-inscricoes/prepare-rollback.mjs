@@ -30,12 +30,16 @@ rollback+=`  if exists(select 1 from public.campeonato_equipes where line_id is 
   if to_regclass('public.campeonato_equipes_campeonato_line_unique') is not null then
     raise exception 'Índice global já existe: revisar estado antes do rollback.';
   end if;
+  if to_regclass('public.campeonato_equipes_line_aberta_unique') is null then
+    raise exception 'Índice combinado de reinscrição ausente; revisar versão da R02.';
+  end if;
 end;
 $guard$;
 drop function public.fn_inscrever_por_convite_atomico(uuid,uuid,text,text,uuid,uuid,text,uuid,integer,text);
 drop function public.dz_inscricao_link_meta(jsonb,text);
 drop function public.dz_inscricao_nome_key(text);
 create unique index campeonato_equipes_campeonato_line_unique on public.campeonato_equipes(campeonato_id,line_id) where line_id is not null;
+drop index public.campeonato_equipes_line_aberta_unique;
 ${previous};
 revoke all on public.inscricao_recibos from public,anon,authenticated;
 commit;

@@ -179,8 +179,7 @@ body#dropzone-app .app-profile-copy small { color: #a7b5c1 !important; }
 
   /* Authenticated workspaces: use the same surface/text roles as discovery.
      Financial receipts and authored overlay canvases retain their own styling. */
-  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) {
-    --dz-paper: var(--dz-mobile-bg); --dz-text: var(--dz-mobile-text); --dz-muted: var(--dz-mobile-secondary);
+  body#dropzone-app main:is(.dz-unified-workspace-page,.system-admin-page) { --dz-text: var(--dz-mobile-text);
     --surface: var(--dz-mobile-surface); --surface-soft: var(--dz-mobile-raised); --text: var(--dz-mobile-text); --muted: var(--dz-mobile-secondary); --line: var(--dz-mobile-line);
     --dz-ui-surface: var(--dz-mobile-surface); --dz-ui-surface-soft: var(--dz-mobile-raised); --dz-ui-text: var(--dz-mobile-text); --dz-ui-muted: var(--dz-mobile-secondary); --dz-ui-line: var(--dz-mobile-line);
   }

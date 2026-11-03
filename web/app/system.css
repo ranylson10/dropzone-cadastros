@@ -1,18 +1,6 @@
 /* Camada visual final do produto: regras compartilhadas para web, desktop e mobile web. */
 :root {
   color-scheme: dark;
-  --ui-bg: #0c0d0f;
-  --ui-surface: #141518;
-  --ui-surface-soft: #17181b;
-  --ui-surface-raised: #1a1b1f;
-  --ui-text: #f5f3ed;
-  --ui-text-soft: #c7c2b8;
-  --ui-text-muted: #9c9a94;
-  --ui-muted: #9c9a94;
-  --ui-line: #2a2c32;
-  --ui-accent: #c9b766;
-  --ui-gold: #c9b766;
-  --ui-gold-light: #dfcf85;
   --ui-radius-sm: 6px;
   --ui-radius-md: 10px;
   --ui-radius-lg: 14px;
@@ -915,7 +903,7 @@ body .report-modal textarea:focus{outline:2px solid var(--ui-accent);outline-off
 /* Lili: assistente integrado ao produto, e nÃ£o uma segunda identidade visual. */
 body .lili-hub-page{
   --lh-primary:var(--ui-accent);
-  --lh-primary-dark:#a39248;
+  --lh-primary-dark:var(--brand-2);
   --lh-bg:var(--ui-bg);
   --lh-text:var(--ui-text);
   background:radial-gradient(circle at 12% 0%,rgba(201,183,102,.1),transparent 32%),var(--ui-bg);
@@ -1023,12 +1011,8 @@ body .lili-team-empty span{color:var(--ui-muted)}
 
 /* Home pÃºblica: descoberta, compra e informaÃ§Ã£o institucional no mesmo percurso. */
 body .public-home-redesign{
-  --dz-paper:var(--ui-bg);
   --dz-surface:var(--ui-surface);
-  --dz-white:var(--ui-surface);
   --dz-line:var(--ui-line);
-  --dz-ink:var(--ui-text);
-  --dz-muted:var(--ui-muted);
   --dz-accent:var(--ui-accent);
   background:var(--ui-bg);
   color:var(--ui-text);
@@ -1433,21 +1417,6 @@ body .directory-rank-profile-link:hover{background:color-mix(in srgb,var(--ui-ac
 /* Rodada 145 — DropZone privado + visual claro/brutalista. */
 :root {
   color-scheme: light;
-  --ui-bg: #f1efe9;
-  --ui-surface: #ffffff;
-  --ui-surface-soft: #f7f5ef;
-  --ui-surface-raised: #ffffff;
-  --ui-text: #111113;
-  --ui-text-soft: #35343a;
-  --ui-text-muted: #716e69;
-  --ui-muted: #716e69;
-  --ui-line: #cbc7bd;
-  --ui-accent: #6f43ff;
-  --ui-accent-strong: #5c30ef;
-  --ui-primary: #6f43ff;
-  --ui-primary-light: #8b6bff;
-  --ui-gold: #6f43ff;
-  --ui-gold-light: #8b6bff;
   --ui-success: #138a49;
   --ui-warning: #d98900;
   --ui-danger: #c64242;

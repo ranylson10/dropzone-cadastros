@@ -145,7 +145,7 @@ export function HomePageEditor() {
       </div>
 
       <div className="home-editor-block">
-        <div className="home-editor-block-head"><div><strong>Categorias</strong><small>Os 6 cards logo abaixo da faixa de benefícios.</small></div></div>
+        <div className="home-editor-block-head"><div><strong>Categorias</strong><small>Os 4 tipos de campeonato: Xtreino, Copa, Liga e Diário. Personalize as imagens de cada tipo.</small></div></div>
         <div className="home-editor-category-grid">
           {config.categories.map((category, index) => (
             <article className="home-editor-card compact" key={index}>
@@ -153,7 +153,7 @@ export function HomePageEditor() {
                 {category.image_url ? <img src={category.image_url} alt="" /> : <span>SEM IMAGEM</span>}
                 <label className="home-editor-upload"><ImagePlus size={14} /> {uploading === `category-${index}` ? 'Enviando…' : 'Imagem'}<UiInput type="file" accept="image/png,image/jpeg,image/webp" disabled={Boolean(uploading)} onChange={(event) => void uploadImage(`category-${index}`, event.target.files?.[0], (url) => patchCategory(index, { image_url: url }))} /></label>
               </div>
-              <div className="home-editor-fields"><label><span>Nome</span><UiInput value={category.title} onChange={(event) => patchCategory(index, { title: event.target.value })} /></label><label><span>Link</span><UiInput value={category.href} onChange={(event) => patchCategory(index, { href: event.target.value })} /></label></div>
+              <div className="home-editor-fields"><label><span>Nome</span><UiInput value={category.title} readOnly /></label><label><span>Link</span><UiInput value={category.href} readOnly /></label></div>
             </article>
           ))}
         </div>
