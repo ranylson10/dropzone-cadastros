@@ -847,6 +847,7 @@ export function DropZoneHome() {
       url.searchParams.set('perfil_id', nextAccount.id)
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
       setMessage('')
+      window.scrollTo(0, 0)
     } catch (err: any) {
       setError(err?.message || 'Não foi possível abrir esta área.')
     } finally {
@@ -1660,7 +1661,7 @@ export function DropZoneHome() {
 
   return (
     <AppShell
-      activeLabel="Início"
+      activeLabel={workspaceMode === 'panel' ? 'Meu painel' : 'Início'}
       navItems={APP_NAV}
       header={workspaceMode === 'home' ? 'never' : authIdentity ? 'always' : account && !linkingProfile ? 'always' : 'never'}
       account={account}
@@ -1673,6 +1674,7 @@ export function DropZoneHome() {
       onSignOut={signOut}
       mainClassName={`page ${workspaceMode === 'panel' ? styles.scope : ''} ${workspaceMode === 'home' ? 'marketplace-shell-page' : authIdentity || (account && !linkingProfile) ? 'page-authenticated' : ''}`}
       mainId="painel-inicio"
+      showQuickActions={false}
       withAuthOffset={workspaceMode !== 'home' && Boolean(authIdentity || (account && !linkingProfile))}
     >
         <div className="shell panel-workspace-shell">
@@ -1812,23 +1814,6 @@ export function DropZoneHome() {
                       {account.public_id ? ` · ID ${account.public_id}` : ''}
                     </span>
                   </strong>
-                </div>
-              </div>
-              <div className="account-strip-metrics" role="group" aria-label="Resumo da conta">
-                <div className="metric" title="Campeonatos">
-                  <Trophy size={16} aria-hidden="true" />
-                  <b>{championships.length}</b>
-                  <span>Campeonatos</span>
-                </div>
-                <div className="metric" title={account.profile_type === 'produtora' ? 'Campeonatos aprovados' : 'Equipes'}>
-                  {account.profile_type === 'produtora' ? <CheckCircle2 size={16} aria-hidden="true" /> : <Users size={16} aria-hidden="true" />}
-                  <b>{account.profile_type === 'produtora' ? championships.filter(champ => String(champ.data?.aprovacao_status || 'aprovado') === 'aprovado').length : teams.length}</b>
-                  <span>{account.profile_type === 'produtora' ? 'Aprovados' : 'Equipes'}</span>
-                </div>
-                <div className="metric" title={account.profile_type === 'produtora' ? 'Campeonatos em aprovação' : 'Inscrições'}>
-                  {account.profile_type === 'produtora' ? <Clock3 size={16} aria-hidden="true" /> : <ClipboardList size={16} aria-hidden="true" />}
-                  <b>{account.profile_type === 'produtora' ? championships.filter(champ => champ.data?.aprovacao_status === 'pendente').length : registrations.length}</b>
-                  <span>{account.profile_type === 'produtora' ? 'Em aprovação' : 'Inscrições'}</span>
                 </div>
               </div>
               {!account.data?.delegated_access || account.data?.delegated_permissions?.pode_editar ? <button

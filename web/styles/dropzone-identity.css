@@ -364,6 +364,15 @@ body#dropzone-app .app-header .app-brand .system-logo { background-color: #f1efe
 body#dropzone-app .app-header .app-brand-copy strong { font: 700 27px/1 var(--font-display),sans-serif; color: #f1efe7 !important; letter-spacing: .02em; }
 body#dropzone-app .app-header .app-brand-copy small { font-size: 8px; color: #b4b6a9 !important; }
 body#dropzone-app .app-header .app-brand-copy .dz-brand-period { color: var(--dz-orange) !important; }
+body#dropzone-app .app-header .app-profile-trigger { background:transparent; border:0; }
+body#dropzone-app .app-header .app-profile-trigger:hover { background:var(--dz-ink); }
+body#dropzone-app .app-header .app-dashboard-entry[aria-current="page"] { background:#34382e!important; color:#ffad8d!important; }
+body#dropzone-app .app-header .app-profile-copy small { color:color-mix(in srgb,var(--dz-paper) 72%,var(--dz-coal))!important; }
+body#dropzone-app .app-header .app-profile-avatar { color:var(--dz-ink); }
+body#dropzone-app .app-header :is(.app-wallet-chip,.app-admin-chip,.notif-bell-trigger) { background:transparent; color:var(--dz-paper); }
+body#dropzone-app .app-header .app-profile-menu { background:var(--dz-white)!important; color:var(--dz-ink)!important; border:1px solid var(--dz-stroke)!important; box-shadow:none!important; }
+body#dropzone-app .app-header .app-profile-menu :is(button,a) { background:transparent!important; color:var(--dz-ink)!important; box-shadow:none!important; }
+body#dropzone-app .app-header .app-profile-menu :is(button,a):hover { background:var(--surface-soft)!important; }
 body#dropzone-app .app-header :is(.app-main-nav>a,.app-nav-parent,.app-profile-copy strong,.app-profile-trigger,.app-global-language-trigger) { color: #dce0ce !important; }
 body#dropzone-app .app-header :is(.app-main-nav>a,.app-nav-parent).active { background: #34382e !important; color: #ffad8d !important; }
 body#dropzone-app .app-header .app-nav-submenu { background: var(--dz-coal); border-color: #565c4d; }
@@ -390,10 +399,7 @@ body#dropzone-app .page-authenticated .button:not(.secondary):not(.danger) { bac
 body#dropzone-app .page-authenticated :is(.dz-r20-configure,.dz-r20-configure__steps button) { background: var(--dz-white); color: var(--dz-ink); border-color: var(--dz-stroke); border-radius: 3px; box-shadow: none; }
 body#dropzone-app .page-authenticated .dz-r20-configure__steps button > span { color: var(--dz-rust); }
 @media(min-width:901px) {
-  body#dropzone-app .app-header:has(+.page-authenticated) { height: 100dvh !important; border-bottom: 0 !important; }
-  body#dropzone-app .app-header:has(+.page-authenticated) .app-header-inner { width: 100% !important; height: 100%; padding: 24px 14px 16px; }
   body#dropzone-app .app-header .app-action-fab { display: none; }
-  body#dropzone-app .page-authenticated { padding-top: 28px !important; }
 }
 @media(max-width:900px) {
   body#dropzone-app .app-header { height: 60px !important; border-bottom: 1px solid #393c35 !important; }
@@ -405,6 +411,9 @@ body#dropzone-app .page-authenticated .dz-r20-configure__steps button > span { c
   body#dropzone-app .page-authenticated { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; padding: 22px 18px calc(100px + env(safe-area-inset-bottom)) !important; }
   body#dropzone-app .app-action-fab { min-height: 44px; padding: 0 12px; border: 0; border-radius: 3px; background: var(--dz-rust) !important; color: #fffef9; box-shadow: none; }
   body#dropzone-app .app-mobile-dock { border-radius: 0 !important; min-height: 66px; padding-block: 5px calc(5px + env(safe-area-inset-bottom)); }
+  body#dropzone-app .app-mobile-dock :is(a,button) { color:#c5c9ba!important; }
+  body#dropzone-app .app-mobile-dock :is(a,button).active { color:#ffad8d!important; background:transparent!important; }
+  body#dropzone-app .app-mobile-dock :is(span,svg) { color:inherit!important; }
   body#dropzone-app .app-header .app-mobile-nav-backdrop { position: fixed; inset: 0; z-index: 122; display: block; background: #10120ed9; backdrop-filter: blur(3px); }
   body#dropzone-app .app-header .app-main-nav.is-open { position: fixed; inset: 12px 12px auto auto; z-index: 124; display: grid; width: min(440px,calc(100% - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 20px; border: 0; border-top: 4px solid var(--dz-orange); border-radius: 3px; background: var(--dz-paper) !important; color: var(--dz-ink); }
   body#dropzone-app .app-mobile-sheet-heading { display: grid; grid-template-columns: 1fr 44px; align-items: center; gap: 8px; padding-bottom: 20px; }

@@ -20,12 +20,13 @@ type Props = {
   activeAccountId?: string
   active?: boolean
   className?: string
+  label?: string
   onBeforeOpen?: () => void
   onSelect?: (context: DropZoneRow) => void | Promise<void>
 }
 
 /** The server's context list is authoritative; browser snapshots never grant access. */
-export function WorkspacePanelSwitcher({ activeAccountId, active = false, className = '', onBeforeOpen, onSelect }: Props) {
+export function WorkspacePanelSwitcher({ activeAccountId, active = false, className = '', label, onBeforeOpen, onSelect }: Props) {
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<PanelState>({ status: 'loading', contexts: [] })
   const [revision, setRevision] = useState(0)
@@ -105,8 +106,8 @@ export function WorkspacePanelSwitcher({ activeAccountId, active = false, classN
   const filtered = state.contexts.filter(item => `${item.name || ''} ${item.username || ''}`.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR')))
   return <>
     <button type="button" className={`${className} ${open || active ? 'active' : ''}`.trim()}
-      aria-label="Abrir meus painéis" aria-haspopup="dialog" aria-expanded={open} onClick={show}>
-      <LayoutDashboard size={20} aria-hidden="true" /><span>Painéis</span>
+      aria-label={label ? `Abrir meus painéis: ${label}` : 'Abrir meus painéis'} aria-haspopup="dialog" aria-expanded={open} onClick={show}>
+      <LayoutDashboard size={20} aria-hidden="true" /><span>{label || 'Painéis'}</span>
     </button>
     <Dialog open={open} title="Seus painéis" description="Escolha o perfil que você quer operar."
       onClose={() => setOpen(false)} closeLabel="Fechar seletor de painéis" size="medium" className="dz-panel-switcher">

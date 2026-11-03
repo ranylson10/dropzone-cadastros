@@ -28,6 +28,7 @@ type AppHeaderProps = {
   profileImage?: string
   accounts?: DropZoneRow[]
   activeAccountId?: string
+  activeContext?: DropZoneRow | null
   switchingAccountId?: string
   onSwitchAccount?: (account: DropZoneRow) => void
   onCreateLinkedProfile?: (profileType?: WebProfileType) => void
@@ -40,6 +41,7 @@ type AppHeaderProps = {
   showWallet?: boolean
   /** Link para /admin se for admin do sistema */
   showAdmin?: boolean
+  showQuickActions?: boolean
 }
 
 function profileMedia(account: DropZoneRow) {
@@ -95,7 +97,7 @@ function LockedAvatar({
     borderRadius: '10px',
   }
   return (
-    <span style={box} className="app-profile-avatar" data-locked-avatar={size}>
+    <span style={box} className="app-profile-avatar" data-locked-avatar={size} aria-hidden="true">
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" width={size} height={size} style={img} />
@@ -114,6 +116,7 @@ export function AppHeader({
   profileImage,
   accounts = [],
   activeAccountId,
+  activeContext,
   switchingAccountId,
   onSwitchAccount,
   onCreateLinkedProfile,
@@ -123,6 +126,7 @@ export function AppHeader({
   loginLabel = 'Entrar no sistema',
   showWallet = false,
   showAdmin = false,
+  showQuickActions = true,
 }: AppHeaderProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -140,10 +144,10 @@ export function AppHeader({
   const languagePopup = useDisclosureFocus(languageOpen, () => setLanguageOpen(false))
   const mobilePopup = useDisclosureFocus<HTMLElement>(mobileOpen, () => setMobileOpen(false), true, true)
   const pathname = usePathname()
-  const navActive = resolveActiveNavLabel(pathname) || activeLabel
+  const navActive = activeLabel || resolveActiveNavLabel(pathname)
   const isAuthenticated = Boolean(profileName && onSignOut)
   const visibleAccounts = accounts.filter((item) => isWebProfileType(item.profile_type))
-  const activeAccount = visibleAccounts.find((item) => item.id === activeAccountId) || visibleAccounts[0] || null
+  const activeAccount = activeContext || visibleAccounts.find((item) => item.id === activeAccountId) || visibleAccounts[0] || null
   const activeProfileType = activeAccount?.profile_type || null
 
   const quickActions = activeProfileType === 'produtora'
@@ -306,7 +310,7 @@ export function AppHeader({
             <div><small>DROPZONE / PAINEL</small><strong>Menu da plataforma</strong></div>
             <button type="button" onClick={() => mobilePopup.close(true)} aria-label="Fechar menu"><X size={21} aria-hidden="true" /></button>
           </div>
-          {isAuthenticated ? <Link href="/?painel=1" className="app-dashboard-entry" onClick={() => setMobileOpen(false)}><LayoutDashboard size={17} aria-hidden="true" /> Meu painel</Link> : null}
+          {isAuthenticated ? <Link href="/?painel=1" className="app-dashboard-entry" aria-current={navActive === 'Meu painel' ? 'page' : undefined} onClick={() => setMobileOpen(false)}><LayoutDashboard size={17} aria-hidden="true" /> Meu painel</Link> : null}
           {navItems.map((item) => {
             const hasChildren = Boolean(item.children?.length)
             if (!hasChildren) {
@@ -399,7 +403,7 @@ export function AppHeader({
             activeAccountId={activeAccountId} onSelect={onSwitchAccount}
             onBeforeOpen={() => { setMobileOpen(false); setProfileOpen(false); setQuickOpen(false); setLanguageOpen(false) }} />
         </nav>
-        {isAuthenticated ? <button type="button" className="app-action-fab"
+        {isAuthenticated && showQuickActions ? <button type="button" className="app-action-fab"
           aria-label="Abrir ações rápidas" aria-expanded={quickOpen}
           onClick={() => { setMobileOpen(false); setProfileOpen(false); setQuickOpen((value) => !value) }}>
           <Plus size={22} aria-hidden /><span>Ação</span>
@@ -427,7 +431,7 @@ export function AppHeader({
             className="app-global-language-trigger"
             aria-expanded={languageOpen}
             aria-controls={languageOpen ? `${menuId}-language` : undefined}
-            aria-label="Alterar idioma"
+            aria-label={`Alterar idioma: ${globalLocale === 'pt-BR' ? 'PT' : globalLocale.toUpperCase()}`}
             onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setLanguageOpen((value) => !value) }}
           >
             <Globe2 size={14} />
@@ -457,6 +461,10 @@ export function AppHeader({
 
         {isAuthenticated ? (
           <div className="app-profile">
+            <WorkspacePanelSwitcher className="app-desktop-panel-switcher"
+              label={activeAccount?.name || 'Painéis'} activeAccountId={activeAccountId}
+              onSelect={onSwitchAccount}
+              onBeforeOpen={() => { setProfileOpen(false); setLanguageOpen(false); setQuickOpen(false) }} />
             {showWallet ? (
               <Link
                 href="/carteira"
@@ -491,9 +499,9 @@ export function AppHeader({
               className="app-profile-trigger"
               onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); setProfileOpen((value) => !value) }}
               aria-expanded={profileOpen}
-              aria-label="Abrir minha conta"
               aria-controls={profileOpen ? `${menuId}-account` : undefined}
             >
+              <span className="sr-only">Abrir minha conta </span>
               <LockedAvatar
                 src={accountAvatar || undefined}
                 size={40}

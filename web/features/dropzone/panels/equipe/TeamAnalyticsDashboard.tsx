@@ -373,7 +373,7 @@ export function TeamAnalyticsDashboard({
 
             <article className="team-analytics-card team-analytics-event-card">
               <header><div><span>Eventos</span><strong>Desempenho por campeonato</strong></div><Trophy size={18} /></header>
-              <div className="team-analytics-event-table">
+              <div className="team-analytics-event-table" tabIndex={0} role="region" aria-label="Resultados por campeonato">
                 <div className="head"><span>Evento</span><span>Q</span><span>PTS/Q</span><span>K</span><span>POS.</span><span>Prêmio</span></div>
                 {data.eventos.slice(0, 8).map((item) => <div className="row" key={item.id}>
                   <span className="event"><img src={item.logo_url || '/dropzone-icon.png'} alt="" /><i><strong>{item.nome}</strong><small>{item.tipo || item.status || 'Campeonato'}</small></i></span>

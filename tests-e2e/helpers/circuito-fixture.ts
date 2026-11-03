@@ -10,17 +10,18 @@ export async function deputyFixture(page: Page, options: { analytics?: boolean; 
     { ...base, id: 'player-a', profile_type: 'jogador', name: 'Jogador Aurora', data: { delegated_access: true, delegated_permissions: { pode_ver: true, pode_editar: false } } },
     { ...base, id: 'player-b', profile_type: 'jogador', name: 'Jogador Brasa', data: { delegated_access: true, delegated_permissions: { pode_ver: true, pode_editar: true } } },
   ]
-  if (options.ownedProducer) contexts.push({ ...base, id: 'producer-a', profile_type: 'produtora', name: '6B Produções', auth_user_id: user.id, data: {} })
+  if (options.ownedProducer) contexts.push({ ...base, id: 'producer-a', profile_type: 'produtora', name: '6B Produções', auth_user_id: user.id, data: { aprovacao_status: 'aprovado' } })
   for (let index = 0; index < (options.extraTeams || 0); index++) contexts.push({ ...contexts[1], id: `team-extra-${index}`, name: `Equipe extra ${index}` })
   const exp = Math.floor(Date.now() / 1000) + 3600
   const jwt = [Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url'), Buffer.from(JSON.stringify({ sub: user.id, exp, role: 'authenticated' })).toString('base64url'), 'fixture'].join('.')
   const session = { access_token: jwt, refresh_token: 'fixture-refresh', token_type: 'bearer', expires_at: exp, expires_in: 3600, user }
-  await page.addInitScript(({ session }) => {
+  const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uukivzxabiydnrvjvabt.supabase.co').hostname.split('.')[0]
+  await page.addInitScript(({ session, projectRef }) => {
     if (sessionStorage.getItem('circuito-fixture')) return
     sessionStorage.setItem('circuito-fixture', '1')
     localStorage.clear()
-    localStorage.setItem('sb-uukivzxabiydnrvjvabt-auth-token', JSON.stringify(session))
-  }, { session })
+    localStorage.setItem(`sb-${projectRef}-auth-token`, JSON.stringify(session))
+  }, { session, projectRef })
   await page.route('**/auth/v1/**', route => route.fulfill({ json: user }))
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))

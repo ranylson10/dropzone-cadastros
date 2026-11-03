@@ -53,6 +53,7 @@ export type AppShellProps = {
   loginHref?: string
   /** padding-top do main quando header fixo */
   withAuthOffset?: boolean
+  showQuickActions?: boolean
 }
 
 export function AppShell({
@@ -76,6 +77,7 @@ export function AppShell({
   loadSession = false,
   loginHref,
   withAuthOffset = true,
+  showQuickActions = true,
 }: AppShellProps) {
   const pathname = usePathname()
   const [sessionAccount, setSessionAccount] = useState<DropZoneRow | null>(null)
@@ -264,6 +266,8 @@ export function AppShell({
             profileImage={identity?.avatar_url || mediaFor(account) || undefined}
             accounts={accounts}
             activeAccountId={activeAccountId || account?.id}
+            activeContext={account}
+            showQuickActions={showQuickActions}
             switchingAccountId={switchingAccountId}
             onSwitchAccount={onSwitchAccount || (loadSession ? defaultSwitch : undefined)}
             onCreateLinkedProfile={onCreateLinkedProfile}

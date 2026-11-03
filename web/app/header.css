@@ -997,134 +997,6 @@
   .app-mobile-quick-action-icon { display:grid;width:40px;height:40px;place-items:center;border-radius:9px;background:var(--ui-surface-soft,#202125);color:var(--ui-accent-strong,#dfcf85); }
 }
 
-/* Rodada 145 — navegação desktop em sidebar; mobile preserva dock inferior. */
-@media (min-width: 901px) {
-  .app-header:has(+ .app-shell-main.page-authenticated) {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 140;
-    width: 232px;
-    height: 100dvh;
-    border-right: 1px solid #25252a;
-    background: #0c0c0e;
-    color: #fff;
-  }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-header-inner {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 14px;
-    padding: 18px 14px 14px;
-  }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand {
-    min-height: 58px;
-    padding: 0 8px 16px;
-    border-bottom: 1px solid #28282d;
-    color: #fff;
-  }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand-copy strong,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand-copy strong span:last-child { color: #fff; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand-copy strong span:first-child { color: #8b6bff; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-brand-copy small { color: #77747d; }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav {
-    display: grid;
-    align-content: start;
-    justify-content: stretch;
-    gap: 4px;
-    width: 100%;
-    height: auto;
-    overflow: visible;
-  }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav > a,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav .app-nav-parent {
-    min-height: 43px;
-    justify-content: flex-start;
-    padding: 0 12px;
-    border-radius: 2px;
-    color: #b8b5bd;
-    font-size: 12px;
-    letter-spacing: .055em;
-  }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav > a::after,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav .app-nav-parent::after { display: none; }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav > a:hover,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav .app-nav-parent:hover { background: #1b1a1f; color: #fff; }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav > a.active,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-main-nav .app-nav-parent.active {
-    background: #6f43ff;
-    color: #fff;
-  }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-dropdown { display: block; width: 100%; height: auto; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-submenu {
-    top: 0;
-    left: calc(100% + 10px);
-    min-width: 220px;
-    border: 1px solid #29282e;
-    border-radius: 2px;
-    background: #111114;
-    transform: translateY(4px);
-  }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-dropdown:hover .app-nav-submenu,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-dropdown:focus-within .app-nav-submenu { transform: translateY(0); }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-submenu a { border-radius: 1px; color: #c6c3cb; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-nav-submenu a:hover { background: #25242b; color: #fff; }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-global-language { margin-top: auto; padding-top: 10px; border-top: 1px solid #28282d; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-global-language-trigger,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-wallet-chip,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-admin-chip,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-trigger,
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile .notif-bell-trigger {
-    border-radius: 2px;
-    color: #c6c3cb;
-  }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile {
-    display: grid;
-    grid-template-columns: repeat(3, auto);
-    justify-content: stretch;
-    gap: 5px;
-    width: 100%;
-    height: auto;
-  }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-wallet-chip { grid-column: 1 / -1; justify-content: flex-start; min-height: 36px; padding: 0 10px; background: #17171b; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-admin-chip { min-height: 34px; justify-content: center; background: #17171b; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile .notif-bell { justify-self: start; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-trigger {
-    grid-column: 1 / -1;
-    width: 100%;
-    max-width: none;
-    min-height: 54px;
-    justify-content: flex-start;
-    padding: 7px;
-    border-top: 1px solid #28282d;
-  }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-trigger:hover { background: #17171b; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-copy strong { color: #fff; }
-  .app-header:has(+ .app-shell-main.page-authenticated) .app-profile-copy small { color: #817e86 !important; }
-
-  .app-header:has(+ .app-shell-main.page-authenticated) + .app-shell-main.page-authenticated {
-    min-width: 0;
-    width: calc(100% - 232px);
-    max-width: calc(100% - 232px);
-    min-height: 100dvh;
-    margin-left: 232px;
-    box-sizing: border-box;
-    background: #f1efe9;
-  }
-}
-
 @media (max-width: 900px) {
   .app-header { background: #0c0c0e; color: #fff; }
   .app-header-inner { width: calc(100% - 18px); }
@@ -1226,4 +1098,36 @@
   .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav>a.active,
   .app-header:has(+ .app-shell-main.marketplace-shell-page) .app-main-nav .app-nav-parent.active{color:#6f43ff}
   .app-header:has(+ .app-shell-main.marketplace-shell-page) + .app-shell-main.marketplace-shell-page{min-height:calc(100dvh - 58px)}
+}
+
+/* Internal navigation stays in the top bar; the mobile dock has its own layout. */
+.app-desktop-panel-switcher { display: none; }
+@media (min-width: 901px) {
+  .app-header { width: 100%; height: 70px; border-bottom: 1px solid var(--dz-stroke); }
+  .app-header-inner { width: calc(100% - 48px); max-width: 1760px; padding: 0; }
+  .app-main-nav > a, .app-main-nav .app-nav-parent { min-height: 44px; padding-inline: 9px; }
+  .app-desktop-panel-switcher {
+    display: inline-flex; align-items: center; gap: 9px;
+    min-width: 0; max-width: 210px; min-height: 44px; padding: 0 12px;
+    border: 1px solid color-mix(in srgb, var(--dz-paper) 25%, var(--dz-coal));
+    border-radius: var(--radius-sm); background: transparent; color: var(--dz-paper);
+    font: 600 14px/1.2 var(--font-body), sans-serif; text-align: left; cursor: pointer;
+  }
+  .app-desktop-panel-switcher > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-desktop-panel-switcher > svg { flex: none; color: var(--dz-orange); }
+  .app-desktop-panel-switcher:hover { background: var(--dz-ink); }
+  .app-shell-main.page-authenticated { min-width: 0; width: 100%; max-width: none; margin-left: 0; min-height: calc(100dvh - 70px); box-sizing: border-box; }
+}
+@media (min-width: 901px) and (max-width: 1250px) {
+  .app-header-inner { width: calc(100% - 28px); gap: 10px; }
+  .app-profile-trigger { min-width: 44px; max-width: 44px; padding: 2px; }
+  .app-profile-trigger .app-profile-copy, .app-profile-trigger > svg,
+  .app-global-language-trigger > span, .app-global-language-trigger > svg:last-child,
+  .app-wallet-chip > span { display: none; }
+  .app-main-nav > a, .app-main-nav .app-nav-parent { padding-inline: 7px; font-size: 11px; }
+  .app-desktop-panel-switcher { max-width: 160px; }
+}
+@media (min-width: 901px) and (max-width: 1100px) {
+  .app-header .app-main-nav { justify-content: flex-start; }
+  .app-header .app-main-nav > .app-dashboard-entry { display: none; }
 }

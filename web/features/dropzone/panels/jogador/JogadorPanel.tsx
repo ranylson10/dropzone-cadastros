@@ -536,12 +536,6 @@ export function JogadorPanel(props: {
 
         {tab === 'resumo' ? (
           <>
-            <div className="player-summary-grid">
-              <div><Shield size={18} /><strong>{myTeams.length}</strong><span>Equipes</span></div>
-              <div><Users size={18} /><strong>{myLines.length}</strong><span>Lines</span></div>
-              <div><Swords size={18} /><strong>{enrolledChampionships.length}</strong><span>Campeonatos</span></div>
-              <div><BarChart3 size={18} /><strong>{performance?.statistics?.partidas || 0}</strong><span>Partidas pontuadas</span></div>
-            </div>
             <WorkspaceFocus
               role="jogador" eyebrow="Sua jornada"
               title={myTeams.length ? 'Pronto para o próximo jogo' : 'Encontre sua equipe'}
@@ -553,6 +547,12 @@ export function JogadorPanel(props: {
                 { id: 'agenda', title: 'Minha agenda', detail: 'Próximos compromissos', icon: <CalendarDays size={20} />, href: '/agenda' },
               ]}
             />
+            <div className="player-summary-grid">
+              <div><Shield size={18} /><strong>{myTeams.length}</strong><span>Equipes</span></div>
+              <div><Users size={18} /><strong>{myLines.length}</strong><span>Lines</span></div>
+              <div><Swords size={18} /><strong>{enrolledChampionships.length}</strong><span>Campeonatos</span></div>
+              <div><BarChart3 size={18} /><strong>{performance?.statistics?.partidas || 0}</strong><span>Partidas pontuadas</span></div>
+            </div>
           </>
         ) : null}
 

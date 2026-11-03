@@ -1494,7 +1494,7 @@ ${params.url}`
 
       <WorkspaceHeader
         eyebrow="Produtora"
-        title={props.account ? rowTitle(props.account) : 'Workspace da produtora'}
+        title="Painel da produtora"
         description="Crie campeonatos rapidamente. Organize o restante quando precisar."
         icon={<FolderOpen size={18} />}
         actions={<span><ShieldCheck size={14} /> {workspaceRole === 'proprietario' ? 'Proprietário' : workspaceRole}</span>}
