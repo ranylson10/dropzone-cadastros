@@ -20,7 +20,19 @@
 - A primeira arte da home recebe carregamento imediato e prioridade alta. As demais continuam sob demanda. Variantes de 360/480 px evitam entregar a arte de 640 px a uma área de 354 px em uma tela DPR 1.
 - Miniaturas e destaques do catálogo também usam o otimizador. O tamanho declarado acompanha os 48 px no mobile e a grade no PC; o fallback preserva os nomes e links quando a mídia falha.
 
-O CSS global legado continua sendo candidato a uma migração por área. Esta entrega não removeu estilos operacionais indiscriminadamente. As medições posteriores à publicação devem ser comparadas com as condições registradas no diagnóstico original; não se deve tratar uma coleta local como melhora comprovada de produção.
+O CSS global legado continua sendo candidato a uma migração por área. Esta entrega não removeu estilos operacionais indiscriminadamente.
+
+### Conferência no domínio de produção
+
+Código medido: `4732154f936cd7fcf360dd53bafeaeda80f97a9b`, publicado em `www.dpzone.site`. Medianas de três navegações por rota/modo, com cache do navegador frio. Mobile: Chromium 390 × 844, DPR 1, download de 1,6 Mbit/s, latência adicional de 150 ms e CPU 4×. PC: 1440 × 900 sem limitação. O cache do CDN não foi controlado; isto não certifica INP ou p75 de usuários reais.
+
+- Home mobile: transferência total mediana de **1.255 para 802 KiB**; primeira pintura de **3,86 para 3,66 s**. O LCP passou de **4,65 para 6,16 s**. A primeira competição agora aparece na dobra, e sua imagem substituiu o fundo decorativo do destaque como maior elemento. A prioridade e o tamanho da arte foram corrigidos, mas o carregamento público após a hidratação e o CSS global ainda precisam de trabalho. **Não houve melhora de LCP na home mobile.**
+- Catálogo mobile: **1.276 para 745 KiB**, com LCP de **4,88 para 4,11 s**.
+- Campeonato mobile: LCP de **4,78 para 4,47 s**.
+- Campeonato no PC: LCP de **3,98 para 0,76 s**, após separar a pintura decorativa tardia. Home e catálogo ficaram em **1,04 s** e **0,78 s**; os valores iniciais dessas duas rotas no PC tinham uma única amostra.
+- CLS observado: **0** nas amostras finais. Isso não equivale a certificação de todos os estados e dispositivos.
+
+Home e catálogo publicados foram reconferidos em 390/1440 px: imagens entregues, nenhuma violação nas regras axe verificadas, erro de execução, HTTP inesperado ou transbordamento. A indisponibilidade da arte da lista foi simulada com sucesso. Os dois jobs do GitHub Quality, `checks` e `experience`, passaram no commit medido. Evidências: `ux-after/performance-summary.json`, `performance-final.json`, `performance-desktop-final.json` e `images-production.json`.
 
 ## Qualidade
 
