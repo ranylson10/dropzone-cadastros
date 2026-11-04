@@ -39,7 +39,7 @@ check('Produtora abre campeonatos diretamente e mantém sua gestão explícita',
 check('Produtora preserva financeiro/equipe/configurações mediante permissão', producer.includes('canFinanceWorkspace || canCommercialWorkspace') && producer.includes('canManageMembers || canOperateWorkspace') && producer.includes('canAdminWorkspace'))
 for (const label of ['Fases e grupos','Equipes','Elencos','Jogos e quedas','Pontuador','Tabelas','Inscrições']) check(`Campeonato: ferramenta ${label}`, producer.includes(`label: '${label}'`))
 check('Regras avançadas usam o menu compartilhado', producer.includes('<WorkspaceMoreMenu label="Regras avançadas"') && producer.includes("startEditChampionship(selectedChamp, 'operation')"))
-check('Pontuador funciona dentro do painel', producer.includes('<ProducerScoringWorkspace') && producer.includes('canScoreWorkspace'))
+check('Pontuador abre fora do painel com escolha de fase e jogo', producer.includes('openScorerWindow(selectedChamp.id)') && producer.includes('canScoreWorkspace') && read('web/app/campeonatos/[id]/pontuador/page.tsx').includes('<ProducerScoringWorkspace'))
 check('Atalho editar usa fluxo existente', producer.includes('onClick={() => startEditChampionship(selectedChamp)}'))
 check('Equipe mantém acessíveis elenco, competições, treino e staff', team.includes('label="Ferramentas da equipe"') && team.includes("id: 'treinos'") && team.includes("id: 'staff'") && team.includes("id: 'campeonatos'"))
 check('Jogador separa perfil/estatísticas', player.includes("id: 'perfil'") && player.includes("id: 'desempenho'") && player.includes('WorkspaceMoreMenu'))

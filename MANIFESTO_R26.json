@@ -1,0 +1,24 @@
+{
+  "title": "DropZone R26 — painel da produtora, sobre base Codex 04/11/2026",
+  "base": "dropzone-cadastros-ENVIO(3).zip",
+  "total_files": 2299,
+  "changed_files": 9,
+  "changed_sha256": {
+    "TESTAR_RODADA_26.bat": "962464ec82a2900569f2dc60e55e8c87922a3909946762c384239324e84e312c",
+    "docs/redesign/RODADA_26_PAINEL_PRODUTORA.md": "43f2ca68f183b2750287673b941ad4c763b42e3df6ff1a23062e24c77fa865c1",
+    "scripts/testes/test-r26-produtora-layout.mjs": "32e75a2912c8ee857f5fe5c7dccbb6c659ab2c68b5374cd43d043a20da15b20a",
+    "scripts/testes/test-round20-ux.mjs": "a3f0216c637dab72d874f0c807dcfb5595a533f261ab0fc69740d3aa20affadf",
+    "scripts/testes/test-round22-role-hubs.mjs": "c2b13ea9a400035a9d82d70e032d0ec6ab36e354a19da88e1107ccd4d9754f9d",
+    "web/app/campeonatos/[id]/pontuador/page.tsx": "b25bf242301e936d3dea85c6258fff4d4b765bc5eab694b9a6f82b51ca7c2df0",
+    "web/features/dropzone/panels/produtora/ProducerCompetitionNavigation.tsx": "5f1774289abed3275b9ecfbd1d413b20b1a6ce7258653a29798e5e22ce747e18",
+    "web/features/dropzone/panels/produtora/ProdutoraPanel.tsx": "497f863a8abaf406651f3069d0a3a38cc2eca08e6585063a42f8e0c76d16907b",
+    "web/styles/dropzone-identity.css": "276bb7553761311d339eb92c073cd51504f92ef9e2a9d7878521c9851e98f3d1"
+  },
+  "validation": {
+    "tsx_css": "parse aprovado",
+    "r26_21_checks": "aprovado",
+    "r20_r24": "verificacoes locais aprovadas",
+    "nextjs_build": "nao executado neste ambiente",
+    "postgres": "nao alterado"
+  }
+}

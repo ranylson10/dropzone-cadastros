@@ -37,8 +37,8 @@ for (const [label, source] of [['Equipe',team],['Jogador',player],['Manager',man
 }
 ok('Produtora cria com a rotina existente', producer.includes('onClick={() => setShowCreateChamp(true)}'))
 ok('Produtora respeita aprovação', producer.includes("disabled={produtoraAprovacao !== 'aprovado' || !canCreateChampionship}"))
-ok('Produtora abre lista e editor separados', producer.includes('!championshipDetailOpen ? <section') && producer.includes('producer-editor-layout') && !producer.includes('<WorkspaceFocus'))
-ok('Produtora leva à gestão existente', producer.includes("setProducerSection('campeonatos')"))
+ok('Produtora mantém lista e editor no mesmo workspace', producer.includes('producer-management-split') && producer.includes('producer-championship-sidebar') && producer.includes('producer-editor-layout') && !producer.includes('<WorkspaceFocus'))
+ok('Produtora abre gestão do campeonato criado', producer.includes('void openCompetition(createdChampAction.id)') && producer.includes("setProducerSectionValue('campeonatos')"))
 ok('Equipe navega para elenco existente', team.includes("onClick: () => setTab('jogadores')"))
 ok('Equipe encontra campeonato pela rota pública', team.includes("href: '/campeonatos?vagas=1'"))
 ok('Jogador pode encontrar equipe', player.includes("onClick: () => setTab('equipe')"))

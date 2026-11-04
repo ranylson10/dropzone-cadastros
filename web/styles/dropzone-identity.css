@@ -948,3 +948,131 @@ body#dropzone-app .producer-list-mobile-status { display:none; }
   body#dropzone-app .producer-console .producer-championship-list .dz-data-select > .dz-entity-avatar,
   body#dropzone-app .producer-list-open { grid-row:1 / 2; }
 }
+
+/* R26 · Producer workspace. Left competition rail + right workspace.
+   Match the Codex Circuito identity; keep forms, permissions and content intact. */
+body#dropzone-app .producer-console .producer-console-identity {
+  position:relative; isolation:isolate; overflow:hidden;
+  display:flex; flex-wrap:wrap; gap:16px; min-height:112px;
+  margin:0 0 18px; padding:22px 26px;
+  background:#20211d; color:#f3efe6; border:0; border-left:5px solid #c24e33;
+}
+body#dropzone-app .producer-console .producer-console-identity::after {
+  content:"DROPZONE / PRODUTORA"; pointer-events:none; position:absolute;
+  top:18px; right:26px; color:rgba(245,239,225,.12);
+  font:700 11px/1 var(--font-body),sans-serif; letter-spacing:.19em;
+}
+body#dropzone-app .producer-console .producer-console-identity h1 {color:#f3efe6; font-size:clamp(25px,2.5vw,38px);line-height:1.05;}
+body#dropzone-app .producer-console .producer-console-identity > div > span {color:#cba486;}
+body#dropzone-app .producer-console .producer-console-account {position:relative;z-index:1;}
+body#dropzone-app .producer-console .producer-console-account > .button {border-color:rgba(247,240,228,.3)!important;color:#f3efe6!important;background:rgba(255,255,255,.07)!important;}
+body#dropzone-app .producer-console .producer-console-account > .button:hover {background:rgba(255,255,255,.16)!important;}
+
+body#dropzone-app .producer-console .producer-management-split {
+  display:grid; grid-template-columns:minmax(248px,290px) minmax(0,1fr);
+  gap:22px; align-items:start; width:100%; min-width:0;
+}
+body#dropzone-app .producer-console .producer-management-split > * {min-width:0;}
+body#dropzone-app .producer-console .producer-championship-sidebar {
+  position:sticky; top:78px; max-height:calc(100vh - 96px); overflow-y:auto;
+  padding:16px 12px 18px; background:#e8e4dc;
+  border:1px solid #d1ccc1; scrollbar-width:thin;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-command-card {width:100%!important;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading {
+  display:flex; flex-direction:column-reverse; align-items:stretch; gap:12px; margin:0 0 18px;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading h2 {font-size:22px;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading p {font-size:12px;line-height:1.45;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading > .button {
+  width:100%; min-height:46px; justify-content:center; background:#b53e28; color:white;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-controls {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-status-filter {grid-column:1/-1;gap:4px;flex-wrap:wrap;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-status-filter button {font-size:11px;min-height:32px;padding:0 7px;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-controls > input {min-width:0;width:100%;margin:0;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .dz-data-select {
+  display:grid!important; grid-template-columns:36px minmax(0,1fr)!important;
+  gap:10px!important; padding:12px 9px!important; align-items:center;
+  border-bottom:1px solid #d1ccc1!important; text-align:left;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .dz-data-select.is-selected {
+  background:rgba(181,62,40,.1)!important; box-shadow:inset 3px 0 #b53e28;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .dz-data-select > .producer-list-status,
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .dz-data-select > .producer-list-open {display:none!important;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .producer-list-mobile-status {display:inline;}
+body#dropzone-app .producer-console .producer-mobile-champ-selector {display:none;}
+body#dropzone-app .producer-console .producer-mobile-back {display:none;}
+body#dropzone-app .producer-console .producer-management-split .championship-detail-card {
+  min-width:0; padding:2px 0 30px!important; overflow:visible;
+}
+body#dropzone-app .producer-console .producer-editor-breadcrumb {margin:0 0 8px;}
+body#dropzone-app .producer-console .producer-editor-eyebrow {
+  font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--dz-muted);
+}
+body#dropzone-app .producer-console .producer-editor-layout {display:block!important;min-width:0;}
+body#dropzone-app .producer-console .producer-editor-navigation {
+  display:flex;flex-direction:column;gap:10px;position:static;top:auto;
+  margin:12px 0 20px; padding:0; border-bottom:1px solid var(--dz-stroke);
+}
+body#dropzone-app .producer-console .producer-tools-horizontal {width:100%;min-width:0;}
+body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav {
+  display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+  gap:4px!important; margin:0!important;padding:0 0 2px!important;
+  overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:thin;
+  border:0!important;max-width:100%;
+}
+body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav > :is(button,a) {
+  flex:0 0 auto!important;min-width:max-content!important;min-height:46px!important;
+  width:auto!important;padding:11px 13px!important; border:0!important;
+  border-bottom:3px solid transparent!important;border-radius:0!important;
+  background:transparent!important;color:var(--dz-muted)!important;
+  white-space:nowrap;font-size:13px!important;letter-spacing:0;box-shadow:none!important;
+}
+body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav > :is(button,a)[aria-current="page"] {
+  border-color:#b53e28!important;color:#a73523!important;background:rgba(181,62,40,.06)!important;
+}
+body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav > :is(button,a):focus-visible {
+  outline:2px solid #b53e28;outline-offset:-3px;
+}
+body#dropzone-app .producer-console .producer-editor-navigation .producer-competition-tools {
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;
+  margin:0 0 8px;padding:0;border:0;
+}
+body#dropzone-app .producer-console .producer-editor-navigation .producer-competition-tools > .button {width:auto;}
+body#dropzone-app .producer-console .producer-editor-navigation .producer-competition-tools .dz-workspace-more {width:auto;max-width:100%;}
+body#dropzone-app .producer-console .producer-scorer-handoff {display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:24px;background:#e8e4dc;}
+body#dropzone-app .producer-console .producer-scorer-handoff p {margin:0;flex:1 1 220px;}
+
+@media(max-width:960px) {
+  body#dropzone-app .producer-console .producer-management-split {display:flex; flex-direction:column;gap:15px;}
+  body#dropzone-app .producer-console .producer-championship-sidebar {
+    position:static;width:100%;max-height:none;overflow:visible;padding:12px;
+  }
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading {flex-direction:row-reverse;align-items:center;gap:12px;margin-bottom:9px;}
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading h2 {font-size:18px;}
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading p {display:none;}
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading > .button {width:auto;flex:0 0 auto;min-height:40px;padding-inline:12px;}
+  body#dropzone-app .producer-console .producer-mobile-champ-selector {display:grid;gap:6px;color:var(--dz-muted);font-size:12px;font-weight:650;}
+  body#dropzone-app .producer-console .producer-mobile-champ-selector select {min-height:45px;width:100%;}
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-controls,
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list,
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-filter-popover {display:none!important;}
+  body#dropzone-app .producer-console .producer-mobile-back {display:none;}
+  body#dropzone-app .producer-console .producer-editor-navigation {margin:12px 0 16px;}
+  body#dropzone-app .producer-console .producer-editor-navigation .producer-competition-tools {display:flex;grid-template-columns:none;}
+  body#dropzone-app .producer-console .producer-console-identity {padding:17px 14px;min-height:100px;}
+  body#dropzone-app .producer-console .producer-console-identity::after {display:none;}
+}
+@media(max-width:560px) {
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading {flex-direction:column-reverse;align-items:stretch;}
+  body#dropzone-app .producer-console .producer-championship-sidebar .producer-list-heading > .button {width:100%;}
+  body#dropzone-app .producer-console .producer-editor-facts {gap:8px 14px;}
+  body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav > :is(button,a) {font-size:12px!important;padding-inline:11px!important;}
+  body#dropzone-app .producer-console .producer-console-identity h1 {font-size:25px;}
+  body#dropzone-app .producer-console .producer-console-account {margin-left:0;width:100%;justify-content:flex-start;}
+}
+@media(prefers-reduced-motion:reduce) {
+  body#dropzone-app .producer-console .producer-management-split * {scroll-behavior:auto!important;transition:none!important;animation:none!important;}
+}

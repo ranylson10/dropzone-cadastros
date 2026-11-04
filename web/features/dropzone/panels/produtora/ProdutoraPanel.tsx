@@ -36,7 +36,6 @@ const ProvisionalTeamsPanel = dynamic(() => import('@/features/produtoras/compon
 const ProducerMembersPanel = dynamic(() => import('@/features/produtoras/components/ProducerMembersPanel').then(module => module.ProducerMembersPanel), { loading: TabLoading })
 const ProducerFinancePanel = dynamic(() => import('@/features/produtoras/components/ProducerFinancePanel').then(module => module.ProducerFinancePanel), { loading: TabLoading })
 
-const ProducerScoringWorkspace = dynamic(() => import('@/features/campeonatos/pontuador/ProducerScoringWorkspace').then(module => module.ProducerScoringWorkspace), { loading: TabLoading })
 const AdvancedStructureTab = dynamic(() => import('@/features/campeonatos/estrutura-avancada/AdvancedStructureTab').then(module => module.AdvancedStructureTab), { loading: TabLoading })
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
@@ -180,6 +179,10 @@ export function ProdutoraPanel(props: {
     else params.delete('campeonato')
     window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params}`)
   }
+  function openScorerWindow(championshipId: string) {
+    window.open(`/campeonatos/${encodeURIComponent(championshipId)}/pontuador`, '_blank', 'noopener,noreferrer')
+  }
+
   async function openCompetition(id: string) {
     if (!await leaveScoring()) return
     props.setSelectedChampId(id)
@@ -187,7 +190,7 @@ export function ProdutoraPanel(props: {
     setChampionshipDetailOpen(true)
     setTabValue('visao')
     rememberCompetition(id, 'visao')
-    window.scrollTo(0, 0)
+    if (window.innerWidth < 800) window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   async function leaveScoring() {
     if (scoringBusy.current) { setPayMsg('Aguarde a gravação da pontuação antes de trocar de área.'); return false }
@@ -1464,7 +1467,7 @@ ${params.url}`
     { done: Number(dataSummary?.phaseCount || champPhases.length) > 0 && Number(dataSummary?.groupCount || champGroups.length) > 0, title: '1. Fases e grupos', detail: Number(dataSummary?.groupCount || champGroups.length) ? `${dataSummary?.phaseCount || champPhases.length} fase(s), ${dataSummary?.groupCount || champGroups.length} grupo(s).` : 'Defina as fases e a quantidade de vagas de cada grupo.', action: () => setTab('grupos') },
     { done: Number(dataSummary?.teamCount || props.selectedChampTeams.length) > 0, title: '2. Equipes e elencos', detail: Number(dataSummary?.teamCount || props.selectedChampTeams.length) ? `${dataSummary?.teamCount || props.selectedChampTeams.length} line(s) inscrita(s).` : 'Cadastre ou convide as equipes e confira os jogadores.', action: () => setTab('equipes') },
     { done: Number(dataSummary?.gameCount || champGames.length) > 0, title: '3. Jogos e quedas', detail: Number(dataSummary?.gameCount || champGames.length) ? `${dataSummary?.gameCount || champGames.length} jogo(s) cadastrado(s).` : 'Escolha os grupos que jogam juntos, os mapas e os horários.', action: () => setTab('jogos') },
-    { done: finalizedGames > 0, title: '4. Pontuação e resultados', detail: 'Abra o pontuador para lançar ou importar cada queda.', action: () => setTab('pontuador') },
+    { done: finalizedGames > 0, title: '4. Pontuação e resultados', detail: 'Abra o pontuador para lançar ou importar cada queda.', action: () => openScorerWindow(selectedChamp!.id) },
   ] : []
 
   return (
@@ -1583,54 +1586,7 @@ ${params.url}`
         </section>
       ) : null}
 
-      {producerSection === 'campeonatos' && !championshipDetailOpen ? <section className="championship-nav-card panel producer-command-card">
-        <header className="producer-list-heading">
-          <div><h2>Campeonatos</h2><p>Escolha uma competição para organizar equipes, jogos e resultados.</p></div>
-          <button type="button" className="button" disabled={produtoraAprovacao !== 'aprovado' || !canCreateChampionship} onClick={() => setShowCreateChamp(true)}><Plus size={16} />Novo campeonato</button>
-        </header>
-        <div className="producer-list-controls">
-          <div className="producer-status-filter" role="group" aria-label="Situação dos campeonatos">
-            {[{id:'todos', label:'Todos', count:props.championships.length}, {id:'aprovado',label:'Liberados',count:producerApprovedChampionships}, {id:'pendente',label:'Aguardando liberação',count:producerPendingChampionships}].map(item => <button type="button" key={item.id} aria-pressed={approvalFilter === item.id} onClick={() => setApprovalFilter(item.id)}>{item.label}<span>{item.count}</span></button>)}
-          </div>
-          <UiInput aria-label="Buscar campeonato" placeholder="Buscar campeonato" value={championshipQuery} onChange={event => setChampionshipQuery(event.target.value)} />
-          <button type="button" className="button secondary" onClick={() => setShowChampFilters(value => !value)}><Filter size={15} />Tipo</button>
-        </div>
-        {showChampFilters ? (
-          <div className="championship-type-filter producer-filter-popover" role="group" aria-label="Filtrar campeonatos por tipo">
-            <button className={typeFilter === 'todos' ? 'active' : ''} aria-pressed={typeFilter === 'todos'} onClick={() => setTypeFilter('todos')}>Todos</button>
-            {CHAMPIONSHIP_TYPES.map((type) => <button key={type} className={typeFilter === type ? 'active' : ''} aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)}>{CHAMPIONSHIP_TYPE_LABELS[type]}</button>)}
-          </div>
-        ) : null}
 
-
-        {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato encontrado. Crie um campeonato ou ajuste os filtros.</p> : null}
-        <DataList className="producer-championship-list" aria-label="Seus campeonatos">
-          {filteredChampionships.map((champ) => {
-            const logo = dataText(champ, 'logo_url')
-            const ap = String(dataText(champ, 'aprovacao_status') || 'aprovado')
-            return (
-              <DataListItem key={champ.id}>
-              <button className="dz-data-select"
-                onClick={() => void openCompetition(champ.id)}
-              >
-                <EntityAvatar name={rowTitle(champ)} image={logo} size="sm" />
-                <span>
-                  <strong>{rowTitle(champ)}</strong>
-                  <small>
-                    {CHAMPIONSHIP_TYPE_LABELS[String(dataText(champ, 'tipo') || 'copa') as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Campeonato'}
-                    {' · '}{dataText(champ, 'numero_vagas') || '—'} vagas
-                    <span className={`producer-list-mobile-status producer-list-status--${ap}`}> · {ap === 'pendente' ? 'Aguardando liberação' : ap === 'rejeitado' ? 'Revisão necessária' : 'Liberado'}</span>
-
-                  </small>
-                </span>
-                <span className={`producer-list-status producer-list-status--${ap}`}>{ap === 'pendente' ? 'Aguardando liberação' : ap === 'rejeitado' ? 'Revisão necessária' : 'Liberado'}</span>
-                <span className="producer-list-open">Abrir <ChevronRight size={16} /></span>
-              </button>
-              </DataListItem>
-            )
-          })}
-        </DataList>
-      </section> : null}
 
       <SystemModal
         open={showCreateChamp}
@@ -1690,10 +1646,7 @@ ${params.url}`
               className="button"
               onClick={() => {
                 if (!createdChampAction) return
-                props.setSelectedChampId(createdChampAction.id)
-                setProducerSection('campeonatos')
-                setChampionshipDetailOpen(true)
-                setTab('visao')
+                void openCompetition(createdChampAction.id)
                 setCreatedChampAction(null)
               }}
             >
@@ -1813,14 +1766,78 @@ ${params.url}`
         ) : null}
       </SystemModal>
 
-      {producerSection === 'campeonatos' && championshipDetailOpen ? <section className="championship-detail-card panel">
-        {selectedChamp ? (
+      {producerSection === 'campeonatos' ? <div className="producer-management-split">
+        <aside className="producer-championship-sidebar" aria-label="Selecionar campeonato">
+          <section className="championship-nav-card panel producer-command-card">
+        <header className="producer-list-heading">
+          <div><h2>Campeonatos</h2><p>Escolha uma competição para organizar equipes, jogos e resultados.</p></div>
+          <button type="button" className="button" disabled={produtoraAprovacao !== 'aprovado' || !canCreateChampionship} onClick={() => setShowCreateChamp(true)}><Plus size={16} />Criar campeonato</button>
+        </header>
+        <label className="producer-mobile-champ-selector">
+          Campeonato selecionado
+          <UiSelect
+            aria-label="Selecionar campeonato"
+            value={championshipDetailOpen ? props.selectedChampId : ''}
+            onChange={event => {
+              if (event.target.value) void openCompetition(event.target.value)
+              else { setChampionshipDetailOpen(false); props.setSelectedChampId('') }
+            }}
+          >
+            <option value="">Escolha um campeonato</option>
+            {props.championships.map(champ => <option key={champ.id} value={champ.id}>{rowTitle(champ)}</option>)}
+          </UiSelect>
+        </label>
+        <div className="producer-list-controls">
+          <div className="producer-status-filter" role="group" aria-label="Situação dos campeonatos">
+            {[{id:'todos', label:'Todos', count:props.championships.length}, {id:'aprovado',label:'Liberados',count:producerApprovedChampionships}, {id:'pendente',label:'Aguardando liberação',count:producerPendingChampionships}].map(item => <button type="button" key={item.id} aria-pressed={approvalFilter === item.id} onClick={() => setApprovalFilter(item.id)}>{item.label}<span>{item.count}</span></button>)}
+          </div>
+          <UiInput aria-label="Buscar campeonato" placeholder="Buscar campeonato" value={championshipQuery} onChange={event => setChampionshipQuery(event.target.value)} />
+          <button type="button" className="button secondary" onClick={() => setShowChampFilters(value => !value)}><Filter size={15} />Tipo</button>
+        </div>
+        {showChampFilters ? (
+          <div className="championship-type-filter producer-filter-popover" role="group" aria-label="Filtrar campeonatos por tipo">
+            <button className={typeFilter === 'todos' ? 'active' : ''} aria-pressed={typeFilter === 'todos'} onClick={() => setTypeFilter('todos')}>Todos</button>
+            {CHAMPIONSHIP_TYPES.map((type) => <button key={type} className={typeFilter === type ? 'active' : ''} aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)}>{CHAMPIONSHIP_TYPE_LABELS[type]}</button>)}
+          </div>
+        ) : null}
+
+
+        {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato encontrado. Crie um campeonato ou ajuste os filtros.</p> : null}
+        <DataList className="producer-championship-list" aria-label="Seus campeonatos">
+          {filteredChampionships.map((champ) => {
+            const logo = dataText(champ, 'logo_url')
+            const ap = String(dataText(champ, 'aprovacao_status') || 'aprovado')
+            return (
+              <DataListItem key={champ.id}>
+              <button className={`dz-data-select ${championshipDetailOpen && selectedChamp?.id === champ.id ? 'is-selected' : ''}`}
+                aria-current={championshipDetailOpen && selectedChamp?.id === champ.id ? 'true' : undefined}
+                onClick={() => void openCompetition(champ.id)}
+              >
+                <EntityAvatar name={rowTitle(champ)} image={logo} size="sm" />
+                <span>
+                  <strong>{rowTitle(champ)}</strong>
+                  <small>
+                    {CHAMPIONSHIP_TYPE_LABELS[String(dataText(champ, 'tipo') || 'copa') as keyof typeof CHAMPIONSHIP_TYPE_LABELS] || 'Campeonato'}
+                    {' · '}{dataText(champ, 'numero_vagas') || '—'} vagas
+                    <span className={`producer-list-mobile-status producer-list-status--${ap}`}> · {ap === 'pendente' ? 'Aguardando liberação' : ap === 'rejeitado' ? 'Revisão necessária' : 'Liberado'}</span>
+
+                  </small>
+                </span>
+                <span className={`producer-list-status producer-list-status--${ap}`}>{ap === 'pendente' ? 'Aguardando liberação' : ap === 'rejeitado' ? 'Revisão necessária' : 'Liberado'}</span>
+                <span className="producer-list-open">Abrir <ChevronRight size={16} /></span>
+              </button>
+              </DataListItem>
+            )
+          })}
+        </DataList>
+          </section>
+        </aside>
+        <section className="championship-detail-card panel">
+        {selectedChamp && championshipDetailOpen ? (
           <>
             <div className="producer-editor-breadcrumb">
-              <button type="button" className="text-action-button" onClick={() => setProducerSection('campeonatos')}>← Campeonatos</button>
-              <label>Trocar campeonato<UiSelect aria-label="Trocar campeonato" value={selectedChamp.id} onChange={async event => {
-                await openCompetition(event.target.value)
-              }}>{props.championships.map(champ => <option key={champ.id} value={champ.id}>{rowTitle(champ)}</option>)}</UiSelect></label>
+              <span className="producer-editor-eyebrow">Área de trabalho / campeonato selecionado</span>
+              <button type="button" className="producer-mobile-back" onClick={() => setChampionshipDetailOpen(false)}>Trocar campeonato</button>
             </div>
             <WorkspaceHeader
               className="championship-summary"
@@ -1930,7 +1947,10 @@ ${params.url}`
                 ...(canScoreWorkspace ? [{ id: 'pontuador', label: 'Pontuador' }] : []),
                 { id: 'estatisticas', label: 'Tabelas' },
                 ...(canOperateWorkspace || canCommercialWorkspace ? [{ id: 'links', label: 'Inscrições' }] : []),
-              ]} onChange={(id) => setTab(id as ProducerTab)} />
+              ]} onChange={(id) => {
+                if (id === 'pontuador') openScorerWindow(selectedChamp.id)
+                else void setTab(id as ProducerTab)
+              }} />
             <div className="producer-competition-tools">
               <button type="button" className="button secondary" onClick={() => startEditChampionship(selectedChamp, 'scoring')} disabled={!canAdminWorkspace}>Regras de pontuação</button>
               <WorkspaceMoreMenu label="Regras avançadas" activeId={tab} items={[
@@ -1953,7 +1973,7 @@ ${params.url}`
               {tab === 'visao' ? (
                 <div className="championship-overview">
                   <div className="button-row compact-actions">
-                    {canScoreWorkspace ? <button type="button" className="button secondary" onClick={() => setTab('pontuador')}><Play size={16} /> Abrir pontuador</button> : null}
+                    {canScoreWorkspace ? <button type="button" className="button secondary" onClick={() => openScorerWindow(selectedChamp.id)}><ExternalLink size={16} /> Abrir pontuador</button> : null}
                     {canOperateWorkspace ? <button type="button" className="button secondary" onClick={() => { setTab('links'); setOpenAction('link') }}><Link2 size={16} /> Receber inscrições</button> : null}
                   </div>
                   <section className="championship-checklist" aria-label="Preparação do campeonato">
@@ -1990,7 +2010,7 @@ ${params.url}`
 
               {tab === 'calls' && String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino' ? <CampeonatoCallsTab campeonatoId={selectedChamp.id} /> : null}
 
-              {tab === 'pontuador' && canScoreWorkspace ? <ProducerScoringWorkspace key={selectedChamp.id} campeonatoId={selectedChamp.id} onPendingChange={(pending, busy) => { scoringPending.current = pending; scoringBusy.current = Boolean(busy) }} /> : null}
+              {tab === 'pontuador' && canScoreWorkspace ? <div className="producer-scorer-handoff"><p>O pontuador funciona em janela separada para você continuar organizando o campeonato.</p><button type="button" className="button" onClick={() => openScorerWindow(selectedChamp.id)}><ExternalLink size={16} />Abrir pontuador</button></div> : null}
 
               {tab === 'avancado' && canOperateWorkspace ? <><EditionLifecycleStatus championshipId={selectedChamp.id} /><AdvancedStructureTab campeonatoId={selectedChamp.id} championshipType={selectedChampType} /></> : null}
 
@@ -3423,7 +3443,8 @@ ${params.url}`
             <p>Ao selecionar, as abas de equipes, jogadores, fases, grupos e jogos aparecem aqui.</p>
           </div>
         )}
-      </section> : null}
+        </section>
+      </div> : null}
       </WorkspaceContent>
     </WorkspaceShell>
   )
