@@ -1,0 +1,51 @@
+{
+  "round": "R27",
+  "name": "Painel da produtora - hierarquia modular",
+  "based_on": "DROPZONE_R26_PRODUTORA_COMPLETO.zip (base Codex)",
+  "files_changed_or_added": [
+    "web/features/dropzone/panels/produtora/ProdutoraPanel.tsx",
+    "web/styles/dropzone-identity.css",
+    "scripts/testes/test-r27-produtora-hierarchy.mjs",
+    "TESTAR_RODADA_27.bat",
+    "docs/redesign/RODADA_27_HIERARQUIA_PRODUTORA.md",
+    "MANIFESTO_R27.json"
+  ],
+  "features": [
+    "Blocos internos na lista de campeonatos",
+    "Cartao de identidade do campeonato",
+    "Indicadores em 4 cards",
+    "Navegacao horizontal em modulo separado",
+    "Ferramentas agrupadas por finalidade e permissao",
+    "Conteudo principal em card",
+    "Progresso do checklist",
+    "Responsividade mobile/tablet"
+  ],
+  "test_evidence": {
+    "R27": "28 verificacoes aprovadas",
+    "R26": "21 aprovadas",
+    "R20": "41 aprovadas",
+    "R22": "57 aprovadas",
+    "R24": "56 aprovadas",
+    "TSX": "sintaxe valida",
+    "CSS": "sem erros de parsing"
+  },
+  "not_run": [
+    "npm run typecheck (dependencias nao disponiveis neste ambiente)",
+    "npm run build",
+    "E2E com login real"
+  ],
+  "unchanged_areas": [
+    "Backend",
+    "Banco e migrations",
+    "Autenticacao",
+    "Pagamentos",
+    "Pontuador",
+    "Permissoes de API"
+  ],
+  "windows": {
+    "test": "TESTAR_RODADA_27.bat",
+    "typecheck": "npm run typecheck",
+    "build": "npm run build"
+  },
+  "notes": "O patch deve ser aplicado sobre a R26; backups recomendados antes de substituir arquivos. Nao aplica deploy."
+}

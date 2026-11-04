@@ -1462,6 +1462,18 @@ ${params.url}`
     { label: 'Grupos', value: dataSummary?.groupCount ?? '…' },
     { label: 'Jogos', value: dataSummary?.gameCount ?? '…' },
   ]
+  const producerAreaTitles: Record<string, string> = {
+    visao: 'Organização', grupos: 'Fases e grupos', equipes: 'Equipes inscritas', jogadores: 'Elencos e jogadores',
+    jogos: 'Jogos e quedas', pontuador: 'Pontuação', estatisticas: 'Tabelas e resultados', links: 'Inscrições e convites',
+    participacao: 'Regras de participação', avancado: 'Estrutura avançada', regulamento: 'Regulamento',
+    calls: 'Calls do treino', financeiro: 'Financeiro', vendedores: 'Vendedores e comissões',
+  }
+  const producerAreaDescriptions: Record<string, string> = {
+    visao: 'Acompanhe as etapas de preparação.', grupos: 'Defina a estrutura das disputas.',
+    equipes: 'Consulte e administre as equipes.', jogadores: 'Confira os atletas participantes.',
+    jogos: 'Organize a programação das partidas.', pontuador: 'Abra o pontuador em outra janela.',
+    estatisticas: 'Consulte a classificação e os resultados.', links: 'Gerencie inscrições e convites.',
+  }
   const finalizedGames = champGames.filter((game) => String(dataText(game, 'status')).toLowerCase() === 'finalizado').length
   const operationalChecklist = selectedChamp ? [
     { done: Number(dataSummary?.phaseCount || champPhases.length) > 0 && Number(dataSummary?.groupCount || champGroups.length) > 0, title: '1. Fases e grupos', detail: Number(dataSummary?.groupCount || champGroups.length) ? `${dataSummary?.phaseCount || champPhases.length} fase(s), ${dataSummary?.groupCount || champGroups.length} grupo(s).` : 'Defina as fases e a quantidade de vagas de cada grupo.', action: () => setTab('grupos') },
@@ -1769,6 +1781,7 @@ ${params.url}`
       {producerSection === 'campeonatos' ? <div className="producer-management-split">
         <aside className="producer-championship-sidebar" aria-label="Selecionar campeonato">
           <section className="championship-nav-card panel producer-command-card">
+        <div className="producer-rail-intro">
         <header className="producer-list-heading">
           <div><h2>Campeonatos</h2><p>Escolha uma competição para organizar equipes, jogos e resultados.</p></div>
           <button type="button" className="button" disabled={produtoraAprovacao !== 'aprovado' || !canCreateChampionship} onClick={() => setShowCreateChamp(true)}><Plus size={16} />Criar campeonato</button>
@@ -1787,6 +1800,8 @@ ${params.url}`
             {props.championships.map(champ => <option key={champ.id} value={champ.id}>{rowTitle(champ)}</option>)}
           </UiSelect>
         </label>
+        </div>
+        <div className="producer-rail-filters" aria-label="Filtros dos campeonatos">
         <div className="producer-list-controls">
           <div className="producer-status-filter" role="group" aria-label="Situação dos campeonatos">
             {[{id:'todos', label:'Todos', count:props.championships.length}, {id:'aprovado',label:'Liberados',count:producerApprovedChampionships}, {id:'pendente',label:'Aguardando liberação',count:producerPendingChampionships}].map(item => <button type="button" key={item.id} aria-pressed={approvalFilter === item.id} onClick={() => setApprovalFilter(item.id)}>{item.label}<span>{item.count}</span></button>)}
@@ -1800,8 +1815,9 @@ ${params.url}`
             {CHAMPIONSHIP_TYPES.map((type) => <button key={type} className={typeFilter === type ? 'active' : ''} aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)}>{CHAMPIONSHIP_TYPE_LABELS[type]}</button>)}
           </div>
         ) : null}
-
-
+        </div>
+        <div className="producer-rail-results">
+          <div className="producer-rail-results-title"><strong>Na sua produtora</strong><span>{filteredChampionships.length} {filteredChampionships.length === 1 ? 'campeonato' : 'campeonatos'}</span></div>
         {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato encontrado. Crie um campeonato ou ajuste os filtros.</p> : null}
         <DataList className="producer-championship-list" aria-label="Seus campeonatos">
           {filteredChampionships.map((champ) => {
@@ -1830,6 +1846,7 @@ ${params.url}`
             )
           })}
         </DataList>
+        </div>
           </section>
         </aside>
         <section className="championship-detail-card panel">
@@ -1839,6 +1856,8 @@ ${params.url}`
               <span className="producer-editor-eyebrow">Área de trabalho / campeonato selecionado</span>
               <button type="button" className="producer-mobile-back" onClick={() => setChampionshipDetailOpen(false)}>Trocar campeonato</button>
             </div>
+            <section className="producer-editor-summary-card" aria-label="Identidade do campeonato selecionado">
+              <span className="producer-module-kicker">01 / CAMPEONATO ATIVO</span>
             <WorkspaceHeader
               className="championship-summary"
               title={rowTitle(selectedChamp)}
@@ -1935,9 +1954,15 @@ ${params.url}`
               </div>
               }
             />
-            <dl className="producer-editor-facts" aria-label="Resumo do campeonato">{stats.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>
+            </section>
+            <section className="producer-editor-metrics-card" aria-label="Indicadores do campeonato">
+              <div className="producer-module-heading"><div><span className="producer-module-kicker">02 / PANORAMA</span><h3>Números do campeonato</h3></div><small>Dados da competição selecionada</small></div>
+              <dl className="producer-editor-facts" aria-label="Resumo do campeonato">{stats.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>
+            </section>
             <div className="producer-editor-layout">
-            <aside className="producer-editor-navigation">
+            <aside className="producer-editor-navigation" aria-label="Seções e ferramentas do campeonato">
+            <section className="producer-editor-nav-card" aria-label="Navegar pelas seções">
+              <div className="producer-module-heading"><div><span className="producer-module-kicker">03 / NAVEGAÇÃO</span><h3>Áreas de gestão</h3></div><small>Selecione o que deseja administrar</small></div>
             <ProducerCompetitionNavigation activeId={tab} items={[
                 { id: 'visao', label: 'Organização' },
                 ...(canOperateWorkspace ? [{ id: 'grupos', label: 'Fases e grupos' }] : []),
@@ -1951,8 +1976,21 @@ ${params.url}`
                 if (id === 'pontuador') openScorerWindow(selectedChamp.id)
                 else void setTab(id as ProducerTab)
               }} />
+            </section>
+            <section className="producer-editor-action-card" aria-label="Ferramentas do campeonato">
+              <div className="producer-module-heading"><div><span className="producer-module-kicker">04 / OPERAÇÃO</span><h3>Ferramentas</h3></div><small>Acesso rápido e configurações</small></div>
+              <div className="producer-editor-action-groups">
+                {(canScoreWorkspace || canOperateWorkspace) ? <div className="producer-editor-action-group">
+                  <span className="producer-action-group-label">Ações rápidas</span>
+                  <div className="producer-editor-quick-actions">
+                    {canScoreWorkspace ? <button type="button" className="button" onClick={() => openScorerWindow(selectedChamp.id)}><ExternalLink size={16} /> Abrir pontuador</button> : null}
+                    {canOperateWorkspace ? <button type="button" className="button secondary" onClick={() => { void setTab('links'); setOpenAction('link') }}><Link2 size={16} /> Receber inscrições</button> : null}
+                  </div>
+                </div> : null}
+                <div className="producer-editor-action-group">
+                  <span className="producer-action-group-label">Regras e ajustes</span>
             <div className="producer-competition-tools">
-              <button type="button" className="button secondary" onClick={() => startEditChampionship(selectedChamp, 'scoring')} disabled={!canAdminWorkspace}>Regras de pontuação</button>
+              {canAdminWorkspace ? <button type="button" className="button secondary" onClick={() => startEditChampionship(selectedChamp, 'scoring')}>Regras de pontuação</button> : null}
               <WorkspaceMoreMenu label="Regras avançadas" activeId={tab} items={[
                 ...(canOperateWorkspace ? [
                   ...(canAdminWorkspace ? [{ id: 'participacao', label: 'Inscrição, elenco e transferências', detail: 'Prazos, limites e regras de participação do site' }] : []),
@@ -1967,19 +2005,26 @@ ${params.url}`
                 else setTab(id as ProducerTab)
               }} />
             </div>
+                </div>
+              </div>
+            </section>
             </aside>
+            <section className="producer-editor-content-card" aria-label="Conteúdo da área de gestão">
+              <header className="producer-editor-content-head">
+                <div><span className="producer-module-kicker">05 / ÁREA DE TRABALHO</span><h3>{producerAreaTitles[tab] || 'Gestão do campeonato'}</h3></div>
+                <small>{producerAreaDescriptions[tab] || 'Gerencie esta área do campeonato.'}</small>
+              </header>
             <div className="champ-tab-body-ref">
               {dataLoading ? <DropzoneLoader label="Carregando dados desta área" /> : dataError ? null : <>
               {tab === 'visao' ? (
                 <div className="championship-overview">
-                  <div className="button-row compact-actions">
-                    {canScoreWorkspace ? <button type="button" className="button secondary" onClick={() => openScorerWindow(selectedChamp.id)}><ExternalLink size={16} /> Abrir pontuador</button> : null}
-                    {canOperateWorkspace ? <button type="button" className="button secondary" onClick={() => { setTab('links'); setOpenAction('link') }}><Link2 size={16} /> Receber inscrições</button> : null}
-                  </div>
                   <section className="championship-checklist" aria-label="Preparação do campeonato">
                     <div className="section-head">
-                      <h3>Organização do campeonato</h3>
-                      <small>Selecione uma etapa</small>
+                      <div><span className="producer-module-kicker">CONFIGURAÇÃO INICIAL</span><h3>Organização do campeonato</h3></div>
+                      <small>{operationalChecklist.filter(item => item.done).length} de {operationalChecklist.length} etapas iniciadas</small>
+                    </div>
+                    <div className="producer-checklist-progress" role="progressbar" aria-label="Etapas da preparação iniciadas" aria-valuemin={0} aria-valuemax={operationalChecklist.length} aria-valuenow={operationalChecklist.filter(item => item.done).length}>
+                      <span style={{ width: `${operationalChecklist.length ? operationalChecklist.filter(item => item.done).length / operationalChecklist.length * 100 : 0}%` }} />
                     </div>
                     <DataList aria-label="Checklist operacional">
                       {operationalChecklist.map(item => <DataListItem key={item.title}>
@@ -3434,6 +3479,7 @@ ${params.url}`
               ) : null}
               </>}
             </div>
+            </section>
             </div>
           </>
         ) : (

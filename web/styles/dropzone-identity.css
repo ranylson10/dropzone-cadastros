@@ -1076,3 +1076,238 @@ body#dropzone-app .producer-console .producer-scorer-handoff p {margin:0;flex:1 
 @media(prefers-reduced-motion:reduce) {
   body#dropzone-app .producer-console .producer-management-split * {scroll-behavior:auto!important;transition:none!important;animation:none!important;}
 }
+
+/* R27 · Producer control room — layered information architecture.
+   Separate context, metrics, navigation, actions, and operations without
+   changing any data mutation, authorisation, scorer, or championship route. */
+body#dropzone-app .producer-console {
+  --producer-r27-edge:#d6d0c5;
+  --producer-r27-ink:#242621;
+  --producer-r27-paper:#fffef9;
+  --producer-r27-muted:#68675e;
+  --producer-r27-soft:#ece8df;
+  --producer-r27-rust:#ad3b22;
+}
+body#dropzone-app .producer-console .producer-management-split {gap:18px;align-items:start;}
+body#dropzone-app .producer-console .producer-management-split > .championship-detail-card {display:grid;gap:14px;padding:0 0 32px!important;}
+body#dropzone-app .producer-console .producer-championship-sidebar {
+  padding:0!important;border:0!important;background:transparent!important;
+  display:grid;align-content:start;gap:10px;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-command-card {
+  display:grid;gap:10px;
+}
+body#dropzone-app .producer-console .producer-rail-intro {
+  display:grid;gap:14px;padding:17px 16px 16px;
+  background:var(--producer-r27-ink);color:#f7f1e6;
+  border:1px solid #353730;border-top:3px solid var(--producer-r27-rust);
+}
+body#dropzone-app .producer-console .producer-rail-intro .producer-list-heading {margin:0;gap:13px;}
+body#dropzone-app .producer-console .producer-rail-intro h2 {
+  margin:0;color:#fffaf0;font:750 27px/1 var(--font-display),sans-serif;
+}
+body#dropzone-app .producer-console .producer-rail-intro p {margin:6px 0 0;color:#c6c3b6;font-size:12px;line-height:1.4;}
+body#dropzone-app .producer-console .producer-rail-intro .button {min-height:42px;width:100%;}
+body#dropzone-app .producer-console .producer-rail-filters {
+  background:var(--producer-r27-paper);border:1px solid var(--producer-r27-edge);
+  padding:12px 10px;display:grid;gap:10px;
+}
+body#dropzone-app .producer-console .producer-rail-filters .producer-list-controls {margin:0;gap:8px;}
+body#dropzone-app .producer-console .producer-rail-filters :is(input,button) {border-radius:3px;}
+body#dropzone-app .producer-console .producer-rail-filters .producer-status-filter button[aria-pressed="true"] {
+  color:#fff!important;background:var(--producer-r27-ink)!important;border-color:var(--producer-r27-ink)!important;
+}
+body#dropzone-app .producer-console .producer-rail-results {
+  border:1px solid var(--producer-r27-edge);background:var(--producer-r27-paper);
+  padding:0 8px 10px;min-width:0;
+}
+body#dropzone-app .producer-console .producer-rail-results-title {
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  margin:0 -8px 6px;padding:12px 14px;
+  background:var(--producer-r27-soft);border-bottom:1px solid var(--producer-r27-edge);
+}
+body#dropzone-app .producer-console .producer-rail-results-title strong {
+  font-size:11px;line-height:1.3;letter-spacing:.06em;text-transform:uppercase;color:var(--producer-r27-ink);
+}
+body#dropzone-app .producer-console .producer-rail-results-title span {font-size:11px;color:var(--producer-r27-muted);white-space:nowrap;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .dz-data-select {
+  min-height:62px!important;border-bottom:1px solid #e2ded4!important;
+  border-radius:0!important;transition:background .16s ease,box-shadow .16s ease;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .dz-data-select:hover {
+  background:#f4efe7!important;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .dz-data-select.is-selected {
+  background:#f7e9e2!important;box-shadow:inset 4px 0 var(--producer-r27-rust)!important;
+}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list .dz-data-select.is-selected strong {color:#8d2d1a;}
+body#dropzone-app .producer-console .producer-championship-sidebar .producer-championship-list small {font-size:11px;line-height:1.45;}
+body#dropzone-app .producer-console .producer-editor-breadcrumb {margin:0 0 -4px;min-height:18px;}
+body#dropzone-app .producer-console :is(.producer-editor-summary-card,.producer-editor-metrics-card,.producer-editor-nav-card,.producer-editor-action-card,.producer-editor-content-card) {
+  min-width:0;background:var(--producer-r27-paper);border:1px solid var(--producer-r27-edge);
+  border-radius:4px;box-shadow:0 2px 7px rgba(38,37,30,.035);
+}
+body#dropzone-app .producer-console .producer-editor-summary-card {
+  padding:17px 20px 16px;border-left:4px solid var(--producer-r27-rust);
+}
+body#dropzone-app .producer-console .producer-module-kicker {
+  display:block;margin-bottom:5px;color:#95422d;
+  font-size:10px;font-weight:800;line-height:1.4;letter-spacing:.115em;text-transform:uppercase;
+}
+body#dropzone-app .producer-console .producer-editor-summary-card .championship-summary,
+body#dropzone-app .panel-workspace-shell .producer-console .producer-editor-summary-card .championship-summary {
+  min-height:0;margin:0!important;padding:3px 0 0!important;
+  background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+}
+body#dropzone-app .producer-console .producer-editor-summary-card .championship-summary h2 {
+  font-size:clamp(25px,2.4vw,36px);line-height:1.03;
+}
+body#dropzone-app .producer-console .championship-admin-actions .icon-action-button {
+  min-height:35px;padding:6px 8px;border:1px solid var(--producer-r27-edge);border-radius:3px;
+}
+body#dropzone-app .producer-console .producer-module-heading {
+  display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:0 0 12px;margin-bottom:12px;border-bottom:1px solid #e5e0d7;
+}
+body#dropzone-app .producer-console .producer-module-heading h3 {
+  font:750 21px/1.1 var(--font-display),sans-serif;color:var(--producer-r27-ink);margin:0;
+}
+body#dropzone-app .producer-console .producer-module-heading > small {
+  color:var(--producer-r27-muted);font-size:11px;text-align:right;
+}
+body#dropzone-app .producer-console .producer-editor-metrics-card {padding:15px 18px 18px;}
+body#dropzone-app .producer-console .producer-editor-facts {
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px!important;
+  margin:0!important;padding:0!important;border:0!important;
+}
+body#dropzone-app .producer-console .producer-editor-facts > div {
+  min-height:75px;display:flex!important;flex-direction:column;justify-content:center;align-items:flex-start;
+  gap:5px!important;padding:10px 13px;background:#f0ede5;
+  border:1px solid #e1dacf;border-top:2px solid #b9ac9c;
+}
+body#dropzone-app .producer-console .producer-editor-facts dt {
+  order:2;font-weight:650;font-size:11px;line-height:1.2;color:var(--producer-r27-muted);
+  letter-spacing:.03em;text-transform:uppercase;
+}
+body#dropzone-app .producer-console .producer-editor-facts dd {
+  order:1;font:750 27px/1 var(--font-display),sans-serif;color:var(--producer-r27-ink);font-variant-numeric:tabular-nums;
+}
+body#dropzone-app .producer-console .producer-editor-navigation {
+  position:static;display:grid;gap:14px;margin:0;padding:0;border:0;
+}
+body#dropzone-app .producer-console .producer-editor-nav-card {padding:15px 18px 11px;}
+body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav {border-bottom:1px solid #e2dcd2!important;}
+body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav > :is(button,a) {
+  font-weight:650!important;min-height:43px!important;
+}
+body#dropzone-app .producer-console .producer-editor-action-card {padding:15px 18px 16px;background:#f9f6ef;}
+body#dropzone-app .producer-console .producer-editor-action-groups {
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,255px),1fr));gap:14px;
+}
+body#dropzone-app .producer-console .producer-editor-action-group {
+  min-width:0;padding:11px 12px 12px;border:1px solid #ded8cb;background:#fffef9;
+  display:grid;align-content:start;gap:9px;
+}
+body#dropzone-app .producer-console .producer-action-group-label {
+  color:#676258;font-size:10px;font-weight:800;letter-spacing:.075em;text-transform:uppercase;
+}
+body#dropzone-app .producer-console .producer-editor-quick-actions {display:flex;gap:8px;flex-wrap:wrap;}
+body#dropzone-app .producer-console .producer-editor-quick-actions .button {flex:1 1 132px;min-height:38px;justify-content:center;font-size:12px;}
+body#dropzone-app .producer-console .producer-editor-navigation .producer-competition-tools {
+  margin:0!important;padding:0!important;display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:0!important;
+}
+body#dropzone-app .producer-console .producer-editor-navigation .producer-competition-tools > .button {
+  width:auto;min-height:38px;font-size:12px;padding-inline:10px;
+}
+body#dropzone-app .producer-console .producer-editor-navigation .producer-competition-tools .dz-workspace-more {max-width:100%;}
+body#dropzone-app .producer-console .producer-editor-layout {display:grid!important;gap:14px;}
+body#dropzone-app .producer-console .producer-editor-content-card {
+  padding:0;overflow:visible;min-height:200px;
+}
+body#dropzone-app .producer-console .producer-editor-content-head {
+  display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:16px 19px 14px;border-bottom:1px solid var(--producer-r27-edge);
+  background:#eae5da;border-top:3px solid #383933;
+}
+body#dropzone-app .producer-console .producer-editor-content-head h3 {
+  margin:0;color:var(--producer-r27-ink);font:750 24px/1.1 var(--font-display),sans-serif;
+}
+body#dropzone-app .producer-console .producer-editor-content-head small {font-size:12px;color:var(--producer-r27-muted);}
+body#dropzone-app .producer-console .champ-tab-body-ref {
+  padding:18px 19px 20px!important;min-width:0;
+}
+body#dropzone-app .producer-console .championship-checklist {padding:0!important;border:0!important;background:transparent!important;}
+body#dropzone-app .producer-console .championship-checklist .section-head {
+  display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:0 0 12px;padding:0 0 9px;
+}
+body#dropzone-app .producer-console .championship-checklist .section-head h3 {
+  margin:0;font:750 21px/1.1 var(--font-display),sans-serif;
+}
+body#dropzone-app .producer-console .championship-checklist .section-head small {font-size:12px;color:var(--producer-r27-muted);}
+body#dropzone-app .producer-console .producer-checklist-progress {
+  height:5px;margin-bottom:16px;overflow:hidden;background:#dfdbd1;border-radius:2px;
+}
+body#dropzone-app .producer-console .producer-checklist-progress span {
+  display:block;height:100%;max-width:100%;background:var(--producer-r27-rust);transition:width .22s ease;
+}
+body#dropzone-app .producer-console .championship-checklist .dz-data-list {
+  display:grid;gap:7px;background:transparent;border:0;
+}
+body#dropzone-app .producer-console .championship-checklist .dz-data-list__item {
+  padding:0!important;border:1px solid #e0dcd2!important;background:#f7f5ef!important;
+  min-width:0;min-height:0;
+}
+body#dropzone-app .producer-console .championship-checklist .dz-data-select {
+  width:100%;min-height:63px;padding:12px 14px!important;gap:12px;
+  background:transparent!important;transition:background .15s ease;
+}
+body#dropzone-app .producer-console .championship-checklist .dz-data-select:hover {background:#eee9df!important;}
+body#dropzone-app .producer-console .championship-checklist .dz-data-select > svg:first-child {color:var(--producer-r27-rust);}
+body#dropzone-app .producer-console .championship-checklist .dz-data-select strong {font-weight:700;color:#292b27;}
+body#dropzone-app .producer-console .championship-checklist .dz-data-select small {color:#5d5d54;}
+body#dropzone-app .producer-console .producer-scorer-handoff {background:#efe9dd;border:1px solid var(--producer-r27-edge);}
+
+@media (max-width:1100px) {
+  body#dropzone-app .producer-console .producer-management-split {grid-template-columns:minmax(225px,260px) minmax(0,1fr);gap:13px;}
+  body#dropzone-app .producer-console .producer-editor-summary-card {padding:15px;}
+  body#dropzone-app .producer-console .producer-editor-metrics-card {padding:14px;}
+  body#dropzone-app .producer-console .producer-editor-nav-card,
+  body#dropzone-app .producer-console .producer-editor-action-card {padding:13px;}
+  body#dropzone-app .producer-console .producer-editor-facts > div {padding:9px;min-height:68px;}
+  body#dropzone-app .producer-console .producer-editor-facts dd {font-size:23px;}
+}
+@media (max-width:960px) {
+  body#dropzone-app .producer-console .producer-management-split {display:flex;flex-direction:column;gap:14px;}
+  body#dropzone-app .producer-console .producer-championship-sidebar {width:100%;max-height:none;overflow:visible;position:static;}
+  body#dropzone-app .producer-console .producer-rail-intro {padding:14px;}
+  body#dropzone-app .producer-console .producer-rail-intro .producer-list-heading {margin:0;}
+  body#dropzone-app .producer-console .producer-rail-intro .producer-list-heading > .button {width:auto;}
+  body#dropzone-app .producer-console .producer-rail-intro .producer-list-heading h2 {font-size:23px;}
+  body#dropzone-app .producer-console .producer-rail-intro .producer-mobile-champ-selector {color:#f7f1e6;}
+  body#dropzone-app .producer-console .producer-rail-filters,
+  body#dropzone-app .producer-console .producer-rail-results {display:none;}
+  body#dropzone-app .producer-console .producer-editor-facts {grid-template-columns:repeat(4,minmax(0,1fr));}
+  body#dropzone-app .producer-console .producer-editor-navigation {margin:0;}
+}
+@media (max-width:560px) {
+  body#dropzone-app .producer-console .producer-rail-intro .producer-list-heading {flex-direction:column-reverse;align-items:stretch;}
+  body#dropzone-app .producer-console .producer-rail-intro .producer-list-heading > .button {width:100%;}
+  body#dropzone-app .producer-console .producer-editor-summary-card {padding:15px 13px;}
+  body#dropzone-app .producer-console .producer-editor-metrics-card,
+  body#dropzone-app .producer-console .producer-editor-nav-card,
+  body#dropzone-app .producer-console .producer-editor-action-card {padding:13px;}
+  body#dropzone-app .producer-console .producer-editor-facts {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px!important;}
+  body#dropzone-app .producer-console .producer-editor-facts > div {min-height:62px;}
+  body#dropzone-app .producer-console .producer-editor-facts dd {font-size:24px;}
+  body#dropzone-app .producer-console .producer-module-heading {align-items:start;gap:4px;}
+  body#dropzone-app .producer-console .producer-module-heading > small {text-align:left;}
+  body#dropzone-app .producer-console .producer-editor-content-head {padding:14px 13px;}
+  body#dropzone-app .producer-console .producer-editor-content-head h3 {font-size:22px;}
+  body#dropzone-app .producer-console .champ-tab-body-ref {padding:13px!important;}
+  body#dropzone-app .producer-console .championship-checklist .dz-data-select {padding:10px!important;gap:9px;}
+}
+@media (prefers-reduced-motion:reduce) {
+  body#dropzone-app .producer-console .producer-checklist-progress span,
+  body#dropzone-app .producer-console .championship-checklist .dz-data-select,
+  body#dropzone-app .producer-console .producer-championship-list .dz-data-select {transition:none!important;}
+}
