@@ -7,7 +7,7 @@ const requiredFiles = [
   'web/app/campeonatos/[id]/page.tsx',
   'web/app/campeonatos/[id]/regulamento/page.tsx',
   'web/app/campeonatos/[id]/stream/page.tsx',
-  'web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx',
+  'web/features/campeonatos/pontuador/GameScorer.tsx',
   'web/app/central-campeonato/page.tsx',
   'web/components/forms/campeonato/CampeonatoForm.tsx',
   'web/features/campeonatos/equipes/components/CampeonatoEquipesTab.tsx',

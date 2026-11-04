@@ -80,7 +80,7 @@ export function normalizeScoring(data: Record<string, any>) {
     }
   }
 
-  const teamCount = Math.max(2, Math.min(15, Number.parseInt(String(data.pontuacao_equipes_por_partida || '12'), 10) || 12))
+  const teamCount = Math.max(2, Math.min(24, Number.parseInt(String(data.pontuacao_equipes_por_partida || '12'), 10) || 12))
   const rawPoints = Array.isArray(data.pontos_colocacao) ? data.pontos_colocacao : []
   const placementPoints = Array.from({ length: teamCount }, (_, index) => {
     const point = Number(rawPoints[index] ?? 0)

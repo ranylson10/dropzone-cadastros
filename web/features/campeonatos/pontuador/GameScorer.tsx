@@ -1,0 +1,767 @@
+'use client'
+
+import { confirmAction } from '@/components/feedback'
+import { DataTable, DataTableBody, DataTableCell, DataTableHead, DataTableHeaderCell, DataTableRow } from '@/components/ui/DataTable'
+import { Input as UiInput, Select as UiSelect } from '@/components/ui/Field'
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, Clock3, FileUp, Loader2, Pencil, RefreshCcw, Save, Trophy, Users, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase-browser'
+import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
+import { OperationProgress } from '@/components/feedback/OperationProgress'
+import '@/app/campeonatos/[id]/pontuador/pontuador.css'
+import { manualDraftTeams, type TeamEdit } from './manual-draft'
+
+type Row = Record<string, any>
+type Scope = 'geral' | 'jogo' | 'mapa'
+type View = 'equipes' | 'mvp'
+type PontuadorData = {
+  campeonato: { id: string; nome: string; logo_url?: string | null; campeonato_configuracoes?: Row[] | Row | null }
+  fase?: Row | null; rodada?: Row | null; jogo: Row
+  partidas: Row[]; slots: Row[]; matriz: Row[]; jogadores: Row[]; resultados_jogadores: Row[]
+  classificacao_geral: Row[]; classificacao_jogo: Row[]; classificacao_mapas: Record<string, Row[]>
+  mvp_geral: Row[]; mvp_jogo: Row[]; vinculos_matchresult: Row[]
+}
+
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) {
+    const returnTo = `${window.location.pathname}${window.location.search}`
+    const profileType =
+      (typeof window !== 'undefined' && localStorage.getItem('dropzone_active_profile_type')) || 'manager'
+    window.location.replace(`/login?profileType=${encodeURIComponent(profileType)}&returnTo=${encodeURIComponent(returnTo)}`)
+    throw new Error('Redirecionando para o login...')
+  }
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 30_000)
+  const abortFromCaller = () => controller.abort()
+  options?.signal?.addEventListener('abort', abortFromCaller, { once: true })
+  let response: Response
+  try {
+    response = await fetch(url, {
+      ...options, cache: 'no-store', signal: controller.signal,
+      headers: { ...(options?.body ? { 'Content-Type': 'application/json' } : {}), Authorization: `Bearer ${token}`, ...(options?.headers || {}) },
+    })
+  } catch (cause) {
+    if (controller.signal.aborted) throw new Error('A operação demorou demais. Tente novamente.')
+    throw cause
+  } finally {
+    window.clearTimeout(timeout)
+    options?.signal?.removeEventListener('abort', abortFromCaller)
+  }
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(payload.error || 'Não foi possível concluir a operação.')
+  return payload as T
+}
+
+const number = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0
+const playerId = (row: Row) => String(row.campeonato_jogador_id || row.id || '')
+
+export function GameScorer({ campeonatoId, jogoId, embedded = false, onPendingChange }: { campeonatoId: string; jogoId: string; embedded?: boolean; onPendingChange?: (pending: boolean, busy?: boolean) => void }) {
+  const params = { id: campeonatoId, jogoId }
+  const router = useRouter()
+  const [data, setData] = useState<PontuadorData | null>(null)
+  const [selectedDropId, setSelectedDropId] = useState('')
+  const [scope, setScope] = useState<Scope>('geral')
+  const [view, setView] = useState<View>('equipes')
+  const [selectedMap, setSelectedMap] = useState('')
+  const [edits, setEdits] = useState<Record<string, TeamEdit>>({})
+  const [initialEdits, setInitialEdits] = useState<Record<string, TeamEdit>>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [operation, setOperation] = useState<{ title: string; steps: string[]; activeStep: number } | null>(null)
+  const [matchName, setMatchName] = useState('')
+  const [matchContent, setMatchContent] = useState('')
+  const [preview, setPreview] = useState<Row | null>(null)
+  const [previewLinks, setPreviewLinks] = useState<Record<string, string>>({})
+  /** equipes marcadas como falta nesta sessão/queda (além do status no banco) */
+  const [faltas, setFaltas] = useState<Record<string, boolean>>({})
+  const [publicDelayMinutes, setPublicDelayMinutes] = useState('5')
+  const [savingDelay, setSavingDelay] = useState(false)
+  const [showPenalties, setShowPenalties] = useState(false)
+  const pending = Boolean(preview) || JSON.stringify(edits) !== JSON.stringify(initialEdits)
+  useEffect(() => { onPendingChange?.(pending, saving) }, [pending, saving, onPendingChange])
+  useEffect(() => {
+    if (!pending) return
+    const guard = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', guard)
+    return () => window.removeEventListener('beforeunload', guard)
+  }, [pending])
+
+  async function discardAllowed() {
+    return !saving && (!pending || await confirmAction('Há pontuação ou vínculos não salvos. Descartar as alterações?'))
+  }
+
+  function clearPreview() { setPreview(null); setMatchContent(''); setMatchName(''); setPreviewLinks({}) }
+
+  async function selectDrop(id: string) {
+    if (id === selectedDropId || !await discardAllowed()) return
+    clearPreview(); setError(''); setNotice(''); setSelectedDropId(id)
+  }
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    try {
+      const result = await request<PontuadorData>(`/api/campeonatos/${params.id}/pontuador/${params.jogoId}`)
+      setData(result)
+      const rawConfig = Array.isArray(result.campeonato.campeonato_configuracoes)
+        ? result.campeonato.campeonato_configuracoes[0]
+        : result.campeonato.campeonato_configuracoes
+      setPublicDelayMinutes(String(number(rawConfig?.estatisticas_delay_segundos ?? 300) / 60))
+      setSelectedDropId((current) => current || result.partidas[0]?.id || '')
+      setSelectedMap((current) => current || result.partidas[0]?.mapa_codigo || '')
+      // faltas a partir da matriz da primeira queda carregada
+      const dropId = result.partidas[0]?.id
+      if (dropId) {
+        const nextFaltas: Record<string, boolean> = {}
+        for (const row of result.matriz || []) {
+          if (row.partida_id === dropId && /falta/i.test(String(row.status_presenca || ''))) {
+            nextFaltas[row.campeonato_equipe_id] = true
+          }
+        }
+        setFaltas(nextFaltas)
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao carregar pontuador.') }
+    finally { setLoading(false) }
+  }, [params.id, params.jogoId])
+
+  useEffect(() => { void load() }, [load])
+
+
+  const selectedDrop = data?.partidas.find(drop => drop.id === selectedDropId)
+  const previewKillWarnings = useMemo(
+    () => (preview?.equipes || []).filter((team: Row) => team.abates_conferem === false),
+    [preview],
+  )
+  const playersByTeam = useMemo(() => {
+    const map = new Map<string, Row[]>()
+    for (const player of data?.jogadores || []) {
+      const list = map.get(player.campeonato_equipe_id) || []
+      list.push(player); map.set(player.campeonato_equipe_id, list)
+    }
+    return map
+  }, [data?.jogadores])
+
+  const config = useMemo(() => {
+    const raw = data?.campeonato.campeonato_configuracoes
+    const value = Array.isArray(raw) ? raw[0] : raw
+    return { colocacoes: value?.pontos_colocacao || [12, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0], porAbate: number(value?.pontos_por_abate ?? 1) }
+  }, [data?.campeonato.campeonato_configuracoes])
+
+  useEffect(() => {
+    if (!data || !selectedDropId) return
+    const next: Record<string, TeamEdit> = {}
+    const nextFaltas: Record<string, boolean> = {}
+    for (const slot of data.slots.filter(item => !item.slot_vazio && item.campeonato_equipe_id)) {
+      const current = data.matriz.find(row => row.partida_id === selectedDropId && row.campeonato_equipe_id === slot.campeonato_equipe_id)
+      const jogadores: Record<string, string> = {}
+      for (const player of playersByTeam.get(slot.campeonato_equipe_id) || []) {
+        const result = data.resultados_jogadores.find(row => row.partida_id === selectedDropId && row.campeonato_jogador_id === playerId(player))
+        jogadores[playerId(player)] = result ? String(result.abates || 0) : ''
+      }
+      next[slot.campeonato_equipe_id] = {
+        posicao: current?.resultado_id ? String(current.posicao || '') : '',
+        abates: current?.resultado_id ? String(current.abates || 0) : '',
+        punicao: current?.resultado_id && number(current.punicao_pontos) ? String(current.punicao_pontos) : '',
+        motivo: current?.punicao_motivo || '', jogadores,
+      }
+      if (/falta/i.test(String(current?.status_presenca || ''))) {
+        nextFaltas[slot.campeonato_equipe_id] = true
+      }
+    }
+    setEdits(next)
+    setInitialEdits(next)
+    setFaltas(nextFaltas)
+  }, [data, selectedDropId, playersByTeam])
+
+  const ranking = useMemo(() => {
+    if (!data) return []
+    if (scope === 'jogo') return data.classificacao_jogo
+    if (scope === 'mapa') return data.classificacao_mapas?.[selectedMap] || []
+    return data.classificacao_geral
+  }, [data, scope, selectedMap])
+
+  function patchTeam(id: string, patch: Partial<TeamEdit>) {
+    setEdits(current => ({ ...current, [id]: { ...(current[id] || { posicao: '', abates: '', punicao: '', motivo: '', jogadores: {} }), ...patch } }))
+  }
+
+  function patchPlayer(teamId: string, id: string, value: string) {
+    const previous = edits[teamId] || { posicao: '', abates: '', punicao: '', motivo: '', jogadores: {} }
+    const jogadores = { ...previous.jogadores, [id]: value }
+    patchTeam(teamId, { jogadores, abates: String(Object.values(jogadores).reduce((sum, kills) => sum + number(kills), 0)) })
+  }
+
+  function dropPoints(edit?: TeamEdit) {
+    if (!edit?.posicao) return 0
+    return number(config.colocacoes[number(edit.posicao) - 1]) + number(edit.abates) * number(selectedDrop?.pontos_abate_unitario ?? config.porAbate) * number(selectedDrop?.multiplicador_abates ?? 1) + Math.min(number(edit.punicao), 0)
+  }
+
+  async function persistVinculosFromPreview() {
+    if (!preview) return
+    const vinculos = Object.entries(previewLinks)
+      .filter(([, teamId]) => Boolean(teamId))
+      .map(([nomeNorm, teamId]) => {
+        const team = (preview.equipes || []).find((t: Row) => t.nome_normalizado === nomeNorm)
+        return {
+          nome_raw: String(team?.nome || nomeNorm),
+          campeonato_equipe_id: String(teamId),
+        }
+      })
+    if (!vinculos.length) return
+    await request(`/api/campeonatos/${params.id}/pontuador/${params.jogoId}/vinculos`, {
+      method: 'POST',
+      body: JSON.stringify({ vinculos }),
+    })
+  }
+
+  async function saveCurrentDrop() {
+    if (preview) return confirmMatch()
+    return saveDrop()
+  }
+
+  async function savePublicDelay() {
+    const minutes = Number(publicDelayMinutes)
+    if (!Number.isFinite(minutes) || minutes < 0 || minutes > 120) {
+      return setError('O atraso publico deve ficar entre 0 e 120 minutos.')
+    }
+    setSavingDelay(true); setError(''); setNotice('')
+    try {
+      const result = await request<{ estatisticas_delay_segundos: number }>(`/api/campeonatos/${params.id}/pontuador/configuracao`, {
+        method: 'PATCH',
+        body: JSON.stringify({ estatisticas_delay_segundos: Math.round(minutes * 60) }),
+      })
+      setPublicDelayMinutes(String(result.estatisticas_delay_segundos / 60))
+      setNotice(`Site publico com ${result.estatisticas_delay_segundos / 60} min de atraso. Overlays continuam imediatas.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro ao salvar atraso publico.')
+    } finally {
+      setSavingDelay(false)
+    }
+  }
+
+  async function saveDrop() {
+    if (!data || !selectedDropId) return
+    if (selectedDrop?.status === 'finalizada') {
+      return setError('Queda finalizada. Clique em Editar para liberar alterações.')
+    }
+    let equipes: ReturnType<typeof manualDraftTeams>
+    try { equipes = manualDraftTeams(edits, initialEdits, faltas) }
+    catch (cause) { return setError(cause instanceof Error ? cause.message : 'Confira a pontuação.') }
+    if (!equipes.length) return setError('Nenhuma pontuação alterada para salvar.')
+    setSaving(true); setError(''); setNotice(''); setOperation({ title: 'Salvando queda', steps: ['Validando resultado', 'Gravando pontuação', 'Finalizando queda', 'Atualizando ranking'], activeStep: 0 })
+    try {
+      // 1) grava vínculos do Match Result (se houver) — não apaga aliases antigos
+      await persistVinculosFromPreview()
+      // 2) grava pontuação
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
+      await request(`/api/campeonatos/${params.id}/sumula/manual`, {
+        method: 'POST',
+        body: JSON.stringify({
+          partida_id: selectedDropId,
+          origem: preview ? 'matchresult' : 'manual',
+          equipes,
+        }),
+      })
+      // 3) finaliza queda → fica só leitura
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
+      const finalized = await request<{ queda?: Row }>(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' })
+      setPreview(null)
+      setMatchContent('')
+      setMatchName('')
+      setPreviewLinks({})
+      setNotice(`Q${selectedDrop?.numero_partida} salva e travada. Vínculos gravados. Use Editar para alterar.`)
+      // A queda já pode ser travada com a resposta da finalização. A recarga das
+      // classificações não deve manter o botão Salvar preso se a rede estiver lenta.
+      setData((current) => current ? {
+        ...current,
+        partidas: current.partidas.map((partida) => partida.id === selectedDropId
+          ? { ...partida, ...(finalized.queda || {}), status: 'finalizada' }
+          : partida),
+      } : current)
+      setSaving(false)
+      setOperation((current) => current ? { ...current, activeStep: 3 } : current)
+      await load()
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao salvar a queda.') }
+    finally { setSaving(false); setOperation(null) }
+  }
+
+  async function unlockEdit() {
+    if (!selectedDropId) return
+    if (!await confirmAction(`Liberar edição da Q${selectedDrop?.numero_partida}?`)) return
+    setSaving(true); setError(''); setNotice(''); setOperation({ title: 'Liberando edição', steps: ['Validando queda', 'Liberando edição', 'Atualizando tela'], activeStep: 0 })
+    try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
+      await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/reabrir`, { method: 'POST' })
+      setNotice(`Q${selectedDrop?.numero_partida} liberada para edição.`)
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro ao liberar edição.')
+    } finally {
+      setSaving(false); setOperation(null)
+    }
+  }
+
+  async function previewFile(file: File) {
+    const content = await file.text()
+    setMatchName(file.name); setMatchContent(content); setSaving(true); setError(''); setOperation({ title: 'Lendo Match Result', steps: ['Lendo arquivo', 'Conferindo equipes', 'Montando prévia'], activeStep: 0 })
+    try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
+      const result = await request<{ preview: Row }>(`/api/campeonatos/${params.id}/sumula/matchresult/preview`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, conteudo_bruto: content }) })
+      setPreview(result.preview)
+      const links = Object.fromEntries((result.preview.equipes || []).map((team: Row) => [team.nome_normalizado, team.campeonato_equipe_id || '']))
+      setPreviewLinks(links)
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
+      setEdits(current => {
+        const next = { ...current }
+        for (const team of result.preview.equipes || []) {
+          const teamId = links[team.nome_normalizado]
+          if (!teamId) continue
+          next[teamId] = { ...(next[teamId] || { punicao: '', motivo: '', jogadores: {} }), posicao: String(team.posicao), abates: String(team.abates) }
+        }
+        return next
+      })
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao ler Match Result.') }
+    finally { setSaving(false); setOperation(null) }
+  }
+
+  async function readMatchFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]; event.target.value = ''
+    if (file && await discardAllowed()) await previewFile(file)
+  }
+
+  function linkForTeam(teamId: string) {
+    return (preview?.equipes || []).find((team: Row) => previewLinks[team.nome_normalizado] === teamId)?.nome_normalizado || ''
+  }
+
+  function setTeamLink(teamId: string, rawNormalized: string) {
+    setPreviewLinks(current => {
+      const next = Object.fromEntries(Object.entries(current).map(([raw, linked]) => [raw, linked === teamId ? '' : linked]))
+      if (rawNormalized) next[rawNormalized] = teamId
+      return next
+    })
+    const team = (preview?.equipes || []).find((item: Row) => item.nome_normalizado === rawNormalized)
+    if (team) patchTeam(teamId, { posicao: String(team.posicao), abates: String(team.abates) })
+  }
+
+  function patchPreviewPlayer(teamName: string, order: number, patch: Row) {
+    setPreview((current: Row | null) => {
+      if (!current) return current
+      return {
+        ...current,
+        equipes: current.equipes.map((team: Row) => {
+          if (team.nome_normalizado !== teamName) return team
+          const jogadores = team.jogadores.map((player: Row) => player.ordem === order ? { ...player, ...patch } : player)
+          const abatesJogadores = jogadores.reduce((sum: number, player: Row) => sum + number(player.abates), 0)
+          const killScore = number(team.abates)
+          return {
+            ...team,
+            jogadores,
+            abates_jogadores: abatesJogadores,
+            jogadores_contagem: jogadores.length,
+            abates_conferem: abatesJogadores === killScore,
+            diferenca_abates: abatesJogadores - killScore,
+          }
+        }),
+      }
+    })
+  }
+
+  async function confirmMatch() {
+    if (!preview) return
+    const linkedTeams = preview.equipes.filter((team: Row) => previewLinks[team.nome_normalizado])
+    if (!linkedTeams.length) return setError('Vincule pelo menos uma equipe para aplicar o Match Result.')
+    setSaving(true); setError(''); setOperation({ title: 'Confirmando Match Result', steps: ['Validando vínculos', 'Gravando resultados', 'Finalizando queda', 'Atualizando ranking'], activeStep: 0 })
+    try {
+      // registra vínculos novos (não apaga nomes antigos do histórico do jogo)
+      const vinculosPayload = linkedTeams.map((team: Row) => ({
+        nome_raw: team.nome,
+        campeonato_equipe_id: previewLinks[team.nome_normalizado],
+      }))
+      await request(`/api/campeonatos/${params.id}/pontuador/${params.jogoId}/vinculos`, {
+        method: 'POST',
+        body: JSON.stringify({ vinculos: vinculosPayload }),
+      }).catch(() => null)
+
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
+      const confirmation = await request<{ already_confirmed?: boolean; garena?: { status?: string; jogadores?: number; erro?: string } }>(`/api/campeonatos/${params.id}/sumula/matchresult/confirmar`, { method: 'POST', body: JSON.stringify({ partida_id: selectedDropId, nome_arquivo: matchName, conteudo_bruto: matchContent, sincronizar_garena: false, equipes: linkedTeams.map((team: Row) => {
+        const teamId = previewLinks[team.nome_normalizado]
+        const edit = edits[teamId]
+        return { nome: team.nome, campeonato_equipe_id: teamId, posicao: number(edit?.posicao || team.posicao), abates: number(edit?.abates || team.abates), punicao_pontos: Math.min(number(edit?.punicao), 0), punicao_motivo: edit?.motivo || '', jogadores: team.jogadores.map((player: Row) => ({ ordem: player.ordem, nick: player.nick, id_jogo: player.id_jogo, abates: player.abates })) }
+      }) }) })
+      // trava a queda após aplicar MR
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
+      await request(`/api/campeonatos/${params.id}/quedas/${selectedDropId}/finalizar`, { method: 'POST' }).catch(() => null)
+      setPreview(null); setMatchContent(''); setMatchName(''); setPreviewLinks({})
+      const garenaNotice = confirmation.garena?.status === 'concluida'
+        ? ` Dados detalhados da Garena integrados para ${confirmation.garena.jogadores || 0} jogadores.`
+        : confirmation.garena?.status === 'ignorado'
+          ? ' Este arquivo não contém um ID oficial da Garena para detalhes.'
+          : confirmation.garena?.status === 'falhou'
+            ? ` A súmula foi salva, mas os dados Garena falharam: ${confirmation.garena.erro || 'tente sincronizar novamente.'}`
+            : ''
+      setNotice(confirmation.already_confirmed
+        ? 'Este Match Result já havia sido adicionado nesta queda. Nenhum dado foi duplicado.'
+        : `Match Result confirmado, vínculos gravados e queda travada. Os detalhes da Garena serão sincronizados em segundo plano. Use Editar para alterar.${garenaNotice}`)
+      setOperation((current) => current ? { ...current, activeStep: 3 } : current)
+      await load()
+      if (!confirmation.already_confirmed) {
+        void request(`/api/campeonatos/${params.id}/sumula/matchresult/sincronizar`, {
+          method: 'POST', body: JSON.stringify({ partida_id: selectedDropId }),
+        }).catch(() => null)
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao confirmar Match Result.') }
+    finally { setSaving(false); setOperation(null) }
+  }
+
+  async function syncGarenaDetails() {
+    if (!selectedDropId) return
+    setSaving(true); setError(''); setNotice(''); setOperation({ title: 'Sincronizando dados Garena', steps: ['Consultando partida', 'Integrando jogadores', 'Dados atualizados'], activeStep: 0 })
+    try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
+      const result = await request<{ status: string; jogadores?: number }>(`/api/campeonatos/${params.id}/sumula/matchresult/sincronizar`, {
+        method: 'POST', body: JSON.stringify({ partida_id: selectedDropId }),
+      })
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
+      if (result.status === 'ignorado') {
+        setNotice('Este MatchResult não possui um ID oficial da Garena no nome do arquivo.')
+      } else {
+        setNotice(`Dados detalhados da Garena sincronizados para ${result.jogadores || 0} jogadores. O ranking e os cards serão atualizados ao abrir novamente.`)
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível sincronizar os dados detalhados.')
+    } finally {
+      setSaving(false); setOperation(null)
+    }
+  }
+
+  async function marcarFalta(equipeId: string) {
+    if (!selectedDropId) return
+    setSaving(true); setError(''); setOperation({ title: 'Registrando falta', steps: ['Validando equipe', 'Salvando presença', 'Atualizando queda'], activeStep: 0 })
+    try {
+      setOperation((current) => current ? { ...current, activeStep: 1 } : current)
+      await request(
+        `/api/campeonatos/${params.id}/pontuador/${params.jogoId}/quedas/${selectedDropId}/falta`,
+        { method: 'POST', body: JSON.stringify({ campeonato_equipe_id: equipeId }) },
+      )
+      // A falta é persistida imediatamente, mas o restante do Match Result continua
+      // sendo uma prévia local até o usuário confirmar. Recarregar o pontuador aqui
+      // substituía os dados importados pelos valores antigos do banco e fazia toda a
+      // conferência desaparecer momentaneamente.
+      setPreviewLinks((current) => Object.fromEntries(
+        Object.entries(current).map(([nome, teamId]) => [nome, teamId === equipeId ? '' : teamId]),
+      ))
+      setFaltas((f) => ({ ...f, [equipeId]: true }))
+      setOperation((current) => current ? { ...current, activeStep: 2 } : current)
+      setNotice('Falta registrada para a equipe nesta queda.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro ao marcar falta.')
+    } finally {
+      setSaving(false); setOperation(null)
+    }
+  }
+
+  /**
+   * Estado do vínculo (cores):
+   * - green: sem vínculo histórico e sem seleção no MR
+   * - yellow: vinculado (histórico e/ou no MR atual)
+   * - red: tinha vínculo no jogo, mas o nome não apareceu no MR desta queda (ou falta)
+   */
+  function vinculoState(equipeId: string): {
+    tone: 'green' | 'yellow' | 'red'
+    label: string
+    savedLinks: Row[]
+    missing: boolean
+  } {
+    const savedLinks = (data?.vinculos_matchresult || []).filter((link) => link.campeonato_equipe_id === equipeId)
+    const isFalta = Boolean(faltas[equipeId])
+    const linkedNow = Boolean(linkForTeam(equipeId))
+    if (isFalta) {
+      return { tone: 'red', label: 'FALTA', savedLinks, missing: true }
+    }
+    if (preview) {
+      const mrNames = new Set((preview.equipes || []).map((t: Row) => t.nome_normalizado))
+      const historicInMr = savedLinks.some((l) => mrNames.has(String(l.nome_normalizado || '').toLowerCase()) || mrNames.has(String(l.nome_raw || '').toLowerCase()))
+      // também confere se algum nome_raw normalizado está no preview
+      const historicMatched = savedLinks.some((l) =>
+        (preview.equipes || []).some(
+          (t: Row) =>
+            t.nome_normalizado === l.nome_normalizado
+            || String(t.nome || '').toLowerCase() === String(l.nome_raw || '').toLowerCase(),
+        ),
+      )
+      if (linkedNow || historicMatched || historicInMr) {
+        return { tone: 'yellow', label: linkedNow ? 'Vinculado (MR)' : 'Histórico ok', savedLinks, missing: false }
+      }
+      if (savedLinks.length) {
+        return { tone: 'red', label: 'Sumiu / trocou nome', savedLinks, missing: true }
+      }
+      return { tone: 'green', label: 'Sem vínculo', savedLinks, missing: false }
+    }
+    if (savedLinks.length) {
+      return { tone: 'yellow', label: 'Vinculado', savedLinks, missing: false }
+    }
+    return { tone: 'green', label: 'Sem vínculo', savedLinks, missing: false }
+  }
+
+  if (loading && !data) return <DropzoneLoader label="Carregando pontuador" />
+  if (error && !data) return <section className="fullscreen-scorer-state error dz-mobile-utility"><strong>{error}</strong><button className="button secondary" onClick={() => void load()}>Tentar novamente</button></section>
+  if (!data) return null
+
+  const maps = Array.from(new Map(data.partidas.map(drop => [drop.mapa_codigo, drop.mapa_nome || drop.mapa])).entries()).filter(([code]) => code)
+  const isLocked = selectedDrop?.status === 'finalizada'
+
+  return <section aria-label="Pontuador do jogo" className={`scorer-workspace scorer-sheet-workspace dz-mobile-utility${embedded ? ' scorer-embedded' : ''}${showPenalties ? ' scorer-show-penalties' : ''}${isLocked ? ' is-drop-locked' : ''}`}>
+    <header className="scorer-workspace-header">
+      <div className="scorer-brand">{!embedded ? <button className="icon-button" onClick={async () => { if (await discardAllowed()) router.back() }} aria-label="Voltar"><ArrowLeft size={18}/></button> : null}{data.campeonato.logo_url ? <img src={data.campeonato.logo_url} alt=""/> : null}<div><p>{data.fase?.nome || 'Fase'}</p><h2>{data.jogo.nome}</h2><small>{data.campeonato.nome} · {data.slots.length} slots{isLocked ? ' · Q' + selectedDrop?.numero_partida + ' travada' : ''}</small></div></div>
+      <div className="scorer-header-actions">
+        {!isLocked ? (
+          <label className="button secondary scorer-file-button">
+            <FileUp size={15}/> Match Result
+            <UiInput type="file" accept=".txt,.log,text/plain" onChange={readMatchFile}/>
+          </label>
+        ) : null}
+        <button className="button secondary" onClick={async () => { if (await discardAllowed()) { clearPreview(); await load() } }} disabled={loading || saving}>
+          <RefreshCcw size={15}/> Atualizar
+        </button>
+        <button className="button secondary" onClick={() => void syncGarenaDetails()} disabled={saving || !isLocked} title="Importa dano, assistências, armas e habilidades do MatchResult confirmado">
+          <RefreshCcw size={15}/> Dados Garena
+        </button>
+        {isLocked ? (
+          <button className="button" onClick={() => void unlockEdit()} disabled={saving}>
+            {saving ? <Loader2 className="spin" size={15}/> : <Pencil size={15}/>}
+            Editar Q{selectedDrop?.numero_partida}
+          </button>
+        ) : (
+          <button className="button" onClick={() => void saveCurrentDrop()} disabled={saving}>
+            {saving ? <Loader2 className="spin" size={15}/> : <Save size={15}/>}
+            {preview ? 'Salvar e vincular' : 'Salvar e finalizar'} Q{selectedDrop?.numero_partida}
+          </button>
+        )}
+      </div>
+    </header>
+
+    <details className="scorer-advanced"><summary>Regras avançadas do pontuador</summary><div>
+        <div className="scorer-public-delay" title="Define quando as estatísticas públicas ficam disponíveis no site.">
+          <Clock3 size={15}/>
+          <label htmlFor="public-stats-delay">Atraso do site</label>
+          <UiInput
+            id="public-stats-delay"
+            type="number"
+            min="0"
+            max="120"
+            step="0.5"
+            value={publicDelayMinutes}
+            onChange={(event) => setPublicDelayMinutes(event.target.value)}
+            aria-label="Atraso das estatisticas publicas em minutos"
+          />
+          <span>min</span>
+          <button type="button" onClick={() => void savePublicDelay()} disabled={savingDelay} aria-label="Salvar atraso do site">
+            {savingDelay ? <Loader2 className="spin" size={14}/> : <Save size={14}/>}
+          </button>
+        </div>
+      <label><UiInput type="checkbox" checked={showPenalties} onChange={event => setShowPenalties(event.target.checked)} />Mostrar penalidades</label>
+    </div></details>
+
+    {operation ? <OperationProgress {...operation} className="scorer-operation-progress" /> : null}
+
+    <section className="scorer-sheet-toolbar">
+      <div className="scorer-view-switch"><button className={view === 'equipes' ? 'active' : ''} onClick={() => setView('equipes')}><Trophy size={14}/> Equipes</button><button className={view === 'mvp' ? 'active' : ''} onClick={() => setView('mvp')}><Users size={14}/> MVP</button></div>
+      <div className="scorer-scope-switch"><button className={scope === 'geral' ? 'active' : ''} onClick={() => setScope('geral')}>Geral</button><button className={scope === 'jogo' ? 'active' : ''} onClick={() => setScope('jogo')}>Jogo</button><button className={scope === 'mapa' ? 'active' : ''} onClick={() => setScope('mapa')}>Mapa</button>{scope === 'mapa' ? <UiSelect aria-label="Mapa do ranking" value={selectedMap} onChange={event => setSelectedMap(event.target.value)}>{maps.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</UiSelect> : null}</div>
+      <div className="scorer-drop-tabs">
+        {data.partidas.map((drop) => {
+          const isSelected = selectedDropId === drop.id
+          return (
+            <div className="scorer-drop-tab-item" key={drop.id}>
+              <button
+                type="button"
+                className={isSelected ? 'active' : ''}
+                onClick={() => void selectDrop(drop.id)} disabled={saving}
+                title="Abrir esta queda para visualizar ou editar"
+              >
+                Q{drop.numero_partida}
+                <small>{drop.mapa_nome || drop.mapa}</small>
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+
+    {error ? <div className="scorer-feedback error">{error}<button aria-label="Fechar erro" onClick={() => setError('')}><X size={14}/></button></div> : null}
+    {notice ? <div className="scorer-feedback success">{notice}<button aria-label="Fechar aviso" onClick={() => setNotice('')}><X size={14}/></button></div> : null}
+    {preview ? (
+      <div className="scorer-match-strip">
+        <span>
+          <strong>{matchName}</strong>
+          <small>{preview.equipes.length} equipes no arquivo — clique na célula de vínculo e escolha o nome</small>
+          <small className={`match-kill-audit ${previewKillWarnings.length ? 'is-warning' : 'is-ok'}`}>
+            {previewKillWarnings.length
+              ? `${previewKillWarnings.length} equipe${previewKillWarnings.length === 1 ? '' : 's'} com divergência entre KillScore e soma dos KILL`
+              : 'KillScore conferido com a soma dos KILL dos jogadores'}
+          </small>
+        </span>
+        <button className="button secondary" onClick={() => { setPreview(null); setMatchContent(''); setMatchName(''); setPreviewLinks({}) }}>Cancelar</button>
+      </div>
+    ) : null}
+
+    {view === 'equipes' ? (
+      <div className="scorer-edit-table-wrap scorer-sheet-table-wrap">
+        <DataTable className="scorer-edit-table scorer-sheet-table">
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeaderCell>#</DataTableHeaderCell><DataTableHeaderCell>Equipe</DataTableHeaderCell><DataTableHeaderCell>Grupo</DataTableHeaderCell><DataTableHeaderCell>Q</DataTableHeaderCell><DataTableHeaderCell>B</DataTableHeaderCell><DataTableHeaderCell>K</DataTableHeaderCell><DataTableHeaderCell>Pts</DataTableHeaderCell>
+              <DataTableHeaderCell>Vínculo</DataTableHeaderCell>
+              <DataTableHeaderCell>Pos.</DataTableHeaderCell><DataTableHeaderCell>Abates</DataTableHeaderCell><DataTableHeaderCell>Pts Q</DataTableHeaderCell><DataTableHeaderCell>Punição</DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {data.slots.map((slot) => {
+              const id = slot.campeonato_equipe_id
+              const stats = ranking.find((row) => row.campeonato_equipe_id === id)
+              const edit = edits[id]
+              const vState = id ? vinculoState(id) : { tone: 'green' as const, label: '—', savedLinks: [], missing: false }
+              const linkedMr = id ? linkForTeam(id) : ''
+              const linkedLabel =
+                (preview?.equipes || []).find((t: Row) => t.nome_normalizado === linkedMr)?.nome
+                || vState.savedLinks[0]?.nome_raw
+                || ''
+              // nomes do MR já usados em outras equipes (pra não confundir na lista)
+              const usedMr = new Set(
+                Object.entries(previewLinks)
+                  .filter(([, teamId]) => teamId && teamId !== id)
+                  .map(([raw]) => raw),
+              )
+              return (
+                <DataTableRow key={`${slot.grupo_id}:${slot.slot_numero}`} className={slot.slot_vazio ? 'is-empty' : ''}>
+                  <DataTableCell data-label="Posição geral" className="rank-cell">{slot.slot_vazio ? slot.slot_numero : stats?.colocacao || '—'}</DataTableCell>
+                  <DataTableCell data-label="Equipe">
+                    <div className="scorer-team">
+                      {slot.equipe_logo_url ? <img src={slot.equipe_logo_url} alt="" /> : <span />}
+                      <div>
+                        <strong>{slot.equipe_nome || 'Vaga livre'}</strong>
+                        <small>{slot.equipe_tag || `Slot ${slot.slot_numero}`}</small>
+                      </div>
+                    </div>
+                  </DataTableCell>
+                  <DataTableCell data-label="Grupo">{slot.grupo_nome}</DataTableCell>
+                  <DataTableCell data-label="Quedas">{stats?.quedas || stats?.quedas_jogadas || 0}</DataTableCell>
+                  <DataTableCell data-label="Booyahs">{stats?.booyahs || 0}</DataTableCell>
+                  <DataTableCell data-label="Abates">{stats?.abates || 0}</DataTableCell>
+                  <DataTableCell data-label="Pontos gerais" className="score-total">{stats?.pontos_total || 0}</DataTableCell>
+                  <DataTableCell data-label="Vínculo" className={`vinculo-cell tone-${vState.tone}`}>
+                    {slot.slot_vazio ? (
+                      '—'
+                    ) : isLocked ? (
+                      linkedLabel ? (
+                        <span className="vinculo-chip" title={vState.savedLinks.map((l) => l.nome_raw).join(', ')}>
+                          {linkedLabel}
+                        </span>
+                      ) : faltas[id] ? (
+                        <span className="vinculo-chip">Falta</span>
+                      ) : (
+                        <span className="vinculo-empty">—</span>
+                      )
+                    ) : preview ? (
+                      <UiSelect
+                        className={`inline-link-select vinculo-select tone-${vState.tone}`}
+                        value={faltas[id] ? '__FALTA__' : linkedMr}
+                        onChange={(event) => {
+                          const val = event.target.value
+                          if (val === '__FALTA__') {
+                            void marcarFalta(id)
+                            return
+                          }
+                          setFaltas((f) => ({ ...f, [id]: false }))
+                          setTeamLink(id, val)
+                        }}
+                        title="Lista de equipes do Match Result"
+                      >
+                        <option value="">—</option>
+                        {(preview.equipes || []).map((team: Row) => {
+                          const taken = usedMr.has(team.nome_normalizado)
+                          return (
+                            <option
+                              key={team.nome_normalizado}
+                              value={team.nome_normalizado}
+                              disabled={taken}
+                            >
+                              {team.nome}{taken ? ' (já usado)' : ''}
+                            </option>
+                          )
+                        })}
+                        <option value="__FALTA__">· Falta ·</option>
+                      </UiSelect>
+                    ) : linkedLabel ? (
+                      <span className="vinculo-chip" title={vState.savedLinks.map((l) => l.nome_raw).join(', ')}>
+                        {linkedLabel}
+                      </span>
+                    ) : (
+                      <span className="vinculo-empty">—</span>
+                    )}
+                  </DataTableCell>
+                  <DataTableCell data-label="Colocação da queda">
+                    {slot.slot_vazio ? '—' : (
+                      <UiInput
+                        type="number"
+                        min="1"
+                        aria-label={`Colocação de ${slot.equipe_nome || id}`}
+                        value={edit?.posicao || ''}
+                        disabled={isLocked || saving || Boolean(faltas[id])}
+                        onChange={(event) => patchTeam(id, { posicao: event.target.value })}
+                      />
+                    )}
+                  </DataTableCell>
+                  <DataTableCell data-label="Abates da queda">
+                    {slot.slot_vazio ? '—' : (
+                      <UiInput
+                        type="number"
+                        min="0"
+                        aria-label={`Abates de ${slot.equipe_nome || id}`}
+                        value={edit?.abates || ''}
+                        disabled={isLocked || saving || Boolean(faltas[id])}
+                        onChange={(event) => patchTeam(id, { abates: event.target.value })}
+                      />
+                    )}
+                  </DataTableCell>
+                  <DataTableCell data-label="Pontos da queda" className="drop-points-cell">{faltas[id] ? 0 : dropPoints(edit)}</DataTableCell>
+                  <DataTableCell data-label="Punição">
+                    {slot.slot_vazio ? '—' : (
+                      <div className="penalty-cell">
+                        <UiInput
+                          className="penalty-input"
+                          aria-label={`Punição de ${slot.equipe_nome || id}`}
+                          type="number"
+                          max="0"
+                          value={edit?.punicao || ''}
+                          disabled={isLocked || saving || Boolean(faltas[id])}
+                          onChange={(event) => patchTeam(id, { punicao: String(Math.min(number(event.target.value), 0)) })}
+                          placeholder="-0"
+                        />
+                        {number(edit?.punicao) < 0 ? (
+                          <UiInput
+                            className="penalty-reason-inline"
+                            aria-label={`Motivo da punição de ${slot.equipe_nome || id}`}
+                            value={edit?.motivo || ''}
+                            disabled={isLocked || saving || Boolean(faltas[id])}
+                            onChange={(event) => patchTeam(id, { motivo: event.target.value })}
+                            placeholder="Informar motivo"
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </DataTableCell>
+                </DataTableRow>
+              )
+            })}
+          </DataTableBody>
+        </DataTable>
+      </div>
+    ) : null}
+
+    {view === 'mvp' ? <>{preview ? <section className="match-player-review">{preview.equipes.map((team: Row) => <article key={team.nome_normalizado}><header><strong>{team.nome}</strong><span>{team.posicao}º · KillScore {team.abates} · {team.jogadores_contagem ?? team.jogadores.length} jogador{(team.jogadores_contagem ?? team.jogadores.length) === 1 ? '' : 'es'}</span><small className={`match-kill-audit ${team.abates_conferem === false ? 'is-warning' : 'is-ok'}`}>KILL jogadores: {team.abates_jogadores ?? team.jogadores.reduce((sum: number, player: Row) => sum + number(player.abates), 0)}{team.abates_conferem === false ? ` · divergência ${number(team.diferenca_abates) > 0 ? '+' : ''}${team.diferenca_abates}` : ' · confere'}</small></header>{team.jogadores.map((player: Row) => { const editable = player.status_vinculo !== 'oficial'; return <div key={player.ordem}><span className={`player-link-state ${player.status_vinculo}`}>{player.status_vinculo === 'oficial' ? 'Oficial' : player.status_vinculo === 'temporario' ? 'Temporário' : 'Novo temporário'}</span><UiInput value={player.nick} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { nick: event.target.value })}/><UiInput value={player.id_jogo} disabled={!editable} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { id_jogo: event.target.value })}/><UiInput className="player-kills-input" type="number" min="0" value={player.abates} onChange={event => patchPreviewPlayer(team.nome_normalizado, player.ordem, { abates: number(event.target.value) })}/></div>})}</article>)}</section> : null}<div className="scorer-edit-table-wrap"><DataTable className="scorer-edit-table"><DataTableHead><DataTableRow><DataTableHeaderCell>Equipe</DataTableHeaderCell><DataTableHeaderCell>Jogador</DataTableHeaderCell><DataTableHeaderCell>ID</DataTableHeaderCell><DataTableHeaderCell>Abates Q{selectedDrop?.numero_partida}</DataTableHeaderCell><DataTableHeaderCell>Abates jogo</DataTableHeaderCell><DataTableHeaderCell>Abates geral</DataTableHeaderCell></DataTableRow></DataTableHead><DataTableBody>{data.slots.filter(slot => !slot.slot_vazio).flatMap(slot => (playersByTeam.get(slot.campeonato_equipe_id) || []).map(player => { const id = playerId(player); const game = data.mvp_jogo.find(row => row.campeonato_jogador_id === id); const general = data.mvp_geral.find(row => row.campeonato_jogador_id === id); return <DataTableRow key={`${slot.campeonato_equipe_id}:${id}`}><DataTableCell data-label="Equipe"><strong>{slot.equipe_nome}</strong></DataTableCell><DataTableCell data-label="Jogador"><strong>{player.nick || 'Jogador'}</strong></DataTableCell><DataTableCell data-label="ID">{player.id_jogo || '—'}</DataTableCell><DataTableCell data-label="Abates da queda"><UiInput type="number" min="0" aria-label={`Abates de ${player.nick || 'jogador'}`} disabled={isLocked || saving || Boolean(faltas[slot.campeonato_equipe_id])} value={edits[slot.campeonato_equipe_id]?.jogadores[id] ?? ''} onChange={event => patchPlayer(slot.campeonato_equipe_id, id, event.target.value)}/></DataTableCell><DataTableCell data-label="Abates do jogo">{game?.abates || 0}</DataTableCell><DataTableCell data-label="Abates gerais" className="score-total">{general?.abates || 0}</DataTableCell></DataTableRow> }))}{!data.jogadores.length ? <DataTableRow><DataTableCell colSpan={6} className="empty">Nenhum jogador escalado. O Match Result pode criar jogadores temporários.</DataTableCell></DataTableRow> : null}</DataTableBody></DataTable></div></> : null}
+  </section>
+}

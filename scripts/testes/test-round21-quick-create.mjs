@@ -55,7 +55,7 @@ for (const [name, fields, result, opts] of cases) {
   const actual = validate(fields, opts)
   check(name, result ? actual.includes(result) : actual === '')
 }
-check('wizard rápido tem duas etapas', form.includes("? [{ id: 'origin', label: 'Dados essenciais' }, { id: 'review', label: 'Confirmar' }]"))
+check('wizard rápido inclui pontuação antes de confirmar', form.includes("? [{ id: 'origin', label: 'Dados essenciais' }, { id: 'scoring', label: 'Pontuação' }, { id: 'review', label: 'Confirmar' }]"))
 check('fluxo rápido padrão', form.includes("useState<'quick' | 'complete'>('quick')"))
 check('assistente completo preservado', form.includes('Assistente completo') && form.includes("selectCreationFlow('complete')"))
 check('atalho rápido selecionado no formato', form.includes("setOriginChoice('novo')"))

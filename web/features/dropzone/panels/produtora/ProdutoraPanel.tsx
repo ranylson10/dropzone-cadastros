@@ -4,7 +4,7 @@ import { confirmAction } from '@/components/feedback'
 import { Input as UiInput, Select as UiSelect, Textarea as UiTextarea } from '@/components/ui/Field'
 import { DataList, DataListItem } from '@/components/ui/DataList'
 import { EntityAvatar } from '@/components/entities/EntityAvatar'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { BriefcaseBusiness, CheckCircle2, ChevronDown, ChevronRight, Copy, CreditCard, ExternalLink, Filter, Folder, FolderOpen, Link2, Loader2, MessageCircle, Pause, Pencil, Play, Plus, ShieldCheck, Store, Trash2, Trophy, UserPlus, Users } from 'lucide-react'
 import type { DropZoneRow } from '@/lib/types'
@@ -17,7 +17,7 @@ import { Field } from '../../components/form-fields'
 import { CampeonatoForm, emptyCampeonatoForm, type CampeonatoFormValue } from '@/components/forms/campeonato'
 import { SystemModal } from '@/components/layout/SystemModal'
 import { dataText, rowTitle } from '../../utils'
-import { producerTabs, producerWorkspaceForTab, producerWorkspaceTabs, type ProducerTab } from './producer-tabs'
+import { producerTabs, type ProducerTab } from './producer-tabs'
 import { WhatsappPhoneField } from '@/components/forms/WhatsappPhoneField'
 import { WorkspaceContent, WorkspaceFocus, WorkspaceHeader, WorkspaceMetrics, WorkspaceMoreMenu, WorkspaceNav, WorkspaceShell, WorkspaceSubnav } from '@/components/workspace'
 import { DropzoneLoader } from '@/components/feedback/DropzoneLoader'
@@ -34,6 +34,9 @@ const CampeonatoCallsTab = dynamic(() => import('@/features/campeonatos/calls').
 const ProvisionalTeamsPanel = dynamic(() => import('@/features/produtoras/components/ProvisionalTeamsPanel').then(module => module.ProvisionalTeamsPanel), { loading: TabLoading })
 const ProducerMembersPanel = dynamic(() => import('@/features/produtoras/components/ProducerMembersPanel').then(module => module.ProducerMembersPanel), { loading: TabLoading })
 const ProducerFinancePanel = dynamic(() => import('@/features/produtoras/components/ProducerFinancePanel').then(module => module.ProducerFinancePanel), { loading: TabLoading })
+
+const ProducerScoringWorkspace = dynamic(() => import('@/features/campeonatos/pontuador/ProducerScoringWorkspace').then(module => module.ProducerScoringWorkspace), { loading: TabLoading })
+const AdvancedStructureTab = dynamic(() => import('@/features/campeonatos/estrutura-avancada/AdvancedStructureTab').then(module => module.AdvancedStructureTab), { loading: TabLoading })
 
 const TEAM_INVITE_TYPES = new Set(['convite_equipe_campeonato', 'team_invite'])
 type ProducerTeamView = 'membros' | 'provisorias'
@@ -147,15 +150,30 @@ export function ProdutoraPanel(props: {
     setPayMsg('Criação cancelada. O campeonato pendente foi removido.')
   }
   const [createdChampAction, setCreatedChampAction] = useState<DropZoneRow | null>(null)
+  const [editingPage, setEditingPage] = useState<'identity' | 'season' | 'format' | 'operation' | 'scoring'>('identity')
   const [editingChampId, setEditingChampId] = useState('')
   const [editingChamp, setEditingChamp] = useState<CampeonatoFormValue>(emptyCampeonatoForm)
   const [typeFilter, setTypeFilter] = useState('todos')
   const [showChampFilters, setShowChampFilters] = useState(false)
-  const [producerSection, setProducerSection] = useState<ProducerSection>('visao')
+  const [producerSection, setProducerSectionValue] = useState<ProducerSection>('visao')
   const [producerTeamView, setProducerTeamView] = useState<ProducerTeamView>('membros')
   const [producerFinanceView, setProducerFinanceView] = useState<ProducerFinanceView>('resumo')
   const [championshipDetailOpen, setChampionshipDetailOpen] = useState(true)
-  const [tab, setTab] = useState<ProducerTab>('visao')
+  const [tab, setTabValue] = useState<ProducerTab>('visao')
+  const scoringPending = useRef(false)
+  const scoringBusy = useRef(false)
+  async function setProducerSection(next: ProducerSection) {
+    if (next === producerSection || await leaveScoring()) setProducerSectionValue(next)
+  }
+  async function leaveScoring() {
+    if (scoringBusy.current) { setPayMsg('Aguarde a gravação da pontuação antes de trocar de área.'); return false }
+    if (scoringPending.current && !await confirmAction('Há pontuação ou vínculos não salvos. Descartar e sair do pontuador?')) return false
+    scoringPending.current = false
+    return true
+  }
+  async function setTab(next: ProducerTab) {
+    if (next === tab || await leaveScoring()) setTabValue(next)
+  }
   const dataRequest = useMemo(() => producerEntityRequest(producerSection, tab, props.selectedChamp?.id || '', championshipDetailOpen), [producerSection, tab, props.selectedChamp?.id, championshipDetailOpen])
   const scopeMatches = props.dataScopeKey === producerRequestKey(dataRequest)
   const dataLoading = !scopeMatches || props.dataLoading
@@ -583,28 +601,9 @@ export function ProdutoraPanel(props: {
 
   const selectedChamp = props.selectedChamp
   const selectedChampType = String(dataText(selectedChamp, 'tipo') || 'copa')
-  const activeChampWorkspace = producerWorkspaceForTab(tab)
-  const visibleChampWorkspaces = producerWorkspaceTabs.filter((item) => {
-    if (item.id === 'operacao') return canOperateWorkspace || canScoreWorkspace
-    if (item.id === 'financeiro') return canFinanceWorkspace || canCommercialWorkspace
-    return true
-  })
-  const visibleChampWorkspaceKey = visibleChampWorkspaces.map((item) => item.id).join('|')
-  const activeWorkspaceConfig = visibleChampWorkspaces.find((item) => item.id === activeChampWorkspace) || visibleChampWorkspaces[0] || producerWorkspaceTabs[0]
-  const contextualChampTabs = producerTabs.filter((item) =>
-    activeWorkspaceConfig.tabs.includes(item.id)
-    && (item.id !== 'calls' || selectedChampType.toLowerCase() === 'xtreino')
-    && (item.id !== 'financeiro' || canFinanceWorkspace)
-    && (item.id !== 'vendedores' || canCommercialWorkspace)
-  )
-
   useEffect(() => {
-    if (tab === 'calls' && selectedChamp && selectedChampType.toLowerCase() !== 'xtreino') setTab('jogos')
+    if (tab === 'calls' && selectedChamp && selectedChampType.toLowerCase() !== 'xtreino') setTabValue('jogos')
   }, [tab, selectedChamp?.id, selectedChampType])
-
-  useEffect(() => {
-    if (!visibleChampWorkspaces.some((item) => item.id === activeChampWorkspace)) setTab('visao')
-  }, [activeChampWorkspace, visibleChampWorkspaceKey])
 
   async function loadFinancialReviews() {
     setFinancialLoading(true)
@@ -968,7 +967,10 @@ export function ProdutoraPanel(props: {
     await props.reloadStructure?.()
   }
 
-  function startEditChampionship(champ: DropZoneRow) {
+  async function startEditChampionship(champ: DropZoneRow, page: typeof editingPage = 'identity') {
+    if (!await leaveScoring()) return
+    if (tab === 'pontuador') setTabValue('visao')
+    setEditingPage(page)
     const aprovacao = String(dataText(champ, 'aprovacao_status') || 'aprovado')
     if (aprovacao !== 'aprovado') {
       setPayMsg('Campeonato aguardando liberação. Pague via PIX ou aguarde o admin liberar para editar.')
@@ -1049,7 +1051,7 @@ export function ProdutoraPanel(props: {
     if (!selectedChamp) return
     const isXtreino = String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino'
     const xtreinoDrops = Math.max(1, Math.min(20, Number(selectedChamp.data?.partidas_por_jogo || 4)))
-    const defaultPhaseId = options?.phaseId || (isXtreino ? orderedChampPhases[0]?.id || '' : '')
+    const defaultPhaseId = options?.phaseId || orderedChampPhases[0]?.id || ''
     const defaultGroupIds = options?.groupIds || (isXtreino && defaultPhaseId
       ? champGroups.filter((group) => String(group.data?.fase_id || '') === defaultPhaseId).map((group) => group.id)
       : [])
@@ -1679,7 +1681,8 @@ ${params.url}`
             return (
               <DataListItem key={champ.id} data-selected={selectedChamp?.id === champ.id}>
               <button className="dz-data-select" aria-current={selectedChamp?.id === champ.id ? 'true' : undefined}
-                onClick={() => {
+                onClick={async () => {
+                  if (!await leaveScoring()) return
                   props.setSelectedChampId(champ.id)
                   setShowCreateChamp(false)
                   setChampionshipDetailOpen(true)
@@ -1814,6 +1817,7 @@ ${params.url}`
       >
         <CampeonatoForm
           mode="edit"
+          initialPage={editingPage}
           value={editingChamp}
           onChange={setEditingChamp}
           onSubmit={async (resolvedChampionship) => {
@@ -1975,41 +1979,49 @@ ${params.url}`
               </>}
               actions={
               <div className="championship-admin-actions">
-                <button className="icon-action-button" disabled={String(dataText(selectedChamp, 'aprovacao_status') || 'aprovado') !== 'aprovado'} onClick={() => startEditChampionship(selectedChamp)} title="Editar campeonato"><Pencil size={16} /> Editar</button>
-                <button className="icon-action-button danger" onClick={async () => {
+                <button className="icon-action-button" disabled={!canAdminWorkspace || String(dataText(selectedChamp, 'aprovacao_status') || 'aprovado') !== 'aprovado'} onClick={() => startEditChampionship(selectedChamp)} title="Editar campeonato"><Pencil size={16} /> Editar</button>
+                <button className="icon-action-button danger" disabled={!canAdminWorkspace} onClick={async () => {
                   if (await confirmAction(`Excluir o campeonato ${rowTitle(selectedChamp)}? Ele ficará oculto, mas os dados serão preservados.`)) props.deleteChampionship(selectedChamp.id)
                 }} title="Excluir campeonato"><Trash2 size={16} /> Excluir</button>
               </div>
               }
             />
             <WorkspaceMetrics label="Resumo do campeonato" metrics={stats} />
-            <WorkspaceMoreMenu label="Configurar campeonato" items={[
-              { id: 'dados', label: 'Dados e inscrição', detail: 'Editar informações do campeonato' },
-              { id: 'grupos', label: 'Fases e grupos', detail: 'Montar a estrutura' },
-              { id: 'equipes', label: 'Equipes', detail: 'Gerenciar participantes' },
-              { id: 'jogos', label: 'Jogos', detail: 'Agenda e quedas' },
-            ]} onChange={(id) => {
-              if (id === 'dados') startEditChampionship(selectedChamp)
-              else setTab(id as typeof tab)
-            }} />
-            <WorkspaceNav ariaLabel="Áreas do campeonato" activeId={activeChampWorkspace}
-              items={visibleChampWorkspaces.map(item => ({ id: item.id, label: item.label }))}
-              onChange={(id) => {
-                const workspace = visibleChampWorkspaces.find(item => item.id === id)
-                if (workspace) setTab(workspace.defaultTab)
+            <div className="producer-competition-tools">
+              <button type="button" className="button secondary" onClick={() => startEditChampionship(selectedChamp, 'scoring')} disabled={!canAdminWorkspace}>Regras de pontuação</button>
+              <WorkspaceMoreMenu label="Regras avançadas" activeId={tab} items={[
+                ...(canOperateWorkspace ? [
+                  ...(canAdminWorkspace ? [{ id: 'participacao', label: 'Inscrição, elenco e transferências', detail: 'Prazos, limites e regras de participação do site' }] : []),
+                  { id: 'avancado', label: 'Temporadas, divisões e progressão', detail: 'Edições, classificação entre fases e regras da final' },
+                  { id: 'regulamento', label: 'Regulamento', detail: 'Documento e regras públicas' },
+                  ...(selectedChampType === 'xtreino' ? [{ id: 'calls', label: 'Calls do treino' }] : []),
+                ] : []),
+                ...(canFinanceWorkspace ? [{ id: 'financeiro', label: 'Financeiro do campeonato' }] : []),
+                ...(canCommercialWorkspace ? [{ id: 'vendedores', label: 'Vendedores e comissões' }] : []),
+              ]} onChange={(id) => {
+                if (id === 'participacao') startEditChampionship(selectedChamp, 'operation')
+                else setTab(id as ProducerTab)
               }} />
-            {contextualChampTabs.length > 1 ? <WorkspaceSubnav
-              ariaLabel={`Ferramentas de ${activeWorkspaceConfig.label.toLowerCase()}`}
-              activeId={tab} items={contextualChampTabs.map(item => ({ id: item.id, label: item.label }))}
-              onChange={(id) => setTab(id as typeof tab)}
-            /> : null}
+            </div>
+            <WorkspaceNav ariaLabel="Áreas do campeonato" activeId={tab}
+              items={[
+                { id: 'visao', label: 'Resumo' },
+                ...(canOperateWorkspace ? [{ id: 'grupos', label: 'Fases e grupos' }] : []),
+                { id: 'equipes', label: 'Equipes' },
+                { id: 'jogadores', label: 'Elencos' },
+                ...(canOperateWorkspace ? [{ id: 'jogos', label: 'Jogos e quedas' }] : []),
+                ...(canScoreWorkspace ? [{ id: 'pontuador', label: 'Pontuador' }] : []),
+                { id: 'estatisticas', label: 'Tabelas' },
+                ...(canOperateWorkspace || canCommercialWorkspace ? [{ id: 'links', label: 'Inscrições' }] : []),
+              ]}
+              onChange={(id) => setTab(id as ProducerTab)} />
 
             <div className="champ-tab-body-ref">
               {dataLoading ? <DropzoneLoader label="Carregando dados desta área" /> : dataError ? null : <>
               {tab === 'visao' ? (
                 <div className="championship-overview">
                   <div className="button-row compact-actions">
-                    {canScoreWorkspace ? <button type="button" className="button secondary" disabled={!nextGame} onClick={() => nextGame && window.open(`/campeonatos/${selectedChamp.id}/pontuador/${nextGame.id}`, '_blank', 'noopener,noreferrer')}><Play size={16} /> Abrir pontuador</button> : null}
+                    {canScoreWorkspace ? <button type="button" className="button secondary" disabled={!nextGame} onClick={() => setTab('pontuador')}><Play size={16} /> Abrir pontuador</button> : null}
                     {canOperateWorkspace ? <button type="button" className="button secondary" onClick={() => { setTab('links'); setOpenAction('link') }}><Link2 size={16} /> Receber inscrições</button> : null}
                   </div>
                   <section className="championship-checklist" aria-label="Preparação do campeonato">
@@ -2032,7 +2044,7 @@ ${params.url}`
                 </div>
               ) : null}
 
-              {tab === 'equipes' ? <CampeonatoEquipesTab campeonatoId={selectedChamp.id} readOnly /> : null}
+              {tab === 'equipes' ? <CampeonatoEquipesTab campeonatoId={selectedChamp.id} readOnly={!canOperateWorkspace} /> : null}
 
               {tab === 'jogadores' ? <CampeonatoJogadoresTab campeonatoId={selectedChamp.id} /> : null}
 
@@ -2046,6 +2058,10 @@ ${params.url}`
               ) : null}
 
               {tab === 'calls' && String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino' ? <CampeonatoCallsTab campeonatoId={selectedChamp.id} /> : null}
+
+              {tab === 'pontuador' && canScoreWorkspace ? <ProducerScoringWorkspace key={selectedChamp.id} campeonatoId={selectedChamp.id} onPendingChange={(pending, busy) => { scoringPending.current = pending; scoringBusy.current = Boolean(busy) }} /> : null}
+
+              {tab === 'avancado' && canOperateWorkspace ? <AdvancedStructureTab campeonatoId={selectedChamp.id} championshipType={selectedChampType} /> : null}
 
               {tab === 'jogos' ? (
                 <div className="ref-section-stack">
@@ -2079,8 +2095,8 @@ ${params.url}`
                           </UiSelect>
                         </Field>
                         <Field label="Nome do jogo"><UiInput value={props.game.nome} onChange={(e) => props.setGame({ ...props.game, nome: e.target.value, campeonato_id: selectedChamp.id })} placeholder="Jogo 1 - A x B" /></Field>
-                        <Field label="Número de quedas"><UiInput type="number" min="1" max="20" value={props.game.numero_partidas} onChange={(e) => {
-                          const total = Math.max(1, Math.min(20, Number(e.target.value || 1)))
+                        <Field label="Número de quedas"><UiInput type="number" min="1" max="48" value={props.game.numero_partidas} onChange={(e) => {
+                          const total = Math.max(1, Math.min(48, Number(e.target.value || 1)))
                           const isXtreino = String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino'
                           props.setGame({
                             ...props.game,
@@ -2097,6 +2113,7 @@ ${params.url}`
                         <Field label="Horário"><UiInput type="time" value={props.game.horario} onChange={(e) => props.setGame({ ...props.game, horario: e.target.value, campeonato_id: selectedChamp.id })} /></Field>
                       </div>
 
+                      <details className="producer-game-advanced"><summary>Regras avançadas deste jogo</summary>
                       <div className="game-form-section game-classification-section">
                         <div className="game-form-section-header">
                           <div><strong>Regra de classificação</strong><small>Defina se este jogo elimina equipes e quantas avançam para a próxima fase.</small></div>
@@ -2133,6 +2150,20 @@ ${params.url}`
                         {props.game.mata_mata ? <p className="statistics-message">As equipes do Top {props.game.classificam_quantidade || '?'} avançam; as demais ficam como eliminadas neste jogo.</p> : null}
                       </div>
 
+                        <div className="mini-grid two">
+                          <Field label="Intervalo entre quedas (min)"><UiInput type="number" min="0" max="240" value={props.game.intervalo_minutos} onChange={event => props.setGame({ ...props.game, intervalo_minutos: event.target.value })} /></Field>
+                          <Field label="Status do jogo"><UiSelect value={props.game.status} onChange={event => props.setGame({ ...props.game, status: event.target.value })}>
+                            <option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="escalacao_aberta">Escalação aberta</option><option value="escalacao_encerrada">Escalação encerrada</option><option value="em_andamento">Em andamento</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option>
+                          </UiSelect></Field>
+                          <Field label="Trocas de jogadores"><UiSelect value={props.game.permite_troca_jogadores ? 'sim' : 'nao'} onChange={event => props.setGame({ ...props.game, permite_troca_jogadores: event.target.value === 'sim' })}><option value="sim">Permitidas</option><option value="nao">Bloqueadas</option></UiSelect></Field>
+                          {props.game.permite_troca_jogadores ? <Field label="Prazo para troca (min antes)"><UiInput type="number" min="0" value={props.game.prazo_troca_minutos} onChange={event => props.setGame({ ...props.game, prazo_troca_minutos: event.target.value })} /></Field> : null}
+                          <Field label="Escalação abre (horas antes)"><UiInput type="number" min="0" value={props.game.escalacao_abre_horas_antes} onChange={event => props.setGame({ ...props.game, escalacao_abre_horas_antes: event.target.value })} /></Field>
+                          <Field label="Escalação fecha (horas antes)"><UiInput type="number" min="0" value={props.game.escalacao_fecha_horas_antes} onChange={event => props.setGame({ ...props.game, escalacao_fecha_horas_antes: event.target.value })} /></Field>
+                          <Field label="Prazo de escalação (min antes)"><UiInput type="number" min="0" value={props.game.prazo_escalacao_minutos} onChange={event => props.setGame({ ...props.game, prazo_escalacao_minutos: event.target.value })} /></Field>
+                          <Field label="Mínimo de quedas por jogador"><UiInput type="number" min="0" value={props.game.minimo_partidas_jogadas_jogador} onChange={event => props.setGame({ ...props.game, minimo_partidas_jogadas_jogador: event.target.value })} /></Field>
+                        </div>
+                      </details>
+
                       {String(dataText(selectedChamp, 'tipo')).toLowerCase() === 'xtreino' ? (
                         <div className="xtreino-game-plan">
                           <div>
@@ -2146,6 +2177,7 @@ ${params.url}`
                       <div className="game-form-section">
                         <div className="game-form-section-header">
                           <div><strong>Mapas por queda</strong><small>Selecione um mapa para cada queda.</small></div>
+                          <button type="button" className="text-action-button" disabled={!props.game.mapas[0]} onClick={() => props.setGame({ ...props.game, mapas: Array.from({ length: Math.max(1, Math.min(48, Number(props.game.numero_partidas) || 1)) }, () => props.game.mapas[0]) })}>Repetir primeiro mapa</button>
                           {mapsLoading ? <Loader2 size={16} className="button-spinner" /> : null}
                         </div>
                         <div className="map-drop-grid">
@@ -2175,7 +2207,9 @@ ${params.url}`
                       <div className="game-form-section">
                         <div className="game-form-section-header">
                           <div><strong>Grupos participantes</strong><small>Marque um ou mais grupos da fase selecionada.</small></div>
-                          <span className="selection-count">{props.game.grupos_ids.length} selecionado(s)</span>
+                          <div className="button-row compact-actions"><span className="selection-count">{props.game.grupos_ids.length} selecionado(s)</span>
+                            <button type="button" className="text-action-button" onClick={() => props.setGame({ ...props.game, grupos_ids: orderedChampGroups.filter(group => group.data?.fase_id === props.game.fase_id).map(group => group.id) })}>Selecionar todos</button>
+                            <button type="button" className="text-action-button" onClick={() => props.setGame({ ...props.game, grupos_ids: [] })}>Limpar seleção</button></div>
                         </div>
                         <div className="group-check-grid">
                           {orderedChampGroups.filter((group) => Boolean(props.game.fase_id) && group.data?.fase_id === props.game.fase_id).map((group) => {

@@ -1,3 +1,11 @@
+## Produtora — fluxo do estúdio local (03/11/2026)
+
+- Campeonato usa ferramentas diretas, com Pontuador incorporado e as particularidades do site em Regras avançadas. Mantidos perfis, convites, aprovação, cobrança, IDs de participação e transferências.
+- Criação rápida inclui pontuação; personalizada aceita 24 posições. Jogos admitem 1–48 quedas, mapas repetidos e seleção de grupos por fase.
+- Corrigidos filtro de jogos agendados, preservação de detalhes de jogador e validação do lançamento manual. A rota dedicada e o painel compartilham `GameScorer`.
+- Migração **aplicada**: `20261104000719_producer_scoring_consistency.sql`. Unifica cálculos de pontos/multiplicadores/punições e recalcula ao editar explicitamente as regras; instalação sem reprocessamento global. SQLs candidatos antigos e modos de escrita de inscrições permanecem como descritos nas rodadas próprias.
+- Guia e limites: `docs/PRODUTORA_FLUXO_ESTUDIO_20261103.md`; fixture SQL temporária em `scripts/testes/producer-scoring-fixture.mjs`.
+
 ## Padrão único de banners (03/11/2026)
 
 - Arte de campeonato e imagem do carrossel: **1200 × 1500 px (4:5)**. Cards e destaques preservam a imagem inteira; miniaturas móveis usam contenção, sem exigir outra arte.

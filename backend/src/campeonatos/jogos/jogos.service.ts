@@ -205,6 +205,7 @@ async function assertGruposDaFase(campeonatoId: string, faseId: string, grupoIds
 async function sanitizeJogoInput(input: Partial<JogoInput>, existing?: any): Promise<JogoInput> {
   const raw = input as any
   const numeroPartidas = positiveInt(input.numero_partidas ?? existing?.numero_partidas, 'Número de quedas') as number
+  if (numeroPartidas > 48) throw new Error('Um jogo pode ter entre 1 e 48 quedas.')
   const mapas = await normalizeQuedasMapas(
     numeroPartidas,
     input.quedas,

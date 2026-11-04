@@ -168,14 +168,14 @@ test('catalog and profile panels share the same shell, including championship op
       await check(page)
       await page.screenshot({ path: info.outputPath('shared-shell-championship.png'), fullPage: true })
       const areas = page.getByRole('navigation', { name: 'Áreas do campeonato', exact: true })
-      for (const name of ['Participantes', 'Operação', 'Resultados', 'Financeiro']) {
+      for (const name of ['Equipes', 'Fases e grupos', 'Tabelas']) {
         await areas.getByRole('button', { name, exact: true }).click()
         await expect(areas.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page')
         await expect(page.locator('.champ-tab-body-ref')).toBeVisible()
         await expect(page.getByText('Carregando dados desta área', { exact: true })).toHaveCount(0)
-        if (name === 'Participantes') await expect(page.getByText('ALOE Gaming', { exact: true })).toBeVisible()
-        if (name === 'Operação') await expect(page.getByText('Classificatória', { exact: true }).first()).toBeVisible()
-        if (name === 'Resultados') await expect(page.getByRole('heading', { name: 'Desempenho do campeonato' })).toBeVisible()
+        if (name === 'Equipes') await expect(page.getByText('ALOE Gaming', { exact: true })).toBeVisible()
+        if (name === 'Fases e grupos') await expect(page.getByText('Classificatória', { exact: true }).first()).toBeVisible()
+        if (name === 'Tabelas') await expect(page.getByRole('heading', { name: 'Desempenho do campeonato' })).toBeVisible()
         expect(data.errors).toEqual([])
         const selection = (await page.getByRole('list', { name: 'Seus campeonatos', exact: true }).boundingBox())!
         const summary = (await page.locator('.championship-summary').boundingBox())!

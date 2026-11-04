@@ -34,14 +34,14 @@ test.describe('Rodada 30 — auditoria KillScore x KILL dos jogadores', () => {
   })
 
   test('editar KILL individual não sobrescreve automaticamente o KillScore da equipe', () => {
-    const page = source('web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx')
+    const page = source('web/features/campeonatos/pontuador/GameScorer.tsx')
     expect(page).toContain('const abatesJogadores = jogadores.reduce')
     expect(page).toContain('const killScore = number(team.abates)')
     expect(page).not.toContain("if (linkedTeamId) patchTeam(linkedTeamId, { abates: String(nextPlayers.reduce")
   })
 
   test('pontuador mostra conferência e divergência sem bloquear importação', () => {
-    const page = source('web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx')
+    const page = source('web/features/campeonatos/pontuador/GameScorer.tsx')
     expect(page).toContain('previewKillWarnings')
     expect(page).toContain('divergência entre KillScore e soma dos KILL')
     expect(page).toContain('KillScore conferido com a soma dos KILL dos jogadores')

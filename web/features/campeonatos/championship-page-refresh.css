@@ -379,61 +379,6 @@
 /* =========================================================
    R165 — pontuador
    ========================================================= */
-.scorer-workspace,.scorer-sheet-workspace{
-  min-height:100dvh!important;
-  padding:14px!important;
-  background:#e8ebef!important;
-  color:#171a1f!important;
-}
-.scorer-workspace-header{
-  position:sticky!important;top:0!important;z-index:10!important;
-  gap:14px!important;
-  border:1px solid #343941!important;
-  border-radius:8px!important;
-  background:#23272d!important;
-  color:#fff!important;
-  box-shadow:0 7px 22px rgba(24,28,33,.16)!important;
-}
-.scorer-brand p{color:var(--dz-yellow,#f2c900)!important}.scorer-brand h1{color:#fff!important}.scorer-brand small{color:#c9ced4!important}
-.scorer-brand>img,.scorer-team>img,.scorer-team>span{border-color:#d3d8de!important;background:#fff!important}
-.scorer-workspace-header .icon-button{border-color:#4b515a!important;background:#30353c!important;color:#fff!important}
-.scorer-public-delay{border-color:#4c525a!important;background:#30353c!important;color:#e2e5e8!important}
-.scorer-public-delay input{border-color:#555c65!important;background:#fff!important;color:#171a1f!important}
-.scorer-sheet-toolbar{
-  margin-top:10px!important;
-  padding:8px!important;
-  border:1px solid #cbd1d7!important;
-  border-radius:8px!important;
-  background:#fff!important;
-  box-shadow:0 4px 14px rgba(24,28,33,.05)!important;
-}
-.scorer-sheet-toolbar button,.scorer-scope-switch select{
-  border-color:#d0d5db!important;
-  border-radius:6px!important;
-  background:#f7f8f9!important;
-  color:#4e5660!important;
-}
-.scorer-sheet-toolbar button:hover{border-color:#aab1b9!important;background:#fff!important;color:#171a1f!important}
-.scorer-sheet-toolbar button.active{border-color:#2d3239!important;background:#252930!important;color:#fff!important;box-shadow:inset 0 -3px 0 var(--dz-yellow,#f2c900)!important}
-.scorer-drop-tab-item{border-color:#d3d8dd!important;background:#fff!important}
-.scorer-drop-tab-item>label{border-color:#e0e4e8!important;color:#6c747e!important}
-.scorer-feedback.error{border-color:#e7b1aa!important;background:#fff3f1!important;color:#9f3329!important}.scorer-feedback.success{border-color:#abd7c4!important;background:#effaf5!important;color:#14643f!important}
-.scorer-match-strip{border-color:#dcc74a!important;background:#fffbe4!important;color:#3e3b26!important}
-.scorer-match-strip small{color:#786f48!important}
-.scorer-edit-table-wrap{
-  margin-top:10px!important;
-  border:1px solid #cdd3d9!important;
-  border-radius:8px!important;
-  background:#fff!important;
-  box-shadow:0 6px 18px rgba(24,28,33,.05)!important;
-}
-.scorer-edit-table th,.scorer-sheet-table th:nth-child(-n/**/+8),.scorer-sheet-table th:nth-child(n/**/+9){border-color:#d8dde2!important;background:#f1f3f5!important;color:#626b75!important}
-.scorer-edit-table td{border-color:#e0e4e8!important;background:#fff!important;color:#252a31!important}
-.scorer-edit-table tr:hover td{background:#fafbfc!important}
-.scorer-edit-table input,.scorer-sheet-workspace .vinculo-select{border-color:#cdd3d9!important;background:#fff!important;color:#171a1f!important}
-.scorer-edit-table .score-total,.scorer-sheet-table .rank-cell,.scorer-sheet-table .drop-points-cell{background:#fff8cc!important;color:#6f5b00!important}
-.scorer-sheet-workspace .is-empty td,.scorer-sheet-workspace .is-empty .rank-cell{background:#f6f7f8!important;color:#89919a!important}
-.scorer-sheet-workspace.is-drop-locked .scorer-edit-table input:disabled{border-color:#d8dde2!important;background:#f1f3f5!important;color:#606872!important}
 
 /* =========================================================
    R166 — /central-campeonato
@@ -543,7 +488,6 @@
 
   .champ-public{width:calc(100% - 20px)!important;padding-top:16px!important}.champ-public .champ-public-banner{min-height:270px!important}.champ-public .champ-public-panel{padding:12px!important}.champ-public .champ-public-nav{top:4px!important;overflow-x:auto!important}.champ-public .champ-public-nav-btn{flex:0 0 auto!important;min-width:120px!important}
   .local-studio-handoff-page{padding:20px 12px 48px!important}.local-studio-handoff-grid{grid-template-columns:1fr!important}
-  .scorer-workspace,.scorer-sheet-workspace{padding:8px!important}.scorer-workspace-header{position:static!important}.scorer-header-actions{width:100%!important}.scorer-sheet-toolbar{align-items:stretch!important}.scorer-edit-table-wrap{overflow:auto!important}
   .championship-central-shell{width:calc(100% - 20px)!important;padding-top:16px!important}.championship-central-header{align-items:stretch!important;flex-direction:column!important}.championship-central-header select{width:100%!important}.championship-central-grid{grid-template-columns:1fr!important}.championship-central-grid article+article{padding-left:0!important;border-left:0!important;border-top:1px solid #e0e4e8!important;padding-top:12px!important}
 }
 @media(max-width:520px){
@@ -728,16 +672,6 @@
 .local-studio-handoff-card{width:min(980px,100%)!important;max-width:none!important}
 
 /* R191.5 pontuador — ferramenta operacional clara, sem herdar o tema antigo escuro */
-.scorer-workspace.scorer-sheet-workspace{width:100%!important;max-width:none!important;min-height:100dvh!important;padding:12px!important;background:#e9edf1!important;color:#1d2126!important}
-.scorer-workspace-header{width:100%!important;max-width:none!important}
-.scorer-sheet-toolbar,.scorer-edit-table-wrap,.scorer-sheet-table-wrap{width:100%!important;max-width:none!important}
-.scorer-edit-table-wrap,.scorer-sheet-table-wrap{overflow:auto!important}
-.scorer-sheet-table,.scorer-edit-table{min-width:980px!important}
-.scorer-sheet-table td,.scorer-edit-table td{background:#fff!important;color:#1d2126!important}
-.scorer-sheet-table tr:nth-child(even) td,.scorer-edit-table tr:nth-child(even) td{background:#fafbfc!important}
-.scorer-sheet-table tr:hover td,.scorer-edit-table tr:hover td{background:#fffbe8!important}
-.scorer-sheet-workspace .vinculo-chip{background:#f2f4f6!important;color:#3e4751!important}
-.scorer-sheet-workspace .vinculo-cell.tone-green{background:#e8f7ee!important}.scorer-sheet-workspace .vinculo-cell.tone-yellow{background:#fff8d1!important}.scorer-sheet-workspace .vinculo-cell.tone-red{background:#fff0ee!important}
 
 /* R191.6 central do campeonato */
 .championship-central-page{width:100%!important;max-width:none!important}
@@ -802,9 +736,7 @@
 .spec-workspace,
 .stream-package-workbench,
 .stream-output-local-editor,
-.slot-batch-table,
-.scorer-edit-table-wrap,
-.scorer-sheet-table-wrap{max-width:100%!important;overflow:auto!important}
+.slot-batch-table{max-width:100%!important;overflow:auto!important}
 
 @media(max-width:1180px){
   .directory-market-page .directory-commerce-error,
@@ -842,7 +774,6 @@
 @media(max-width:520px){
   .champ-public-profile-facts,.champ-public-info-summary{grid-template-columns:1fr!important}
   .championship-central-grid{grid-template-columns:1fr!important}
-  .scorer-workspace.scorer-sheet-workspace{padding:7px!important}
 }
 
 /* =========================================================

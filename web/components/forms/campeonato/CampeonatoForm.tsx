@@ -153,7 +153,7 @@ const XTREINO_MAP_OPTIONS = [
 ] as const
 
 function scoringPointsForCount(count: number, source: ReadonlyArray<string | number> = []) {
-  return Array.from({ length: Math.max(2, Math.min(15, count)) }, (_, index) =>
+  return Array.from({ length: Math.max(2, Math.min(24, count)) }, (_, index) =>
     source[index] == null ? '' : String(source[index]),
   )
 }
@@ -403,6 +403,7 @@ export function CampeonatoForm({
   mode = 'create',
   championships = [],
   uploadPublicFile,
+  initialPage = 'identity',
 }: {
   value: CampeonatoFormValue
   onChange: (value: CampeonatoFormValue) => void
@@ -413,6 +414,7 @@ export function CampeonatoForm({
   mode?: 'create' | 'edit'
   championships?: DropZoneRow[]
   uploadPublicFile: (file: File, bucket: string) => Promise<string>
+  initialPage?: 'identity' | 'season' | 'format' | 'operation' | 'scoring'
 }) {
   const [step, setStep] = useState<'type' | 'form'>(mode === 'edit' ? 'form' : 'type')
   const [creationFlow, setCreationFlow] = useState<'quick' | 'complete'>('quick')
@@ -430,10 +432,10 @@ export function CampeonatoForm({
   useEffect(() => {
     setStep(mode === 'edit' ? 'form' : 'type')
     setCreationFlow('quick')
-    setFormPage(mode === 'edit' ? 'identity' : 'origin')
+    setFormPage(mode === 'edit' ? initialPage : 'origin')
     setSourceSearch('')
     setSourceError('')
-  }, [mode])
+  }, [mode, initialPage])
 
   const selectedType = useMemo(
     () => TYPE_OPTIONS.find((option) => option.type === value.tipo),
@@ -832,7 +834,7 @@ export function CampeonatoForm({
       return
     }
 
-    const count = Math.max(2, Math.min(15, Number(value.pontuacao_equipes_por_partida || 12) || 12))
+    const count = Math.max(2, Math.min(24, Number(value.pontuacao_equipes_por_partida || 12) || 12))
     onChange({
       ...value,
       sistema_pontuacao_tipo: 'personalizado',
@@ -848,7 +850,7 @@ export function CampeonatoForm({
       onChange({ ...value, pontuacao_equipes_por_partida: '' })
       return
     }
-    const count = Math.max(2, Math.min(15, Number(rawCount) || 12))
+    const count = Math.max(2, Math.min(24, Number(rawCount) || 12))
     onChange({
       ...value,
       pontuacao_equipes_por_partida: String(count),
@@ -1236,11 +1238,11 @@ export function CampeonatoForm({
   }
 
   const wizardPages: Array<{ id: typeof formPage; label: string }> = mode === 'create' && creationFlow === 'quick'
-    ? [{ id: 'origin', label: 'Dados essenciais' }, { id: 'review', label: 'Confirmar' }]
+    ? [{ id: 'origin', label: 'Dados essenciais' }, { id: 'scoring', label: 'Pontuação' }, { id: 'review', label: 'Confirmar' }]
     : mode === 'edit'
     ? [
         { id: 'identity', label: 'Identidade' },
-        { id: 'season', label: 'Temporada' },
+        { id: 'season', label: 'Temporada e divisões' },
         { id: 'format', label: 'Estrutura' },
         { id: 'operation', label: 'Operação' },
         { id: 'scoring', label: 'Pontuação' },
@@ -1332,7 +1334,7 @@ export function CampeonatoForm({
     if (formPage === 'scoring') {
       if (value.sistema_pontuacao_tipo === 'personalizado') {
         const count = Number(value.pontuacao_equipes_por_partida || 0)
-        if (count < 2 || count > 15) return setWizardError('A pontuação personalizada precisa ter entre 2 e 15 posições.')
+        if (!Number.isInteger(count) || count < 2 || count > 24) return setWizardError('A pontuação personalizada precisa ter entre 2 e 24 posições.')
         if (!value.sistema_pontuacao_nome.trim()) return setWizardError('Dê um nome ao sistema de pontuação personalizado.')
         if (value.pontos_colocacao.length !== count) return setWizardError('Confira a quantidade de posições do sistema de pontuação.')
       }
@@ -1417,7 +1419,7 @@ export function CampeonatoForm({
       ) : null}
       <div className="championship-form-progress">
         <div>
-          <strong>{selectedType?.title || CHAMPIONSHIP_TYPE_LABELS[value.tipo as ChampionshipType] || 'Campeonato'} · {currentPageIndex + 1} de {wizardPages.length}</strong>
+          <strong>{selectedType?.title || CHAMPIONSHIP_TYPE_LABELS[value.tipo as ChampionshipType] || 'Campeonato'} · {mode === 'edit' ? wizardPages.find(page => page.id === formPage)?.label : `${currentPageIndex + 1} de ${wizardPages.length}`}</strong>
         </div>
         {mode === 'create' ? (
           <button className="text-action-button" type="button" onClick={() => setStep('type')} title="Alterar formato">
@@ -1433,7 +1435,7 @@ export function CampeonatoForm({
         </div>
       ) : null}
       <div className="championship-wizard-steps" aria-label={mode === 'edit' ? 'Seções da edição' : 'Etapas da criação'}>
-          {wizardPages.map((page, index) => (
+          {wizardPages.filter(page => mode !== 'edit' || page.id === 'identity' || page.id === 'scoring').map((page, index) => (
             <button
               type="button"
               key={page.id}
@@ -1444,6 +1446,14 @@ export function CampeonatoForm({
             </button>
           ))}
         </div>
+      {mode === 'edit' ? <div className="producer-edit-advanced">
+        <label>Regras avançadas<UiSelect value={['season', 'format', 'operation'].includes(formPage) ? formPage : ''} onChange={event => { if (event.target.value) setFormPage(event.target.value as typeof formPage) }}>
+          <option value="">Selecionar configuração</option>
+          <option value="season">Temporada e divisões</option>
+          <option value="format">Estrutura e formato competitivo</option>
+          <option value="operation">Inscrição, elenco e transferências</option>
+        </UiSelect></label>
+      </div> : null}
 
       {mode === 'create' ? (
         <section className="form-section-card championship-origin-card" hidden={!pageVisible('origin')}>
@@ -1452,7 +1462,7 @@ export function CampeonatoForm({
               <div className="championship-guided-copy">
                 <span>Cadastro rápido</span>
                 <strong>Crie agora. Configure os detalhes depois.</strong>
-                <small>Somente nome, logo, vagas e inscrição. Fases, horários, jogos, pontuação, premiação e identidade avançada ficam para o painel do campeonato.</small>
+                <small>Nome, logo, vagas e inscrição. Depois, escolha a pontuação e confirme. Fases, grupos e jogos são organizados no painel.</small>
               </div>
               {renderGuidedIdentity()}
               <div className="mini-grid two champ-r21-fields">
@@ -1687,7 +1697,7 @@ export function CampeonatoForm({
             onClick={() => setScoringMode('personalizado')}
           >
             <strong>Personalizada</strong>
-            <small>Crie seu próprio sistema para jogos com até 15 equipes.</small>
+            <small>Crie seu próprio sistema para jogos com até 24 equipes.</small>
           </button>
         </div>
 
@@ -1704,7 +1714,7 @@ export function CampeonatoForm({
               <UiInput
                 type="number"
                 min="2"
-                max="15"
+                max="24"
                 value={value.pontuacao_equipes_por_partida}
                 onChange={(event) => updateScoringTeamCount(event.target.value)}
                 placeholder="Ex.: 15"

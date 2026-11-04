@@ -231,16 +231,28 @@ export async function salvarPontuacaoManual(campeonatoId: string, userId: string
 
   const teamIds = [...new Set(body.equipes.map((item) => item.campeonato_equipe_id).filter(Boolean))]
   const playerIds = [...new Set(body.equipes.flatMap((item) => (item.jogadores || []).map((player) => player.campeonato_jogador_id)).filter(Boolean))]
-  const [{ data: registeredTeams, error: teamsError }, { data: registeredPlayers, error: playersError }] = await Promise.all([
+  if (teamIds.length !== body.equipes.length) throw new Error('Uma equipe aparece mais de uma vez na súmula.')
+  const [{ data: registeredTeams, error: teamsError }, { data: registeredPlayers, error: playersError }, { data: gameTeams, error: gameTeamsError }, { data: previousPlayers, error: previousPlayersError }, { data: gamePlayers, error: gamePlayersError }] = await Promise.all([
     supabaseAdmin.from('campeonato_equipes').select('id,equipe_id,line_id,grupo_id,slot_numero').eq('campeonato_id', campeonatoId).in('id', teamIds),
     playerIds.length
       ? supabaseAdmin.from('campeonato_jogadores').select('id,jogador_id,equipe_id,line_id,nick,id_jogo,campeonato_equipe_id').eq('campeonato_id', campeonatoId).in('id', playerIds)
       : Promise.resolve({ data: [], error: null } as any),
+    supabaseAdmin.from('campeonato_pontuador_equipes_matriz').select('campeonato_equipe_id,posicao,resultado_id,status_presenca').eq('campeonato_id', campeonatoId).eq('jogo_id', partida.jogo_id).eq('partida_id', partida.id),
+    playerIds.length ? supabaseAdmin.from('campeonato_resultados_jogadores').select('campeonato_jogador_id,dano,assistencias,revives').eq('campeonato_id', campeonatoId).eq('partida_id', partida.id).in('campeonato_jogador_id', playerIds) : Promise.resolve({ data: [], error: null } as any),
+    playerIds.length ? supabaseAdmin.from('campeonato_pontuador_jogadores_jogo').select('campeonato_jogador_id,campeonato_equipe_id').eq('campeonato_id', campeonatoId).eq('jogo_id', partida.jogo_id).in('campeonato_jogador_id', playerIds) : Promise.resolve({ data: [], error: null } as any),
   ])
   if (teamsError) throw teamsError
   if (playersError) throw playersError
+  if (gameTeamsError) throw gameTeamsError
+  if (previousPlayersError) throw previousPlayersError
+  if (gamePlayersError) throw gamePlayersError
   const teamsById = new Map((registeredTeams || []).map((row: any) => [String(row.id), row]))
   const playersById = new Map((registeredPlayers || []).map((row: any) => [String(row.id), row]))
+  const gameTeamsById = new Map((gameTeams || []).filter((row: any) => row.campeonato_equipe_id).map((row: any) => [String(row.campeonato_equipe_id), row]))
+  const previousPlayersById = new Map((previousPlayers || []).map((row: any) => [String(row.campeonato_jogador_id), row]))
+  const positions = new Set((gameTeams || []).filter((row: any) => row.resultado_id && !teamIds.includes(row.campeonato_equipe_id) && !/falta/i.test(String(row.status_presenca))).map((row: any) => Number(row.posicao)))
+  const seenPlayers = new Set<string>()
+  const gameRoster = new Set((gamePlayers || []).map((row: any) => `${row.campeonato_equipe_id}:${row.campeonato_jogador_id}`))
 
   const teamRows: any[] = []
   const playerRows: any[] = []
@@ -250,6 +262,14 @@ export async function salvarPontuacaoManual(campeonatoId: string, userId: string
     }
     const ce: any = teamsById.get(String(item.campeonato_equipe_id))
     if (!ce) throw new Error('Equipe da súmula não pertence ao campeonato.')
+    const participation: any = gameTeamsById.get(String(ce.id))
+    if (!participation) throw new Error('Equipe não está inscrita neste jogo.')
+    if (/falta/i.test(String(participation.status_presenca))) throw new Error('Uma ausência FALT deve ser corrigida pelo fluxo de importação.')
+    if (positions.has(item.posicao)) throw new Error('Duas equipes não podem ter a mesma colocação na queda.')
+    positions.add(item.posicao)
+    const penalty = Number(item.punicao_pontos ?? 0)
+    if (!Number.isFinite(penalty) || penalty > 0) throw new Error('Punição inválida.')
+    if ((item.jogadores || []).reduce((sum, player) => sum + Number(player.abates), 0) > item.abates) throw new Error('Os abates dos jogadores excedem o total da equipe.')
 
     teamRows.push({
       campeonato_id: campeonatoId,
@@ -275,6 +295,16 @@ export async function salvarPontuacaoManual(campeonatoId: string, userId: string
     for (const player of item.jogadores || []) {
       const cj: any = playersById.get(String(player.campeonato_jogador_id))
       if (!cj || String(cj.campeonato_equipe_id) !== String(ce.id)) throw new Error('Jogador não pertence à equipe informada.')
+      if (!gameRoster.has(`${ce.id}:${cj.id}`)) throw new Error('Jogador não está no elenco deste jogo.')
+      if (seenPlayers.has(String(cj.id))) throw new Error('Um jogador aparece mais de uma vez na queda.')
+      seenPlayers.add(String(cj.id))
+      if (!Number.isInteger(player.abates) || player.abates < 0) throw new Error('Abates do jogador inválidos.')
+      const previous: any = previousPlayersById.get(String(cj.id))
+      const optionalStats = Object.fromEntries((['dano', 'assistencias', 'revives'] as const).map(key => {
+        const value = player[key] ?? previous?.[key] ?? 0
+        if (!Number.isInteger(value) || value < 0) throw new Error('Estatísticas do jogador inválidas.')
+        return [key, value]
+      }))
       playerRows.push({
         campeonato_id: campeonatoId,
         fase_id: partida.fase_id,
@@ -289,9 +319,7 @@ export async function salvarPontuacaoManual(campeonatoId: string, userId: string
         nick_snapshot: cj.nick,
         id_jogo_snapshot: cj.id_jogo,
         abates: Number(player.abates || 0),
-        dano: Number(player.dano || 0),
-        assistencias: Number(player.assistencias || 0),
-        revives: Number(player.revives || 0),
+        ...optionalStats,
         origem: body.origem || 'manual',
         criado_por: userId,
         updated_at: new Date().toISOString(),

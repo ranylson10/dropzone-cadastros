@@ -5,11 +5,11 @@ import path from 'node:path'
 const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
 
 test('pontuador usa um unico salvar quando existe MatchResult em previa', async () => {
-  const source = read('web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx')
+  const source = read('web/features/campeonatos/pontuador/GameScorer.tsx')
   expect(source).toContain('async function saveCurrentDrop()')
   expect(source).toContain('if (preview) return confirmMatch()')
   expect(source).toContain('onClick={() => void saveCurrentDrop()}')
-  expect(source).toContain("{preview ? 'Salvar e vincular' : 'Salvar'} Q{selectedDrop?.numero_partida}")
+  expect(source).toContain("{preview ? 'Salvar e vincular' : 'Salvar e finalizar'} Q{selectedDrop?.numero_partida}")
   expect(source).not.toContain('Aplicar equipes vinculadas')
 })
 
@@ -51,7 +51,7 @@ test('MatchResult nao sobrescreve a origem de um jogador que ja existia no elenc
 
 test('reenvio identico de MatchResult vira aviso idempotente e nao duplica importacao', async () => {
   const service = read('backend/src/campeonatos/estatisticas/matchresult.service.ts')
-  const scorer = read('web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx')
+  const scorer = read('web/features/campeonatos/pontuador/GameScorer.tsx')
   expect(service).toContain('importacaoAnterior.conteudo_bruto === body.conteudo_bruto')
   expect(service).toContain('already_confirmed: true')
   expect(scorer).toContain('Este Match Result já havia sido adicionado nesta queda. Nenhum dado foi duplicado.')
@@ -69,7 +69,7 @@ test('ordem de jogador e global na importacao e validacao da sumula ocorre em lo
 })
 
 test('pontuador salva antes e sincroniza Garena fora do caminho critico', async () => {
-  const scorer = read('web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx')
+  const scorer = read('web/features/campeonatos/pontuador/GameScorer.tsx')
   expect(scorer).toContain('sincronizar_garena: false')
   expect(scorer).toContain('void request(`/api/campeonatos/${params.id}/sumula/matchresult/sincronizar`')
 })

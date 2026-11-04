@@ -1315,7 +1315,7 @@ export function DropZoneHome() {
     if (!champ || !game.nome.trim()) { setError('Selecione o campeonato e informe o nome do jogo.'); return false }
     if (!game.fase_id) { setError('Selecione a fase do jogo.'); return false }
     const totalQuedas = Number(game.numero_partidas || 0)
-    if (!Number.isInteger(totalQuedas) || totalQuedas < 1) { setError('Informe uma quantidade válida de quedas.'); return false }
+    if (!Number.isInteger(totalQuedas) || totalQuedas < 1 || totalQuedas > 48) { setError('Informe uma quantidade válida de quedas.'); return false }
     if (game.grupos_ids.length < 1) { setError('Selecione pelo menos um grupo participante.'); return false }
     if (game.tipo_jogo !== 'final' && game.mata_mata && (!Number.isInteger(Number(game.classificam_quantidade)) || Number(game.classificam_quantidade) < 1)) { setError('Informe quantas equipes passam de fase neste jogo mata-mata.'); return false }
     const mapas = game.mapas.slice(0, totalQuedas)
@@ -1391,7 +1391,7 @@ export function DropZoneHome() {
     if (!champ || !game.nome.trim()) { setError('Selecione o campeonato e informe o nome do jogo.'); return false }
     if (!game.fase_id) { setError('Selecione a fase do jogo.'); return false }
     const totalQuedas = Number(game.numero_partidas || 0)
-    if (!Number.isInteger(totalQuedas) || totalQuedas < 1) { setError('Informe uma quantidade válida de quedas.'); return false }
+    if (!Number.isInteger(totalQuedas) || totalQuedas < 1 || totalQuedas > 48) { setError('Informe uma quantidade válida de quedas.'); return false }
     if (game.grupos_ids.length < 1) { setError('Selecione pelo menos um grupo participante.'); return false }
     if (game.tipo_jogo !== 'final' && game.mata_mata && (!Number.isInteger(Number(game.classificam_quantidade)) || Number(game.classificam_quantidade) < 1)) { setError('Informe quantas equipes passam de fase neste jogo mata-mata.'); return false }
     const mapas = game.mapas.slice(0, totalQuedas)

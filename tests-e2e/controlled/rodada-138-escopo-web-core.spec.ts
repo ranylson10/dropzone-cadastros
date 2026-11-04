@@ -56,7 +56,7 @@ test.describe('Rodada 138 — escopo do produto Web e separação do Engine', ()
   })
 
   test('pontuador Web cuida de competição e não controla transmissão ou overlays', () => {
-    const scorer = read('web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx')
+    const scorer = read('web/features/campeonatos/pontuador/GameScorer.tsx')
 
     expect(scorer).toContain('Atraso do site')
     expect(scorer).not.toContain('/pontuador/transmissao')

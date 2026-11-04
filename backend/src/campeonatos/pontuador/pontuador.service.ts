@@ -43,7 +43,7 @@ export async function listarJogosPontuador(campeonatoId: string, filtros: Filtro
     .from('campeonato_jogos')
     .select('id,campeonato_id,fase_id,rodada_id,nome,data_jogo,horario,numero_partidas,status,created_at')
     .eq('campeonato_id', campeonatoId)
-    .eq('status', 'ativo')
+    .in('status', ['ativo', 'rascunho', 'agendado', 'escalacao_aberta', 'escalacao_encerrada', 'em_andamento', 'finalizado', 'finalizada'])
     .order('data_jogo', { ascending: false })
     .order('horario', { ascending: true })
     .order('created_at', { ascending: false })

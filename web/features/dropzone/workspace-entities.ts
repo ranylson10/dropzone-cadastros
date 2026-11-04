@@ -16,7 +16,7 @@ const entitiesForTab: Record<ProducerTab, string[]> = {
   jogos: ['phase', 'group', 'game'],
   links: ['phase', 'group', 'group_slot', 'game', 'invite_token', 'registration_link', 'championship_team'],
   // These feature components already fetch their own authorized data.
-  equipes: [], jogadores: [], grupos: [], calls: [], regulamento: [], estatisticas: [], financeiro: [], vendedores: [],
+  equipes: [], jogadores: [], grupos: [], calls: [], regulamento: [], estatisticas: [], pontuador: [], avancado: [], financeiro: [], vendedores: [],
 }
 
 export function producerEntityRequest(section: ProducerSection, tab: ProducerTab, championshipId: string, detailOpen: boolean): ProducerEntityRequest {

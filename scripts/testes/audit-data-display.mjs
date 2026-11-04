@@ -65,7 +65,7 @@ ok('14 tabelas reais migradas para DataTable', canonicalUses === 14, `${canonica
 
 const expectedConsumers = [
   'web/app/admin/page.tsx',
-  'web/app/campeonatos/[id]/pontuador/[jogoId]/page.tsx',
+  'web/features/campeonatos/pontuador/GameScorer.tsx',
   'web/features/agenda/components/AgendaCalendar.tsx',
   'web/features/billing/WalletPanel.tsx',
   'web/features/campeonatos/export/components/CampeonatoExportTab.tsx',
