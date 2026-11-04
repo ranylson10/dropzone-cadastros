@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
 import { deputyFixture } from '../helpers/circuito-fixture'
+import { chooseProducerTool } from '../helpers/producer-navigation'
 
 const producerUrl = '/?painel=1&perfil=produtora&perfil_id=producer-a'
 test.setTimeout(90_000)
@@ -8,9 +9,9 @@ test.setTimeout(90_000)
 async function fixture(page: Page) {
   const result = await deputyFixture(page, { ownedProducer: true, analytics: true })
   const producer = result.contexts.find(item => item.id === 'producer-a')!
-  const championships = ['Copa Aurora', 'Liga Brasa', 'Diário Circuito'].map((name, index) => ({
+  const championships = ['Copa Aurora', 'Liga Brasa', 'Diário Circuito', 'Copa Nova'].map((name, index) => ({
     ...producer, id: `00000000-0000-4000-8000-00000000070${index}`, entity_type: 'championship', profile_type: null,
-    name, parent_id: producer.id, data: { produtora_id: producer.id, aprovacao_status: 'aprovado', tipo: 'copa', numero_vagas: 96, premiacao: 1000 },
+    name, parent_id: producer.id, data: { produtora_id: producer.id, aprovacao_status: index === 3 ? 'pendente' : 'aprovado', tipo: 'copa', numero_vagas: 96, premiacao: 1000 },
   }))
   await page.route(url => url.pathname === '/api/dropzone', route => {
     expect(route.request().method()).toBe('GET')
@@ -46,7 +47,7 @@ async function check(page: Page) {
 test('panel switching stays reachable in the desktop top bar and mobile dock', async ({ page, isMobile }, info) => {
   const data = await fixture(page)
   await page.goto(producerUrl)
-  await expect(page.getByRole('heading', { name: 'Painel da produtora', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '6B Produções', exact: true })).toBeVisible()
   const header = page.locator('.store-home-header')
   const box = (await header.boundingBox())!
   expect(box.y).toBe(0)
@@ -56,7 +57,7 @@ test('panel switching stays reachable in the desktop top bar and mobile dock', a
     ? page.getByRole('navigation', { name: 'Navegação inferior do aplicativo' }).getByRole('button', { name: 'Abrir meus painéis', exact: true })
     : header.getByRole('button', { name: 'Abrir meus painéis', exact: true })
   await expect(trigger).toHaveClass(/active/)
-  await page.getByRole('button', { name: 'Como organizar campeonatos' }).click()
+  await expect(page.getByRole('list', { name: 'Seus campeonatos', exact: true })).toBeVisible()
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
   await expect(trigger).toBeInViewport()
   await trigger.click()
@@ -85,30 +86,40 @@ test('panel switching stays reachable in the desktop top bar and mobile dock', a
   expect(data.errors).toEqual([])
 })
 
-test('producer overview uses the available width and compact metrics', async ({ page, isMobile }, info) => {
-  await fixture(page)
+test('producer opens competitions directly, with filters and a separate operating area', async ({ page, isMobile }, info) => {
+  const data = await fixture(page)
   await page.goto(producerUrl)
-  const metrics = page.getByRole('group', { name: 'Resumo da produtora', exact: true })
-  await expect(metrics.locator(':scope > div').nth(2).locator('strong')).toHaveText('13')
-  const values = await metrics.locator(':scope > div > strong').allTextContents()
-  expect(values).toEqual(['3','3','13','2'])
-  const first = (await metrics.locator(':scope > div').first().boundingBox())!
-  expect(first.height).toBeLessThanOrEqual(105)
-  if (isMobile) {
-    const shell = (await page.locator('.panel-workspace-shell').boundingBox())!
-    expect(shell.x).toBeLessThanOrEqual(17)
-    expect(shell.width).toBeGreaterThan((await page.viewportSize())!.width - 35)
-    const second = (await metrics.locator(':scope > div').nth(1).boundingBox())!
-    expect(Math.abs(first.y-second.y)).toBeLessThan(2)
-    expect((await page.locator('.dz-focus').boundingBox())!.x).toBeLessThanOrEqual(17)
-  }
-  await expect(metrics).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-  await page.getByRole('button', { name: 'Como organizar campeonatos' }).click()
-  await expect(page.locator('#producer-dashboard-flow-help')).toBeVisible()
-  await page.getByRole('button', { name: 'Como organizar campeonatos' }).click()
-  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect(page.getByRole('heading', { name: '6B Produções', exact: true })).toBeVisible()
+  const list = page.getByRole('list', { name: 'Seus campeonatos', exact: true })
+  await expect(list.getByRole('listitem')).toHaveCount(4)
+  await expect(page.getByText('Seu próximo campeonato começa aqui', { exact: true })).toHaveCount(0)
+  await expect(page.locator('.account-workspace-hero,.producer-workspace-dashboard,.dz-focus')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Novo campeonato', exact: true })).toBeVisible()
+  if (isMobile) { const settings = await page.getByRole('navigation', { name: 'Áreas principais da produtora' }).getByRole('button', { name: 'Configurações', exact: true }).boundingBox(); expect(settings!.x + settings!.width).toBeLessThanOrEqual(page.viewportSize()!.width) }
+  expect((await list.boundingBox())!.y).toBeLessThan(isMobile ? 600 : 430)
+  expect((await list.getByRole('listitem').first().boundingBox())!.height).toBeLessThanOrEqual(68)
+  await page.screenshot({ path: info.outputPath('producer-entry.png'), fullPage: true })
   await check(page)
-  await page.screenshot({ path: info.outputPath('workspace-producer.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Editar perfil', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Editar perfil da produtora', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Editar perfil da produtora', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: /Aguardando liberação\s*1/ }).click()
+  await expect(list.getByRole('listitem')).toHaveCount(1)
+  await expect(list.getByText('Copa Nova', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: /Todos\s*4/ }).click()
+  await page.getByRole('textbox', { name: 'Buscar campeonato', exact: true }).fill('Aurora')
+  await expect(list.getByRole('listitem')).toHaveCount(1)
+  await list.getByRole('button').click()
+  await expect(page.getByRole('combobox', { name: 'Trocar campeonato', exact: true })).toHaveValue('00000000-0000-4000-8000-000000000700')
+  await expect(list).toHaveCount(0)
+  await chooseProducerTool(page, 'Fases e grupos')
+  await expect(page.getByText('Classificatória', { exact: true }).first()).toBeVisible()
+  await page.getByRole('button', { name: '← Campeonatos', exact: true }).click()
+  await expect(list.getByRole('listitem')).toHaveCount(1)
+  await expect(page.getByRole('combobox', { name: 'Trocar campeonato', exact: true })).toHaveCount(0)
+  expect(new URL(page.url()).searchParams.has('campeonato')).toBe(false)
+  expect(data.errors).toEqual([])
 })
 
 test('account actions open inside the viewport with readable colors', async ({ page }, info) => {
@@ -118,7 +129,7 @@ test('account actions open inside the viewport with readable colors', async ({ p
     return route.fulfill({ json: { isAdmin: true } })
   })
   await page.goto(producerUrl)
-  await expect(page.getByRole('heading', { name: 'Painel da produtora' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '6B Produções' })).toBeVisible()
   await page.getByRole('button', { name: 'Abrir menu da conta', exact: true }).click()
   const account = page.getByRole('region', { name: 'Minha conta', exact: true })
   await expect(account.getByRole('button', { name: 'Sair da conta' })).toBeInViewport()
@@ -154,32 +165,26 @@ test('catalog and profile panels share the same shell, including championship op
   await page.screenshot({ path: info.outputPath('shared-shell-catalog.png') })
   for (const suffix of ['', '&section=campeonatos&campeonato=00000000-0000-4000-8000-000000000700']) {
     await page.goto(producerUrl + suffix)
-    await expect(page.getByRole('heading', { name: 'Painel da produtora', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '6B Produções', exact: true })).toBeVisible()
     await expect(page.locator('.app-header')).toHaveCount(0)
     const panel = await shellGeometry(page)
     expect(panel).toEqual(catalog)
     if (suffix) {
-      await expect(page.getByRole('group', { name: 'Resumo do campeonato', exact: true })).toBeVisible()
+      await expect(page.locator('dl[aria-label="Resumo do campeonato"]')).toBeVisible()
       await expect(page.locator('.detail-hero-ref,.dz-r20-configure,.dz-r20-spark')).toHaveCount(0)
       await expect(page.locator('.championship-summary')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-      const firstRow = page.getByRole('list', { name: 'Seus campeonatos', exact: true }).getByRole('listitem').first()
-      expect((await firstRow.boundingBox())!.height).toBeLessThanOrEqual(62)
-      expect((await firstRow.locator('button > span').last().boundingBox())!.width).toBeGreaterThan(100)
+      await expect(page.getByRole('list', { name: 'Seus campeonatos', exact: true })).toHaveCount(0)
       await check(page)
       await page.screenshot({ path: info.outputPath('shared-shell-championship.png'), fullPage: true })
       const areas = page.getByRole('navigation', { name: 'Áreas do campeonato', exact: true })
       for (const name of ['Equipes', 'Fases e grupos', 'Tabelas']) {
-        await areas.getByRole('button', { name, exact: true }).click()
-        await expect(areas.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page')
+        await chooseProducerTool(page, name)
         await expect(page.locator('.champ-tab-body-ref')).toBeVisible()
         await expect(page.getByText('Carregando dados desta área', { exact: true })).toHaveCount(0)
         if (name === 'Equipes') await expect(page.getByText('ALOE Gaming', { exact: true })).toBeVisible()
         if (name === 'Fases e grupos') await expect(page.getByText('Classificatória', { exact: true }).first()).toBeVisible()
         if (name === 'Tabelas') await expect(page.getByRole('heading', { name: 'Desempenho do campeonato' })).toBeVisible()
         expect(data.errors).toEqual([])
-        const selection = (await page.getByRole('list', { name: 'Seus campeonatos', exact: true }).boundingBox())!
-        const summary = (await page.locator('.championship-summary').boundingBox())!
-        expect(selection.y + selection.height).toBeLessThanOrEqual(summary.y + 1)
         await page.evaluate(() => window.scrollTo(0, 0))
         await check(page)
         await page.screenshot({ path: info.outputPath(`championship-${name}.png`), fullPage: true })

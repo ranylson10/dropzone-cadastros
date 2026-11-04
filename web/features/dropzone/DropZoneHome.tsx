@@ -1633,6 +1633,32 @@ export function DropZoneHome() {
     setPlayer({ nick: '', foto_url: '', id_jogo: '', funcao: 'support', localidade: '', senha: '' })
   }
 
+  function renderAccountProfile() {
+    if (!account?.profile_type) return null
+    return (
+      <ProfileEditForm
+        profileType={account.profile_type as 'equipe' | 'manager' | 'jogador' | 'produtora'}
+        profileId={account.id}
+        initial={{
+          nome: account.name || '',
+          logo_url: dataText(account, 'logo_url') || dataText(account, 'avatar_url'),
+          avatar_url: dataText(account, 'avatar_url'),
+          bio: dataText(account, 'bio'),
+          tag: dataText(account, 'tag'),
+          whatsapp_url: dataText(account, 'whatsapp_url'),
+          nome_publico_vendas: dataText(account, 'nome_publico_vendas'),
+          id_jogo: dataText(account, 'id_jogo'),
+          funcao: dataText(account, 'funcao'),
+        }}
+        onSaved={() => {
+          setMessage('Perfil atualizado.')
+          void loadMeAndRows()
+        }}
+      />
+    )
+  }
+
+
   if (!queryReady) {
     return <DropzoneLoader label="Carregando acesso" />
   }
@@ -1794,6 +1820,7 @@ export function DropZoneHome() {
               />
             ) : (
               <>
+            {account.profile_type !== 'produtora' ? <>
             <section className="panel-workspace-return">
               <button type="button" onClick={() => setWorkspace('home')}>← Voltar para o início</button>
             </section>
@@ -1828,28 +1855,11 @@ export function DropZoneHome() {
                 <span>{showAccountProfile ? 'Fechar' : 'Perfil'}</span>
               </button> : null}
             </section>
+            </> : null}
             {showAccountProfile && account.profile_type && (!account.data?.delegated_access || account.data?.delegated_permissions?.pode_editar) ? (
-              <section className="panel span-3" style={{ marginBottom: 12 }}>
-                <ProfileEditForm
-                  profileType={account.profile_type as 'equipe' | 'manager' | 'jogador' | 'produtora'}
-                  profileId={account.id}
-                  initial={{
-                    nome: account.name || '',
-                    logo_url: dataText(account, 'logo_url') || dataText(account, 'avatar_url'),
-                    avatar_url: dataText(account, 'avatar_url'),
-                    bio: dataText(account, 'bio'),
-                    tag: dataText(account, 'tag'),
-                    whatsapp_url: dataText(account, 'whatsapp_url'),
-                    nome_publico_vendas: dataText(account, 'nome_publico_vendas'),
-                    id_jogo: dataText(account, 'id_jogo'),
-                    funcao: dataText(account, 'funcao'),
-                  }}
-                  onSaved={() => {
-                    setMessage('Perfil atualizado.')
-                    void loadMeAndRows()
-                  }}
-                />
-              </section>
+              account.profile_type === 'produtora' ? <SystemModal open title="Editar perfil da produtora" onClose={() => setShowAccountProfile(false)} size="wide">
+                {renderAccountProfile()}
+              </SystemModal> : <section className="panel span-3" style={{ marginBottom: 12 }}>{renderAccountProfile()}</section>
             ) : null}
 
             {accessLoadingType ? (
@@ -1860,10 +1870,11 @@ export function DropZoneHome() {
 
             {account.profile_type === 'produtora' ? (
               <>
-              <WorkspaceContextSwitcher account={account} contexts={workspaceContexts} busy={loading} onChange={switchLinkedAccount} />
               <ProdutoraPanel
                 key={account.id}
                 account={account}
+                onEditProfile={() => setShowAccountProfile(value => !value)}
+                contextSwitcher={<WorkspaceContextSwitcher account={account} contexts={workspaceContexts} busy={loading} onChange={switchLinkedAccount} showRole={false} />}
                 dataScopeKey={producerEntities.scopeKey}
                 dataLoading={producerEntities.loading}
                 dataError={producerEntities.error}

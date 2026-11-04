@@ -1,3 +1,10 @@
+## Entrada da produtora refeita (04/11/2026)
+
+- A entrada abre diretamente a lista de campeonatos, com busca, situação e Novo campeonato. Retirados o callout Seu próximo campeonato, o resumo genérico, a ajuda expansível e a identidade duplicada da conta.
+- Lista e campeonato aberto são áreas separadas. O editor tem Voltar aos campeonatos e Trocar campeonato; a URL mantém a seleção e limpa o campeonato ao voltar.
+- Ferramentas laterais no PC; seletor Ferramenta do campeonato no celular. Navegação global e identidade central preservadas. Regras avançadas junto das ferramentas, perfil da produtora em modal.
+- Referência atual: `docs/PRODUTORA_CONSOLE_20261104.md`. Não restaurar o antigo dashboard de apresentação ao alterar a operação de campeonatos.
+
 ## Produtora — fluxo do estúdio local (03/11/2026)
 
 - Campeonato usa ferramentas diretas, com Pontuador incorporado e as particularidades do site em Regras avançadas. Mantidos perfis, convites, aprovação, cobrança, IDs de participação e transferências.

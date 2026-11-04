@@ -9,11 +9,12 @@ export function workspaceHref(account: DropZoneRow, section?: string) {
   return `/?${query}`
 }
 
-export function WorkspaceContextSwitcher({ account, contexts, onChange, busy }: {
-  account: DropZoneRow; contexts: DropZoneRow[]; onChange: (account: DropZoneRow) => void; busy?: boolean
+export function WorkspaceContextSwitcher({ account, contexts, onChange, busy, showRole = true }: {
+  account: DropZoneRow; contexts: DropZoneRow[]; onChange: (account: DropZoneRow) => void; busy?: boolean; showRole?: boolean
 }) {
   const id = useId()
   const choices = contexts.filter(item => item.profile_type === account.profile_type)
+  if (choices.length < 2 && !showRole) return null
   return <div className="dz-context-switcher">
     {choices.length > 1 ? <>
       <label htmlFor={id}>Trocar {account.profile_type === 'equipe' ? 'equipe' : account.profile_type === 'jogador' ? 'jogador' : 'produtora'}</label>
@@ -22,6 +23,6 @@ export function WorkspaceContextSwitcher({ account, contexts, onChange, busy }: 
         if (next) onChange(next)
       }}>{choices.map(item => <option key={item.id} value={item.id}>{item.name || item.username}{item.data?.delegated_access ? ' · Vice-líder' : ' · Líder'}</option>)}</select>
     </> : null}
-    <span className="dz-context-role">{account.data?.delegated_access ? 'Vice-líder · Funções liberadas pelo líder' : 'Líder · Controle da conta'}</span>
+    {showRole ? <span className="dz-context-role">{account.data?.delegated_access ? 'Vice-líder · Funções liberadas pelo líder' : 'Líder · Controle da conta'}</span> : null}
   </div>
 }

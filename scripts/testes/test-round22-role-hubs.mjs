@@ -21,7 +21,7 @@ let checks = 0
 function ok(name, expr) { assert.ok(expr, name); checks++ }
 
 ok('Componente de foco compartilhado exportado', exportsFile.includes('WorkspaceFocus') && focus.includes('export function WorkspaceFocus'))
-for (const role of ['produtora','equipe','jogador','manager','vendedor']) {
+for (const role of ['equipe','jogador','manager','vendedor']) {
   ok(`Papel ${role} declarado`, focus.includes(`'${role}'`))
   ok(`Foco usado para ${role}`, [producer,team,player,manager].some(x => x.includes(`role="${role}"`)))
 }
@@ -32,11 +32,12 @@ ok('Ação sem permissão também não vira link', focus.includes('action.href &
 ok('Links de foco não usam JS inline', !focus.includes('window.location') && !focus.includes('dangerouslySetInnerHTML'))
 ok('Foco usa textos explicativos acessíveis', focus.includes('aria-label="O que fazer agora"') && focus.includes('aria-label={`Ações prioritárias: ${eyebrow}`}'))
 
-for (const [label, source] of [['Produtora',producer],['Equipe',team],['Jogador',player],['Manager',manager]]) {
+for (const [label, source] of [['Equipe',team],['Jogador',player],['Manager',manager]]) {
   ok(`${label} importa foco`, source.includes('WorkspaceFocus'))
 }
-ok('Produtora cria com a rotina existente', producer.includes('onClick: () => setShowCreateChamp(true)'))
-ok('Produtora respeita aprovação', producer.includes("disabled: produtoraAprovacao !== 'aprovado' || !canCreateChampionship"))
+ok('Produtora cria com a rotina existente', producer.includes('onClick={() => setShowCreateChamp(true)}'))
+ok('Produtora respeita aprovação', producer.includes("disabled={produtoraAprovacao !== 'aprovado' || !canCreateChampionship}"))
+ok('Produtora abre lista e editor separados', producer.includes('!championshipDetailOpen ? <section') && producer.includes('producer-editor-layout') && !producer.includes('<WorkspaceFocus'))
 ok('Produtora leva à gestão existente', producer.includes("setProducerSection('campeonatos')"))
 ok('Equipe navega para elenco existente', team.includes("onClick: () => setTab('jogadores')"))
 ok('Equipe encontra campeonato pela rota pública', team.includes("href: '/campeonatos?vagas=1'"))

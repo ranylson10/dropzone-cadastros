@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
 import { deputyFixture } from '../helpers/circuito-fixture'
+import { chooseProducerTool } from '../helpers/producer-navigation'
 
 const champId = '00000000-0000-4000-8000-000000000700'
 const panelUrl = `/?painel=1&perfil=produtora&perfil_id=producer-a&section=campeonatos&campeonato=${champId}`
@@ -33,14 +34,14 @@ async function studio(page: Page) {
     return route.fulfill({ json: { queda: { id: 'drop-1', status: 'finalizada' } } })
   })
   await page.goto(panelUrl)
-  await expect(page.getByRole('navigation', { name: 'Áreas do campeonato' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: 'Trocar campeonato', exact: true })).toBeVisible()
   return { ...base, submissions }
 }
 
 test('producer uses the local studio sequence and keeps advanced rules in their menu', async ({ page }) => {
   await studio(page)
   const nav = page.getByRole('navigation', { name: 'Áreas do campeonato' })
-  await expect(nav.getByRole('button')).toHaveText(['Resumo', 'Fases e grupos', 'Equipes', 'Elencos', 'Jogos e quedas', 'Pontuador', 'Tabelas', 'Inscrições'])
+  await expect(page.locator('.producer-tools-desktop button')).toHaveText(['Organização', 'Fases e grupos', 'Equipes', 'Elencos', 'Jogos e quedas', 'Pontuador', 'Tabelas', 'Inscrições'])
   await page.getByText('Regras avançadas', { exact: true }).click()
   await expect(page.getByRole('button', { name: /Inscrição, elenco e transferências/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Temporadas, divisões e progressão/ })).toBeVisible()
@@ -54,7 +55,7 @@ test('producer uses the local studio sequence and keeps advanced rules in their 
 
 test('embedded scoring protects FALT and saves only edited teams without inventing player statistics', async ({ page, isMobile }, info) => {
   const data = await studio(page)
-  await page.getByRole('navigation', { name: 'Áreas do campeonato' }).getByRole('button', { name: 'Pontuador', exact: true }).click()
+  await chooseProducerTool(page, 'Pontuador')
   const scorer = page.getByRole('region', { name: 'Pontuador do jogo' })
   await expect(scorer).toBeVisible()
   await expect(page.getByLabel('Fase', { exact: true })).toHaveValue('phase-1')
@@ -85,7 +86,7 @@ test('embedded scoring protects FALT and saves only edited teams without inventi
 test('changing drop, game or producer tool requires discarding a pending draft', async ({ page }) => {
   await studio(page)
   const nav = page.getByRole('navigation', { name: 'Áreas do campeonato' })
-  await nav.getByRole('button', { name: 'Pontuador', exact: true }).click()
+  await chooseProducerTool(page, 'Pontuador')
   const scorer = page.getByRole('region', { name: 'Pontuador do jogo' })
   await scorer.getByLabel('Abates de Equipe C', { exact: true }).fill('3')
   await scorer.getByRole('button', { name: /Q2/ }).click()
@@ -94,10 +95,11 @@ test('changing drop, game or producer tool requires discarding a pending draft',
   await page.getByLabel('Jogo', { exact: true }).selectOption('game-2')
   await page.getByRole('dialog', { name: 'Confirmar ação' }).getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByLabel('Jogo', { exact: true })).toHaveValue('game-1')
-  await nav.getByRole('button', { name: 'Resumo', exact: true }).click()
+  if (await page.getByRole('combobox', { name: 'Ferramenta do campeonato', exact: true }).isVisible()) await page.getByRole('combobox', { name: 'Ferramenta do campeonato', exact: true }).selectOption('visao')
+  else await nav.getByRole('button', { name: 'Organização', exact: true }).click()
   await page.getByRole('dialog', { name: 'Confirmar ação' }).getByRole('button', { name: 'Cancelar' }).click()
   await expect(scorer).toBeVisible()
-  await page.getByRole('navigation', { name: 'Áreas principais da produtora' }).getByRole('button', { name: 'Início', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Áreas principais da produtora' }).getByRole('button', { name: 'Campeonatos', exact: true }).click()
   await page.getByRole('dialog', { name: 'Confirmar ação' }).getByRole('button', { name: 'Cancelar' }).click()
   await expect(scorer).toBeVisible()
   await page.getByRole('button', { name: 'Regras de pontuação', exact: true }).click()

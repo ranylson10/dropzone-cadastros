@@ -35,7 +35,7 @@ check('Conta e troca de perfis continuam acessíveis no celular', header.include
 check('Login para visitante permanece no menu', header.includes('className="app-mobile-login"'))
 check('Menu avançado é nativo e acessível', menu.includes('<details') && menu.includes('<summary') && menu.includes('aria-current='))
 check('Ferramenta avançada fecha após seleção', menu.includes('detailsRef.current.open = false'))
-check('Produtora destaca início/campeonatos', producer.includes("{ id: 'visao', label: 'Início'") && producer.includes("{ id: 'campeonatos', label: 'Campeonatos'"))
+check('Produtora abre campeonatos diretamente e mantém sua gestão explícita', producer.includes("useState<ProducerSection>('campeonatos')") && producer.includes("{ id: 'campeonatos', label: 'Campeonatos'") && producer.includes("label: 'Equipe interna'"))
 check('Produtora preserva financeiro/equipe/configurações mediante permissão', producer.includes('canFinanceWorkspace || canCommercialWorkspace') && producer.includes('canManageMembers || canOperateWorkspace') && producer.includes('canAdminWorkspace'))
 for (const label of ['Fases e grupos','Equipes','Elencos','Jogos e quedas','Pontuador','Tabelas','Inscrições']) check(`Campeonato: ferramenta ${label}`, producer.includes(`label: '${label}'`))
 check('Regras avançadas usam o menu compartilhado', producer.includes('<WorkspaceMoreMenu label="Regras avançadas"') && producer.includes("startEditChampionship(selectedChamp, 'operation')"))
