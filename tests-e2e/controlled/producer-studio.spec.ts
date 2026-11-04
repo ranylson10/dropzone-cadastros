@@ -60,6 +60,7 @@ test('embedded scoring protects FALT and saves only edited teams without inventi
   await expect(page.getByLabel('Fase', { exact: true })).toHaveValue('phase-1')
   await expect(page.getByLabel('Jogo', { exact: true })).toHaveValue('game-1')
   await expect(scorer.getByLabel('Colocação de Equipe B')).toBeDisabled()
+  await expect(scorer.getByText('· FALT', { exact: true })).toBeVisible()
   await expect(scorer.locator('tbody tr').first().locator('td').nth(10)).toHaveText('12')
   await scorer.getByLabel('Colocação de Equipe C').fill('2')
   await scorer.getByLabel('Abates de Equipe C', { exact: true }).fill('0')
@@ -69,7 +70,7 @@ test('embedded scoring protects FALT and saves only edited teams without inventi
     const cell = await scorer.getByLabel('Abates de Equipe C', { exact: true }).boundingBox()
     expect(cell!.x + cell!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
     await scorer.screenshot({ path: info.outputPath('producer-studio-scoring.png') })
-    expect((await scorer.locator('tbody tr').last().boundingBox())!.height).toBeLessThan(200)
+    expect((await scorer.locator('tbody tr').last().boundingBox())!.height).toBeLessThan(160)
   }
   await scorer.screenshot({ path: info.outputPath('producer-studio-scoring.png') })
   const access = await new AxeBuilder({ page }).include('.producer-scoring-workspace').withTags(['wcag2a','wcag2aa']).analyze()

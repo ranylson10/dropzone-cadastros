@@ -8,6 +8,7 @@ const sql=file('docs/sql/20261021_round3_readonly_audit.sql')
 const indexSql=file('docs/sql/20261021_round3_index_candidates.sql')
 const verifySql=file('docs/sql/20261021_round3_verify_candidates.sql')
 const snapshot=JSON.parse(file('docs/RODADA_03_SNAPSHOT_PUBLICO.json'))
+const later=JSON.parse(file('docs/APPLIED_MIGRATIONS_AFTER_R03.json'))
 const stripComments=s=>s.replace(/--[^\n]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'')
 let ok=0
 const test=(description,callback)=>{callback();console.log('PASS',description);ok++}
@@ -25,10 +26,12 @@ test('R03 audit includes critical permissions, migration and slot counters',()=>
   assert.ok(sql.includes(field),field)
  }
 })
-test('Live migration names match the 28 SQL migrations in the repository',()=>{
+test('Local migrations match the historical snapshot and later verified applications',()=>{
  const dir=path.join(root,'supabase/migrations')
  const local=fs.readdirSync(dir).filter(x=>/^\d{14}_.+\.sql$/.test(x)).map(x=>x.replace(/\.sql$/,'')).sort()
- assert.deepEqual(local,snapshot.applied_migrations.sort())
+ const applied=[...snapshot.applied_migrations,...later.applied_migrations]
+ assert.equal(new Set(applied).size,applied.length,'Duplicate migration receipt')
+ assert.deepEqual(local,applied.sort())
 })
 test('R03 SQL DDL candidates remain OUTSIDE the automatic migration directory',()=>{
  const migrations=fs.readdirSync(path.join(root,'supabase/migrations'))

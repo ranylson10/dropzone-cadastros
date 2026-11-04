@@ -1,0 +1,7 @@
+{
+  "verified_at": "2026-11-04",
+  "source": "Supabase principal: apply_migration e SELECT de supabase_migrations.schema_migrations",
+  "applied_migrations": [
+    "20261104000719_producer_scoring_consistency"
+  ]
+}

@@ -36,3 +36,5 @@ As mutações manuais existentes ainda envolvem mais de uma gravação no backen
 - 26 cenários de experiência em build de produção aprovados (desktop e mobile); os seis cenários do novo estúdio foram repetidos no build final, incluindo proteção ao abrir configurações e trocar de seção.
 - Fixture PostgreSQL temporária executada antes e depois da migração; confirmados o único gatilho de cálculo e as funções sem SECURITY DEFINER. O arquivo local foi alinhado à versão registrada pelo Supabase.
 - A rodada exploratória em desenvolvimento teve uma falha de espera pelo card da home e um clique interceptado pelo Next DevTools; a suíte de produção passou nos 26 cenários.
+
+Conferência final: linhas móveis do pontuador abaixo de 160 px na fixture, com FALT visível e vínculo mostrado durante importação. Os gates R03/R13 preservam o snapshot histórico e incluem a aplicação verificada em `APPLIED_MIGRATIONS_AFTER_R03.json`; R20 acompanha a navegação direta solicitada. Regressões R06–R24 aprovadas localmente após esses ajustes.

@@ -15,6 +15,7 @@ const pkg = json('package.json')
 const web = json('web/package.json')
 const lock = json('package-lock.json')
 const baseline = json('docs/RODADA_03_SNAPSHOT_PUBLICO.json')
+const laterMigrations = json('docs/APPLIED_MIGRATIONS_AFTER_R03.json')
 const config = read('web/.env.example')
 const migrations = fs.readdirSync(path.join(ROOT, 'supabase/migrations'))
   .filter(x => /^\d{14}_.+\.sql$/.test(x)).map(x => x.slice(0, -4)).sort()
@@ -29,7 +30,7 @@ const candidates = [
   'docs/sql/20261026_round11_scoped_expiry_candidate.sql',
 ]
 check('Migrations automáticas correspondem ao snapshot de produção conhecido', () => {
-  assert.deepEqual(migrations, baseline.applied_migrations.toSorted())
+  assert.deepEqual(migrations, [...baseline.applied_migrations, ...laterMigrations.applied_migrations].toSorted())
 })
 check('Nenhum SQL candidato foi promovido automaticamente a migrations', () => {
   for (const file of candidates) {
