@@ -1468,18 +1468,12 @@ ${params.url}`
     participacao: 'Regras de participação', avancado: 'Estrutura avançada', regulamento: 'Regulamento',
     calls: 'Calls do treino', financeiro: 'Financeiro', vendedores: 'Vendedores e comissões',
   }
-  const producerAreaDescriptions: Record<string, string> = {
-    visao: 'Acompanhe as etapas de preparação.', grupos: 'Defina a estrutura das disputas.',
-    equipes: 'Consulte e administre as equipes.', jogadores: 'Confira os atletas participantes.',
-    jogos: 'Organize a programação das partidas.', pontuador: 'Abra o pontuador em outra janela.',
-    estatisticas: 'Consulte a classificação e os resultados.', links: 'Gerencie inscrições e convites.',
-  }
   const finalizedGames = champGames.filter((game) => String(dataText(game, 'status')).toLowerCase() === 'finalizado').length
   const operationalChecklist = selectedChamp ? [
-    { done: Number(dataSummary?.phaseCount || champPhases.length) > 0 && Number(dataSummary?.groupCount || champGroups.length) > 0, title: '1. Fases e grupos', detail: Number(dataSummary?.groupCount || champGroups.length) ? `${dataSummary?.phaseCount || champPhases.length} fase(s), ${dataSummary?.groupCount || champGroups.length} grupo(s).` : 'Defina as fases e a quantidade de vagas de cada grupo.', action: () => setTab('grupos') },
-    { done: Number(dataSummary?.teamCount || props.selectedChampTeams.length) > 0, title: '2. Equipes e elencos', detail: Number(dataSummary?.teamCount || props.selectedChampTeams.length) ? `${dataSummary?.teamCount || props.selectedChampTeams.length} line(s) inscrita(s).` : 'Cadastre ou convide as equipes e confira os jogadores.', action: () => setTab('equipes') },
-    { done: Number(dataSummary?.gameCount || champGames.length) > 0, title: '3. Jogos e quedas', detail: Number(dataSummary?.gameCount || champGames.length) ? `${dataSummary?.gameCount || champGames.length} jogo(s) cadastrado(s).` : 'Escolha os grupos que jogam juntos, os mapas e os horários.', action: () => setTab('jogos') },
-    { done: finalizedGames > 0, title: '4. Pontuação e resultados', detail: 'Abra o pontuador para lançar ou importar cada queda.', action: () => openScorerWindow(selectedChamp!.id) },
+    { done: Number(dataSummary?.phaseCount || champPhases.length) > 0 && Number(dataSummary?.groupCount || champGroups.length) > 0, title: 'Fases e grupos', detail: Number(dataSummary?.groupCount || champGroups.length) ? `${dataSummary?.phaseCount || champPhases.length} fase(s), ${dataSummary?.groupCount || champGroups.length} grupo(s).` : 'Ainda não configurados', action: () => setTab('grupos') },
+    { done: Number(dataSummary?.teamCount || props.selectedChampTeams.length) > 0, title: 'Equipes e elencos', detail: Number(dataSummary?.teamCount || props.selectedChampTeams.length) ? `${dataSummary?.teamCount || props.selectedChampTeams.length} line(s) inscrita(s).` : 'Nenhuma equipe inscrita', action: () => setTab('equipes') },
+    { done: Number(dataSummary?.gameCount || champGames.length) > 0, title: 'Jogos e quedas', detail: Number(dataSummary?.gameCount || champGames.length) ? `${dataSummary?.gameCount || champGames.length} jogo(s) cadastrado(s).` : 'Nenhum jogo cadastrado', action: () => setTab('jogos') },
+    { done: finalizedGames > 0, title: 'Pontuação e resultados', detail: finalizedGames > 0 ? `${finalizedGames} jogo(s) finalizado(s)` : 'Sem resultado finalizado', action: () => openScorerWindow(selectedChamp!.id) },
   ] : []
 
   return (
@@ -1783,7 +1777,7 @@ ${params.url}`
           <section className="championship-nav-card panel producer-command-card">
         <div className="producer-rail-intro">
         <header className="producer-list-heading">
-          <div><h2>Campeonatos</h2><p>Escolha uma competição para organizar equipes, jogos e resultados.</p></div>
+          <div><h2>Campeonatos</h2><p>Selecione um campeonato.</p></div>
           <button type="button" className="button" disabled={produtoraAprovacao !== 'aprovado' || !canCreateChampionship} onClick={() => setShowCreateChamp(true)}><Plus size={16} />Criar campeonato</button>
         </header>
         <label className="producer-mobile-champ-selector">
@@ -1817,7 +1811,7 @@ ${params.url}`
         ) : null}
         </div>
         <div className="producer-rail-results">
-          <div className="producer-rail-results-title"><strong>Na sua produtora</strong><span>{filteredChampionships.length} {filteredChampionships.length === 1 ? 'campeonato' : 'campeonatos'}</span></div>
+          <div className="producer-rail-results-title"><strong>Seus campeonatos</strong><span>{filteredChampionships.length} {filteredChampionships.length === 1 ? 'campeonato' : 'campeonatos'}</span></div>
         {filteredChampionships.length === 0 ? <p className="empty">Nenhum campeonato encontrado. Crie um campeonato ou ajuste os filtros.</p> : null}
         <DataList className="producer-championship-list" aria-label="Seus campeonatos">
           {filteredChampionships.map((champ) => {
@@ -1852,12 +1846,7 @@ ${params.url}`
         <section className="championship-detail-card panel">
         {selectedChamp && championshipDetailOpen ? (
           <>
-            <div className="producer-editor-breadcrumb">
-              <span className="producer-editor-eyebrow">Área de trabalho / campeonato selecionado</span>
-              <button type="button" className="producer-mobile-back" onClick={() => setChampionshipDetailOpen(false)}>Trocar campeonato</button>
-            </div>
             <section className="producer-editor-summary-card" aria-label="Identidade do campeonato selecionado">
-              <span className="producer-module-kicker">01 / CAMPEONATO ATIVO</span>
             <WorkspaceHeader
               className="championship-summary"
               title={rowTitle(selectedChamp)}
@@ -1956,13 +1945,11 @@ ${params.url}`
             />
             </section>
             <section className="producer-editor-metrics-card" aria-label="Indicadores do campeonato">
-              <div className="producer-module-heading"><div><span className="producer-module-kicker">02 / PANORAMA</span><h3>Números do campeonato</h3></div><small>Dados da competição selecionada</small></div>
               <dl className="producer-editor-facts" aria-label="Resumo do campeonato">{stats.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>
             </section>
             <div className="producer-editor-layout">
             <aside className="producer-editor-navigation" aria-label="Seções e ferramentas do campeonato">
             <section className="producer-editor-nav-card" aria-label="Navegar pelas seções">
-              <div className="producer-module-heading"><div><span className="producer-module-kicker">03 / NAVEGAÇÃO</span><h3>Áreas de gestão</h3></div><small>Selecione o que deseja administrar</small></div>
             <ProducerCompetitionNavigation activeId={tab} items={[
                 { id: 'visao', label: 'Organização' },
                 ...(canOperateWorkspace ? [{ id: 'grupos', label: 'Fases e grupos' }] : []),
@@ -1977,42 +1964,30 @@ ${params.url}`
                 else void setTab(id as ProducerTab)
               }} />
             </section>
-            <section className="producer-editor-action-card" aria-label="Ferramentas do campeonato">
-              <div className="producer-module-heading"><div><span className="producer-module-kicker">04 / OPERAÇÃO</span><h3>Ferramentas</h3></div><small>Acesso rápido e configurações</small></div>
-              <div className="producer-editor-action-groups">
-                {(canScoreWorkspace || canOperateWorkspace) ? <div className="producer-editor-action-group">
-                  <span className="producer-action-group-label">Ações rápidas</span>
-                  <div className="producer-editor-quick-actions">
-                    {canScoreWorkspace ? <button type="button" className="button" onClick={() => openScorerWindow(selectedChamp.id)}><ExternalLink size={16} /> Abrir pontuador</button> : null}
-                    {canOperateWorkspace ? <button type="button" className="button secondary" onClick={() => { void setTab('links'); setOpenAction('link') }}><Link2 size={16} /> Receber inscrições</button> : null}
-                  </div>
-                </div> : null}
-                <div className="producer-editor-action-group">
-                  <span className="producer-action-group-label">Regras e ajustes</span>
-            <div className="producer-competition-tools">
-              {canAdminWorkspace ? <button type="button" className="button secondary" onClick={() => startEditChampionship(selectedChamp, 'scoring')}>Regras de pontuação</button> : null}
-              <WorkspaceMoreMenu label="Regras avançadas" activeId={tab} items={[
-                ...(canOperateWorkspace ? [
-                  ...(canAdminWorkspace ? [{ id: 'participacao', label: 'Inscrição, elenco e transferências', detail: 'Prazos, limites e regras de participação do site' }] : []),
-                  { id: 'avancado', label: 'Temporadas, divisões e progressão', detail: 'Edições, classificação entre fases e regras da final' },
-                  { id: 'regulamento', label: 'Regulamento', detail: 'Documento e regras públicas' },
-                  ...(selectedChampType === 'xtreino' ? [{ id: 'calls', label: 'Calls do treino' }] : []),
-                ] : []),
-                ...(canFinanceWorkspace ? [{ id: 'financeiro', label: 'Financeiro do campeonato' }] : []),
-                ...(canCommercialWorkspace ? [{ id: 'vendedores', label: 'Vendedores e comissões' }] : []),
-              ]} onChange={(id) => {
-                if (id === 'participacao') startEditChampionship(selectedChamp, 'operation')
-                else setTab(id as ProducerTab)
-              }} />
+            <div className="producer-editor-action-card" role="toolbar" aria-label="Ações do campeonato">
+              {canScoreWorkspace ? <button type="button" className="button" onClick={() => openScorerWindow(selectedChamp.id)}><ExternalLink size={16} /> Abrir pontuador</button> : null}
+              {canOperateWorkspace ? <button type="button" className="button secondary" onClick={() => { void setTab('links'); setOpenAction('link') }}><Link2 size={16} /> Receber inscrições</button> : null}
+              {(canAdminWorkspace || canOperateWorkspace || canFinanceWorkspace || canCommercialWorkspace) ? <div className="producer-editor-secondary-actions">
+                {canAdminWorkspace ? <button type="button" className="button secondary" onClick={() => startEditChampionship(selectedChamp, 'scoring')}>Regras de pontuação</button> : null}
+                <WorkspaceMoreMenu label="Mais ajustes" activeId={tab} items={[
+                  ...(canOperateWorkspace ? [
+                    ...(canAdminWorkspace ? [{ id: 'participacao', label: 'Inscrição, elenco e transferências', detail: 'Prazos, limites e regras de participação do site' }] : []),
+                    { id: 'avancado', label: 'Temporadas, divisões e progressão', detail: 'Edições, classificação entre fases e regras da final' },
+                    { id: 'regulamento', label: 'Regulamento', detail: 'Documento e regras públicas' },
+                    ...(selectedChampType === 'xtreino' ? [{ id: 'calls', label: 'Calls do treino' }] : []),
+                  ] : []),
+                  ...(canFinanceWorkspace ? [{ id: 'financeiro', label: 'Financeiro do campeonato' }] : []),
+                  ...(canCommercialWorkspace ? [{ id: 'vendedores', label: 'Vendedores e comissões' }] : []),
+                ]} onChange={(id) => {
+                  if (id === 'participacao') startEditChampionship(selectedChamp, 'operation')
+                  else setTab(id as ProducerTab)
+                }} />
+              </div> : null}
             </div>
-                </div>
-              </div>
-            </section>
             </aside>
             <section className="producer-editor-content-card" aria-label="Conteúdo da área de gestão">
               <header className="producer-editor-content-head">
-                <div><span className="producer-module-kicker">05 / ÁREA DE TRABALHO</span><h3>{producerAreaTitles[tab] || 'Gestão do campeonato'}</h3></div>
-                <small>{producerAreaDescriptions[tab] || 'Gerencie esta área do campeonato.'}</small>
+                <h2>{producerAreaTitles[tab] || 'Gestão do campeonato'}</h2>
               </header>
             <div className="champ-tab-body-ref">
               {dataLoading ? <DropzoneLoader label="Carregando dados desta área" /> : dataError ? null : <>
@@ -2020,7 +1995,7 @@ ${params.url}`
                 <div className="championship-overview">
                   <section className="championship-checklist" aria-label="Preparação do campeonato">
                     <div className="section-head">
-                      <div><span className="producer-module-kicker">CONFIGURAÇÃO INICIAL</span><h3>Organização do campeonato</h3></div>
+                      <h3>Preparação</h3>
                       <small>{operationalChecklist.filter(item => item.done).length} de {operationalChecklist.length} etapas iniciadas</small>
                     </div>
                     <div className="producer-checklist-progress" role="progressbar" aria-label="Etapas da preparação iniciadas" aria-valuemin={0} aria-valuemax={operationalChecklist.length} aria-valuenow={operationalChecklist.filter(item => item.done).length}>
@@ -2063,7 +2038,6 @@ ${params.url}`
                 <div className="ref-section-stack">
                   <div className="subtab-actionbar">
                     <div>
-                      <p className="eyebrow">Jogos</p>
                       <h3>Jogos por fase</h3>
                     </div>
                     <button
@@ -2393,9 +2367,7 @@ ${params.url}`
                     ) : null}
                     <div className="subtab-actionbar">
                       <div>
-                        <p className="eyebrow">Financeiro</p>
-                        <h3>Revisões de reembolso e chargeback</h3>
-                        <span>Quando uma vaga paga sofre estorno, o organizador decide se mantém a inscrição ou pede regularização.</span>
+                        <h3>Reembolsos e chargebacks</h3>
                       </div>
                       <button className="button secondary" type="button" disabled={financialLoading} onClick={() => void loadFinancialReviews()}>
                         {financialLoading ? 'Atualizando...' : 'Atualizar'}
@@ -2532,8 +2504,7 @@ ${params.url}`
                   <div className="ref-section-stack seller-tab">
                     <div className="subtab-actionbar">
                       <div>
-                        <p className="eyebrow">Vendedores</p>
-                        <h3>{rowTitle(selectedChamp)}</h3>
+                        <h3>Equipe comercial</h3>
                       </div>
                       <button type="button" className="button" onClick={openInviteForm}>
                         <Plus size={16} /> Convidar
@@ -3025,21 +2996,14 @@ ${params.url}`
 
               {tab === 'links' ? (
                 <div className="ref-section-stack">
-                  <div className="subtab-actionbar">
-                    <div>
-                      <p className="eyebrow">Links</p>
-                      <h3>Entrada de equipes por grupo</h3>
-                      <p className="muted-copy">
-                        Crie um link com limite de vagas. “Equipes esperadas” é opcional e só para controle interno —
-                        o convidado não vê e não precisa escolher nada da lista.
-                      </p>
-                    </div>
-                    <button className="button" onClick={() => toggleAction('link')}>Gerar novo link</button>
+                  <div className="producer-links-command">
+                    <span>Convites por grupo</span>
+                    <button type="button" className="button" onClick={() => toggleAction('link')}>{openAction === 'link' ? 'Fechar' : 'Novo link'}</button>
                   </div>
                   {openAction === 'link' ? (
                     <div className="inline-action-panel">
                       <div className="mini-grid two">
-                        <Field label="Nome interno do link">
+                        <Field label="Nome do link">
                           <UiInput
                             value={props.registrationLink.nome_interno}
                             onChange={(e) =>
@@ -3051,7 +3015,7 @@ ${params.url}`
                             placeholder="Ex.: Vendedor João · Grupo A"
                           />
                         </Field>
-                        <Field label="Grupo do link">
+                        <Field label="Grupo">
                           <UiSelect
                             value={props.registrationLink.grupo_id}
                             onChange={(e) => {
@@ -3080,7 +3044,7 @@ ${params.url}`
                         </Field>
                       </div>
                       <div className="mini-grid two">
-                        <Field label="Máx. de equipes neste link">
+                        <Field label="Limite de equipes">
                           {(() => {
                             const grupoId = props.registrationLink.grupo_id
                             const livres = grupoId ? freeSlotsInGroup(grupoId) : 0
@@ -3111,7 +3075,7 @@ ${params.url}`
                             )
                           })()}
                         </Field>
-                        <Field label="Encerrar em (opcional)">
+                        <Field label="Encerra em (opcional)">
                           <UiInput
                             type="datetime-local"
                             value={props.registrationLink.encerra_em}
@@ -3120,15 +3084,12 @@ ${params.url}`
                         </Field>
                       </div>
 
-                      <div className="link-ref-list-panel">
-                        <div className="link-ref-list-head">
-                          <strong>Equipes esperadas (opcional)</strong>
-                          <small>Controle interno — cole a lista (uma por linha ou separadas por vírgula)</small>
-                        </div>
+                      <details className="producer-links-optional">
+                        <summary>Equipes esperadas (opcional)</summary>
                         <label className="field">
-                          <span>Lista</span>
+                          <span>Lista de equipes</span>
                           <UiTextarea
-                            rows={5}
+                            rows={4}
                             value={props.registrationLink.equipes_esperadas_texto}
                             onChange={(e) =>
                               props.setRegistrationLink({
@@ -3139,14 +3100,9 @@ ${params.url}`
                             placeholder={'TEAM SIX\nALOE\nLOUD, FURIA'}
                           />
                         </label>
-                        <p className="muted-copy" style={{ marginTop: 6 }}>
-                          Não interfere na inscrição. Conforme as equipes usarem o link, o sistema marca quem entrou e com qual line.
-                        </p>
-                      </div>
+                        <small>Somente controle interno. Uma equipe por linha.</small>
+                      </details>
 
-                      <p className="muted-copy">
-                        Ao gerar, copiamos uma mensagem curta com o link para WhatsApp/Discord.
-                      </p>
                       <button
                         className="button"
                         type="button"
@@ -3162,8 +3118,7 @@ ${params.url}`
                   <div className="links-invite-list" data-dz-list="legacy">
                     <div className="section-head compact-head">
                       <div>
-                        <p className="eyebrow">Convites gerados</p>
-                        <h3>Lista de links do campeonato</h3>
+                        <h3>Links criados</h3>
                       </div>
                       <span className="selection-count">
                         {filteredGroupInviteLinks.length}
@@ -3172,36 +3127,28 @@ ${params.url}`
                     </div>
 
                     {groupInviteLinks.length > 0 ? (
-                      <div className="link-status-filters" role="tablist" aria-label="Filtrar links por status">
-                        {([
-                          ['todos', 'Todos'],
-                          ['ativo', 'Ativos'],
-                          ['pausado', 'Pausados'],
-                          ['esgotado', 'Esgotados'],
-                          ['grupo_cheio', 'Grupo cheio'],
-                          ['expirado', 'Expirados'],
-                        ] as const).map(([key, label]) => {
-                          const count = linkFilterCounts[key] ?? 0
-                          if (key !== 'todos' && count === 0) return null
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              role="tab"
-                              aria-selected={linkStatusFilter === key}
-                              className={`link-status-filter ${linkStatusFilter === key ? 'active' : ''}`}
-                              onClick={() => setLinkStatusFilter(key)}
-                            >
-                              {label}
-                              <b>{count}</b>
-                            </button>
-                          )
-                        })}
-                      </div>
+                      <label className="producer-link-filter-select">
+                        Filtrar links
+                        <UiSelect
+                          aria-label="Filtrar links por status"
+                          value={linkStatusFilter}
+                          onChange={(e) => setLinkStatusFilter(e.target.value as typeof linkStatusFilter)}
+                        >
+                          {([
+                            ['todos', 'Todos'],
+                            ['ativo', 'Ativos'],
+                            ['pausado', 'Pausados'],
+                            ['esgotado', 'Esgotados'],
+                            ['grupo_cheio', 'Grupo cheio'],
+                            ['expirado', 'Expirados'],
+                          ] as const).filter(([key]) => key === 'todos' || (linkFilterCounts[key] ?? 0) > 0)
+                            .map(([key, label]) => <option key={key} value={key}>{label} ({linkFilterCounts[key] ?? 0})</option>)}
+                        </UiSelect>
+                      </label>
                     ) : null}
 
                     {groupInviteLinks.length === 0 ? (
-                      <p className="empty">Nenhum link de equipes gerado ainda. Use “Gerar novo link” acima.</p>
+                      <p className="empty">Nenhum link criado. Use “Novo link” acima.</p>
                     ) : filteredGroupInviteLinks.length === 0 ? (
                       <p className="empty">
                         Nenhum link com status “{linkStatusFilter}”.{' '}

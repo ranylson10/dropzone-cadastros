@@ -1089,7 +1089,7 @@ body#dropzone-app .producer-console {
   --producer-r27-rust:#ad3b22;
 }
 body#dropzone-app .producer-console .producer-management-split {gap:18px;align-items:start;}
-body#dropzone-app .producer-console .producer-management-split > .championship-detail-card {display:grid;gap:14px;padding:0 0 32px!important;}
+body#dropzone-app .producer-console .producer-management-split > .championship-detail-card {display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:0 0 24px!important;width:100%;min-width:0;}
 body#dropzone-app .producer-console .producer-championship-sidebar {
   padding:0!important;border:0!important;background:transparent!important;
   display:grid;align-content:start;gap:10px;
@@ -1220,7 +1220,11 @@ body#dropzone-app .producer-console .producer-editor-navigation .producer-compet
   width:auto;min-height:38px;font-size:12px;padding-inline:10px;
 }
 body#dropzone-app .producer-console .producer-editor-navigation .producer-competition-tools .dz-workspace-more {max-width:100%;}
-body#dropzone-app .producer-console .producer-editor-layout {display:grid!important;gap:14px;}
+body#dropzone-app .producer-console .producer-editor-layout {
+  display:flex!important;flex-direction:column;align-items:stretch;
+  gap:12px;width:100%;max-width:100%;min-width:0;
+}
+body#dropzone-app .producer-console .producer-editor-layout > * {width:100%;max-width:100%;min-width:0;flex:0 0 auto;}
 body#dropzone-app .producer-console .producer-editor-content-card {
   padding:0;overflow:visible;min-height:200px;
 }
@@ -1310,4 +1314,98 @@ body#dropzone-app .producer-console .producer-scorer-handoff {background:#efe9dd
   body#dropzone-app .producer-console .producer-checklist-progress span,
   body#dropzone-app .producer-console .championship-checklist .dz-data-select,
   body#dropzone-app .producer-console .producer-championship-list .dz-data-select {transition:none!important;}
+}
+
+/* R28 · Producer console: one full-width horizontal nav, restrained type hierarchy,
+   conditional advanced controls and compact registration forms. */
+body#dropzone-app .producer-console .producer-console-identity {
+  width:100%;max-width:100%;min-width:0;box-sizing:border-box;
+}
+body#dropzone-app .producer-console .producer-management-split {
+  width:100%;min-width:0;align-items:start;
+}
+body#dropzone-app .producer-console .producer-management-split > .championship-detail-card {
+  overflow:visible; min-width:0;
+}
+body#dropzone-app .producer-console .producer-editor-navigation {
+  width:100%;max-width:100%;display:flex;flex-direction:column;
+  align-items:stretch;gap:0;margin:0;padding:0;border:0;
+}
+body#dropzone-app .producer-console .producer-editor-nav-card {
+  width:100%;min-width:0;padding:0 10px!important;overflow:hidden;
+}
+body#dropzone-app .producer-console .producer-tools-horizontal,
+body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav {
+  width:100%;max-width:100%;min-width:0;
+}
+body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav {
+  border-bottom:0!important;
+}
+body#dropzone-app .producer-console .producer-editor-action-card {
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  width:100%;min-width:0;padding:10px 12px!important;
+  background:#f7f4ed!important;border-top:0!important;
+}
+body#dropzone-app .producer-console .producer-editor-action-card > .button {
+  min-height:36px;padding:7px 12px;font-size:12px;
+}
+body#dropzone-app .producer-console .producer-editor-secondary-actions {
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto;
+}
+body#dropzone-app .producer-console .producer-editor-secondary-actions > .button {min-height:36px;font-size:12px;}
+body#dropzone-app .producer-console .producer-editor-secondary-actions .dz-workspace-more {max-width:100%;}
+body#dropzone-app .producer-console .producer-editor-metrics-card {padding:11px 12px!important;}
+body#dropzone-app .producer-console .producer-editor-facts > div {
+  min-height:65px;padding:9px 11px;background:#f1eee6;border:1px solid #e5e0d5;border-top:0;
+}
+body#dropzone-app .producer-console .producer-editor-facts dt {font-size:10px;}
+body#dropzone-app .producer-console .producer-editor-facts dd {font-size:26px;}
+body#dropzone-app .producer-console .producer-editor-summary-card {padding:13px 16px!important;}
+body#dropzone-app .producer-console .producer-editor-summary-card .championship-summary h2 {font-size:clamp(23px,2.1vw,30px);}
+body#dropzone-app .producer-console .producer-editor-content-head {
+  padding:12px 16px;display:block;background:#ece9e1;border-top:2px solid #42443d;
+}
+body#dropzone-app .producer-console .producer-editor-content-head h2 {
+  margin:0;font:750 22px/1.1 var(--font-display),sans-serif;color:var(--producer-r27-ink);
+}
+body#dropzone-app .producer-console .champ-tab-body-ref {padding:14px 16px 18px!important;}
+body#dropzone-app .producer-console .championship-checklist .section-head {margin-bottom:8px;}
+body#dropzone-app .producer-console .championship-checklist .section-head h3 {font-size:17px;}
+body#dropzone-app .producer-console .producer-links-command {
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:10px;margin-bottom:12px;
+}
+body#dropzone-app .producer-console .producer-links-command > span {font-weight:700;font-size:13px;color:#4a4b43;}
+body#dropzone-app .producer-console .producer-links-command > .button {min-height:36px;}
+body#dropzone-app .producer-console .producer-links-optional {
+  border:1px solid #e1dcd1;background:#faf8f3;padding:0 12px;margin:10px 0;
+}
+body#dropzone-app .producer-console .producer-links-optional summary {
+  cursor:pointer;padding:12px 0;font-size:12px;font-weight:700;color:#44483f;
+}
+body#dropzone-app .producer-console .producer-links-optional[open] {padding-bottom:12px;}
+body#dropzone-app .producer-console .producer-links-optional .field {margin-bottom:7px;}
+body#dropzone-app .producer-console .producer-links-optional small {font-size:11px;color:#77736b;}
+body#dropzone-app .producer-console .ref-section-stack > .subtab-actionbar > div > .eyebrow {display:none;}
+@media(max-width:760px) {
+  body#dropzone-app .producer-console .producer-management-split > .championship-detail-card {width:100%;}
+  body#dropzone-app .producer-console .producer-editor-action-card {gap:7px;}
+  body#dropzone-app .producer-console .producer-editor-secondary-actions {margin-left:0;}
+  body#dropzone-app .producer-console .producer-editor-content-head {padding:12px;}
+  body#dropzone-app .producer-console .champ-tab-body-ref {padding:12px!important;}
+  body#dropzone-app .producer-console .producer-tools-horizontal .dz-workspace-nav > :is(button,a) {
+    padding:10px 11px!important;min-height:42px!important;
+  }
+}
+
+body#dropzone-app .producer-console .producer-link-filter-select {
+  display:flex;align-items:center;gap:8px;justify-content:flex-end;
+  margin:0 0 12px;font-size:12px;color:#69665f;font-weight:700;
+}
+body#dropzone-app .producer-console .producer-link-filter-select select {
+  width:auto;min-width:170px;max-width:100%;min-height:36px;margin:0;
+  background:#fff;border:1px solid #d7d0c5;border-radius:3px;font-size:12px;
+}
+@media(max-width:560px) {
+  body#dropzone-app .producer-console .producer-link-filter-select {justify-content:flex-start;}
 }

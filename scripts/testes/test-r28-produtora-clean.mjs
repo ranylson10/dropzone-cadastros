@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const read = (file) => readFileSync(path.join(root,file),'utf8')
+const require = createRequire(import.meta.url)
+const ts = require('typescript')
+const postcss = require('postcss')
+const panelPath='web/features/dropzone/panels/produtora/ProdutoraPanel.tsx'
+const panel=read(panelPath)
+const css=read('web/styles/dropzone-identity.css')
+const source=ts.createSourceFile(panelPath,panel,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX)
+let count=0
+const test=(name,value)=>{assert.ok(value,name);count++}
+test('TSX sem erro de parser',source.parseDiagnostics.length===0)
+test('CSS válido',Boolean(postcss.parse(css)))
+test('continua duas colunas globais com right minmax zero',css.includes('grid-template-columns:minmax(248px,290px) minmax(0,1fr)'))
+test('regra interna equivocada removida',!css.includes('.producer-editor-layout {display:grid!important;gap:14px;}'))
+test('a área interna é flex vertical de largura inteira',css.includes('.producer-editor-layout {\n  display:flex!important;flex-direction:column;align-items:stretch;'))
+test('navegação 100 por cento',css.includes('.producer-editor-nav-card {\n  width:100%;min-width:0;'))
+test('página interna não reduz a largura',css.includes('.producer-management-split > .championship-detail-card {display:flex;flex-direction:column;align-items:stretch;'))
+test('identidade tem 100 por cento',css.includes('.producer-console .producer-console-identity {\n  width:100%;max-width:100%;'))
+test('faixa de seções horizontal rolável',css.includes('overflow-x:auto!important;overflow-y:hidden!important'))
+test('ações em toolbar sem coluna lateral',panel.includes('role="toolbar" aria-label="Ações do campeonato"'))
+test('pontuador abre nova aba',panel.includes("window.open(`/campeonatos/${encodeURIComponent(championshipId)}/pontuador`, '_blank', 'noopener,noreferrer')"))
+test('pontuador protegido por permissão',panel.includes('canScoreWorkspace ? <button type="button" className="button" onClick={() => openScorerWindow(selectedChamp.id)}'))
+test('inscrições protegidas por permissão',panel.includes("canOperateWorkspace ? <button type=\"button\" className=\"button secondary\" onClick={() => { void setTab('links'); setOpenAction('link') }}"))
+test('editar pontuação requer admin',panel.includes("canAdminWorkspace ? <button type=\"button\" className=\"button secondary\" onClick={() => startEditChampionship(selectedChamp, 'scoring')}"))
+test('menu avançado mantido em uma ação compacta',panel.includes('<WorkspaceMoreMenu label="Mais ajustes"'))
+test('não exibe rótulos numéricos 01-05',!['01 / CAMPEONATO','02 / PANORAMA','03 / NAVEGAÇÃO','04 / OPERAÇÃO','05 / ÁREA DE TRABALHO'].some(s=>panel.includes(s)))
+test('não repete subtítulos genéricos',!panel.includes('producerAreaDescriptions[tab]'))
+test('métricas não criam outro título redundante',!panel.includes('<h3>Números do campeonato</h3>'))
+test('resumo mantém dados dinâmicos',panel.includes('stats.map(item =>'))
+test('checklist conserva ações de preparo',panel.includes('onClick={item.action}'))
+test('seletor mobile continua disponível',panel.includes('aria-label="Selecionar campeonato"'))
+test('seções principais continuam autorizadas',panel.includes('ProducerCompetitionNavigation activeId={tab}'))
+test('links têm botão novo e fechar',panel.includes("{openAction === 'link' ? 'Fechar' : 'Novo link'}"))
+test('formulário usa labels curtos', ['Nome do link','Grupo','Limite de equipes','Encerra em (opcional)'].every(s=>panel.includes(`label="${s}"`)))
+test('equipes esperadas ficam recolhidas mas editáveis',panel.includes('<details className="producer-links-optional">') && panel.includes('value={props.registrationLink.equipes_esperadas_texto}'))
+test('envio de link continua ligado à ação original',panel.includes('onClick={() => props.createRegistrationLink()}'))
+test('links continuam listados com status',panel.includes('filteredGroupInviteLinks.map((link)'))
+test('filtro de status virou seletor, não subabas',panel.includes('className="producer-link-filter-select"') && !panel.includes('className="link-status-filters" role="tablist"'))
+test('permissões da produtora continuam',panel.includes('canOperateWorkspace') && panel.includes('canAdminWorkspace') && panel.includes('canCommercialWorkspace'))
+test('sem backend alterado nesta rodada',!panel.includes('r28-migration'))
+console.log(`R28: ${count} verificações de layout, sintaxe, navegação e ações aprovadas.`)
